@@ -1,0 +1,8 @@
+# Core
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+
+# Pydantic stack – nâng lên bản có wheel 3.13
+pydantic==2.9.2
+pydantic-core==2.23.4    # wheel sẵn cho 3.13
+pydantic-settings==2.5.2  # tương thích với pydantic 2.9

@@ -1,0 +1,12 @@
+
+services:
+  template-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: template-service
+    restart: unless-stopped
+    ports:
+      - "${PORT}:8000"
+    env_file:
+      - .env
