@@ -1,1 +1,1 @@
-# Markitdown Server Application
+# Server Application

@@ -1,7 +1,8 @@
 demo/
 desktop.ini
-repomix-output.*
+*repomix*
 cline_mcp_settings.json
+model_cache/
 
 # Environment variables
 .env
