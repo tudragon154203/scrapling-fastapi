@@ -1,1 +1,0 @@
-Refactor before writing tests and make sure tests are run after written
