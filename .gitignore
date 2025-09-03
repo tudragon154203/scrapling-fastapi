@@ -73,3 +73,17 @@ logs/
 *.tmp
 *.temp
 temp/
+
+# Docs
+AGENTS.md
+CLAUDE.md
+.kiro*
+.qwen*
+.roo*
+.kilocode*
+.claude*
+.clinerules*
+.mcp.json
+.playwright-mcp
+.codex*
+GEMINI.md
