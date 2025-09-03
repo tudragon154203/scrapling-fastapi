@@ -22,15 +22,16 @@ def crawl_generic(payload: CrawlRequest) -> CrawlResponse:
     # Resolve inputs with sensible defaults and legacy compat
     wait_selector = payload.wait_selector or payload.x_wait_for_selector
 
-    # timeout in ms can come from new field, or x_wait_time seconds
+    # timeout in ms comes from new field or defaults; legacy x_wait_time maps to "wait" not timeout
     timeout_ms: int = (
         payload.timeout_ms
         if payload.timeout_ms is not None
         else settings.default_timeout_ms
     )
+    wait_ms: Optional[int] = None
     if payload.x_wait_time is not None:
-        # x_wait_time in seconds -> ms
-        timeout_ms = int(payload.x_wait_time * 1000)
+        # x_wait_time in seconds -> ms (fixed delay before capture)
+        wait_ms = int(payload.x_wait_time * 1000)
 
     # headless logic: prefer explicit value; legacy x_force_headful wins if set
     headless: bool = (
@@ -55,6 +56,7 @@ def crawl_generic(payload: CrawlRequest) -> CrawlResponse:
             wait_selector=wait_selector,
             wait_selector_state=payload.wait_selector_state,
             timeout=timeout_ms,
+            wait=wait_ms or 0,
         )
 
         if getattr(page, "status", None) == 200:
