@@ -49,24 +49,25 @@ project-template/
 ### Local Development
 
 1. Clone the repository:
+
    ```bash
    git clone <repository-url>
    cd project-template
    ```
-
 2. Create a virtual environment:
+
    ```bash
    python -m venv venv
    source venv/bin/activate  # On Windows: venv\Scripts\activate
    ```
-
 3. Install dependencies:
+
    ```bash
    pip install -r requirements.txt
    ```
-
 4. Configure environment variables:
    Copy `.env.example` to `.env` and modify as needed:
+
    ```bash
    cp .env.example .env
    ```
@@ -74,10 +75,10 @@ project-template/
 ### Using Docker
 
 1. Build and run with Docker Compose:
+
    ```bash
    docker-compose up --build
    ```
-
 2. The application will be available at `http://localhost:8001`
 
 ## Running the Application
@@ -111,25 +112,30 @@ To use this template for your own project:
 ## Project Layers
 
 ### API Layer (`app/api/`)
+
 Contains HTTP endpoints and routing definitions.
 
 ### Core Layer (`app/core/`)
+
 Contains configuration and application setup code.
 
 ### Middleware Layer (`app/middleware/`)
+
 Contains custom middleware components.
 
 ### Schemas Layer (`app/schemas/`)
+
 Contains Pydantic models for data validation.
 
 ### Services Layer (`app/services/`)
+
 Contains business logic and service implementations.
 
 ## Docker Configuration
 
 The template includes a multi-stage Dockerfile and docker-compose.yml for containerized deployment:
 
-- Uses Python 3.13 Bookworm as base image
+- Uses Python 3.10 Bookworm as base image
 - Installs dependencies in a separate layer for better caching
 - Exposes port 8001
 - Includes health check configuration
