@@ -21,7 +21,8 @@ def crawl_single_attempt(payload: CrawlRequest) -> CrawlResponse:
         StealthyFetcher.adaptive = True
 
         options = _resolve_effective_options(payload, settings)
-        additional_args, extra_headers = _build_camoufox_args(payload, settings)
+        caps = _detect_fetch_capabilities(StealthyFetcher.fetch)
+        additional_args, extra_headers = _build_camoufox_args(payload, settings, caps)
 
         caps = _detect_fetch_capabilities(StealthyFetcher.fetch)
         if not caps.get("proxy"):

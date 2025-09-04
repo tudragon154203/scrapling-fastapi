@@ -52,22 +52,33 @@ def _resolve_effective_options(payload: CrawlRequest, settings) -> Dict[str, Any
     )
 
 
-def _build_camoufox_args(payload: CrawlRequest, settings) -> Tuple[Dict[str, Any], Optional[Dict[str, str]]]:
+def _build_camoufox_args(payload: CrawlRequest, settings, caps: Dict[str, bool]) -> Tuple[Dict[str, Any], Optional[Dict[str, str]]]:
     """Build Camoufox additional_args and optional extra headers from settings/payload."""
     additional_args: Dict[str, Any] = {}
 
+    # User data directory with parameter detection
     if payload.x_force_user_data is True and settings.camoufox_user_data_dir:
-        try:
-            os.makedirs(settings.camoufox_user_data_dir, exist_ok=True)
-        except Exception:
-            pass
-        else:
-            additional_args["user_data_dir"] = settings.camoufox_user_data_dir
+        user_data_param = None
+        for param in ("user_data_dir", "profile_dir", "profile_path", "user_data"):
+            if caps.get(param, False):
+                user_data_param = param
+                break
+        if user_data_param:
+            try:
+                os.makedirs(settings.camoufox_user_data_dir, exist_ok=True)
+            except Exception:
+                pass
+            else:
+                additional_args[user_data_param] = settings.camoufox_user_data_dir
 
     if getattr(settings, "camoufox_disable_coop", False):
         additional_args["disable_coop"] = True
     if getattr(settings, "camoufox_virtual_display", None):
         additional_args["virtual_display"] = settings.camoufox_virtual_display
+
+    # Solve Cloudflare is provided via additional_args when supported by StealthyFetcher
+    # Gatekeeping happens later when passing additional_args based on capabilities
+    additional_args["solve_cloudflare"] = True
 
     extra_headers: Optional[Dict[str, str]] = None
     if getattr(settings, "camoufox_locale", None):
@@ -79,4 +90,3 @@ def _build_camoufox_args(payload: CrawlRequest, settings) -> Tuple[Dict[str, Any
         additional_args["window"] = win
 
     return additional_args, extra_headers
-

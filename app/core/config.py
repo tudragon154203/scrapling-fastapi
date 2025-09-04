@@ -37,7 +37,7 @@ try:
         private_proxy_url: Optional[str] = Field(default=None)
         proxy_rotation_mode: str = Field(default="sequential")
         proxy_health_failure_threshold: int = Field(default=2)
-        proxy_unhealthy_cooldown_ms: int = Field(default=1_800_000)
+        proxy_unhealthy_cooldown_minute: int = Field(default=30)
         
         # Camoufox user data directory (single profile dir)
         camoufox_user_data_dir: Optional[str] = Field(default=None)
@@ -83,7 +83,7 @@ except Exception:
         private_proxy_url: Optional[str] = None
         proxy_rotation_mode: str = "sequential"
         proxy_health_failure_threshold: int = 2
-        proxy_unhealthy_cooldown_ms: int = 1_800_000
+        proxy_unhealthy_cooldown_minute: int = 30
         
         # Camoufox user data directory (single profile dir)
         camoufox_user_data_dir: Optional[str] = None
@@ -113,7 +113,7 @@ except Exception:
             private_proxy_url=os.getenv("PRIVATE_PROXY_URL"),
             proxy_rotation_mode=os.getenv("PROXY_ROTATION_MODE", "sequential"),
             proxy_health_failure_threshold=int(os.getenv("PROXY_HEALTH_FAILURE_THRESHOLD", "2")),
-            proxy_unhealthy_cooldown_ms=int(os.getenv("PROXY_UNHEALTHY_COOLDOWN_MS", "1800000")),
+            proxy_unhealthy_cooldown_minute=int(os.getenv("PROXY_UNHEALTHY_COOLDOWN_MINUTE", "30")),
             camoufox_user_data_dir=os.getenv("CAMOUFOX_USER_DATA_DIR"),
             camoufox_locale=os.getenv("CAMOUFOX_LOCALE"),
             camoufox_window=os.getenv("CAMOUFOX_WINDOW"),

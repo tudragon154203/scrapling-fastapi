@@ -30,7 +30,7 @@ Goal: enable real proxy usage in the crawler, honor rotation mode, and add light
 Add the following settings to `app/core/config.py` with env bindings:
 
 - proxy_health_failure_threshold (`PROXY_HEALTH_FAILURE_THRESHOLD`): int, default `2`.
-- proxy_unhealthy_cooldown_ms (`PROXY_UNHEALTHY_COOLDOWN_MS`): int, default `1_800_000` (30 minutes).
+- proxy_unhealthy_cooldown_minute (`PROXY_UNHEALTHY_COOLDOWN_MINUTE`): int, default `30` (30 minutes).
 
 Notes:
 - Threshold counts consecutive failures per proxy (exceptions or non-2xx). Threshold reached -> mark unhealthy until now + cooldown duration.

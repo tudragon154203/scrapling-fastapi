@@ -36,9 +36,6 @@ def execute_crawl_with_retries(payload: CrawlRequest) -> CrawlResponse:
     if getattr(settings, "private_proxy_url", None):
         candidates.append(settings.private_proxy_url)
 
-    options = _resolve_effective_options(payload, settings)
-    additional_args, extra_headers = _build_camoufox_args(payload, settings)
-
     last_error = None
 
     try:
@@ -46,6 +43,9 @@ def execute_crawl_with_retries(payload: CrawlRequest) -> CrawlResponse:
 
         StealthyFetcher.adaptive = True
         caps = _detect_fetch_capabilities(StealthyFetcher.fetch)
+
+        options = _resolve_effective_options(payload, settings)
+        additional_args, extra_headers = _build_camoufox_args(payload, settings, caps)
         if not caps.get("proxy"):
             logger.warning(
                 "StealthyFetcher.fetch does not support proxy parameter, continuing without proxy"

@@ -20,6 +20,11 @@ def _detect_fetch_capabilities(fetch_callable) -> Dict[str, bool]:
         geoip=_ok("geoip"),
         extra_headers=_ok("extra_headers"),
         additional_args=_ok("additional_args"),
+        solve_cloudflare=_ok("solve_cloudflare"),
+        user_data_dir=_ok("user_data_dir"),
+        profile_dir=_ok("profile_dir"),
+        profile_path=_ok("profile_path"),
+        user_data=_ok("user_data"),
     )
 
 
