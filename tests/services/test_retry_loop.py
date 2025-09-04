@@ -50,6 +50,7 @@ def _mock_settings(max_retries=3):
     settings.default_headless = True
     settings.default_network_idle = False
     settings.default_timeout_ms = 2000
+    settings.min_html_content_length = 1
 
     return settings
 

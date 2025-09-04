@@ -89,6 +89,7 @@ def _mock_settings_with_proxy(private_proxy_url="socks5://127.0.0.1:1080"):
     settings.default_timeout_ms = 2000
     settings.proxy_health_failure_threshold = 2
     settings.proxy_unhealthy_cooldown_minute = 1
+    settings.min_html_content_length = 1
     return settings
 
 

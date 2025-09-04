@@ -38,6 +38,9 @@ try:
         proxy_rotation_mode: str = Field(default="sequential")
         proxy_health_failure_threshold: int = Field(default=2)
         proxy_unhealthy_cooldown_minute: int = Field(default=30)
+
+        # Content validation
+        min_html_content_length: int = Field(default=500)
         
         # Camoufox user data directory (single profile dir)
         camoufox_user_data_dir: Optional[str] = Field(default=None)
@@ -84,7 +87,7 @@ except Exception:
         proxy_rotation_mode: str = "sequential"
         proxy_health_failure_threshold: int = 2
         proxy_unhealthy_cooldown_minute: int = 30
-        
+
         # Camoufox user data directory (single profile dir)
         camoufox_user_data_dir: Optional[str] = None
         # Camoufox stealth extras
@@ -93,6 +96,9 @@ except Exception:
         camoufox_disable_coop: bool = False
         camoufox_geoip: bool = True
         camoufox_virtual_display: Optional[str] = None
+
+        # Content validation
+        min_html_content_length: int = 500
 
     @lru_cache()
     def get_settings() -> "Settings":
@@ -121,4 +127,5 @@ except Exception:
             in {"1", "true", "yes"},
             camoufox_geoip=os.getenv("CAMOUFOX_GEOIP", "true").lower() in {"1", "true", "yes"},
             camoufox_virtual_display=os.getenv("CAMOUFOX_VIRTUAL_DISPLAY"),
+            min_html_content_length=int(os.getenv("MIN_HTML_CONTENT_LENGTH", "500")),
         )

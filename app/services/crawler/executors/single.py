@@ -48,7 +48,12 @@ def crawl_single_attempt(payload: CrawlRequest) -> CrawlResponse:
 
         if getattr(page, "status", None) == 200:
             html = getattr(page, "html_content", None)
-            return CrawlResponse(status="success", url=payload.url, html=html)
+            min_len = int(getattr(settings, "min_html_content_length", 500) or 0)
+            if html and len(html) >= min_len:
+                return CrawlResponse(status="success", url=payload.url, html=html)
+            else:
+                msg = f"HTML too short (<{min_len} chars); suspected bot detection"
+                return CrawlResponse(status="failure", url=payload.url, html=None, message=msg)
         else:
             return CrawlResponse(
                 status="failure",
@@ -69,7 +74,17 @@ def crawl_single_attempt(payload: CrawlRequest) -> CrawlResponse:
         if ("Playwright" in msg) or ("asyncio loop" in msg) or ("Async API" in msg):
             fallback = _simple_http_fetch(str(payload.url), timeout_ms=options["timeout_ms"], extra_headers=extra_headers)
             if int(fallback.get("status", 0)) == 200 and fallback.get("html_content"):
-                return CrawlResponse(status="success", url=payload.url, html=fallback.get("html_content"))
+                html = fallback.get("html_content")
+                min_len = int(getattr(settings, "min_html_content_length", 500) or 0)
+                if html and len(html) >= min_len:
+                    return CrawlResponse(status="success", url=payload.url, html=html)
+                else:
+                    return CrawlResponse(
+                        status="failure",
+                        url=payload.url,
+                        html=None,
+                        message=f"HTML too short (<{min_len} chars) via fallback",
+                    )
         return CrawlResponse(
             status="failure",
             url=payload.url,

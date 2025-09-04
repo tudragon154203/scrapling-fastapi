@@ -36,7 +36,16 @@ def _resolve_effective_options(payload: CrawlRequest, settings) -> Dict[str, Any
 
     headless: bool = payload.headless if payload.headless is not None else settings.default_headless
     if payload.x_force_headful is True:
-        headless = False
+        try:
+            import platform  # local import to avoid module-level cost
+            if platform.system().lower() == "windows":
+                headless = False
+            else:
+                # On non-Windows, ignore headful request per legacy behavior
+                pass
+        except Exception:
+            # If platform detection fails, fall back to forcing headful
+            headless = False
 
     network_idle: bool = (
         payload.network_idle if payload.network_idle is not None else settings.default_network_idle

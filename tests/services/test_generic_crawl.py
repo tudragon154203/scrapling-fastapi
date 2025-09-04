@@ -42,6 +42,7 @@ def test_generic_crawl_with_max_retries_one(monkeypatch):
         default_headless = True
         default_network_idle = False
         default_timeout_ms = 5000
+        min_html_content_length = 1
 
     monkeypatch.setattr("app.core.config.get_settings", lambda: MockSettings())
 
@@ -76,6 +77,7 @@ def test_generic_crawl_with_max_retries_greater_than_one(monkeypatch):
         default_headless = True
         default_network_idle = False
         default_timeout_ms = 5000
+        min_html_content_length = 1
 
     monkeypatch.setattr("app.core.config.get_settings", lambda: MockSettings())
     calls = _install_fake_scrapling(monkeypatch, side_effects=[200])
@@ -105,6 +107,7 @@ def test_user_data_with_supported_param(monkeypatch):
         default_network_idle = False
         default_timeout_ms = 5000
         camoufox_user_data_dir = "/tmp/test_user_data"
+        min_html_content_length = 1
 
     monkeypatch.setattr("app.core.config.get_settings", lambda: MockSettings())
 
@@ -163,6 +166,7 @@ def test_user_data_without_env_var(monkeypatch):
         default_network_idle = False
         default_timeout_ms = 5000
         camoufox_user_data_dir = None
+        min_html_content_length = 1
 
     monkeypatch.setattr("app.core.config.get_settings", lambda: MockSettings())
     calls = _install_fake_scrapling(monkeypatch, side_effects=[200])
@@ -188,6 +192,7 @@ def test_user_data_unsupported_param(monkeypatch):
         default_network_idle = False
         default_timeout_ms = 5000
         camoufox_user_data_dir = "/tmp/test_user_data"
+        min_html_content_length = 1
 
     monkeypatch.setattr("app.core.config.get_settings", lambda: MockSettings())
 
