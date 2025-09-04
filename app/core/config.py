@@ -42,6 +42,9 @@ try:
         # Content validation
         min_html_content_length: int = Field(default=500)
         
+        # Allow HTTP-only fallback on non-200/short HTML
+        http_fallback_on_failure: bool = Field(default=False)
+        
         # Camoufox user data directory (single profile dir)
         camoufox_user_data_dir: Optional[str] = Field(default=None)
 
@@ -99,6 +102,8 @@ except Exception:
 
         # Content validation
         min_html_content_length: int = 500
+        # Allow HTTP-only fallback on non-200/short HTML
+        http_fallback_on_failure: bool = False
 
     @lru_cache()
     def get_settings() -> "Settings":
@@ -128,4 +133,5 @@ except Exception:
             camoufox_geoip=os.getenv("CAMOUFOX_GEOIP", "true").lower() in {"1", "true", "yes"},
             camoufox_virtual_display=os.getenv("CAMOUFOX_VIRTUAL_DISPLAY"),
             min_html_content_length=int(os.getenv("MIN_HTML_CONTENT_LENGTH", "500")),
+            http_fallback_on_failure=os.getenv("HTTP_FALLBACK_ON_FAILURE", "false").lower() in {"1", "true", "yes"},
         )

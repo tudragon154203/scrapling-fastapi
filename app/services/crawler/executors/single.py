@@ -53,9 +53,24 @@ def crawl_single_attempt(payload: CrawlRequest, page_action: Optional[Callable] 
             if html and len(html) >= min_len:
                 return CrawlResponse(status="success", url=payload.url, html=html)
             else:
+                # Attempt lightweight HTTP fallback only when enabled via settings
+                if getattr(settings, "http_fallback_on_failure", False):
+                    fallback = _simple_http_fetch(str(payload.url), timeout_ms=options["timeout_ms"], extra_headers=extra_headers)
+                    if int(fallback.get("status", 0)) == 200 and fallback.get("html_content"):
+                        fhtml = fallback.get("html_content")
+                        if fhtml and len(fhtml) >= min_len:
+                            return CrawlResponse(status="success", url=payload.url, html=fhtml)
                 msg = f"HTML too short (<{min_len} chars); suspected bot detection"
                 return CrawlResponse(status="failure", url=payload.url, html=None, message=msg)
         else:
+            # Non-200 from primary fetch; attempt lightweight HTTP fallback only when enabled
+            if getattr(settings, "http_fallback_on_failure", False):
+                fallback = _simple_http_fetch(str(payload.url), timeout_ms=options["timeout_ms"], extra_headers=extra_headers)
+                if int(fallback.get("status", 0)) == 200 and fallback.get("html_content"):
+                    fhtml = fallback.get("html_content")
+                    min_len = int(getattr(settings, "min_html_content_length", 500) or 0)
+                    if fhtml and len(fhtml) >= min_len:
+                        return CrawlResponse(status="success", url=payload.url, html=fhtml)
             return CrawlResponse(
                 status="failure",
                 url=payload.url,
@@ -70,9 +85,12 @@ def crawl_single_attempt(payload: CrawlRequest, page_action: Optional[Callable] 
                 html=None,
                 message="Scrapling library not available",
             )
-        # Attempt a very small HTTP-only fallback to handle Playwright sync-in-async errors
+        # Attempt a very small HTTP-only fallback when enabled or for known Playwright issues
         msg = f"{type(e).__name__}: {e}"
-        if ("Playwright" in msg) or ("asyncio loop" in msg) or ("Async API" in msg):
+        should_http_fallback = getattr(settings, "http_fallback_on_failure", False) or (
+            ("Playwright" in msg) or ("asyncio loop" in msg) or ("Async API" in msg)
+        )
+        if should_http_fallback:
             fallback = _simple_http_fetch(str(payload.url), timeout_ms=options["timeout_ms"], extra_headers=extra_headers)
             if int(fallback.get("status", 0)) == 200 and fallback.get("html_content"):
                 html = fallback.get("html_content")

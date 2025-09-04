@@ -128,6 +128,16 @@ def execute_crawl_with_retries(payload: CrawlRequest, page_action: Optional[Call
                         logger.info(f"Attempt {attempt_count+1} outcome: success")
                         return CrawlResponse(status="success", url=payload.url, html=html)
                     else:
+                        # Try lightweight HTTP fallback before counting failure when enabled
+                        if getattr(settings, "http_fallback_on_failure", False):
+                            fallback = _simple_http_fetch(str(payload.url), timeout_ms=options["timeout_ms"], extra_headers=extra_headers)
+                            if int(fallback.get("status", 0)) == 200 and fallback.get("html_content"):
+                                fhtml = fallback.get("html_content")
+                                if fhtml and len(fhtml) >= min_len:
+                                    if selected_proxy:
+                                        health_tracker[selected_proxy] = {"failures": 0, "unhealthy_until": 0}
+                                    logger.info(f"Attempt {attempt_count+1} fallback: success via simple HTTP")
+                                    return CrawlResponse(status="success", url=payload.url, html=fhtml)
                         last_error = f"HTML too short (<{min_len} chars)"
                         if selected_proxy:
                             ht = health_tracker.setdefault(selected_proxy, {"failures": 0, "unhealthy_until": 0})
@@ -138,6 +148,17 @@ def execute_crawl_with_retries(payload: CrawlRequest, page_action: Optional[Call
                         logger.info(f"Attempt {attempt_count+1} outcome: failure - {last_error}")
                 else:
                     last_status = getattr(page, "status", None)
+                    # Try lightweight HTTP fallback on non-200 when enabled
+                    if getattr(settings, "http_fallback_on_failure", False):
+                        fallback = _simple_http_fetch(str(payload.url), timeout_ms=options["timeout_ms"], extra_headers=extra_headers)
+                        if int(fallback.get("status", 0)) == 200 and fallback.get("html_content"):
+                            min_len = int(getattr(settings, "min_html_content_length", 500) or 0)
+                            fhtml = fallback.get("html_content")
+                            if fhtml and len(fhtml) >= min_len:
+                                if selected_proxy:
+                                    health_tracker[selected_proxy] = {"failures": 0, "unhealthy_until": 0}
+                                logger.info(f"Attempt {attempt_count+1} fallback: success via simple HTTP (non-200 primary)")
+                                return CrawlResponse(status="success", url=payload.url, html=fhtml)
                     last_error = f"Non-200 status: {last_status}"
                     if selected_proxy:
                         ht = health_tracker.setdefault(selected_proxy, {"failures": 0, "unhealthy_until": 0})
@@ -156,8 +177,8 @@ def execute_crawl_with_retries(payload: CrawlRequest, page_action: Optional[Call
                         logger.info(f"Proxy {redacted_proxy} marked unhealthy")
                 logger.info(f"Attempt {attempt_count+1} outcome: failure - {last_error}")
 
-                # Lightweight HTTP-only fallback for environments where Playwright sync API cannot be used
-                if ("Playwright" in last_error) or ("asyncio loop" in last_error) or ("Async API" in last_error):
+                # Lightweight HTTP-only fallback for environments where Playwright is problematic, or when enabled
+                if ("Playwright" in last_error) or ("asyncio loop" in last_error) or ("Async API" in last_error) or getattr(settings, "http_fallback_on_failure", False):
                     fallback = _simple_http_fetch(str(payload.url), timeout_ms=options["timeout_ms"], extra_headers=extra_headers)
                     if int(fallback.get("status", 0)) == 200 and fallback.get("html_content"):
                         min_len = int(getattr(settings, "min_html_content_length", 500) or 0)
