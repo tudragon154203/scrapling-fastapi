@@ -54,7 +54,7 @@ def _mock_settings_random(proxy_file, private_proxy_url=None, max_retries=5, thr
     s.default_network_idle = False
     s.default_timeout_ms = 2000
     s.proxy_health_failure_threshold = threshold
-    s.proxy_unhealthy_cooldown_ms = 60_000
+    s.proxy_unhealthy_cooldown_minute = 1
     return s
 
 

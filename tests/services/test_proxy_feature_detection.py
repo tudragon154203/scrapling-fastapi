@@ -57,7 +57,7 @@ def _mock_settings_no_proxy():
     s.default_network_idle = False
     s.default_timeout_ms = 2000
     s.proxy_health_failure_threshold = 2
-    s.proxy_unhealthy_cooldown_ms = 1000
+    s.proxy_unhealthy_cooldown_minute = 1
     return s
 
 

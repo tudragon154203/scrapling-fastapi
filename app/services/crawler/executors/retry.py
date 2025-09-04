@@ -7,7 +7,7 @@ import app.core.config as app_config
 from app.schemas.crawl import CrawlRequest, CrawlResponse
 
 from ..utils.options import _resolve_effective_options, _build_camoufox_args
-from ..utils.fetch import _detect_fetch_capabilities, _compose_fetch_kwargs
+from ..utils.fetch import _detect_fetch_capabilities, _compose_fetch_kwargs, _simple_http_fetch
 from ..utils.proxy import (
     health_tracker,
     _redact_proxy,
@@ -131,7 +131,7 @@ def execute_crawl_with_retries(payload: CrawlRequest) -> CrawlResponse:
                         ht = health_tracker.setdefault(selected_proxy, {"failures": 0, "unhealthy_until": 0})
                         ht["failures"] += 1
                         if ht["failures"] >= settings.proxy_health_failure_threshold:
-                            ht["unhealthy_until"] = time.time() + settings.proxy_unhealthy_cooldown_ms / 1000
+                            ht["unhealthy_until"] = time.time() + settings.proxy_unhealthy_cooldown_minute * 60
                             logger.info(f"Proxy {redacted_proxy} marked unhealthy")
                     logger.info(f"Attempt {attempt_count+1} outcome: failure - {last_error}")
             except Exception as e:
@@ -140,9 +140,16 @@ def execute_crawl_with_retries(payload: CrawlRequest) -> CrawlResponse:
                     ht = health_tracker.setdefault(selected_proxy, {"failures": 0, "unhealthy_until": 0})
                     ht["failures"] += 1
                     if ht["failures"] >= settings.proxy_health_failure_threshold:
-                        ht["unhealthy_until"] = time.time() + settings.proxy_unhealthy_cooldown_ms / 1000
+                        ht["unhealthy_until"] = time.time() + settings.proxy_unhealthy_cooldown_minute * 60
                         logger.info(f"Proxy {redacted_proxy} marked unhealthy")
                 logger.info(f"Attempt {attempt_count+1} outcome: failure - {last_error}")
+
+                # Lightweight HTTP-only fallback for environments where Playwright sync API cannot be used
+                if ("Playwright" in last_error) or ("asyncio loop" in last_error) or ("Async API" in last_error):
+                    fallback = _simple_http_fetch(str(payload.url), timeout_ms=options["timeout_ms"], extra_headers=extra_headers)
+                    if int(fallback.get("status", 0)) == 200 and fallback.get("html_content"):
+                        logger.info(f"Attempt {attempt_count+1} fallback: success via simple HTTP")
+                        return CrawlResponse(status="success", url=payload.url, html=fallback.get("html_content"))
 
             attempt_count += 1
             last_used_proxy = selected_proxy

@@ -1,5 +1,7 @@
 import inspect
 from typing import Dict, Any, Optional
+from urllib import request as urllib_request
+from urllib.error import URLError, HTTPError
 
 
 def _detect_fetch_capabilities(fetch_callable) -> Dict[str, bool]:
@@ -59,3 +61,56 @@ def _compose_fetch_kwargs(
 
     return fetch_kwargs
 
+
+
+def _simple_http_fetch(url: str, timeout_ms: int, extra_headers: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
+    """Very small fallback HTTP fetcher using stdlib urllib.
+
+    Returns a dict with keys: status (int) and html_content (str|None).
+    Intended only as a last-resort when Playwright/StealthyFetcher cannot run
+    (e.g., sync API used inside an asyncio loop).
+    """
+    headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/124.0 Safari/537.36"
+        )
+    }
+    if extra_headers:
+        headers.update({k: v for k, v in extra_headers.items() if isinstance(k, str) and isinstance(v, str)})
+
+    req = urllib_request.Request(url, headers=headers, method="GET")
+    timeout = max(1.0, float(timeout_ms) / 1000.0)
+
+    try:
+        with urllib_request.urlopen(req, timeout=timeout) as resp:  # nosec B310
+            status = getattr(resp, "status", 200)
+            content_type = resp.headers.get("Content-Type", "")
+            charset = None
+            try:
+                # email.message.Message supports get_content_charset in 3.10
+                charset = resp.headers.get_content_charset()  # type: ignore[attr-defined]
+            except Exception:
+                charset = None
+            data = resp.read()
+            if not charset:
+                if "charset=" in content_type:
+                    charset = content_type.split("charset=", 1)[-1].split(";")[0].strip()
+                else:
+                    charset = "utf-8"
+            try:
+                html = data.decode(charset, errors="ignore")
+            except Exception:
+                html = data.decode("utf-8", errors="ignore")
+            return {"status": int(status or 200), "html_content": html}
+    except HTTPError as e:
+        try:
+            body = e.read().decode("utf-8", errors="ignore")
+        except Exception:
+            body = None
+        return {"status": int(e.code), "html_content": body}
+    except URLError:
+        return {"status": 0, "html_content": None}
+    except Exception:
+        return {"status": 0, "html_content": None}

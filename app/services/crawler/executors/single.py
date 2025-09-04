@@ -5,7 +5,7 @@ import app.core.config as app_config
 from app.schemas.crawl import CrawlRequest, CrawlResponse
 
 from ..utils.options import _resolve_effective_options, _build_camoufox_args
-from ..utils.fetch import _detect_fetch_capabilities, _compose_fetch_kwargs
+from ..utils.fetch import _detect_fetch_capabilities, _compose_fetch_kwargs, _simple_http_fetch
 
 
 logger = logging.getLogger(__name__)
@@ -15,12 +15,15 @@ def crawl_single_attempt(payload: CrawlRequest) -> CrawlResponse:
     """Single-attempt crawl using StealthyFetcher (no retry)."""
     settings = app_config.get_settings()
 
+    # Resolve options and potential lightweight headers early so we can fallback if needed
+    options = _resolve_effective_options(payload, settings)
+    additional_args, extra_headers = _build_camoufox_args(payload, settings, caps={})
+
     try:
         from scrapling.fetchers import StealthyFetcher  # type: ignore
 
         StealthyFetcher.adaptive = True
 
-        options = _resolve_effective_options(payload, settings)
         caps = _detect_fetch_capabilities(StealthyFetcher.fetch)
         additional_args, extra_headers = _build_camoufox_args(payload, settings, caps)
 
@@ -61,6 +64,12 @@ def crawl_single_attempt(payload: CrawlRequest) -> CrawlResponse:
                 html=None,
                 message="Scrapling library not available",
             )
+        # Attempt a very small HTTP-only fallback to handle Playwright sync-in-async errors
+        msg = f"{type(e).__name__}: {e}"
+        if ("Playwright" in msg) or ("asyncio loop" in msg) or ("Async API" in msg):
+            fallback = _simple_http_fetch(str(payload.url), timeout_ms=options["timeout_ms"], extra_headers=extra_headers)
+            if int(fallback.get("status", 0)) == 200 and fallback.get("html_content"):
+                return CrawlResponse(status="success", url=payload.url, html=fallback.get("html_content"))
         return CrawlResponse(
             status="failure",
             url=payload.url,

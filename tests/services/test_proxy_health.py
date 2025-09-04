@@ -54,7 +54,7 @@ def _mock_settings_health(proxy_list_file_path, private_proxy_url="socks5://127.
     settings.default_network_idle = False
     settings.default_timeout_ms = 2000
     settings.proxy_health_failure_threshold = 2  # Low for testing
-    settings.proxy_unhealthy_cooldown_ms = 1000  # 1 second for testing
+    settings.proxy_unhealthy_cooldown_minute = 1  # 1 minute for testing
     return settings
 
 
@@ -100,7 +100,7 @@ def test_proxy_marked_unhealthy_after_n_failures(monkeypatch):
         assert proxy_url in health_tracker
         ht = health_tracker[proxy_url]
         assert ht["failures"] == 2  # Threshold reached, marked unhealthy
-        assert ht["unhealthy_until"] == 1000.0 + settings.proxy_unhealthy_cooldown_ms / 1000
+        assert ht["unhealthy_until"] == 1000.0 + settings.proxy_unhealthy_cooldown_minute * 60
 
     finally:
         os.unlink(proxy_file)
