@@ -15,7 +15,7 @@ def make_stub_response(status=200, html="<html>ok</html>"):
 
 def test_retry_strategy_backoff_calculation():
     """Test that backoff delay is calculated correctly."""
-    from app.services.crawler.generic import _calculate_backoff_delay
+    from app.services.crawler.executors.retry import _calculate_backoff_delay
     
     # Create a mock settings object
     class MockSettings:
@@ -43,7 +43,7 @@ def test_retry_strategy_backoff_calculation():
 
 def test_proxy_plan_order_no_proxies():
     """Test proxy plan order when no proxies are configured."""
-    from app.services.crawler.generic import _build_attempt_plan
+    from app.services.crawler.utils.proxy import _build_attempt_plan
 
     # Mock settings with no proxies
     class MockSettings:
@@ -62,7 +62,7 @@ def test_proxy_plan_order_no_proxies():
 
 def test_proxy_plan_order_with_public_proxies():
     """Test proxy plan order with public proxies configured."""
-    from app.services.crawler.generic import _build_attempt_plan
+    from app.services.crawler.utils.proxy import _build_attempt_plan
 
     # Mock settings with public proxies
     class MockSettings:
@@ -90,7 +90,7 @@ def test_proxy_plan_order_with_public_proxies():
 
 def test_proxy_plan_order_with_private_proxy():
     """Test proxy plan order with private proxy configured."""
-    from app.services.crawler.generic import _build_attempt_plan
+    from app.services.crawler.utils.proxy import _build_attempt_plan
 
     # Mock settings with private proxy
     class MockSettings:
@@ -115,7 +115,7 @@ def test_proxy_plan_order_with_private_proxy():
 
 def test_load_public_proxies_file_not_found():
     """Test loading public proxies when file doesn't exist."""
-    from app.services.crawler.generic import _load_public_proxies
+    from app.services.crawler.utils.proxy import _load_public_proxies
     
     proxies = _load_public_proxies("/non/existent/file.txt")
     assert proxies == []
@@ -123,7 +123,7 @@ def test_load_public_proxies_file_not_found():
 
 def test_load_public_proxies_valid_file(tmp_path):
     """Test loading public proxies from a valid file."""
-    from app.services.crawler.generic import _load_public_proxies
+    from app.services.crawler.utils.proxy import _load_public_proxies
     
     # Create a temporary proxy file with mixed formats
     proxy_file = tmp_path / "proxies.txt"

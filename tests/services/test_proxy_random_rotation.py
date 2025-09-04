@@ -5,7 +5,8 @@ from unittest.mock import patch
 
 import pytest
 
-from app.services.crawler.generic import execute_crawl_with_retries, health_tracker, reset_health_tracker
+from app.services.crawler.executors.retry import execute_crawl_with_retries
+from app.services.crawler.utils.proxy import health_tracker, reset_health_tracker
 from app.schemas.crawl import CrawlRequest
 
 
@@ -138,4 +139,3 @@ def test_random_rotation_skips_unhealthy_proxies(monkeypatch):
     finally:
         import os
         os.unlink(proxy_file)
-

@@ -27,6 +27,7 @@ Additionally, pass a minimal set of stealth-friendly arguments to reduce bot det
   - `camoufox_user_data_dir` (`CAMOUFOX_USER_DATA_DIR`): absolute or workspace-relative path to the Camoufox user data directory.
 
 Behavior:
+
 - If `x_force_user_data` is true and `CAMOUFOX_USER_DATA_DIR` is set, pass the directory to `StealthyFetcher.fetch` using the supported parameter name.
 - If the parameter is not supported by the installed Scrapling/Camoufox version, log one warning and continue without persistence.
 - If `CAMOUFOX_USER_DATA_DIR` is missing, log at INFO and continue without persistence (no error).
@@ -48,12 +49,11 @@ Behavior:
 Keep behavior opt-in via environment. No schema changes and the toggles are safe defaults.
 
 - geoip: enable when using any proxy (private or public). Spoofs timezone/locale/WebRTC for the proxy IP. Controlled by `CAMOUFOX_GEOIP` (default: true).
-- locale: set navigator languages/Intl to match target region. Controlled by `CAMOUFOX_LOCALE` (e.g. `en-US,en;q=0.9`). Also mirrored to `Accept-Language` header.
 - window: fix a realistic window size to match common devices. Controlled by `CAMOUFOX_WINDOW` (formats: `1366x768` or `1366,768`).
-- disable_coop: only when needed (e.g., iframe interactions like Cloudflare checkbox). Controlled by `CAMOUFOX_DISABLE_COOP` (default: false).
-- virtual_display: for Linux headless environments to appear more like a real display. Controlled by `CAMOUFOX_VIRTUAL_DISPLAY` (e.g., `xvfb`).
+- solve_cloudflare: true
 
 Notes
+
 - `google_search` referer remains enabled by default (Scrapling default) and helps blend traffic.
 - `allow_webgl` remains true; disabling WebGL can trigger WAFs. Use `webgl_config` only if you have a specific need.
 - `block_images`/`disable_resources` can speed up requests but may break page loads and hint automation; keep them off unless you know the target tolerates them.
@@ -71,24 +71,3 @@ Notes
 - Only one env variable is required: `CAMOUFOX_USER_DATA_DIR`.
 - Safe fallback if unsupported or unset; no changes to existing retry/proxy behavior.
 - Optional stealth toggles (geoip/locale/window/disable_coop/virtual_display) are honored when set, with safe defaults when unset.
-
-## Env Example Updates
-
-Add to `.env.example`:
-
-```
-# Camoufox user data (single profile dir)
-CAMOUFOX_USER_DATA_DIR=
-
-# Stealth helpers (all optional)
-# Spoof geolocation/timezone/WebRTC when using a proxy
-CAMOUFOX_GEOIP=true
-# Browser locale(s); also used for Accept-Language header
-CAMOUFOX_LOCALE=en-US,en;q=0.9
-# Fixed window size ("WxH" or "W,H")
-CAMOUFOX_WINDOW=1366x768
-# Allow clicking inside cross-origin iframes (use only when needed)
-CAMOUFOX_DISABLE_COOP=false
-# For Linux headless environments (e.g., inside containers)
-CAMOUFOX_VIRTUAL_DISPLAY=
-```

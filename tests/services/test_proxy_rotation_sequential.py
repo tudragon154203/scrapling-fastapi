@@ -6,7 +6,8 @@ from unittest.mock import patch
 
 import pytest
 
-from app.services.crawler.generic import execute_crawl_with_retries, health_tracker, _load_public_proxies, reset_health_tracker
+from app.services.crawler.executors.retry import execute_crawl_with_retries
+from app.services.crawler.utils.proxy import health_tracker, _load_public_proxies, reset_health_tracker
 from app.schemas.crawl import CrawlRequest
 
 
@@ -85,7 +86,7 @@ def test_sequential_rotation_order_with_healthy_proxies(monkeypatch):
         monkeypatch.setattr("app.core.config.get_settings", lambda: settings)
 
         # Test that _load_public_proxies works correctly
-        from app.services.crawler.generic import _load_public_proxies
+        from app.services.crawler.utils.proxy import _load_public_proxies
         public_proxies = _load_public_proxies(proxy_file)
         print(f"Loaded public proxies: {public_proxies}")
         
