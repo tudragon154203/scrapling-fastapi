@@ -17,7 +17,7 @@ Scrapling FastAPI Service provides:
 
 ## User Journey
 1. Configure environment with desired stealth settings
-2. Send POST request to `/crawl` with target URL and options
+2. Send POST request to `/crawl` with target URL and options, or `/crawl/dpd` with tracking code
 3. Service handles proxy selection, retries, and stealth
 4. Receive HTML response with success/failure status
 

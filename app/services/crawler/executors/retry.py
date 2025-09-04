@@ -1,7 +1,7 @@
 import logging
 import random
 import time
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Callable
 
 import app.core.config as app_config
 from app.schemas.crawl import CrawlRequest, CrawlResponse
@@ -27,7 +27,7 @@ def _calculate_backoff_delay(attempt_idx: int, settings) -> float:
     return delay_ms / 1000.0
 
 
-def execute_crawl_with_retries(payload: CrawlRequest) -> CrawlResponse:
+def execute_crawl_with_retries(payload: CrawlRequest, page_action: Optional[Callable] = None) -> CrawlResponse:
     """Execute crawl with retry and proxy strategy."""
     settings = app_config.get_settings()
     public_proxies = _load_public_proxies(settings.proxy_list_file_path)
@@ -113,6 +113,7 @@ def execute_crawl_with_retries(payload: CrawlRequest) -> CrawlResponse:
                     additional_args=additional_args,
                     extra_headers=extra_headers,
                     settings=settings,
+                    page_action=page_action,
                 )
 
                 page = StealthyFetcher.fetch(str(payload.url), **fetch_kwargs)

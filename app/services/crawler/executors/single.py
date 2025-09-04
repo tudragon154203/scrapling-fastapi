@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Callable
 
 import app.core.config as app_config
 from app.schemas.crawl import CrawlRequest, CrawlResponse
@@ -11,7 +11,7 @@ from ..utils.fetch import _detect_fetch_capabilities, _compose_fetch_kwargs, _si
 logger = logging.getLogger(__name__)
 
 
-def crawl_single_attempt(payload: CrawlRequest) -> CrawlResponse:
+def crawl_single_attempt(payload: CrawlRequest, page_action: Optional[Callable] = None) -> CrawlResponse:
     """Single-attempt crawl using StealthyFetcher (no retry)."""
     settings = app_config.get_settings()
 
@@ -42,6 +42,7 @@ def crawl_single_attempt(payload: CrawlRequest) -> CrawlResponse:
             additional_args=additional_args,
             extra_headers=extra_headers,
             settings=settings,
+            page_action=page_action,
         )
 
         page = StealthyFetcher.fetch(str(payload.url), **fetch_kwargs)

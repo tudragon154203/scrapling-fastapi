@@ -1,28 +1,27 @@
 # Active Context
 
-## Current Sprint: Sprint 06 - Camoufox User Data and Additional Stealth
+## Current Sprint: Sprint 08 - HTML Length Validation and Retry Guard
 
 ### Completed Work
-- ✅ Implemented `x_force_user_data` flag support for persistent user data
-- ✅ Added `CAMOUFOX_USER_DATA_DIR` environment variable configuration
-- ✅ Enhanced capability detection for user data parameters (user_data_dir, profile_dir, profile_path, user_data)
-- ✅ Added solve_cloudflare stealth option
-- ✅ Maintained existing stealth options (geoip, window, locale, disable_coop, virtual_display)
-- ✅ Updated tests to cover user data functionality
-- ✅ Fixed capability detection order in retry executor
+- ✅ Implemented DPD tracking endpoint (`/crawl/dpd`) with legacy compatibility
+- ✅ Added HTML length validation with configurable minimum threshold
+- ✅ Integrated HTML validation into both single and retry executors
+- ✅ Enhanced proxy health tracking for short content responses
+- ✅ Added comprehensive tests for DPD crawling and HTML validation
+- ✅ Maintained backward compatibility with existing API contracts
 
 ### Current Focus
-- User data persistence for session management
-- Stealth enhancements for bot detection avoidance
-- Capability-safe parameter passing to Camoufox
+- Specialized crawler endpoints (DPD, potentially others)
+- Content quality validation and bot detection heuristics
+- Robust error handling and retry strategies
 
 ### Next Steps
-- Monitor performance impact of user data persistence
-- Consider additional stealth options if needed
-- Test with real Camoufox installations
+- Monitor DPD tracking success rates
+- Consider additional specialized endpoints if needed
+- Evaluate performance impact of HTML validation
 
 ### Technical Notes
-- User data directory is created automatically if it doesn't exist
-- Fallback gracefully when user data parameters are unsupported
-- All stealth options are opt-in via environment variables
-- GeoIP spoofing is enabled automatically when using proxies
+- DPD endpoint reuses generic crawl infrastructure with retry/proxy support
+- HTML length validation prevents acceptance of bot-detection placeholder pages
+- All new features maintain backward compatibility
+- Comprehensive test coverage for new functionality

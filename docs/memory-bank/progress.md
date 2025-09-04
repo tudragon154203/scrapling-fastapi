@@ -43,3 +43,93 @@
 - `app/services/crawler/executors/retry.py`
 - `tests/services/test_generic_crawl.py`
 - `docs/memory-bank/` (created)
+
+## Sprint 07 - DPD Tracking Endpoint
+**Status:** ✅ Completed
+**Date:** 2025-09-04
+
+### Changes Made
+1. **DPD Schema Creation**
+   - Added `app/schemas/dpd.py` with `DPDCrawlRequest` and `DPDCrawlResponse` models
+   - Implemented validation for non-empty tracking codes
+   - Added legacy compatibility fields (`x_force_user_data`, `x_force_headful`)
+
+2. **DPD Service Implementation**
+   - Created `app/services/crawler/dpd.py` with `crawl_dpd()` function
+   - Implemented URL building with query parameter encoding
+   - Added conversion between DPD and generic crawl requests/responses
+   - Integrated with existing retry and proxy infrastructure
+
+3. **API Endpoint Addition**
+   - Added `POST /crawl/dpd` endpoint in `app/api/routes.py`
+   - Implemented proper error handling and response formatting
+   - Added comprehensive logging for tracking requests
+
+4. **Error Detection Heuristics**
+   - Added detection of DPD error messages in HTML responses
+   - Implemented fallback to failure status when tracking not found
+   - Enhanced logging for debugging tracking issues
+
+5. **Testing**
+   - Added `tests/services/test_dpd_crawl.py` with comprehensive test coverage
+   - Tests cover URL building, request conversion, and error scenarios
+   - Added API-level tests for endpoint validation and responses
+
+### Key Features
+- `POST /crawl/dpd` endpoint accepts tracking codes and returns HTML
+- Reuses existing retry/proxy/stealth infrastructure
+- Legacy compatibility with `x_force_user_data` and `x_force_headful`
+- Automatic error detection for invalid tracking codes
+- Platform-aware headless mode handling
+
+### Files Modified
+- `app/schemas/dpd.py` (new)
+- `app/services/crawler/dpd.py` (new)
+- `app/api/routes.py`
+- `tests/services/test_dpd_crawl.py` (new)
+- `tests/api/test_dpd_endpoint.py` (new)
+
+## Sprint 08 - HTML Length Validation and Retry Guard
+**Status:** ✅ Completed
+**Date:** 2025-09-04
+
+### Changes Made
+1. **Configuration Updates**
+   - Added `min_html_content_length` setting in `app/core/config.py`
+   - Added `MIN_HTML_CONTENT_LENGTH` environment variable (default: 500)
+
+2. **HTML Validation Implementation**
+   - Integrated length validation into both `single.py` and `retry.py` executors
+   - Added validation after successful HTTP 200 responses
+   - Implemented failure handling for content shorter than threshold
+
+3. **Proxy Health Integration**
+   - Enhanced proxy health tracking to mark proxies unhealthy after short content
+   - Updated retry logic to skip unhealthy proxies for short content failures
+   - Maintained existing proxy rotation and health cooldown mechanisms
+
+4. **Fallback Path Support**
+   - Added HTML validation to `_simple_http_fetch` fallback
+   - Ensured consistent behavior across all fetch methods
+   - Maintained backward compatibility with existing configurations
+
+5. **Testing**
+   - Added `tests/services/test_html_length_validation.py`
+   - Tests cover single attempt and retry scenarios
+   - Updated existing tests to use appropriate length thresholds
+   - Verified proxy health updates on short content failures
+
+### Key Features
+- Configurable minimum HTML length threshold (default: 500 chars)
+- Automatic retry when content is too short (likely bot detection)
+- Proxy health tracking for short content responses
+- Consistent validation across all fetch methods
+- No breaking changes to existing API contracts
+
+### Files Modified
+- `app/core/config.py`
+- `app/services/crawler/executors/single.py`
+- `app/services/crawler/executors/retry.py`
+- `app/services/crawler/utils/fetch.py`
+- `tests/services/test_html_length_validation.py` (new)
+- Various existing test files updated for compatibility

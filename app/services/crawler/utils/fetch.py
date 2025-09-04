@@ -1,5 +1,5 @@
 import inspect
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Callable
 from urllib import request as urllib_request
 from urllib.error import URLError, HTTPError
 
@@ -23,6 +23,7 @@ def _detect_fetch_capabilities(fetch_callable) -> Dict[str, bool]:
         extra_headers=_ok("extra_headers"),
         additional_args=_ok("additional_args"),
         solve_cloudflare=_ok("solve_cloudflare"),
+        page_action=_ok("page_action"),
         user_data_dir=_ok("user_data_dir"),
         profile_dir=_ok("profile_dir"),
         profile_path=_ok("profile_path"),
@@ -37,6 +38,7 @@ def _compose_fetch_kwargs(
     additional_args: Dict[str, Any],
     extra_headers: Optional[Dict[str, str]],
     settings,
+    page_action: Optional[Callable] = None,
 ) -> Dict[str, Any]:
     """Compose kwargs for StealthyFetcher.fetch in a capability-safe way."""
     geoip_enabled = bool(getattr(settings, "camoufox_geoip", True) and selected_proxy)
@@ -58,6 +60,8 @@ def _compose_fetch_kwargs(
         fetch_kwargs["additional_args"] = additional_args
     if caps.get("extra_headers") and extra_headers:
         fetch_kwargs["extra_headers"] = extra_headers
+    if caps.get("page_action") and page_action is not None:
+        fetch_kwargs["page_action"] = page_action
 
     # Enable Cloudflare solving when supported by StealthyFetcher
     if caps.get("solve_cloudflare"):

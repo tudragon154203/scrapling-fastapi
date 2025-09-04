@@ -12,19 +12,19 @@ class TestBuildDpdUrl:
     """Test DPD URL building functionality."""
 
     def test_build_dpd_url_basic(self):
-        """Test basic URL building with tracking code."""
+        """Test basic URL building with tracking code (direct status URL)."""
         url = build_dpd_url("12345678901234")
-        assert url == "https://tracking.dpd.de/parcelstatus?query=12345678901234"
+        assert url == "https://tracking.dpd.de/status/en_US/parcel/12345678901234"
 
     def test_build_dpd_url_with_special_chars(self):
-        """Test URL building with special characters in tracking code."""
+        """Test URL building with special characters in tracking code (encoded path)."""
         url = build_dpd_url("123/456")
-        assert url == "https://tracking.dpd.de/parcelstatus?query=123%2F456"
+        assert url == "https://tracking.dpd.de/status/en_US/parcel/123%2F456"
 
     def test_build_dpd_url_with_spaces(self):
-        """Test URL building with spaces in tracking code."""
+        """Test URL building with spaces in tracking code (encoded path)."""
         url = build_dpd_url("123 456")
-        assert url == "https://tracking.dpd.de/parcelstatus?query=123+456"
+        assert url == "https://tracking.dpd.de/status/en_US/parcel/123%20456"
 
 
 class TestDPDCrawl:
@@ -90,7 +90,7 @@ class TestDPDCrawl:
 
         assert response.status == "success"
         assert response.tracking_code == "12345678901234"
-        assert "<html>DPD tracking for https://tracking.dpd.de/parcelstatus?query=12345678901234</html>" in response.html
+        assert "<html>DPD tracking for https://tracking.dpd.de/status/en_US/parcel/12345678901234</html>" in response.html
         assert response.message is None
         assert calls["count"] == 1
 
@@ -193,7 +193,7 @@ class TestDPDCrawl:
         if calls["kwargs"]:
             # URL should be the first argument to fetch, but it's passed positionally
             # We can check the URL from the response HTML which includes it
-            expected_url = "https://tracking.dpd.de/parcelstatus?query=ABC123DEF456"
+            expected_url = "https://tracking.dpd.de/status/en_US/parcel/ABC123DEF456"
             assert expected_url in response.html
 
     def test_crawl_dpd_exception_handling(self, monkeypatch):

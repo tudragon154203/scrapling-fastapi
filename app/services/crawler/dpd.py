@@ -1,6 +1,6 @@
 import logging
 from typing import Dict, Any
-from urllib.parse import urlencode
+from urllib.parse import quote
 
 import app.core.config as app_config
 from app.schemas.dpd import DPDCrawlRequest, DPDCrawlResponse
@@ -11,22 +11,17 @@ from .executors.single import crawl_single_attempt
 
 logger = logging.getLogger(__name__)
 
-# DPD tracking URL base - configurable for different DPD domains
-DPD_URL = "https://tracking.dpd.de/parcelstatus"
-DPD_QUERY_KEY = "query"
+# DPD direct status URL base (no form automation required)
+DPD_STATUS_BASE = "https://tracking.dpd.de/status/en_US/parcel/"
 
 
 def build_dpd_url(tracking_code: str) -> str:
-    """Build a DPD tracking URL from the tracking code.
-    
-    Args:
-        tracking_code: The DPD tracking code to look up
-        
-    Returns:
-        Complete URL with tracking code as query parameter
+    """Build direct DPD status URL for the given tracking code.
+
+    Example: https://tracking.dpd.de/status/en_US/parcel/<code>
     """
-    query_params = {DPD_QUERY_KEY: tracking_code}
-    return f"{DPD_URL}?{urlencode(query_params)}"
+    encoded = quote(tracking_code, safe="")
+    return f"{DPD_STATUS_BASE}{encoded}"
 
 
 def _convert_dpd_to_crawl_request(dpd_request: DPDCrawlRequest) -> CrawlRequest:
@@ -47,7 +42,7 @@ def _convert_dpd_to_crawl_request(dpd_request: DPDCrawlRequest) -> CrawlRequest:
         # Use reasonable defaults for DPD tracking pages
         timeout_ms=None,  # Use system default
         headless=None,    # Use system default with x_force_headful override
-        network_idle=None # Use system default
+        network_idle=True # For dynamic results after search
     )
 
 
@@ -106,10 +101,10 @@ def crawl_dpd(request: DPDCrawlRequest) -> DPDCrawlResponse:
             logger.info("x_force_user_data=true requested but no user data directory configured")
     
     try:
-        # Convert to generic crawl request
+        # Convert to generic crawl request (parcelstatus?query=...)
         crawl_request = _convert_dpd_to_crawl_request(request)
-        
-        # Use the same retry/single strategy as the generic endpoint
+
+        # Use the same retry/single strategy as the generic endpoint, no page_action needed
         if settings.max_retries <= 1:
             crawl_response = crawl_single_attempt(crawl_request)
         else:
@@ -117,11 +112,31 @@ def crawl_dpd(request: DPDCrawlRequest) -> DPDCrawlResponse:
         
         # Convert back to DPD-specific response
         dpd_response = _convert_crawl_to_dpd_response(crawl_response, request.tracking_code)
-        
+
         # Log outcome
         if dpd_response.status == "success":
             html_length = len(dpd_response.html) if dpd_response.html else 0
             logger.info(f"DPD tracking successful, HTML length: {html_length}")
+            # Heuristic error detection based on known messages
+            try:
+                text = (dpd_response.html or "").lower()
+                error_markers = [
+                    "nicht finden",  # couldn't find
+                    "keine sendung",  # no shipment
+                    "bitte prüfen",   # please check your entry
+                    "no shipment found",
+                    "could not find",
+                    "invalid tracking",
+                ]
+                if any(m in text for m in error_markers):
+                    dpd_response = DPDCrawlResponse(
+                        status="failure",
+                        tracking_code=request.tracking_code,
+                        html=dpd_response.html,
+                        message="DPD page indicates tracking not found or invalid code",
+                    )
+            except Exception:
+                pass
         else:
             logger.info(f"DPD tracking failed: {dpd_response.message}")
         
