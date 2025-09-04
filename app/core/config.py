@@ -1,3 +1,4 @@
+from typing import Optional
 import os
 from functools import lru_cache
 from pydantic import Field
@@ -27,6 +28,15 @@ try:
         default_network_idle: bool = Field(default=False)
         default_timeout_ms: int = Field(default=20_000)
 
+        # Retry and Proxy settings
+        max_retries: int = Field(default=3)
+        retry_backoff_base_ms: int = Field(default=500)
+        retry_backoff_max_ms: int = Field(default=5_000)
+        retry_jitter_ms: int = Field(default=250)
+        proxy_list_file_path: Optional[str] = Field(default=None)
+        private_proxy_url: Optional[str] = Field(default=None)
+        proxy_rotation_mode: str = Field(default="sequential")
+
         model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="allow")
 
     @lru_cache()
@@ -46,6 +56,15 @@ except Exception:
         default_headless: bool = True
         default_network_idle: bool = False
         default_timeout_ms: int = 20_000
+        
+        # Retry and Proxy settings
+        max_retries: int = 3
+        retry_backoff_base_ms: int = 500
+        retry_backoff_max_ms: int = 5_000
+        retry_jitter_ms: int = 250
+        proxy_list_file_path: Optional[str] = None
+        private_proxy_url: Optional[str] = None
+        proxy_rotation_mode: str = "sequential"
 
     @lru_cache()
     def get_settings() -> "Settings":
@@ -58,4 +77,11 @@ except Exception:
             default_headless=os.getenv("HEADLESS", "true").lower() in {"1", "true", "yes"},
             default_network_idle=os.getenv("NETWORK_IDLE", "false").lower() in {"1", "true", "yes"},
             default_timeout_ms=int(os.getenv("TIMEOUT_MS", "20000")),
+            max_retries=int(os.getenv("MAX_RETRIES", "3")),
+            retry_backoff_base_ms=int(os.getenv("RETRY_BACKOFF_BASE_MS", "500")),
+            retry_backoff_max_ms=int(os.getenv("RETRY_BACKOFF_MAX_MS", "5000")),
+            retry_jitter_ms=int(os.getenv("RETRY_JITTER_MS", "250")),
+            proxy_list_file_path=os.getenv("PROXY_LIST_FILE_PATH"),
+            private_proxy_url=os.getenv("PRIVATE_PROXY_URL"),
+            proxy_rotation_mode=os.getenv("PROXY_ROTATION_MODE", "sequential"),
         )

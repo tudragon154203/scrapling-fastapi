@@ -56,6 +56,29 @@ Notes:
 Implementation detail re: proxies:
 - If `StealthyFetcher.fetch` exposes a proxy parameter, pass the selected proxy URL. If not, implement a minimal ProxyAdapter layer so we can extend later without changing call sites. Initial scope focuses on the retry wrapper; proxy arg wiring is added in a small, isolated section to be enabled when the library supports it.
 
+## Implementation Details
+
+### Core Logic
+The retry logic is implemented in `app/services/crawler/generic.py` in the `execute_crawl_with_retries` function:
+
+1. **Attempt Planning**: Builds a plan of connection attempts based on configured proxies
+2. **Retry Loop**: Executes fetch attempts with exponential backoff
+3. **Result Handling**: Returns success on first successful attempt or failure after all attempts
+
+### Proxy Strategy Order
+The progressive proxy strategy follows this order:
+1. Direct connection
+2. Public proxies (if configured)
+3. Private proxy (if configured)
+4. Final direct attempt as fallback
+
+If more attempts are needed than available proxies, the system cycles through public proxies.
+
+### Backward Compatibility
+- When `MAX_RETRIES` is set to 1 or less, the system uses the original single-attempt behavior
+- All existing API endpoints and schemas remain unchanged
+- Environment variables provide full configurability without code changes
+
 ## Implementation Plan
 
 - Update `Settings` in `app/core/config.py` with new fields and env bindings.
@@ -146,8 +169,21 @@ def execute_crawl_with_retries(payload: CrawlRequest) -> CrawlResponse:
 
 Note: the helper reuses the exact argument mapping already implemented in `crawl_generic` to avoid regressions. In the actual patch, we will refactor to compute `headless`, `network_idle`, `wait_selector`, `wait_ms`, and `timeout_ms` once and share across attempts.
 
-## Testing Plan
+## Testing
 
+### Unit Tests
+Created comprehensive unit tests in `tests/services/test_retry_strategy.py`:
+- Retry success on second attempt
+- Failure after exhausting all attempts
+- Non-200 status handling
+- Backoff delay calculation
+- Proxy plan ordering for different configurations
+- Public proxy file loading
+
+### Integration Tests
+Updated integration tests in `tests/integration/test_generic_crawl_integration.py` to verify compatibility with retry settings.
+
+### Testing Plan
 - Unit tests (new):
   - `tests/services/test_retry_strategy.py` with a stubbed `StealthyFetcher.fetch` to simulate:
     - First attempt failure (exception), second success => overall success.
@@ -158,6 +194,36 @@ Note: the helper reuses the exact argument mapping already implemented in `crawl
   - Update `tests/integration/test_generic_crawl_integration.py` to set env vars for small `MAX_RETRIES=2` and assert behavior with a known fast URL plus an invalid URL.
 - Non-goals for this sprint:
   - End-to-end validation of third-party proxy uptime (out of scope; covered by unit stubs).
+
+## Usage
+
+### Environment Variables
+To enable retry and proxy functionality, set these environment variables in your `.env` file:
+
+```bash
+# Retry settings
+MAX_RETRIES=3
+RETRY_BACKOFF_BASE_MS=500
+RETRY_BACKOFF_MAX_MS=5000
+RETRY_JITTER_MS=250
+
+# Proxy settings
+PROXY_LIST_FILE_PATH=/path/to/proxies.txt
+PRIVATE_PROXY_URL=http://private-proxy:8080
+PROXY_ROTATION_MODE=sequential
+```
+
+### Proxy File Format
+The public proxy file should contain one proxy URL per line, with optional comments:
+
+```txt
+# Public proxy list
+http://proxy1:8080
+http://proxy2:8080
+
+http://proxy3:8080
+# This is a commented line
+```
 
 ## Acceptance Criteria
 
@@ -183,9 +249,15 @@ Note: the helper reuses the exact argument mapping already implemented in `crawl
 - Phase 1 (this sprint): retries with direct connection; proxy plan scaffolding and config landed; unit tests in place.
 - Phase 2: enable proxy parameter once verified; extend tests to cover live proxies in a controlled environment.
 
+## Future Improvements
+
+1. **Proxy Parameter Support**: Wire the proxy parameter to Scrapling's fetcher when the library supports it
+2. **Metrics Collection**: Add metrics for attempt counts and outcomes
+3. **Advanced Proxy Rotation**: Implement more sophisticated proxy rotation algorithms
+4. **Health Checks**: Add health checks for proxies to avoid using dead ones
+
 ## Next Steps
 
 - Implement the config fields and helper in code per this plan.
 - Verify library proxy support and wire the parameter when available.
 - Add metrics for attempt counts and outcomes in a future sprint.
-

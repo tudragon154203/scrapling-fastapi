@@ -1,0 +1,22 @@
+# Example proxy list file
+# Format: <ip>:<port> or protocol://<ip>:<port>
+# Proxies without protocol prefix are treated as SOCKS5 by default
+
+# SOCKS5 proxies (default protocol)
+192.168.1.10:1080
+192.168.1.11:1080
+192.168.1.12:1081
+
+# HTTP proxies
+http://192.168.2.10:8080
+http://192.168.2.11:8080
+
+# Explicit SOCKS5 proxies
+socks5://192.168.3.10:1080
+socks5://192.168.3.11:1080
+
+# SOCKS4 proxies
+socks4://192.168.4.10:1080
+
+# Comments are ignored
+# This is a comment
