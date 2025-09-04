@@ -1,4 +1,5 @@
 import pytest
+from app.core.config import get_settings
 
 
 # Disable proxies and keep retries minimal within this module to reduce flakiness/hangs
@@ -42,6 +43,11 @@ def _make_body(url: str) -> dict:
     }
 
 
+def _min_len() -> int:
+    s = get_settings()
+    return int(getattr(s, "min_html_content_length", 0) or 0)
+
+
 @pytest.mark.integration
 def test_crawl_17track(client):
     body = _make_body("https://t.17track.net/en#nums=1ZXH95910326694965")
@@ -51,7 +57,7 @@ def test_crawl_17track(client):
     assert data.get("status") == "success"
     html = data.get("html") or ""
     assert "<html" in html.lower()
-    assert len(html) > 100
+    assert len(html) >= _min_len()
 
 
 @pytest.mark.integration
@@ -65,7 +71,7 @@ def test_crawl_ups(client):
     assert data.get("status") == "success"
     html = data.get("html") or ""
     assert "<html" in html.lower()
-    assert len(html) > 100
+    assert len(html) >= _min_len()
 
 
 @pytest.mark.integration
@@ -79,7 +85,7 @@ def test_crawl_fedex(client):
     assert data.get("status") == "success"
     html = data.get("html") or ""
     assert "<html" in html.lower()
-    assert len(html) > 100
+    assert len(html) >= _min_len()
 
 
 @pytest.mark.integration
@@ -93,7 +99,7 @@ def test_crawl_usps(client):
     assert data.get("status") == "success"
     html = data.get("html") or ""
     assert "<html" in html.lower()
-    assert len(html) > 100
+    assert len(html) >= _min_len()
 
 
 @pytest.mark.integration
@@ -105,7 +111,7 @@ def test_crawl_dpex(client):
     assert data.get("status") == "success"
     html = data.get("html") or ""
     assert "<html" in html.lower()
-    assert len(html) > 100
+    assert len(html) >= _min_len()
 
 
 @pytest.mark.integration
@@ -117,7 +123,7 @@ def test_crawl_parcelsapp(client):
     assert data.get("status") == "success"
     html = data.get("html") or ""
     assert "<html" in html.lower()
-    assert len(html) > 100
+    assert len(html) >= _min_len()
 
 
 @pytest.mark.integration

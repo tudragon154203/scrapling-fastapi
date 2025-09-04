@@ -15,7 +15,7 @@
 - **Assertions:**
   - HTTP 200 from API
   - JSON `status == "success"`
-  - `html` present with length indicative of a full document (contains `<html` and length > 100; service already enforces a minimum length via settings)
+  - `html` present, contains `<html`, and length >= configured minimum (`MIN_HTML_CONTENT_LENGTH`)
 - **Enabled by default:** Tests are marked `@pytest.mark.integration` and run by default along with the rest of the suite. Use `-m integration` to focus only these tests when needed.
 
 **Test Cases (one per link)**
