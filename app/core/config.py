@@ -36,6 +36,23 @@ try:
         proxy_list_file_path: Optional[str] = Field(default=None)
         private_proxy_url: Optional[str] = Field(default=None)
         proxy_rotation_mode: str = Field(default="sequential")
+        proxy_health_failure_threshold: int = Field(default=2)
+        proxy_unhealthy_cooldown_ms: int = Field(default=1_800_000)
+        
+        # Camoufox user data directory (single profile dir)
+        camoufox_user_data_dir: Optional[str] = Field(default=None)
+
+        # Camoufox stealth extras (optional, no API changes)
+        # Locale string like "en-US,en;q=0.9" or a single locale like "en-US"
+        camoufox_locale: Optional[str] = Field(default=None)
+        # Window size, e.g. "1366x768" or "1366,768"; parsed at runtime
+        camoufox_window: Optional[str] = Field(default=None)
+        # When true, relaxes COOP to allow interactions within cross-origin iframes
+        camoufox_disable_coop: bool = Field(default=False)
+        # When true and a proxy is used, spoof geolocation/timezone/WebRTC via Camoufox
+        camoufox_geoip: bool = Field(default=True)
+        # When set on Linux, enables virtual display (e.g., "xvfb")
+        camoufox_virtual_display: Optional[str] = Field(default=None)
 
         model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="allow")
 
@@ -65,6 +82,17 @@ except Exception:
         proxy_list_file_path: Optional[str] = None
         private_proxy_url: Optional[str] = None
         proxy_rotation_mode: str = "sequential"
+        proxy_health_failure_threshold: int = 2
+        proxy_unhealthy_cooldown_ms: int = 1_800_000
+        
+        # Camoufox user data directory (single profile dir)
+        camoufox_user_data_dir: Optional[str] = None
+        # Camoufox stealth extras
+        camoufox_locale: Optional[str] = None
+        camoufox_window: Optional[str] = None
+        camoufox_disable_coop: bool = False
+        camoufox_geoip: bool = True
+        camoufox_virtual_display: Optional[str] = None
 
     @lru_cache()
     def get_settings() -> "Settings":
@@ -84,4 +112,13 @@ except Exception:
             proxy_list_file_path=os.getenv("PROXY_LIST_FILE_PATH"),
             private_proxy_url=os.getenv("PRIVATE_PROXY_URL"),
             proxy_rotation_mode=os.getenv("PROXY_ROTATION_MODE", "sequential"),
+            proxy_health_failure_threshold=int(os.getenv("PROXY_HEALTH_FAILURE_THRESHOLD", "2")),
+            proxy_unhealthy_cooldown_ms=int(os.getenv("PROXY_UNHEALTHY_COOLDOWN_MS", "1800000")),
+            camoufox_user_data_dir=os.getenv("CAMOUFOX_USER_DATA_DIR"),
+            camoufox_locale=os.getenv("CAMOUFOX_LOCALE"),
+            camoufox_window=os.getenv("CAMOUFOX_WINDOW"),
+            camoufox_disable_coop=os.getenv("CAMOUFOX_DISABLE_COOP", "false").lower()
+            in {"1", "true", "yes"},
+            camoufox_geoip=os.getenv("CAMOUFOX_GEOIP", "true").lower() in {"1", "true", "yes"},
+            camoufox_virtual_display=os.getenv("CAMOUFOX_VIRTUAL_DISPLAY"),
         )

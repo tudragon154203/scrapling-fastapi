@@ -37,17 +37,21 @@ def _install_fake_scrapling(monkeypatch, side_effects):
 
 def _mock_settings(max_retries=3):
     class MockSettings:
-        max_retries = max_retries
-        retry_backoff_base_ms = 1
-        retry_backoff_max_ms = 1
-        retry_jitter_ms = 0
-        proxy_list_file_path = None
-        private_proxy_url = None
-        default_headless = True
-        default_network_idle = False
-        default_timeout_ms = 2000
+        pass
 
-    return MockSettings()
+    settings = MockSettings()
+    settings.max_retries = max_retries
+    settings.retry_backoff_base_ms = 1
+    settings.retry_backoff_max_ms = 1
+    settings.retry_jitter_ms = 0
+    settings.proxy_list_file_path = None
+    settings.private_proxy_url = None
+    settings.proxy_rotation_mode = "sequential"
+    settings.default_headless = True
+    settings.default_network_idle = False
+    settings.default_timeout_ms = 2000
+
+    return settings
 
 
 def _make_request():
@@ -110,4 +114,3 @@ def test_retry_non200_then_success(monkeypatch):
     assert res.status == "success"
     assert calls["count"] == 2
     assert mocked_sleep.call_count == 1
-
