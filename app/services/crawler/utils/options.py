@@ -85,9 +85,9 @@ def _build_camoufox_args(payload: CrawlRequest, settings, caps: Dict[str, bool])
     if getattr(settings, "camoufox_virtual_display", None):
         additional_args["virtual_display"] = settings.camoufox_virtual_display
 
-    # Solve Cloudflare is provided via additional_args when supported by StealthyFetcher
-    # Gatekeeping happens later when passing additional_args based on capabilities
-    additional_args["solve_cloudflare"] = True
+    # Do NOT pass `solve_cloudflare` via additional_args.
+    # It is a top-level argument of StealthyFetcher.fetch and forwarding it inside
+    # Camoufox launch options causes Playwright to receive an unexpected kwarg.
 
     extra_headers: Optional[Dict[str, str]] = None
     if getattr(settings, "camoufox_locale", None):

@@ -59,6 +59,10 @@ def _compose_fetch_kwargs(
     if caps.get("extra_headers") and extra_headers:
         fetch_kwargs["extra_headers"] = extra_headers
 
+    # Enable Cloudflare solving when supported by StealthyFetcher
+    if caps.get("solve_cloudflare"):
+        fetch_kwargs["solve_cloudflare"] = True
+
     return fetch_kwargs
 
 
