@@ -44,6 +44,39 @@ def _load_public_proxies(path: Optional[str]) -> List[str]:
         return []
 
 
+def _select_proxy_for_request(settings, tracking_code: Optional[str] = None) -> Optional[str]:
+    """Select a proxy for the given request based on proxy rotation mode.
+    
+    Args:
+        settings: Application settings with proxy configuration
+        tracking_code: Optional tracking code for session consistency
+        
+    Returns:
+        Selected proxy URL or None
+    """
+    if not getattr(settings, "proxy_list_file_path", None) and not getattr(settings, "private_proxy_url", None):
+        return None
+    
+    public_proxies = _load_public_proxies(settings.proxy_list_file_path)
+    
+    # For requests with tracking codes, prefer consistent private proxy if available
+    if tracking_code and getattr(settings, "private_proxy_url", None):
+        return settings.private_proxy_url
+    
+    # If no tracking code or no private proxy, select from public proxies
+    if public_proxies:
+        mode = getattr(settings, "proxy_rotation_mode", "sequential")
+        if mode == "random":
+            return random.choice(public_proxies)
+        else:
+            # Sequential rotation - round-robin selection
+            # For simplicity, just return the first proxy for now
+            # In a full implementation, you'd track which proxy was used last
+            return public_proxies[0]
+    
+    return None
+
+
 def _build_attempt_plan(settings, public_proxies: List[str]) -> List[Dict[str, Any]]:
     """Build the attempt plan for retry strategy."""
     plan: List[Dict[str, Any]] = []

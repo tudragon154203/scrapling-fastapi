@@ -1,0 +1,81 @@
+import json
+
+
+def test_auspost_crawl_success_with_stub(monkeypatch, client):
+    from app.api import routes
+    from app.schemas.auspost import AuspostCrawlResponse
+
+    captured_payload = {}
+
+    def _fake_crawl_auspost(payload):
+        captured_payload["payload"] = payload
+        return AuspostCrawlResponse(
+            status="success",
+            tracking_code=payload.tracking_code,
+            html="<html><h3 id=\"trackingPanelHeading\">Details</h3></html>",
+        )
+
+    monkeypatch.setattr(routes, "crawl_auspost", _fake_crawl_auspost)
+
+    body = {"tracking_code": "36LB4503170001000930309"}
+    resp = client.post("/crawl/auspost", json=body)
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["status"] == "success"
+    assert data["tracking_code"] == "36LB4503170001000930309"
+    assert "trackingPanelHeading" in data["html"]
+    assert data.get("message") is None
+
+    p = captured_payload["payload"]
+    assert p.tracking_code == body["tracking_code"]
+    assert p.x_force_user_data is False
+    assert p.x_force_headful is False
+
+
+def test_auspost_crawl_with_all_flags(monkeypatch, client):
+    from app.api import routes
+    from app.schemas.auspost import AuspostCrawlResponse
+
+    captured_payload = {}
+
+    def _fake_crawl_auspost(payload):
+        captured_payload["payload"] = payload
+        return AuspostCrawlResponse(
+            status="success",
+            tracking_code=payload.tracking_code,
+            html="<html>ok</html>",
+        )
+
+    monkeypatch.setattr(routes, "crawl_auspost", _fake_crawl_auspost)
+
+    body = {
+        "tracking_code": "ABC123",
+        "x_force_user_data": True,
+        "x_force_headful": True,
+    }
+    resp = client.post("/crawl/auspost", json=body)
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["status"] == "success"
+    assert data["tracking_code"] == "ABC123"
+
+    p = captured_payload["payload"]
+    assert p.x_force_user_data is True
+    assert p.x_force_headful is True
+
+
+def test_auspost_crawl_requires_tracking_code(client):
+    resp = client.post("/crawl/auspost", json={})
+    assert resp.status_code == 422
+    detail = resp.json()["detail"]
+    assert "tracking_code" in str(detail)
+
+
+def test_auspost_crawl_rejects_empty_tracking_code(client):
+    resp = client.post("/crawl/auspost", json={"tracking_code": ""})
+    assert resp.status_code == 422
+    detail = resp.json()["detail"]
+    assert "tracking_code must be a non-empty string" in str(detail)
+

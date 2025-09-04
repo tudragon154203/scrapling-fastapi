@@ -44,8 +44,17 @@ def _make_body(url: str) -> dict:
 
 
 def _min_len() -> int:
-    s = get_settings()
-    return int(getattr(s, "min_html_content_length", 0) or 0)
+    """Return the service's minimum acceptable HTML length.
+
+    Uses configured `min_html_content_length` when available, with a sane
+    default of 500 to avoid trivially short pages passing.
+    """
+    try:
+        s = get_settings()
+        v = getattr(s, "min_html_content_length", None)
+        return int(v) if v is not None else 500
+    except Exception:
+        return 500
 
 
 @pytest.mark.integration
@@ -135,4 +144,4 @@ def test_crawl_laposte(client):
     assert data.get("status") == "success"
     html = data.get("html") or ""
     assert "<html" in html.lower()
-    assert len(html) > 100
+    assert len(html) >= _min_len()

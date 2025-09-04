@@ -61,12 +61,21 @@ def _resolve_effective_options(payload: CrawlRequest, settings) -> Dict[str, Any
     )
 
 
-def _build_camoufox_args(payload: CrawlRequest, settings, caps: Dict[str, bool]) -> Tuple[Dict[str, Any], Optional[Dict[str, str]]]:
-    """Build Camoufox additional_args and optional extra headers from settings/payload."""
+def _build_camoufox_args(payload, settings, caps: Dict[str, bool]) -> Tuple[Dict[str, Any], Optional[Dict[str, str]]]:
+    """Build Camoufox additional_args and optional extra headers from settings/payload.
+    
+    Args:
+        payload: Can be CrawlRequest or any other payload type with x_force_user_data field
+        settings: Application settings
+        caps: Detected capabilities for Camoufox
+        
+    Returns:
+        Tuple of (additional_args, extra_headers)
+    """
     additional_args: Dict[str, Any] = {}
 
     # User data directory with parameter detection
-    if payload.x_force_user_data is True and settings.camoufox_user_data_dir:
+    if hasattr(payload, 'x_force_user_data') and payload.x_force_user_data is True and settings.camoufox_user_data_dir:
         user_data_param = None
         for param in ("user_data_dir", "profile_dir", "profile_path", "user_data"):
             if caps.get(param, False):
@@ -97,5 +106,23 @@ def _build_camoufox_args(payload: CrawlRequest, settings, caps: Dict[str, bool])
     win = _parse_window_size(getattr(settings, "camoufox_window", None))
     if win:
         additional_args["window"] = win
+    
+    # Handle wait parameter for AusPost and other endpoints that need it
+    try:
+        xwt = getattr(payload, 'x_wait_time', None)
+    except Exception:
+        xwt = None
+    if xwt is not None:
+        try:
+            wait_time_ms = int(float(xwt) * 1000)
+            additional_args["wait"] = wait_time_ms
+        except Exception:
+            pass
+    else:
+        try:
+            if hasattr(payload, 'wait') and getattr(payload, 'wait', None) is not None:
+                additional_args["wait"] = int(getattr(payload, 'wait'))
+        except Exception:
+            pass
 
     return additional_args, extra_headers

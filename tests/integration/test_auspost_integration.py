@@ -23,30 +23,27 @@ except Exception as exc:  # pragma: no cover
     pytest.fail(f"scrapling is required for integration tests: {exc}")
 
 
-def test_dpd_real_tracking_number():
-    """End-to-end test hitting /crawl/dpd with a real tracking number.
+def test_auspost_real_flow_status_and_shape():
+    """Real end-to-end test hitting /crawl/auspost with a real tracking code.
 
-    Uses the provided tracking code. This asserts we get a 200 response from the API
-    and that the body indicates success or failure with an HTML payload when successful.
+    Asserts API returns 200 and a well-formed response. Accepts success or failure
+    due to inherent variability of live sites and anti-bot checks.
     """
     client = TestClient(app)
 
-    tracking_code = "01126819 7878 09"  # provided real tracking number (keeps spaces)
-    body = {
-        "tracking_code": tracking_code,
-        # Use defaults for headless/user data; keep it minimal for reliability
-    }
+    tracking_code = "36LB4503170001000930309"
+    body = {"tracking_code": tracking_code}
 
-    resp = client.post("/crawl/dpd", json=body)
+    resp = client.post("/crawl/auspost", json=body)
     assert resp.status_code == 200
     data = resp.json()
 
-    # Status should be success or failure depending on remote availability
+    assert data.get("tracking_code") == tracking_code
     assert data.get("status") in {"success", "failure"}
 
     if data.get("status") == "success":
         html = data.get("html") or ""
-        # HTML should meet the same minimum length threshold as the service
+        # HTML should meet the service's minimum content length
         def _min_len():
             from app.core.config import get_settings
             try:
@@ -54,8 +51,9 @@ def test_dpd_real_tracking_number():
             except Exception:
                 return 500
         assert isinstance(html, str) and len(html) >= _min_len()
-        # Optional soft assertion: the domain name should appear somewhere
-        assert "dpd" in html.lower()
+        assert "trackingpanelheading" in html.lower()
+        assert data.get("message") in {None, ""}
     else:
-        # When failure, a message should be present for diagnostics
-        assert isinstance(data.get("message"), str) and len(data.get("message")) > 0
+        # When failure, provide diagnostic message
+        msg = data.get("message")
+        assert isinstance(msg, str) and len(msg) > 0

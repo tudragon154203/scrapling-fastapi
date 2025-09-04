@@ -2,8 +2,10 @@ from fastapi import APIRouter
 
 from app.schemas.crawl import CrawlRequest, CrawlResponse
 from app.schemas.dpd import DPDCrawlRequest, DPDCrawlResponse
+from app.schemas.auspost import AuspostCrawlRequest, AuspostCrawlResponse
 from app.services.crawler.generic import crawl_generic
 from app.services.crawler.dpd import crawl_dpd
+from app.services.crawler.auspost import crawl_auspost
 
 
 router = APIRouter()
@@ -31,6 +33,16 @@ def crawl_dpd_endpoint(payload: DPDCrawlRequest) -> DPDCrawlResponse:
     Supports legacy compatibility flags for headless and user data control.
     """
     return crawl_dpd(payload)
+
+
+@router.post("/crawl/auspost", response_model=AuspostCrawlResponse, tags=["crawl"])
+def crawl_auspost_endpoint(payload: AuspostCrawlRequest) -> AuspostCrawlResponse:
+    """AusPost tracking endpoint using Scrapling.
+    
+    Accepts a tracking code and returns the AusPost tracking page HTML.
+    Supports legacy compatibility flags for headless and user data control.
+    """
+    return crawl_auspost(payload)
 
 
 
