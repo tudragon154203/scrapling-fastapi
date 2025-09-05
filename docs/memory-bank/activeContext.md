@@ -9,6 +9,8 @@
 - ✅ Enhanced proxy health tracking for short content responses
 - ✅ Added comprehensive tests for DPD crawling and HTML validation
 - ✅ Maintained backward compatibility with existing API contracts
+- ✅ Cleaned up duplicate headless parameters in `/crawl` endpoint
+- ✅ Removed `headless` field, kept only `x_force_headful` with .env fallback
 
 ### Current Focus
 - Specialized crawler endpoints (DPD, potentially others)

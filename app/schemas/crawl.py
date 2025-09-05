@@ -15,7 +15,6 @@ class CrawlRequest(BaseModel):
     wait_selector: Optional[str] = None
     wait_selector_state: Optional[str] = Field(default="visible")
     timeout_ms: Optional[int] = None
-    headless: Optional[bool] = None
     network_idle: Optional[bool] = None
 
     # Back-compat (legacy summary)

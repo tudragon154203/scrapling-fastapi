@@ -23,7 +23,6 @@ def test_crawl_success_with_stub(monkeypatch, client):
         "url": "https://example.com",
         "wait_selector": "body",
         "timeout_ms": 5000,
-        "headless": True,
     }
     resp = client.post("/crawl", json=body)
     assert resp.status_code == 200
@@ -36,7 +35,6 @@ def test_crawl_success_with_stub(monkeypatch, client):
     assert str(p.url).rstrip("/") == body["url"].rstrip("/")
     assert p.wait_selector == body["wait_selector"]
     assert p.timeout_ms == body["timeout_ms"]
-    assert p.headless is True
 
 
 def test_crawl_legacy_fields(monkeypatch, client):

@@ -36,7 +36,6 @@ def test_crawl_real_sites(url, selector, expect_text):
         "wait_selector": selector,
         "wait_selector_state": "visible",
         "timeout_ms": 30000,
-        "headless": True,  # force headless mode
         "network_idle": True,
     }
     resp = client.post("/crawl", json=body)
@@ -72,7 +71,6 @@ def test_crawl_with_retry_settings(monkeypatch):
             "wait_selector": "h1",
             "wait_selector_state": "visible",
             "timeout_ms": 30000,
-            "headless": True,
             "network_idle": True,
         }
         

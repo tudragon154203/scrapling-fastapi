@@ -1,5 +1,42 @@
 # Progress Log
 
+## Sprint 09 - Headless Parameter Cleanup
+**Status:** ✅ Completed
+**Date:** 2025-09-05
+
+### Changes Made
+1. **Schema Cleanup**
+   - Removed duplicate `headless` field from `CrawlRequest` in `app/schemas/crawl.py`
+   - Kept only `x_force_headful` for backward compatibility
+
+2. **Logic Simplification**
+   - Updated `_resolve_effective_options()` in `app/services/crawler/utils/options.py`
+   - Simplified headless mode logic to only use `x_force_headful` parameter
+   - If `x_force_headful` is not set, respects `HEADLESS` environment variable setting
+
+3. **Configuration Enhancement**
+   - Added `HEADLESS=true` to `.env` file for default headless mode control
+   - Users can now control default headless behavior via environment variable
+
+4. **Test Updates**
+   - Updated `tests/api/test_crawl_endpoint.py` to remove `headless` from test requests
+   - Updated integration tests in `tests/integration/test_crawl_real_urls.py` and `tests/integration/test_generic_crawl_integration.py`
+   - All tests pass with the new simplified parameter structure
+
+### Key Features
+- Eliminated parameter duplication between `headless` and `x_force_headful`
+- Maintained backward compatibility with `x_force_headful` parameter
+- Added environment variable control for default headless mode
+- Simplified API surface by removing redundant parameters
+
+### Files Modified
+- `app/schemas/crawl.py`
+- `app/services/crawler/utils/options.py`
+- `.env`
+- `tests/api/test_crawl_endpoint.py`
+- `tests/integration/test_crawl_real_urls.py`
+- `tests/integration/test_generic_crawl_integration.py`
+
 ## Sprint 06 - Camoufox User Data and Additional Stealth
 **Status:** ✅ Completed
 **Date:** 2025-09-04

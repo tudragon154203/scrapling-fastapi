@@ -34,7 +34,7 @@ def _resolve_effective_options(payload: CrawlRequest, settings) -> Dict[str, Any
     if payload.x_wait_time is not None:
         wait_ms = int(payload.x_wait_time * 1000)
 
-    headless: bool = payload.headless if payload.headless is not None else settings.default_headless
+    # Determine headless mode: respect x_force_headful, otherwise use .env setting
     if payload.x_force_headful is True:
         try:
             import platform  # local import to avoid module-level cost
@@ -42,10 +42,13 @@ def _resolve_effective_options(payload: CrawlRequest, settings) -> Dict[str, Any
                 headless = False
             else:
                 # On non-Windows, ignore headful request per legacy behavior
-                pass
+                headless = settings.default_headless
         except Exception:
             # If platform detection fails, fall back to forcing headful
             headless = False
+    else:
+        # If x_force_headful is False or None, respect the .env setting
+        headless = settings.default_headless
 
     network_idle: bool = (
         payload.network_idle if payload.network_idle is not None else settings.default_network_idle

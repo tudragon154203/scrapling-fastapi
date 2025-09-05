@@ -39,7 +39,6 @@ def _make_body(url: str) -> dict:
         "timeout_ms": 60000,
         # Add a small fixed wait for dynamic content
         "x_wait_time": 8,
-        "headless": True,
     }
 
 
