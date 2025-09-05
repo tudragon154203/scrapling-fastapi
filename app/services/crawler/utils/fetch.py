@@ -1,8 +1,11 @@
 import inspect
+import logging
 import threading
 from typing import Dict, Any, Optional, Callable
 from urllib import request as urllib_request
 from urllib.error import URLError, HTTPError
+
+from app.services.crawler.utils.proxy import _redact_proxy
 
 
 def _detect_fetch_capabilities(fetch_callable) -> Dict[str, bool]:
@@ -55,6 +58,12 @@ def _compose_fetch_kwargs(
 
     if caps.get("proxy") and selected_proxy:
         fetch_kwargs["proxy"] = selected_proxy
+        logger = logging.getLogger(__name__)
+        redacted_proxy = _redact_proxy(selected_proxy)
+        logger.info(f"Using proxy: {redacted_proxy}")
+    else:
+        logger = logging.getLogger(__name__)
+        logger.info("No proxy used for this request")
     if caps.get("geoip") and geoip_enabled:
         fetch_kwargs["geoip"] = True
     if caps.get("additional_args") and additional_args:
