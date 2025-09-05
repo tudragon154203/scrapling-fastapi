@@ -52,6 +52,7 @@ class FetchCapabilities:
     supports_network_idle: bool = False
     supports_timeout: bool = False
     supports_additional_args: bool = False
+    supports_page_action: bool = True  # Force enable since we know StealthyFetcher supports it
     
     def __bool__(self) -> bool:
         """Return True if any capabilities are supported."""
@@ -59,5 +60,6 @@ class FetchCapabilities:
             self.supports_proxy,
             self.supports_network_idle,
             self.supports_timeout,
-            self.supports_additional_args
+            self.supports_additional_args,
+            self.supports_page_action
         ])

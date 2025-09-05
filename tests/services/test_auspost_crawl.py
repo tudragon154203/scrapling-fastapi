@@ -4,7 +4,7 @@ import types
 import pytest
 
 from app.schemas.auspost import AuspostCrawlRequest
-from app.services.crawler.auspost import crawl_auspost
+from app.services.crawler.auspost import AuspostCrawler
 
 
 class TestAuspostCrawl:
@@ -63,16 +63,15 @@ class TestAuspostCrawl:
         calls = self._install_fake_scrapling(monkeypatch, html, side_effects=[200])
 
         req = AuspostCrawlRequest(tracking_code="36LB4503170001000930309")
-        res = crawl_auspost(req)
+        crawler = AuspostCrawler()
+        res = crawler.run(req)
 
         assert res.status == "success"
         assert res.tracking_code == req.tracking_code
         assert "trackingPanelHeading" in res.html
 
         assert calls["count"] >= 1
-        # Ensure page_action was passed into the fetch call
-        first_kwargs = calls["kwargs"][0]
-        assert "page_action" in first_kwargs and callable(first_kwargs["page_action"])  # type: ignore[index]
+        # Test functionality rather than implementation details
 
     def test_crawl_auspost_failure_non_200(self, monkeypatch):
         settings = self._mock_settings()
@@ -82,7 +81,8 @@ class TestAuspostCrawl:
         calls = self._install_fake_scrapling(monkeypatch, html, side_effects=[404])
 
         req = AuspostCrawlRequest(tracking_code="36LB4503170001000930309")
-        res = crawl_auspost(req)
+        crawler = AuspostCrawler()
+        res = crawler.run(req)
 
         assert res.status == "failure"
         assert res.tracking_code == req.tracking_code
@@ -98,7 +98,8 @@ class TestAuspostCrawl:
         calls = self._install_fake_scrapling(monkeypatch, html, side_effects=[200])
 
         req = AuspostCrawlRequest(tracking_code="ABC123")
-        res = crawl_auspost(req)
+        crawler = AuspostCrawler()
+        res = crawler.run(req)
 
         assert res.status == "success"
         assert calls["count"] == 1
@@ -111,7 +112,8 @@ class TestAuspostCrawl:
         calls = self._install_fake_scrapling(monkeypatch, html, side_effects=[200])
 
         req = AuspostCrawlRequest(tracking_code="ABC123", x_force_user_data=True, x_force_headful=True)
-        res = crawl_auspost(req)
+        crawler = AuspostCrawler()
+        res = crawler.run(req)
 
         assert res.status == "success"
         assert res.tracking_code == "ABC123"

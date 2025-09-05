@@ -7,8 +7,9 @@ from unittest.mock import patch
 
 import pytest
 
-from app.services.crawler.executors.retry import execute_crawl_with_retries
-from app.services.crawler.utils.proxy import health_tracker, reset_health_tracker
+from app.services.crawler.executors.retry_executor import RetryingExecutor
+from app.services.crawler.core.engine import CrawlerEngine
+from app.services.crawler.proxy.health import get_health_tracker, reset_health_tracker
 from app.schemas.crawl import CrawlRequest
 
 
@@ -95,7 +96,9 @@ def test_random_rotation_with_seeded_rng(monkeypatch):
         calls = _install_fake_scrapling_with_proxy_tracking(monkeypatch, side_effects=[500, 500, 500, 200])
 
         with patch("time.sleep"):
-            res = execute_crawl_with_retries(_make_request())
+            # Use new OOP structure
+            engine = CrawlerEngine.from_settings(settings)
+            res = engine.run(_make_request())
 
         assert res.status == "success"
         assert calls["count"] == 4
@@ -114,7 +117,7 @@ def test_random_rotation_excludes_unhealthy_proxies(monkeypatch):
     """Ensure unhealthy proxies are excluded from random selection."""
     # Clear health tracker and mark some as unhealthy
     reset_health_tracker()
-    health_tracker["socks5://127.0.0.1:8080"] = {"failures": 3, "unhealthy_until": float('inf')}  # Unhealthy
+    get_health_tracker().health_map["socks5://127.0.0.1:8080"] = {"failures": 3, "unhealthy_until": float('inf')}  # Unhealthy
     # 8081 and 8082 are healthy
 
     # Seed random
@@ -136,7 +139,9 @@ def test_random_rotation_excludes_unhealthy_proxies(monkeypatch):
         calls = _install_fake_scrapling_with_proxy_tracking(monkeypatch, side_effects=[500, 500, 200])
 
         with patch("time.sleep"):
-            res = execute_crawl_with_retries(_make_request())
+            # Use new OOP structure
+            engine = CrawlerEngine.from_settings(settings)
+            res = engine.run(_make_request())
 
         assert res.status == "success"
         assert calls["count"] == 3
@@ -173,7 +178,9 @@ def test_random_rotation_avoids_last_used_proxy(monkeypatch):
         calls = _install_fake_scrapling_with_proxy_tracking(monkeypatch, side_effects=[500, 500, 500, 200])
 
         with patch("time.sleep"):
-            res = execute_crawl_with_retries(_make_request())
+            # Use new OOP structure
+            engine = CrawlerEngine.from_settings(settings)
+            res = engine.run(_make_request())
 
         assert res.status == "success"
         assert calls["count"] == 4

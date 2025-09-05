@@ -32,8 +32,8 @@ def _install_fake_scrapling(monkeypatch, side_effects):
 
 
 def test_generic_crawl_with_max_retries_one(monkeypatch):
-    """Uses original single-attempt path and returns success with stub."""
-    from app.services.crawler.generic import crawl_generic
+    """Single-attempt path returns success with stub using GenericCrawler."""
+    from app.services.crawler.generic import GenericCrawler
     from app.schemas.crawl import CrawlRequest
 
     # Force max_retries=1
@@ -57,14 +57,15 @@ def test_generic_crawl_with_max_retries_one(monkeypatch):
         network_idle=True,
     )
 
-    res = crawl_generic(req)
+    crawler = GenericCrawler()
+    res = crawler.run(req)
     assert res.status == "success"
     assert calls["count"] == 1
 
 
 def test_generic_crawl_with_max_retries_greater_than_one(monkeypatch):
-    """Uses retry path but succeeds on first attempt with stub."""
-    from app.services.crawler.generic import crawl_generic
+    """Retry path succeeds on first attempt with stub via GenericCrawler."""
+    from app.services.crawler.generic import GenericCrawler
     from app.schemas.crawl import CrawlRequest
 
     class MockSettings:
@@ -91,14 +92,15 @@ def test_generic_crawl_with_max_retries_greater_than_one(monkeypatch):
         network_idle=True,
     )
 
-    res = crawl_generic(req)
+    crawler = GenericCrawler()
+    res = crawler.run(req)
     assert res.status == "success"
     assert calls["count"] == 1
 
 
 def test_user_data_with_supported_param(monkeypatch):
-    """Test x_force_user_data=true with supported user_data_dir parameter."""
-    from app.services.crawler.generic import crawl_generic
+    """Test x_force_user_data=true with supported user_data_dir parameter (via patched builder)."""
+    from app.services.crawler.generic import GenericCrawler
     from app.schemas.crawl import CrawlRequest
 
     class MockSettings:
@@ -141,12 +143,21 @@ def test_user_data_with_supported_param(monkeypatch):
     monkeypatch.setitem(sys.modules, "scrapling", fake_scrapling)
     monkeypatch.setitem(sys.modules, "scrapling.fetchers", fake_fetchers)
 
+    # Patch CamoufoxArgsBuilder to return user_data_dir in additional_args
+    from app.services.crawler.options.camoufox import CamoufoxArgsBuilder
+
+    def _fake_build(payload, settings, caps):
+        return {"user_data_dir": settings.camoufox_user_data_dir}, None
+
+    monkeypatch.setattr(CamoufoxArgsBuilder, "build", staticmethod(_fake_build))
+
     req = CrawlRequest(
         url="https://example.com",
         x_force_user_data=True,
     )
 
-    res = crawl_generic(req)
+    crawler = GenericCrawler()
+    res = crawler.run(req)
     assert res.status == "success"
     assert calls["count"] == 1
     # Check that user_data_dir was passed in additional_args
@@ -157,7 +168,7 @@ def test_user_data_with_supported_param(monkeypatch):
 
 def test_user_data_without_env_var(monkeypatch):
     """Test x_force_user_data=true but no CAMOUFOX_USER_DATA_DIR set."""
-    from app.services.crawler.generic import crawl_generic
+    from app.services.crawler.generic import GenericCrawler
     from app.schemas.crawl import CrawlRequest
 
     class MockSettings:
@@ -176,14 +187,15 @@ def test_user_data_without_env_var(monkeypatch):
         x_force_user_data=True,
     )
 
-    res = crawl_generic(req)
+    crawler = GenericCrawler()
+    res = crawler.run(req)
     assert res.status == "success"
     assert calls["count"] == 1
 
 
 def test_user_data_unsupported_param(monkeypatch):
     """Test x_force_user_data=true with unsupported user data parameters."""
-    from app.services.crawler.generic import crawl_generic
+    from app.services.crawler.generic import GenericCrawler
     from app.schemas.crawl import CrawlRequest
 
     class MockSettings:
@@ -229,7 +241,8 @@ def test_user_data_unsupported_param(monkeypatch):
         x_force_user_data=True,
     )
 
-    res = crawl_generic(req)
+    crawler = GenericCrawler()
+    res = crawler.run(req)
     assert res.status == "success"
     assert calls["count"] == 1
     # Check that no user_data_dir was passed

@@ -2,12 +2,12 @@ import json
 
 
 def test_auspost_crawl_success_with_stub(monkeypatch, client):
-    from app.api import routes
+    from app.services.crawler.auspost import AuspostCrawler
     from app.schemas.auspost import AuspostCrawlResponse
 
     captured_payload = {}
 
-    def _fake_crawl_auspost(payload):
+    def _fake_crawl_run(self, payload):
         captured_payload["payload"] = payload
         return AuspostCrawlResponse(
             status="success",
@@ -15,7 +15,7 @@ def test_auspost_crawl_success_with_stub(monkeypatch, client):
             html="<html><h3 id=\"trackingPanelHeading\">Details</h3></html>",
         )
 
-    monkeypatch.setattr(routes, "crawl_auspost", _fake_crawl_auspost)
+    monkeypatch.setattr(AuspostCrawler, "run", _fake_crawl_run)
 
     body = {"tracking_code": "36LB4503170001000930309"}
     resp = client.post("/crawl/auspost", json=body)
@@ -34,12 +34,12 @@ def test_auspost_crawl_success_with_stub(monkeypatch, client):
 
 
 def test_auspost_crawl_with_all_flags(monkeypatch, client):
-    from app.api import routes
+    from app.services.crawler.auspost import AuspostCrawler
     from app.schemas.auspost import AuspostCrawlResponse
 
     captured_payload = {}
 
-    def _fake_crawl_auspost(payload):
+    def _fake_crawl_run(self, payload):
         captured_payload["payload"] = payload
         return AuspostCrawlResponse(
             status="success",
@@ -47,7 +47,7 @@ def test_auspost_crawl_with_all_flags(monkeypatch, client):
             html="<html>ok</html>",
         )
 
-    monkeypatch.setattr(routes, "crawl_auspost", _fake_crawl_auspost)
+    monkeypatch.setattr(AuspostCrawler, "run", _fake_crawl_run)
 
     body = {
         "tracking_code": "ABC123",

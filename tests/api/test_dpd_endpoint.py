@@ -5,12 +5,12 @@ import pytest
 
 def test_dpd_crawl_success_with_stub(monkeypatch, client):
     """Test successful DPD crawl via API endpoint."""
-    from app.api import routes
+    from app.services.crawler.dpd import DPDCrawler
     from app.schemas.dpd import DPDCrawlResponse
 
     captured_payload = {}
 
-    def _fake_crawl_dpd(payload):
+    def _fake_crawl_run(self, payload):
         # capture for assertions
         captured_payload["payload"] = payload
         return DPDCrawlResponse(
@@ -20,7 +20,7 @@ def test_dpd_crawl_success_with_stub(monkeypatch, client):
         )
 
     # monkeypatch the service function used by the route
-    monkeypatch.setattr(routes, "crawl_dpd", _fake_crawl_dpd)
+    monkeypatch.setattr(DPDCrawler, "run", _fake_crawl_run)
 
     body = {
         "tracking_code": "12345678901234"
@@ -43,12 +43,12 @@ def test_dpd_crawl_success_with_stub(monkeypatch, client):
 
 def test_dpd_crawl_with_all_flags(monkeypatch, client):
     """Test DPD crawl with all optional flags set."""
-    from app.api import routes
+    from app.services.crawler.dpd import DPDCrawler
     from app.schemas.dpd import DPDCrawlResponse
 
     captured_payload = {}
 
-    def _fake_crawl_dpd(payload):
+    def _fake_crawl_run(self, payload):
         captured_payload["payload"] = payload
         return DPDCrawlResponse(
             status="success",
@@ -56,7 +56,7 @@ def test_dpd_crawl_with_all_flags(monkeypatch, client):
             html="<html>DPD tracking with flags</html>"
         )
 
-    monkeypatch.setattr(routes, "crawl_dpd", _fake_crawl_dpd)
+    monkeypatch.setattr(DPDCrawler, "run", _fake_crawl_run)
 
     body = {
         "tracking_code": "12345678901234",
@@ -79,17 +79,17 @@ def test_dpd_crawl_with_all_flags(monkeypatch, client):
 
 def test_dpd_crawl_failure_with_stub(monkeypatch, client):
     """Test DPD crawl failure via API endpoint."""
-    from app.api import routes
+    from app.services.crawler.dpd import DPDCrawler
     from app.schemas.dpd import DPDCrawlResponse
 
-    def _fake_crawl_dpd(payload):
+    def _fake_crawl_run(self, payload):
         return DPDCrawlResponse(
             status="failure",
             tracking_code=payload.tracking_code,
             message="HTTP status: 404"
         )
 
-    monkeypatch.setattr(routes, "crawl_dpd", _fake_crawl_dpd)
+    monkeypatch.setattr(DPDCrawler, "run", _fake_crawl_run)
 
     body = {
         "tracking_code": "12345678901234"
@@ -144,12 +144,12 @@ def test_dpd_crawl_whitespace_tracking_code(client):
 
 def test_dpd_crawl_trimmed_tracking_code(monkeypatch, client):
     """Test that tracking_code is trimmed of whitespace."""
-    from app.api import routes
+    from app.services.crawler.dpd import DPDCrawler
     from app.schemas.dpd import DPDCrawlResponse
 
     captured_payload = {}
 
-    def _fake_crawl_dpd(payload):
+    def _fake_crawl_run(self, payload):
         captured_payload["payload"] = payload
         return DPDCrawlResponse(
             status="success",
@@ -157,7 +157,7 @@ def test_dpd_crawl_trimmed_tracking_code(monkeypatch, client):
             html="<html>DPD tracking</html>"
         )
 
-    monkeypatch.setattr(routes, "crawl_dpd", _fake_crawl_dpd)
+    monkeypatch.setattr(DPDCrawler, "run", _fake_crawl_run)
 
     body = {
         "tracking_code": "  12345678901234  "
@@ -175,12 +175,12 @@ def test_dpd_crawl_trimmed_tracking_code(monkeypatch, client):
 
 def test_dpd_crawl_default_values(monkeypatch, client):
     """Test that optional flags default to False."""
-    from app.api import routes
+    from app.services.crawler.dpd import DPDCrawler
     from app.schemas.dpd import DPDCrawlResponse
 
     captured_payload = {}
 
-    def _fake_crawl_dpd(payload):
+    def _fake_crawl_run(self, payload):
         captured_payload["payload"] = payload
         return DPDCrawlResponse(
             status="success",
@@ -188,7 +188,7 @@ def test_dpd_crawl_default_values(monkeypatch, client):
             html="<html>DPD tracking</html>"
         )
 
-    monkeypatch.setattr(routes, "crawl_dpd", _fake_crawl_dpd)
+    monkeypatch.setattr(DPDCrawler, "run", _fake_crawl_run)
 
     body = {
         "tracking_code": "12345678901234"
@@ -205,12 +205,12 @@ def test_dpd_crawl_default_values(monkeypatch, client):
 
 def test_dpd_crawl_explicit_false_values(monkeypatch, client):
     """Test that explicitly setting False values works."""
-    from app.api import routes
+    from app.services.crawler.dpd import DPDCrawler
     from app.schemas.dpd import DPDCrawlResponse
 
     captured_payload = {}
 
-    def _fake_crawl_dpd(payload):
+    def _fake_crawl_run(self, payload):
         captured_payload["payload"] = payload
         return DPDCrawlResponse(
             status="success",
@@ -218,7 +218,7 @@ def test_dpd_crawl_explicit_false_values(monkeypatch, client):
             html="<html>DPD tracking</html>"
         )
 
-    monkeypatch.setattr(routes, "crawl_dpd", _fake_crawl_dpd)
+    monkeypatch.setattr(DPDCrawler, "run", _fake_crawl_run)
 
     body = {
         "tracking_code": "12345678901234",
@@ -247,12 +247,12 @@ def test_dpd_crawl_invalid_json(client):
 
 def test_dpd_crawl_additional_fields_ignored(monkeypatch, client):
     """Test that additional fields in request are ignored gracefully."""
-    from app.api import routes
+    from app.services.crawler.dpd import DPDCrawler
     from app.schemas.dpd import DPDCrawlResponse
 
     captured_payload = {}
 
-    def _fake_crawl_dpd(payload):
+    def _fake_crawl_run(self, payload):
         captured_payload["payload"] = payload
         return DPDCrawlResponse(
             status="success",
@@ -260,7 +260,7 @@ def test_dpd_crawl_additional_fields_ignored(monkeypatch, client):
             html="<html>DPD tracking</html>"
         )
 
-    monkeypatch.setattr(routes, "crawl_dpd", _fake_crawl_dpd)
+    monkeypatch.setattr(DPDCrawler, "run", _fake_crawl_run)
 
     body = {
         "tracking_code": "12345678901234",

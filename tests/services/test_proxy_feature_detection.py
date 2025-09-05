@@ -63,7 +63,7 @@ def _mock_settings_no_proxy():
 
 
 def test_graceful_no_proxy_when_unsupported(monkeypatch):
-    from app.services.crawler.executors.retry import execute_crawl_with_retries
+    from app.services.crawler.core.engine import CrawlerEngine
     from app.schemas.crawl import CrawlRequest
 
     # Install fake scrapling without proxy support, and patch settings
@@ -81,7 +81,8 @@ def test_graceful_no_proxy_when_unsupported(monkeypatch):
 
     # Avoid sleeping delays
     with patch("time.sleep"):
-        res = execute_crawl_with_retries(req)
+        engine = CrawlerEngine.from_settings(_mock_settings_no_proxy())
+        res = engine.run(req)
 
     assert res.status == "success"
     assert (res.html or "").startswith("<html>")

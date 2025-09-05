@@ -69,7 +69,7 @@ def _make_request():
 
 
 def test_retry_success_on_second_attempt(monkeypatch):
-    from app.services.crawler.executors.retry import execute_crawl_with_retries
+    from app.services.crawler.core.engine import CrawlerEngine
 
     # Patch settings and scrapling
     monkeypatch.setattr("app.core.config.get_settings", lambda: _mock_settings(max_retries=3))
@@ -77,7 +77,7 @@ def test_retry_success_on_second_attempt(monkeypatch):
 
     # Avoid sleeping in tests
     with patch("time.sleep") as mocked_sleep:
-        res = execute_crawl_with_retries(_make_request())
+        res = CrawlerEngine.from_settings(_mock_settings(max_retries=3)).run(_make_request())
 
     assert res.status == "success"
     assert "attempt-2" in (res.html or "")
@@ -87,13 +87,13 @@ def test_retry_success_on_second_attempt(monkeypatch):
 
 
 def test_retry_failure_after_exhausting_attempts(monkeypatch):
-    from app.services.crawler.executors.retry import execute_crawl_with_retries
+    from app.services.crawler.core.engine import CrawlerEngine
 
     monkeypatch.setattr("app.core.config.get_settings", lambda: _mock_settings(max_retries=3))
     calls = _install_fake_scrapling(monkeypatch, side_effects=[500, 500, 500])
 
     with patch("time.sleep") as mocked_sleep:
-        res = execute_crawl_with_retries(_make_request())
+        res = CrawlerEngine.from_settings(_mock_settings(max_retries=3)).run(_make_request())
 
     assert res.status == "failure"
     assert res.html is None
@@ -104,13 +104,13 @@ def test_retry_failure_after_exhausting_attempts(monkeypatch):
 
 
 def test_retry_non200_then_success(monkeypatch):
-    from app.services.crawler.executors.retry import execute_crawl_with_retries
+    from app.services.crawler.core.engine import CrawlerEngine
 
     monkeypatch.setattr("app.core.config.get_settings", lambda: _mock_settings(max_retries=3))
     calls = _install_fake_scrapling(monkeypatch, side_effects=[500, 200])
 
     with patch("time.sleep") as mocked_sleep:
-        res = execute_crawl_with_retries(_make_request())
+        res = CrawlerEngine.from_settings(_mock_settings(max_retries=3)).run(_make_request())
 
     assert res.status == "success"
     assert calls["count"] == 2

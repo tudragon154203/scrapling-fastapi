@@ -6,18 +6,18 @@ import pytest
 
 def test_crawl_success_with_stub(monkeypatch, client):
     # Import inside test to ensure app/router is loaded
-    from app.api import routes
+    from app.services.crawler.generic import GenericCrawler
     from app.schemas.crawl import CrawlResponse
 
     captured_payload = {}
 
-    def _fake_crawl_generic(payload):
+    def _fake_crawl_run(self, payload):
         # capture for assertions
         captured_payload["payload"] = payload
         return CrawlResponse(status="success", url=payload.url, html="<html>ok</html>")
 
     # monkeypatch the service function used by the route
-    monkeypatch.setattr(routes, "crawl_generic", _fake_crawl_generic)
+    monkeypatch.setattr(GenericCrawler, "run", _fake_crawl_run)
 
     body = {
         "url": "https://example.com",
@@ -38,16 +38,16 @@ def test_crawl_success_with_stub(monkeypatch, client):
 
 
 def test_crawl_legacy_fields(monkeypatch, client):
-    from app.api import routes
+    from app.services.crawler.generic import GenericCrawler
     from app.schemas.crawl import CrawlResponse
 
     captured_payload = {}
 
-    def _fake_crawl_generic(payload):
+    def _fake_crawl_run(self, payload):
         captured_payload["payload"] = payload
         return CrawlResponse(status="success", url=payload.url, html="<html>legacy</html>")
 
-    monkeypatch.setattr(routes, "crawl_generic", _fake_crawl_generic)
+    monkeypatch.setattr(GenericCrawler, "run", _fake_crawl_run)
 
     body = {
         "url": "https://example.com",

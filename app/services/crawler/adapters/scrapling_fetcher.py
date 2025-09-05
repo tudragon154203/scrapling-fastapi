@@ -41,6 +41,7 @@ class ScraplingFetcherAdapter(IFetchClient):
             supports_network_idle=_ok("network_idle"),
             supports_timeout=_ok("timeout"),
             supports_additional_args=_ok("additional_args"),
+            supports_page_action=_ok("page_action"),
         )
         return self._capabilities
     

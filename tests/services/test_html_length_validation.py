@@ -43,7 +43,7 @@ def _install_fake_scrapling_with_html_lengths(monkeypatch, html_lengths):
 
 
 def test_single_attempt_fails_on_short_html(monkeypatch):
-    from app.services.crawler.generic import crawl_generic
+    from app.services.crawler.core.engine import CrawlerEngine
 
     class MockSettings:
         max_retries = 1
@@ -55,14 +55,15 @@ def test_single_attempt_fails_on_short_html(monkeypatch):
     monkeypatch.setattr("app.core.config.get_settings", lambda: MockSettings())
     _install_fake_scrapling_with_html_lengths(monkeypatch, html_lengths=[100])
 
-    res = crawl_generic(_make_request())
+    engine = CrawlerEngine.from_settings(MockSettings())
+    res = engine.run(_make_request())
     assert res.status == "failure"
     assert res.html is None
     assert "HTML too short" in (res.message or "")
 
 
 def test_retry_succeeds_after_short_html_then_long(monkeypatch):
-    from app.services.crawler.executors.retry import execute_crawl_with_retries
+    from app.services.crawler.core.engine import CrawlerEngine
 
     class MockSettings:
         max_retries = 3
@@ -83,7 +84,8 @@ def test_retry_succeeds_after_short_html_then_long(monkeypatch):
     calls = _install_fake_scrapling_with_html_lengths(monkeypatch, html_lengths=[100, 200, 800])
 
     with patch("time.sleep"):
-        res = execute_crawl_with_retries(_make_request())
+        engine = CrawlerEngine.from_settings(MockSettings())
+        res = engine.run(_make_request())
 
     assert res.status == "success"
     assert calls["count"] == 3

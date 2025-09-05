@@ -15,6 +15,10 @@ class AuspostTrackAction(BasePageAction):
     def __init__(self, tracking_code: str):
         self.tracking_code = tracking_code
     
+    def __call__(self, page: Any) -> Any:
+        """Make the action directly callable."""
+        return self._execute(page)
+    
     def _execute(self, page: Any) -> Any:
         """Playwright page_action for AusPost tracking automation.
 
