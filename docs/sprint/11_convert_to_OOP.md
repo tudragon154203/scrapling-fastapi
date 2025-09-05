@@ -132,11 +132,9 @@ app/services/crawler/
     auspost.py           # AuspostTrackAction
     __init__.py
 
-  crawlers/
-    generic.py           # GenericCrawler (thin) using CrawlerEngine
-    dpd.py               # DPDCrawler
-    auspost.py           # AuspostCrawler
-    __init__.py
+  generic.py           # GenericCrawler (thin) using CrawlerEngine
+  dpd.py               # DPDCrawler
+  auspost.py           # AuspostCrawler
 
   __init__.py           # package doc, public API exports
 ```
