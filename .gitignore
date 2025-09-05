@@ -1,6 +1,7 @@
 demo/
 desktop.ini
 repomix-output.*
+*.ps1
 
 # Environment variables
 .env
