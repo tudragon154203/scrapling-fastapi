@@ -26,7 +26,7 @@ class CamoufoxArgsBuilder:
         if hasattr(payload, 'x_force_user_data') and payload.x_force_user_data is True and settings.camoufox_user_data_dir:
             user_data_param = None
             for param in ("user_data_dir", "profile_dir", "profile_path", "user_data"):
-                if caps.get(param, False):
+                if getattr(caps, param, False):
                     user_data_param = param
                     break
             if user_data_param:

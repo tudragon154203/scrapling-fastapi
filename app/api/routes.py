@@ -31,7 +31,6 @@ def crawl_dpd_endpoint(payload: DPDCrawlRequest) -> DPDCrawlResponse:
     """DPD tracking endpoint using Scrapling.
     
     Accepts a tracking code and returns the DPD tracking page HTML.
-    Supports legacy compatibility flags for headless and user data control.
     """
     crawler = DPDCrawler()
     return crawler.run(payload)
@@ -42,7 +41,6 @@ def crawl_auspost_endpoint(payload: AuspostCrawlRequest) -> AuspostCrawlResponse
     """AusPost tracking endpoint using Scrapling.
     
     Accepts a tracking code and returns the AusPost tracking page HTML.
-    Supports legacy compatibility flags for headless and user data control.
     """
     crawler = AuspostCrawler()
     return crawler.run(payload)
