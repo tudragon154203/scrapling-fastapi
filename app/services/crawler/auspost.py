@@ -1,310 +1,61 @@
 import logging
-from typing import Dict, Any
 
 import app.core.config as app_config
 from app.schemas.auspost import AuspostCrawlRequest, AuspostCrawlResponse
 from app.schemas.crawl import CrawlRequest, CrawlResponse
 
-from .executors.retry import execute_crawl_with_retries
-from .executors.single import crawl_single_attempt
- 
+from .core.engine import CrawlerEngine
+from .actions.auspost import AuspostTrackAction
 
 logger = logging.getLogger(__name__)
 
-# AusPost tracking search URL
-AUSPOST_TRACKING_PAGE = "https://auspost.com.au/mypost/track/search"
-# Selector that exists on the details page when result loads
-AUSPOST_DETAILS_SELECTOR = "h3#trackingPanelHeading"
 
-
-def _make_auspost_page_action(tracking_code: str):
-    def _go_to_auspost_details(page):
-        """Playwright page_action for AusPost tracking automation.
-
-        - Waits for the tracking search input
-        - Enters the tracking number and submits
-        - Handles "Verifying the device..." interstitial if it appears
-        - Waits for details URL and selector to appear
-        """
-        # We'll attempt up to 3 submissions to handle flows where
-        # the site returns to the search page after verification.
-        def _first_visible(selectors, timeout=5000):
-            for sel in selectors:
-                try:
-                    loc = page.locator(sel).first
-                    loc.wait_for(state="visible", timeout=timeout)
-                    return loc
-                except Exception:
-                    continue
-            # Return last locator without waiting if nothing matched
-            return page.locator(selectors[-1]).first
-
-        for attempt in range(3):
-            try:
-                # If we already reached details URL, break early
-                if "/mypost/track/details/" in (page.url or ""):
-                    break
-            except Exception:
-                pass
-
-            try:
-                # If the global header/site search is open, close it so it doesn't steal focus
-                try:
-                    header_search = page.locator('input[placeholder="Search our site"]').first
-                    if header_search.is_visible():
-                        # Try close button first (more reliable than Escape)
-                        try:
-                            close_btn = _first_visible([
-                                "button[aria-label*='Close']",
-                                "button[aria-label*='close']",
-                                "button[title*='Close']",
-                                "button:has-text('×')",
-                                "[role='dialog'] button",
-                            ], timeout=2_000)
-                            close_btn.click()
-                            try:
-                                header_search.wait_for(state="hidden", timeout=2_000)
-                            except Exception:
-                                pass
-                        except Exception:
-                            # Fallback: press Escape
-                            page.keyboard.press("Escape")
-                            try:
-                                header_search.wait_for(state="hidden", timeout=2_000)
-                            except Exception:
-                                pass
-                except Exception:
-                    pass
-
-                # Re-query fresh locators each attempt to avoid stale references and prefer
-                # the main page tracking form (avoid the global site search overlay)
-                input_locator = _first_visible([
-                    'input[placeholder="Enter tracking number(s)"]',
-                    'main input[placeholder="Enter tracking number(s)"]',
-                    'main input[data-testid="SearchBarInput"]:not([placeholder="Search our site"])',
-                    'input[data-testid="SearchBarInput"]:not([placeholder="Search our site"])',
-                    'main input[placeholder*="tracking number"]',
-                    'main input[placeholder*="Tracking number"]',
-                    'input[placeholder*="tracking number"]',
-                    'input[placeholder*="Tracking number"]',
-                    'input[aria-label*="tracking"]',
-                    'input[aria-label*="Tracking"]',
-                ], timeout=10_000)
-                input_locator.click()
-                try:
-                    input_locator.fill("")
-                except Exception:
-                    pass
-                input_locator.fill(tracking_code)
-
-                # Prefer clicking the Track/Search button using its data-testid
-                try:
-                    track_btn = _first_visible([
-                        'button:has-text("Track")',
-                        'main button[data-testid="SearchButton"]',
-                        'button[data-testid="SearchButton"]',
-                    ], timeout=5_000)
-                    track_btn.click()
-                except Exception:
-                    # Fallback: press Enter
-                    page.keyboard.press("Enter")
-
-                # Handle AusPost "Verifying the device..." interstitial if it appears
-                try:
-                    verifying = page.locator("text=Verifying the device")
-                    verifying.first.wait_for(state="visible", timeout=4_000)
-                    # Wait until verification finishes
-                    verifying.first.wait_for(state="hidden", timeout=20_000)
-                    page.wait_for_load_state(state="domcontentloaded")
-                    try:
-                        page.wait_for_load_state("networkidle")
-                    except Exception:
-                        pass
-                except Exception:
-                    pass
-
-                # Wait for details URL; if not, try clicking generic Track/Search buttons
-                tried_generic = False
-                try:
-                    page.wait_for_url("**/mypost/track/details/**", timeout=15_000)
-                except Exception:
-                    try:
-                        btn = page.locator('button:has-text("Track"), button:has-text("Search")').first
-                        btn.wait_for(state="visible", timeout=5_000)
-                        btn.click()
-                        tried_generic = True
-                        try:
-                            page.wait_for_url("**/mypost/track/details/**", timeout=15_000)
-                        except Exception:
-                            pass
-                    except Exception:
-                        pass
-
-                # If we are still on search page (common after verification), loop and retry
-                try:
-                    if "/mypost/track/search" in (page.url or "") and not page.locator(AUSPOST_DETAILS_SELECTOR).first.is_visible():
-                        # small grace wait before next attempt to let any cookies settle
-                        try:
-                            page.wait_for_load_state("domcontentloaded", timeout=2_000)
-                        except Exception:
-                            pass
-                        continue
-                except Exception:
-                    pass
-            except Exception:
-                # On any unexpected errors, continue attempts but don't fail the whole flow
-                pass
-
-        # Safety wait for the details header to appear (in addition to engine wait_selector)
-        try:
-            page.locator(AUSPOST_DETAILS_SELECTOR).first.wait_for(state="visible", timeout=15_000)
-        except Exception:
-            pass
-
-        return page
-    return _go_to_auspost_details
-
-
-def _convert_auspost_to_crawl_request(auspost_request: AuspostCrawlRequest) -> CrawlRequest:
-    """Convert AusPost request to generic crawl request.
+class AuspostCrawler:
+    """AusPost-specific crawler that uses the CrawlerEngine with page actions."""
     
-    Builds a CrawlRequest with the AusPost search URL and sensible defaults.
-    Page automation (form fill/submit) is supplied at execution time via
-    the `page_action` argument of the executors.
-    """
-    # Provide conservative defaults; executors will merge with settings
-    return CrawlRequest(
-        url=AUSPOST_TRACKING_PAGE,
-        # Demo uses headless=False; mirror that by default
-        headless=False,
-        x_force_headful=auspost_request.x_force_headful,
-        x_force_user_data=auspost_request.x_force_user_data,
-        # Wait for the details header to ensure content loaded
-        wait_selector=AUSPOST_DETAILS_SELECTOR,
-        wait_selector_state="visible",
-        # Prefer network idle to stabilize dynamic content
-        network_idle=True,
-        # Add a small wait similar to demo (approx 1200ms)
-        x_wait_time=2,
-        # Use a higher timeout like the demo (30s)
-        timeout_ms=30_000,
-    )
-
-
-def _convert_crawl_to_auspost_response(
-    crawl_response: CrawlResponse, 
-    tracking_code: str
-) -> AuspostCrawlResponse:
-    """Convert generic crawl response to AusPost-specific response.
+    def __init__(self, engine: CrawlerEngine = None):
+        self.engine = engine or CrawlerEngine.from_settings(app_config.get_settings())
     
-    Args:
-        crawl_response: The generic crawl response
-        tracking_code: Original tracking code for echo
+    def run(self, request: AuspostCrawlRequest) -> AuspostCrawlResponse:
+        """Run an AusPost crawl request."""
+        # Convert AusPost request to generic crawl request
+        crawl_request = self._convert_auspost_to_crawl_request(request)
         
-    Returns:
-        AusPost-specific response with tracking code echo
-    """
-    return AuspostCrawlResponse(
-        status=crawl_response.status,
-        tracking_code=tracking_code,
-        html=crawl_response.html,
-        message=crawl_response.message
-    )
-
-
-def crawl_auspost(request: AuspostCrawlRequest) -> AuspostCrawlResponse:
-    """Crawl AusPost tracking page for the given tracking code.
-    
-    This function reuses the existing generic crawl infrastructure with retry
-    and proxy support, converting the AusPost-specific request to a generic one
-    and performing the page action automation from the demo.
-    
-    Args:
-        request: AusPost crawl request containing tracking code and options
+        # Create page action for AusPost automation
+        page_action = AuspostTrackAction(request.tracking_code)
         
-    Returns:
-        AusPost crawl response with status, tracking code, and HTML/error message
-    """
-    settings = app_config.get_settings()
-
-    # Log the tracking request (with redacted tracking code for privacy)
-    redacted_code = request.tracking_code[:4] + "***" if len(request.tracking_code) > 4 else "***"
-    logger.info(f"AusPost tracking request for code: {redacted_code}")
-    
-    # Log headless decision reasoning
-    if request.x_force_headful:
-        import platform
-        if platform.system().lower() == "windows":
-            logger.info("x_force_headful=true honored on Windows platform")
-        else:
-            logger.info("x_force_headful=true ignored on non-Windows platform")
-    
-    # Log user data decision
-    if request.x_force_user_data:
-        if settings.camoufox_user_data_dir:
-            logger.info("x_force_user_data=true enabled with configured user data directory")
-        else:
-            logger.info("x_force_user_data=true requested but no user data directory configured")
-    
-    try:
-        # Convert to generic crawl request
-        crawl_request = _convert_auspost_to_crawl_request(request)
-
-        # Execute with page_action to automate the AusPost flow
-        def _run_with_executor() -> CrawlResponse:
-            if settings.max_retries <= 1:
-                return crawl_single_attempt(crawl_request, page_action=_make_auspost_page_action(request.tracking_code))
-            else:
-                return execute_crawl_with_retries(crawl_request, page_action=_make_auspost_page_action(request.tracking_code))
-
-        # Force disable_coop like the demo for AusPost flows
-        original_disable_coop = getattr(settings, "camoufox_disable_coop", False)
-        try:
-            setattr(settings, "camoufox_disable_coop", True)
-            crawl_response = _run_with_executor()
-        except Exception as e:
-            # Retry once disabling geoip if MaxMind DB not available
-            if "InvalidDatabaseError" in str(type(e)) or "GeoLite2-City.mmdb" in str(e):
-                logger.info("GeoIP database error, retrying without geoip")
-                original_geoip = getattr(settings, "camoufox_geoip", True)
-                try:
-                    setattr(settings, "camoufox_geoip", False)
-                    crawl_response = _run_with_executor()
-                finally:
-                    setattr(settings, "camoufox_geoip", original_geoip)
-            else:
-                raise
-        finally:
-            setattr(settings, "camoufox_disable_coop", original_disable_coop)
-
-        # Convert back to AusPost-specific response
-        auspost_response = _convert_crawl_to_auspost_response(crawl_response, request.tracking_code)
-
-        # Log outcome
-        if auspost_response.status == "success":
-            html_length = len(auspost_response.html) if auspost_response.html else 0
-            logger.info(f"AusPost tracking successful, HTML length: {html_length}")
-            # Check if the details selector is actually present in the HTML
-            if auspost_response.html:
-                html_lower = auspost_response.html.lower()
-                if ("id=\"trackingpanelheading\"" not in html_lower) and ("trackingpanelheading" not in html_lower):
-                    auspost_response = AuspostCrawlResponse(
-                        status="failure",
-                        tracking_code=request.tracking_code,
-                        html=auspost_response.html,
-                        message="AusPost page loaded but details content missing",
-                    )
-        else:
-            logger.info(f"AusPost tracking failed: {auspost_response.message}")
+        # Execute crawl with page action
+        crawl_response = self.engine.run(crawl_request, page_action)
         
-        return auspost_response
-        
-    except Exception as e:
-        error_msg = f"Exception during AusPost crawl: {type(e).__name__}: {e}"
-        logger.error(error_msg)
-        return AuspostCrawlResponse(
-            status="failure",
-            tracking_code=request.tracking_code,
-            html=None,
-            message=error_msg
+        # Convert back to AusPost response
+        return self._convert_crawl_to_auspost_response(crawl_response, request.tracking_code)
+    
+    def _convert_auspost_to_crawl_request(self, auspost_request: AuspostCrawlRequest) -> CrawlRequest:
+        """Convert AusPost request to generic crawl request."""
+        return CrawlRequest(
+            url="https://auspost.com.au/mypost/track/search",
+            headless=False,
+            x_force_headful=auspost_request.x_force_headful,
+            x_force_user_data=auspost_request.x_force_user_data,
+            wait_selector="h3#trackingPanelHeading",
+            wait_selector_state="visible",
+            network_idle=True,
+            x_wait_time=2,
+            timeout_ms=30_000,
         )
+    
+    def _convert_crawl_to_auspost_response(self, 
+                                         crawl_response: CrawlResponse, 
+                                         tracking_code: str) -> AuspostCrawlResponse:
+        """Convert generic crawl response to AusPost-specific response."""
+        return AuspostCrawlResponse(
+            status=crawl_response.status,
+            tracking_code=tracking_code,
+            html=crawl_response.html,
+            message=crawl_response.message
+        )
+
+
+
+
+

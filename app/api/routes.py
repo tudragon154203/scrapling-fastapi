@@ -3,9 +3,9 @@ from fastapi import APIRouter
 from app.schemas.crawl import CrawlRequest, CrawlResponse
 from app.schemas.dpd import DPDCrawlRequest, DPDCrawlResponse
 from app.schemas.auspost import AuspostCrawlRequest, AuspostCrawlResponse
-from app.services.crawler.generic import crawl_generic
-from app.services.crawler.dpd import crawl_dpd
-from app.services.crawler.auspost import crawl_auspost
+from app.services.crawler.generic import GenericCrawler
+from app.services.crawler.dpd import DPDCrawler
+from app.services.crawler.auspost import AuspostCrawler
 
 
 router = APIRouter()
@@ -22,7 +22,8 @@ def crawl(payload: CrawlRequest) -> CrawlResponse:
 
     Accepts both new and legacy field names to ease migration.
     """
-    return crawl_generic(payload)
+    crawler = GenericCrawler()
+    return crawler.run(payload)
 
 
 @router.post("/crawl/dpd", response_model=DPDCrawlResponse, tags=["crawl"])
@@ -32,7 +33,8 @@ def crawl_dpd_endpoint(payload: DPDCrawlRequest) -> DPDCrawlResponse:
     Accepts a tracking code and returns the DPD tracking page HTML.
     Supports legacy compatibility flags for headless and user data control.
     """
-    return crawl_dpd(payload)
+    crawler = DPDCrawler()
+    return crawler.run(payload)
 
 
 @router.post("/crawl/auspost", response_model=AuspostCrawlResponse, tags=["crawl"]) 
@@ -42,5 +44,7 @@ def crawl_auspost_endpoint(payload: AuspostCrawlRequest) -> AuspostCrawlResponse
     Accepts a tracking code and returns the AusPost tracking page HTML.
     Supports legacy compatibility flags for headless and user data control.
     """
-    return crawl_auspost(payload)
+    crawler = AuspostCrawler()
+    return crawler.run(payload)
+
 
