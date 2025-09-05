@@ -107,22 +107,8 @@ def _build_camoufox_args(payload, settings, caps: Dict[str, bool]) -> Tuple[Dict
     if win:
         additional_args["window"] = win
     
-    # Handle wait parameter for AusPost and other endpoints that need it
-    try:
-        xwt = getattr(payload, 'x_wait_time', None)
-    except Exception:
-        xwt = None
-    if xwt is not None:
-        try:
-            wait_time_ms = int(float(xwt) * 1000)
-            additional_args["wait"] = wait_time_ms
-        except Exception:
-            pass
-    else:
-        try:
-            if hasattr(payload, 'wait') and getattr(payload, 'wait', None) is not None:
-                additional_args["wait"] = int(getattr(payload, 'wait'))
-        except Exception:
-            pass
+    # Do not pass `wait` via additional_args; it is a top-level
+    # StealthyFetcher.fetch parameter and forwarding it into Camoufox
+    # options will be passed into Playwright launch where it's invalid.
 
     return additional_args, extra_headers

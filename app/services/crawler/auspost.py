@@ -26,69 +26,134 @@ def _make_auspost_page_action(tracking_code: str):
         - Handles "Verifying the device..." interstitial if it appears
         - Waits for details URL and selector to appear
         """
-        # Use stable data-testid values from the current markup
-        input_locator = page.locator('input[data-testid="SearchBarInput"]').first
+        # We'll attempt up to 3 submissions to handle flows where
+        # the site returns to the search page after verification.
+        def _first_visible(selectors, timeout=5000):
+            for sel in selectors:
+                try:
+                    loc = page.locator(sel).first
+                    loc.wait_for(state="visible", timeout=timeout)
+                    return loc
+                except Exception:
+                    continue
+            # Return last locator without waiting if nothing matched
+            return page.locator(selectors[-1]).first
 
-        # Ensure the search page is interactive
-        input_locator.wait_for(state="visible")
-        input_locator.click()
-        input_locator.fill(tracking_code)
-
-        # Prefer clicking the Track button using its data-testid
-        try:
-            track_btn = page.locator('button[data-testid="SearchButton"]').first
-            track_btn.wait_for(state="visible", timeout=5_000)
-            track_btn.click()
-        except Exception:
-            # Fallback: press Enter
-            page.keyboard.press("Enter")
-
-        # Handle AusPost "Verifying the device..." interstitial if it appears
-        try:
-            verifying = page.locator("text=Verifying the device")
-            verifying.first.wait_for(state="visible", timeout=4_000)
-            # Wait until verification finishes
-            verifying.first.wait_for(state="hidden", timeout=20_000)
-            page.wait_for_load_state(state="domcontentloaded")
+        for attempt in range(3):
             try:
-                page.wait_for_load_state("networkidle")
+                # If we already reached details URL, break early
+                if "/mypost/track/details/" in (page.url or ""):
+                    break
             except Exception:
                 pass
-        except Exception:
-            pass
 
-        # If the site navigates to a details URL, wait for it
-        try:
-            page.wait_for_url("**/mypost/track/details/**", timeout=15_000)
-        except Exception:
-            # Some flows may require clicking a Track/Search button instead
             try:
-                btn = page.locator('button:has-text("Track"), button:has-text("Search")').first
-                btn.wait_for(state="visible", timeout=5_000)
-                btn.click()
+                # If the global header/site search is open, close it so it doesn't steal focus
                 try:
-                    page.wait_for_url("**/mypost/track/details/**", timeout=15_000)
+                    header_search = page.locator('input[placeholder="Search our site"]').first
+                    if header_search.is_visible():
+                        # Try close button first (more reliable than Escape)
+                        try:
+                            close_btn = _first_visible([
+                                "button[aria-label*='Close']",
+                                "button[aria-label*='close']",
+                                "button[title*='Close']",
+                                "button:has-text('×')",
+                                "[role='dialog'] button",
+                            ], timeout=2_000)
+                            close_btn.click()
+                            try:
+                                header_search.wait_for(state="hidden", timeout=2_000)
+                            except Exception:
+                                pass
+                        except Exception:
+                            # Fallback: press Escape
+                            page.keyboard.press("Escape")
+                            try:
+                                header_search.wait_for(state="hidden", timeout=2_000)
+                            except Exception:
+                                pass
                 except Exception:
                     pass
-            except Exception:
-                pass
 
-        # If still on search page after verification, try one more submit (cookie now set)
-        try:
-            if "/mypost/track/search" in (page.url or "") and not page.locator(AUSPOST_DETAILS_SELECTOR).first.is_visible():
-                input_locator.fill(tracking_code)
+                # Re-query fresh locators each attempt to avoid stale references and prefer
+                # the main page tracking form (avoid the global site search overlay)
+                input_locator = _first_visible([
+                    'input[placeholder="Enter tracking number(s)"]',
+                    'main input[placeholder="Enter tracking number(s)"]',
+                    'main input[data-testid="SearchBarInput"]:not([placeholder="Search our site"])',
+                    'input[data-testid="SearchBarInput"]:not([placeholder="Search our site"])',
+                    'main input[placeholder*="tracking number"]',
+                    'main input[placeholder*="Tracking number"]',
+                    'input[placeholder*="tracking number"]',
+                    'input[placeholder*="Tracking number"]',
+                    'input[aria-label*="tracking"]',
+                    'input[aria-label*="Tracking"]',
+                ], timeout=10_000)
+                input_locator.click()
                 try:
-                    track_btn = page.locator('button[data-testid="SearchButton"]').first
-                    track_btn.wait_for(state="visible", timeout=5_000)
+                    input_locator.fill("")
+                except Exception:
+                    pass
+                input_locator.fill(tracking_code)
+
+                # Prefer clicking the Track/Search button using its data-testid
+                try:
+                    track_btn = _first_visible([
+                        'button:has-text("Track")',
+                        'main button[data-testid="SearchButton"]',
+                        'button[data-testid="SearchButton"]',
+                    ], timeout=5_000)
                     track_btn.click()
                 except Exception:
+                    # Fallback: press Enter
                     page.keyboard.press("Enter")
+
+                # Handle AusPost "Verifying the device..." interstitial if it appears
+                try:
+                    verifying = page.locator("text=Verifying the device")
+                    verifying.first.wait_for(state="visible", timeout=4_000)
+                    # Wait until verification finishes
+                    verifying.first.wait_for(state="hidden", timeout=20_000)
+                    page.wait_for_load_state(state="domcontentloaded")
+                    try:
+                        page.wait_for_load_state("networkidle")
+                    except Exception:
+                        pass
+                except Exception:
+                    pass
+
+                # Wait for details URL; if not, try clicking generic Track/Search buttons
+                tried_generic = False
                 try:
                     page.wait_for_url("**/mypost/track/details/**", timeout=15_000)
                 except Exception:
+                    try:
+                        btn = page.locator('button:has-text("Track"), button:has-text("Search")').first
+                        btn.wait_for(state="visible", timeout=5_000)
+                        btn.click()
+                        tried_generic = True
+                        try:
+                            page.wait_for_url("**/mypost/track/details/**", timeout=15_000)
+                        except Exception:
+                            pass
+                    except Exception:
+                        pass
+
+                # If we are still on search page (common after verification), loop and retry
+                try:
+                    if "/mypost/track/search" in (page.url or "") and not page.locator(AUSPOST_DETAILS_SELECTOR).first.is_visible():
+                        # small grace wait before next attempt to let any cookies settle
+                        try:
+                            page.wait_for_load_state("domcontentloaded", timeout=2_000)
+                        except Exception:
+                            pass
+                        continue
+                except Exception:
                     pass
-        except Exception:
-            pass
+            except Exception:
+                # On any unexpected errors, continue attempts but don't fail the whole flow
+                pass
 
         # Safety wait for the details header to appear (in addition to engine wait_selector)
         try:
@@ -110,6 +175,8 @@ def _convert_auspost_to_crawl_request(auspost_request: AuspostCrawlRequest) -> C
     # Provide conservative defaults; executors will merge with settings
     return CrawlRequest(
         url=AUSPOST_TRACKING_PAGE,
+        # Demo uses headless=False; mirror that by default
+        headless=False,
         x_force_headful=auspost_request.x_force_headful,
         x_force_user_data=auspost_request.x_force_user_data,
         # Wait for the details header to ensure content loaded
@@ -117,8 +184,10 @@ def _convert_auspost_to_crawl_request(auspost_request: AuspostCrawlRequest) -> C
         wait_selector_state="visible",
         # Prefer network idle to stabilize dynamic content
         network_idle=True,
-        # Use service default timeout if not set in settings
-        timeout_ms=None,
+        # Add a small wait similar to demo (approx 1200ms)
+        x_wait_time=2,
+        # Use a higher timeout like the demo (30s)
+        timeout_ms=30_000,
     )
 
 
@@ -141,8 +210,6 @@ def _convert_crawl_to_auspost_response(
         html=crawl_response.html,
         message=crawl_response.message
     )
-
-
 
 
 def crawl_auspost(request: AuspostCrawlRequest) -> AuspostCrawlResponse:
@@ -190,7 +257,10 @@ def crawl_auspost(request: AuspostCrawlRequest) -> AuspostCrawlResponse:
             else:
                 return execute_crawl_with_retries(crawl_request, page_action=_make_auspost_page_action(request.tracking_code))
 
+        # Force disable_coop like the demo for AusPost flows
+        original_disable_coop = getattr(settings, "camoufox_disable_coop", False)
         try:
+            setattr(settings, "camoufox_disable_coop", True)
             crawl_response = _run_with_executor()
         except Exception as e:
             # Retry once disabling geoip if MaxMind DB not available
@@ -204,6 +274,8 @@ def crawl_auspost(request: AuspostCrawlRequest) -> AuspostCrawlResponse:
                     setattr(settings, "camoufox_geoip", original_geoip)
             else:
                 raise
+        finally:
+            setattr(settings, "camoufox_disable_coop", original_disable_coop)
 
         # Convert back to AusPost-specific response
         auspost_response = _convert_crawl_to_auspost_response(crawl_response, request.tracking_code)

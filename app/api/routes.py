@@ -35,7 +35,7 @@ def crawl_dpd_endpoint(payload: DPDCrawlRequest) -> DPDCrawlResponse:
     return crawl_dpd(payload)
 
 
-@router.post("/crawl/auspost", response_model=AuspostCrawlResponse, tags=["crawl"])
+@router.post("/crawl/auspost", response_model=AuspostCrawlResponse, tags=["crawl"]) 
 def crawl_auspost_endpoint(payload: AuspostCrawlRequest) -> AuspostCrawlResponse:
     """AusPost tracking endpoint using Scrapling.
     
@@ -43,6 +43,4 @@ def crawl_auspost_endpoint(payload: AuspostCrawlRequest) -> AuspostCrawlResponse
     Supports legacy compatibility flags for headless and user data control.
     """
     return crawl_auspost(payload)
-
-
 

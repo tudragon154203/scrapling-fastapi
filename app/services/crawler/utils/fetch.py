@@ -1,4 +1,5 @@
 import inspect
+import threading
 from typing import Dict, Any, Optional, Callable
 from urllib import request as urllib_request
 from urllib.error import URLError, HTTPError
@@ -64,61 +65,43 @@ def _compose_fetch_kwargs(
         fetch_kwargs["page_action"] = page_action
 
     # Enable Cloudflare solving when supported by StealthyFetcher
-    if caps.get("solve_cloudflare"):
-        fetch_kwargs["solve_cloudflare"] = True
+    # if caps.get("solve_cloudflare"):
+    #     fetch_kwargs["solve_cloudflare"] = True
 
     return fetch_kwargs
 
 
 
-def _simple_http_fetch(url: str, timeout_ms: int, extra_headers: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
-    """Very small fallback HTTP fetcher using stdlib urllib.
+def _call_stealthy_fetch(fetch_callable: Callable[..., Any], url: str, **kwargs) -> Any:
+    """Call StealthyFetcher.fetch safely when an asyncio loop is running.
 
-    Returns a dict with keys: status (int) and html_content (str|None).
-    Intended only as a last-resort when Playwright/StealthyFetcher cannot run
-    (e.g., sync API used inside an asyncio loop).
+    Playwright's sync API cannot run in a thread that already has a running
+    asyncio event loop. If we detect a running loop in the current thread,
+    execute the blocking sync fetch in a dedicated thread and return the result.
     """
-    headers = {
-        "User-Agent": (
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/124.0 Safari/537.36"
-        )
-    }
-    if extra_headers:
-        headers.update({k: v for k, v in extra_headers.items() if isinstance(k, str) and isinstance(v, str)})
-
-    req = urllib_request.Request(url, headers=headers, method="GET")
-    timeout = max(1.0, float(timeout_ms) / 1000.0)
-
     try:
-        with urllib_request.urlopen(req, timeout=timeout) as resp:  # nosec B310
-            status = getattr(resp, "status", 200)
-            content_type = resp.headers.get("Content-Type", "")
-            charset = None
-            try:
-                # email.message.Message supports get_content_charset in 3.10
-                charset = resp.headers.get_content_charset()  # type: ignore[attr-defined]
-            except Exception:
-                charset = None
-            data = resp.read()
-            if not charset:
-                if "charset=" in content_type:
-                    charset = content_type.split("charset=", 1)[-1].split(";")[0].strip()
-                else:
-                    charset = "utf-8"
-            try:
-                html = data.decode(charset, errors="ignore")
-            except Exception:
-                html = data.decode("utf-8", errors="ignore")
-            return {"status": int(status or 200), "html_content": html}
-    except HTTPError as e:
-        try:
-            body = e.read().decode("utf-8", errors="ignore")
-        except Exception:
-            body = None
-        return {"status": int(e.code), "html_content": body}
-    except URLError:
-        return {"status": 0, "html_content": None}
+        # Python 3.7+: raises RuntimeError when no running loop
+        import asyncio
+        asyncio.get_running_loop()
+        running = True
     except Exception:
-        return {"status": 0, "html_content": None}
+        running = False
+
+    if not running:
+        return fetch_callable(url, **kwargs)
+
+    holder: Dict[str, Any] = {}
+
+    def _runner():
+        try:
+            holder["result"] = fetch_callable(url, **kwargs)
+        except Exception as e:  # store exception to re-raise in caller thread
+            holder["exc"] = e
+
+    t = threading.Thread(target=_runner, daemon=True)
+    t.start()
+    t.join()
+
+    if "exc" in holder:
+        raise holder["exc"]
+    return holder.get("result")
