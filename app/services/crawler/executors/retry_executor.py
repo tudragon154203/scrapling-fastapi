@@ -128,26 +128,41 @@ class RetryingExecutor(IExecutor):
                     logger.info(f"Attempt {attempt_count+1} - calling fetch")
                     page = self.fetch_client.fetch(str(request.url), fetch_kwargs)
 
-                    logger.info(f"Attempt {attempt_count+1} - page status: {getattr(page, 'status', None)}, html length: {len(getattr(page, 'html_content', '') or '')}")
-                    if getattr(page, "status", None) == 200:
-                        html = getattr(page, "html_content", None)
-                        if html:
-                            if selected_proxy:
-                                self.health_tracker.mark_success(selected_proxy)
-                                logger.info(f"Proxy {redacted_proxy} recovered")
-                            logger.info(f"Attempt {attempt_count+1} outcome: success")
-                            return CrawlResponse(status="success", url=request.url, html=html)
-                        else:
-                            last_error = "HTML content is None"
-                            if selected_proxy:
-                                self._mark_proxy_failure(selected_proxy, settings)
-                            logger.info(f"Attempt {attempt_count+1} outcome: failure - {last_error}")
-                    else:
-                        last_status = getattr(page, "status", None)
-                        last_error = f"Non-200 status: {last_status}"
+                    status = getattr(page, "status", None)
+                    html = getattr(page, "html_content", None)
+                    html_len = len(html or "")
+                    logger.info(
+                        f"Attempt {attempt_count+1} - page status: {status}, html length: {html_len}"
+                    )
+
+                    # Treat a sufficiently complete HTML document as success regardless of status
+                    min_len = int(getattr(settings, "min_html_content_length", 500) or 0)
+                    html_has_doc = bool(html and "<html" in (html.lower() if isinstance(html, str) else ""))
+                    if html and html_has_doc and html_len >= min_len:
                         if selected_proxy:
-                            self._mark_proxy_failure(selected_proxy, settings)
-                        logger.info(f"Attempt {attempt_count+1} outcome: failure - {last_error}")
+                            self.health_tracker.mark_success(selected_proxy)
+                            logger.info(f"Proxy {redacted_proxy} recovered")
+                        logger.info(f"Attempt {attempt_count+1} outcome: success (html-ok)")
+                        return CrawlResponse(status="success", url=request.url, html=html)
+
+                    # Otherwise, only consider status==200 a success if HTML exists (legacy behavior)
+                    if status == 200 and html:
+                        if selected_proxy:
+                            self.health_tracker.mark_success(selected_proxy)
+                            logger.info(f"Proxy {redacted_proxy} recovered")
+                        logger.info(f"Attempt {attempt_count+1} outcome: success (status-200) but html too short: {html_len} < {min_len}")
+                        return CrawlResponse(status="success", url=request.url, html=html)
+
+                    # Failure path
+                    if not html:
+                        last_error = "HTML content is None or empty"
+                    else:
+                        last_error = (
+                            f"HTML not acceptable (len={html_len}, has_html_tag={html_has_doc}, status={status})"
+                        )
+                    if selected_proxy:
+                        self._mark_proxy_failure(selected_proxy, settings)
+                    logger.info(f"Attempt {attempt_count+1} outcome: failure - {last_error}")
                 except Exception as e:
                     last_error = f"{type(e).__name__}: {e}"
                     if selected_proxy:
@@ -198,7 +213,6 @@ class RetryingExecutor(IExecutor):
         """Redact proxy URL for logging."""
         from app.services.crawler.proxy.redact import redact_proxy
         return redact_proxy(proxy)
-
 
 
 
