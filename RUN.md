@@ -7,14 +7,9 @@ Prerequisites
 - Python 3.10+
 - pip available in PATH
 - Node.js and npm (for pm2 in production)
+  - Install pm2 globally: `npm install -g pm2`
 
-  - Install pm2 globally:
-
-  ```
-  npm install -g pm2
-  ```
-
-  - Quick dev run:
+Quick dev run
 
 ```
 python -m uvicorn app.main:app --host 0.0.0.0 --port 5680 --reload
@@ -24,10 +19,8 @@ Setup
 
 1) Create and activate a virtualenv
 
-- Bash (Linux/macOS):
-  - `python -m venv .venv && source .venv/bin/activate`
-- PowerShell (Windows):
-  - `py -m venv .venv; .\.venv\Scripts\Activate.ps1`
+- Bash (Linux/macOS): `python -m venv .venv && source .venv/bin/activate`
+- PowerShell (Windows): `python -m venv .venv; .\.venv\Scripts\Activate.ps1`
 
 2) Install dependencies
 
@@ -35,40 +28,45 @@ Setup
 
 3) Run in reload mode
 
-- Bash (Linux/macOS):
-  - `python -m uvicorn app.main:app --host 0.0.0.0 --port 5680 --reload`
-- PowerShell (Windows):
-  - `python -m uvicorn app.main:app --host 0.0.0.0 --port 5680 --reload`
+- `python -m uvicorn app.main:app --host 0.0.0.0 --port 5680 --reload`
 
-## Run in Production Mode
+## Run in Production (pm2)
 
-Use pm2 to manage the application in production.
+Use pm2 to manage the application in production. On Windows, prefer the ecosystem file method.
 
-1) Install pm2 (if not already done):
+1) Install pm2 (if not already done): `npm install -g pm2`
 
-   - `npm install -g pm2`
-2) Start the application with pm2:
+Option A — ecosystem file (recommended on Windows)
 
-   - `pm2 start "uvicorn app.main:app --host 0.0.0.0 --port 5680" --name scrapling-api`
-3) Save the pm2 configuration:
+- The repo includes `ecosystem.config.js` configured to launch uvicorn.
+- Start: `pm2 start ecosystem.config.js --only scrapling-api`
+- Logs: `pm2 logs scrapling-api`
+- Restart/Stop: `pm2 restart scrapling-api` / `pm2 stop scrapling-api`
+- Persist across restarts: `pm2 save` (and optionally `pm2 startup`)
 
-   - `pm2 save`
-4) Optional: Set up pm2 to start on system boot:
+Note: If Python is not on PATH or you use a different interpreter, edit `ecosystem.config.js` and adjust `script`/`args` accordingly.
 
-   - `pm2 startup`
-   - Follow the instructions provided by pm2
-5) Check status:
+Option B — one‑liner
 
-   - `pm2 status`
-   - `pm2 logs scrapling-api`
+- Linux/macOS: `pm2 start uvicorn --name scrapling-api -- app.main:app --host 0.0.0.0 --port 5680`
+- Windows: Avoid quoting the whole command (e.g. "uvicorn ..."); if args are not passed correctly, use Option A.
 
-Notes
+## Troubleshooting
 
 - The application reads additional settings from `.env`, but the uvicorn port is controlled by the `--port` flag shown above.
-- Verify it’s running:
-  - Health: `http://localhost:5680/health`
-  - Docs: `http://localhost:5680/docs`
+- Port already in use (Windows):
+  - Find PID: `netstat -ano | Select-String ':5680'`
+  - Inspect: `Get-Process -Id <PID>`
+  - Stop: `Stop-Process -Id <PID> -Force` or change the `--port`.
+- Port already in use (Linux/macOS): `lsof -i :5680` then kill the PID or change `--port`.
+- PM2 logs: `pm2 logs scrapling-api` to see startup errors.
 
-Tests
+## Verify
+
+- Health: `http://localhost:5680/health`
+- Docs: `http://localhost:5680/docs`
+
+## Tests
 
 - `python -m pytest -q`
+
