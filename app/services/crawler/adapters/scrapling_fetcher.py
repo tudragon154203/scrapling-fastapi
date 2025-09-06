@@ -42,6 +42,8 @@ class ScraplingFetcherAdapter(IFetchClient):
             supports_timeout=_ok("timeout"),
             supports_additional_args=_ok("additional_args"),
             supports_page_action=_ok("page_action"),
+            supports_geoip=_ok("geoip"),
+            supports_extra_headers=_ok("extra_headers"),
         )
         return self._capabilities
     
@@ -59,7 +61,7 @@ class ScraplingFetcherAdapter(IFetchClient):
         if self._has_running_loop():
             return self._fetch_in_thread(url, args)
 
-        return StealthyFetcher.fetch(url, **args)
+        return self._fetch_with_geoip_fallback(url, args)
     
     def _has_running_loop(self) -> bool:
         """Check if there's a running asyncio event loop in the current thread."""
@@ -78,8 +80,7 @@ class ScraplingFetcherAdapter(IFetchClient):
 
         def _runner():
             try:
-                from scrapling.fetchers import StealthyFetcher
-                result = StealthyFetcher.fetch(url, **args)
+                result = self._fetch_with_geoip_fallback(url, args)
                 holder["result"] = result
             except Exception as e:
                 holder["exc"] = e
@@ -92,6 +93,26 @@ class ScraplingFetcherAdapter(IFetchClient):
             raise holder["exc"]
         return holder.get("result")
 
+    def _fetch_with_geoip_fallback(self, url: str, args: Dict[str, Any]) -> Any:
+        """Fetch with GeoIP fallback: try with geoip, retry without if DB error."""
+        try:
+            from scrapling.fetchers import StealthyFetcher
+            return StealthyFetcher.fetch(url, **args)
+        except Exception as e:
+            # Check for known GeoIP database errors
+            error_str = str(e)
+            error_type = str(type(e))
+            if ("InvalidDatabaseError" in error_type or
+                "GeoLite2-City.mmdb" in error_str):
+                logger.warning(f"GeoIP database error: {e}. Retrying without geoip.")
+                # Remove geoip from args and retry
+                retry_args = args.copy()
+                retry_args.pop("geoip", None)
+                return StealthyFetcher.fetch(url, **retry_args)
+            else:
+                # Re-raise if not a GeoIP error
+                raise
+
 
 class FetchArgComposer:
     """Composer for fetch arguments that handles capabilities safely."""
@@ -101,7 +122,6 @@ class FetchArgComposer:
                 additional_args: Dict[str, Any], extra_headers: Optional[Dict[str, str]], 
                 settings: Any, page_action: Optional[Any] = None) -> Dict[str, Any]:
         """Compose fetch arguments from components in a capability-safe way."""
-        geoip_enabled = bool(getattr(settings, "camoufox_geoip", True) and selected_proxy)
         proxy = selected_proxy  # Alias for compatibility
 
         def _ok(name: str) -> bool:
@@ -129,7 +149,7 @@ class FetchArgComposer:
 
         # Note: geoip, extra_headers, and page_action support need to be handled differently
         # since they're not in the basic FetchCapabilities class
-        if _ok("geoip") and geoip_enabled:
+        if _ok("geoip"):
             fetch_kwargs["geoip"] = True
 
         if caps.supports_additional_args and additional_args:

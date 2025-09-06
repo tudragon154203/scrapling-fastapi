@@ -53,6 +53,8 @@ class FetchCapabilities:
     supports_timeout: bool = False
     supports_additional_args: bool = False
     supports_page_action: bool = True  # Force enable since we know StealthyFetcher supports it
+    supports_geoip: bool = False
+    supports_extra_headers: bool = False
     
     def __bool__(self) -> bool:
         """Return True if any capabilities are supported."""
@@ -61,5 +63,7 @@ class FetchCapabilities:
             self.supports_network_idle,
             self.supports_timeout,
             self.supports_additional_args,
-            self.supports_page_action
+            self.supports_page_action,
+            self.supports_geoip,
+            self.supports_extra_headers,
         ])

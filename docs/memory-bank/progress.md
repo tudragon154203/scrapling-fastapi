@@ -170,3 +170,42 @@
 - `app/services/crawler/utils/fetch.py`
 - `tests/services/test_html_length_validation.py` (new)
 - Various existing test files updated for compatibility
+
+## Sprint 15 - GeoIP Auto Enable
+**Status:** ✅ Completed
+**Date:** 2025-09-06
+
+### Changes Made
+1. **GeoIP Logic Update**
+   - Modified `FetchArgComposer.compose()` in `app/services/crawler/adapters/scrapling_fetcher.py`
+   - Removed dependency on proxy presence and `camoufox_geoip` setting
+   - Now unconditionally sets `geoip=True` when fetcher supports `geoip` parameter
+
+2. **GeoIP Fallback Implementation**
+   - Added `_fetch_with_geoip_fallback()` method to `ScraplingFetcherAdapter`
+   - Implements automatic retry without geoip on database errors
+   - Detects `InvalidDatabaseError` and `GeoLite2-City.mmdb` errors
+   - Single retry attempt with geoip disabled
+
+3. **Thread Safety Enhancement**
+   - Updated `_fetch_in_thread()` to use new fallback method
+   - Ensures consistent GeoIP fallback behavior in threaded environments
+
+4. **Testing**
+   - Created `tests/services/test_scrapling_fetcher.py` with comprehensive test coverage
+   - Tests verify GeoIP enabling with/without proxy
+   - Tests verify GeoIP fallback on database errors
+   - Tests verify no fallback on non-geoip errors
+   - All existing integration tests continue to pass
+
+### Key Features
+- Automatic GeoIP enabling when fetcher supports `geoip` parameter
+- No environment configuration required (`camoufox_geoip` setting ignored)
+- Automatic fallback when MaxMind database is missing or invalid
+- Single retry attempt without geoip on database errors
+- Consistent behavior across all endpoints (`/crawl`, `/crawl/auspost`, `/crawl/dpd`)
+- No breaking changes to existing API contracts
+
+### Files Modified
+- `app/services/crawler/adapters/scrapling_fetcher.py`
+- `tests/services/test_scrapling_fetcher.py` (new)
