@@ -47,17 +47,18 @@ class ScraplingFetcherAdapter(IFetchClient):
     
     def fetch(self, url: str, args: Dict[str, Any]) -> Any:
         """Fetch the given URL using StealthyFetcher with thread safety."""
+        logger.info(f"Launching browser for URL: {url}")
         try:
             from scrapling.fetchers import StealthyFetcher
         except ImportError:
             raise ImportError("Scrapling library not available")
-        
+
         StealthyFetcher.adaptive = True
-        
+
         # Handle asyncio event loop conflicts
         if self._has_running_loop():
             return self._fetch_in_thread(url, args)
-        
+
         return StealthyFetcher.fetch(url, **args)
     
     def _has_running_loop(self) -> bool:
@@ -71,21 +72,22 @@ class ScraplingFetcherAdapter(IFetchClient):
     
     def _fetch_in_thread(self, url: str, args: Dict[str, Any]) -> Any:
         """Execute fetch in a dedicated thread if event loop is running."""
-        
+        logger.info(f"Launching browser in thread for URL: {url}")
+
+        holder: Dict[str, Any] = {}
+
         def _runner():
             try:
                 from scrapling.fetchers import StealthyFetcher
-                return StealthyFetcher.fetch(url, **args)
+                result = StealthyFetcher.fetch(url, **args)
+                holder["result"] = result
             except Exception as e:
-                # Store exception to re-raise in caller thread
-                return {"exc": e}
-        
-        holder: Dict[str, Any] = {}
-        
+                holder["exc"] = e
+
         t = threading.Thread(target=_runner, daemon=True)
         t.start()
         t.join()
-        
+
         if "exc" in holder:
             raise holder["exc"]
         return holder.get("result")
@@ -109,11 +111,14 @@ class FetchArgComposer:
         fetch_kwargs: Dict[str, Any] = dict(
             headless=options.get("headless", True),
             network_idle=options.get("network_idle", False),
-            wait_selector=options.get("wait_for_selector"),
-            wait_selector_state=options.get("wait_for_selector_state"),
             timeout=(options.get("timeout_seconds") * 1000) if options.get("timeout_seconds") else options.get("timeout_ms", 20000),  # Use converted seconds or default ms
             wait=0,  # Fixed wait time, wait_ms removed from new schema
         )
+
+        # Only add selector-related args if selector is provided
+        if options.get("wait_for_selector"):
+            fetch_kwargs["wait_selector"] = options["wait_for_selector"]
+            fetch_kwargs["wait_selector_state"] = options.get("wait_for_selector_state", "visible")
 
         if caps.supports_proxy and proxy:
             fetch_kwargs["proxy"] = proxy

@@ -1,12 +1,17 @@
+import re
 from typing import Optional
+from urllib.parse import urlparse
 from pydantic import BaseModel, Field, field_validator
 from pydantic.config import ConfigDict
 
 
 class AuspostCrawlRequest(BaseModel):
     """Request body for AusPost tracking crawling.
-    
-    Accepts a tracking code and optional force flags.
+
+    Accepts either a raw AusPost tracking code or a full details URL
+    (e.g. https://auspost.com.au/mypost/track/details/36LB45032230) and
+    optional force flags. When a URL is provided, the tracking code is
+    extracted automatically.
     """
     # Allow additional fields to be ignored to keep endpoint lenient
     model_config = ConfigDict(extra='allow')
@@ -24,10 +29,38 @@ class AuspostCrawlRequest(BaseModel):
     @field_validator('tracking_code')
     @classmethod
     def validate_tracking_code(cls, v):
-        """Ensure tracking code is not empty after trimming."""
-        if not v or not v.strip():
+        """Validate tracking code and support extraction from full URL.
+
+        - Trims whitespace
+        - If value looks like an AusPost details URL, extract the code segment
+        - Ensures final value is non-empty
+        """
+        if not v or not isinstance(v, str):
             raise ValueError('tracking_code must be a non-empty string')
-        return v.strip()
+
+        raw = v.strip()
+        if not raw:
+            raise ValueError('tracking_code must be a non-empty string')
+
+        # If a full URL is provided, attempt to extract the tracking code
+        if raw.startswith("http://") or raw.startswith("https://"):
+            try:
+                parsed = urlparse(raw)
+                path = parsed.path or ""
+                # Expect path like /mypost/track/details/<CODE>
+                m = re.search(r"/mypost/track/details/([A-Za-z0-9]+)", path)
+                if m:
+                    return m.group(1)
+                # Fallback: if path ends with a plausible code segment (alnum)
+                tail = path.rstrip("/").split("/")[-1]
+                if tail and re.fullmatch(r"[A-Za-z0-9]+", tail):
+                    return tail
+                raise ValueError("Invalid AusPost details URL: could not extract tracking code")
+            except Exception as e:
+                # Re-raise as ValueError with consistent message
+                raise ValueError(str(e))
+
+        return raw
 
 
 class AuspostCrawlResponse(BaseModel):

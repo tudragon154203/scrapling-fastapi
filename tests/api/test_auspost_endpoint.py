@@ -79,3 +79,31 @@ def test_auspost_crawl_rejects_empty_tracking_code(client):
     detail = resp.json()["detail"]
     assert "tracking_code must be a non-empty string" in str(detail)
 
+
+def test_auspost_crawl_accepts_full_details_url(monkeypatch, client):
+    from app.services.crawler.auspost import AuspostCrawler
+    from app.schemas.auspost import AuspostCrawlResponse
+
+    captured_payload = {}
+
+    def _fake_crawl_run(self, payload):
+        captured_payload["payload"] = payload
+        return AuspostCrawlResponse(
+            status="success",
+            tracking_code=payload.tracking_code,
+            html="<html>ok</html>",
+        )
+
+    monkeypatch.setattr(AuspostCrawler, "run", _fake_crawl_run)
+
+    url = "https://auspost.com.au/mypost/track/details/36LB45032230"
+    resp = client.post("/crawl/auspost", json={"tracking_code": url})
+
+    assert resp.status_code == 200
+    data = resp.json()
+    # Validator should extract the code from the URL
+    assert data["tracking_code"] == "36LB45032230"
+
+    # Payload passed to crawler should be normalized as well
+    p = captured_payload["payload"]
+    assert p.tracking_code == "36LB45032230"

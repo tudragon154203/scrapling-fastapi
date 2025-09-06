@@ -40,8 +40,9 @@ def crawl_dpd_endpoint(payload: DPDCrawlRequest) -> DPDCrawlResponse:
 def crawl_auspost_endpoint(payload: AuspostCrawlRequest) -> AuspostCrawlResponse:
     """AusPost tracking endpoint using Scrapling.
     
-    Accepts a tracking code and returns the AusPost tracking page HTML.
+    Accepts a tracking code or a full details URL
+    (https://auspost.com.au/mypost/track/details/<CODE>) and returns the
+    AusPost tracking page HTML.
     """
     crawler = AuspostCrawler()
     return crawler.run(payload)
-

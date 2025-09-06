@@ -125,19 +125,20 @@ class RetryingExecutor(IExecutor):
                         page_action=page_action,
                     )
 
+                    logger.info(f"Attempt {attempt_count+1} - calling fetch")
                     page = self.fetch_client.fetch(str(request.url), fetch_kwargs)
 
+                    logger.info(f"Attempt {attempt_count+1} - page status: {getattr(page, 'status', None)}, html length: {len(getattr(page, 'html_content', '') or '')}")
                     if getattr(page, "status", None) == 200:
                         html = getattr(page, "html_content", None)
-                        min_len = int(getattr(settings, "min_html_content_length", 500) or 0)
-                        if html and len(html) >= min_len:
+                        if html:
                             if selected_proxy:
                                 self.health_tracker.mark_success(selected_proxy)
                                 logger.info(f"Proxy {redacted_proxy} recovered")
                             logger.info(f"Attempt {attempt_count+1} outcome: success")
                             return CrawlResponse(status="success", url=request.url, html=html)
                         else:
-                            last_error = f"HTML too short (<{min_len} chars)"
+                            last_error = "HTML content is None"
                             if selected_proxy:
                                 self._mark_proxy_failure(selected_proxy, settings)
                             logger.info(f"Attempt {attempt_count+1} outcome: failure - {last_error}")
