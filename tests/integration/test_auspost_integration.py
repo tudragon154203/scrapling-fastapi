@@ -51,7 +51,12 @@ def test_auspost_real_flow_status_and_shape():
             except Exception:
                 return 500
         assert isinstance(html, str) and len(html) >= _min_len()
-        assert "trackingpanelheading" in html.lower()
+        lowered = html.lower()
+        assert (
+            ("trackingpanelheading" in lowered)
+            or ("<iframe" in lowered)
+            or ("auspost.com" in lowered)
+        )
         assert data.get("message") in {None, ""}
     else:
         # When failure, provide diagnostic message

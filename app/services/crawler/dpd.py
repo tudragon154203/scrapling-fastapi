@@ -15,13 +15,20 @@ class DPDCrawler:
     def __init__(self, engine: CrawlerEngine = None):
         self.engine = engine or CrawlerEngine.from_settings(app_config.get_settings())
     
-    def run(self, request: DPDCrawlRequest) -> CrawlResponse:
+    def run(self, request: DPDCrawlRequest) -> DPDCrawlResponse:
         """Run a DPD crawl request."""
         # Convert DPDCrawlRequest to CrawlRequest
         crawl_request = self._convert_dpd_to_crawl_request(request)
         
         # Execute crawl with engine (no page action needed for DPD)
-        return self.engine.run(crawl_request)
+        crawl_response = self.engine.run(crawl_request)
+        
+        return DPDCrawlResponse(
+            status=crawl_response.status,
+            tracking_code=request.tracking_code,
+            html=crawl_response.html,
+            message=crawl_response.message,
+        )
     
     def _convert_dpd_to_crawl_request(self, dpd_request: DPDCrawlRequest) -> CrawlRequest:
         """Convert DPD request to generic crawl request."""
@@ -38,6 +45,9 @@ class DPDCrawler:
             x_wait_time=2,
             timeout_ms=30_000,
         )
+
+
+
 
 
 
