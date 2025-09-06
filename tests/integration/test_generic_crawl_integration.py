@@ -33,9 +33,9 @@ def test_crawl_real_sites(url, selector, expect_text):
     client = TestClient(app)
     body = {
         "url": url,
-        "wait_selector": selector,
-        "wait_selector_state": "visible",
-        "timeout_ms": 30000,
+        "wait_for_selector": selector,
+        "wait_for_selector_state": "visible",
+        "timeout_seconds": 30,
         "network_idle": True,
     }
     resp = client.post("/crawl", json=body)
@@ -68,9 +68,9 @@ def test_crawl_with_retry_settings(monkeypatch):
         
         body = {
             "url": "https://example.com",
-            "wait_selector": "h1",
-            "wait_selector_state": "visible",
-            "timeout_ms": 30000,
+            "wait_for_selector": "h1",
+            "wait_for_selector_state": "visible",
+            "timeout_seconds": 30,
             "network_idle": True,
         }
         

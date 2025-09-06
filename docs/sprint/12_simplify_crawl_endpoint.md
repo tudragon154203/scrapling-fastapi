@@ -28,6 +28,7 @@ Rationale: The service now depends on a stable Scrapling engine and no longer ne
   - `force_user_data` (boolean, optional): Reserved for future persistent profile support; currently accepted but may be a no‑op depending on the engine.
 
 Notes:
+
 - Headless/headful behavior is primarily controlled by server configuration; `force_headful=true` attempts to override to non‑headless where supported.
 - The service may apply additional stealth parameters internally; these are not part of the public API.
 
@@ -68,12 +69,14 @@ Server errors (e.g., validation bugs, unexpected exceptions) may return `5xx` wi
 - A crawl is considered `success` only when the underlying fetch reports HTTP 200 AND the HTML length meets or exceeds the configured threshold (see Environment Defaults). Otherwise, the result is `failure` with an explanatory `message`.
 
 Interactions:
+
 - `wait_for_selector` and `network_idle` can be used together; the engine attempts to honor both when supported by the underlying fetcher.
 - If a selector wait is specified without `wait_for_selector_state`, the default state `visible` is used.
 
 ## Environment Defaults
 
 Loaded via `app/core/config.py` (environment variables in parentheses):
+
 - `default_network_idle` (env `NETWORK_IDLE`): default `false`.
 - `default_timeout_ms` (env `TIMEOUT_MS`): default `20000` ms → 20 seconds.
 - `min_html_content_length` (env `MIN_HTML_CONTENT_LENGTH`): default `500` characters.
@@ -141,15 +144,18 @@ Failure (short HTML / suspected bot defense):
 
 No server‑side backward compatibility is retained. Clients using the old shape will receive `422` validation errors.
 
+* Change tests to adapt to this new schema
+
 ## AusPost and DPD Endpoints
 
 The force flag renames apply equally to the specialized tracking endpoints and constitute a breaking change to their request bodies:
 
 - Endpoint: `POST /crawl/auspost`
+
   - `x_force_headful` → `force_headful`
   - `x_force_user_data` → `force_user_data`
-
 - Endpoint: `POST /crawl/dpd`
+
   - `x_force_headful` → `force_headful`
   - `x_force_user_data` → `force_user_data`
 
@@ -163,12 +169,13 @@ No other request fields change on these endpoints in this sprint.
 
 - Update `app/schemas/crawl.py` to reflect the new request fields and remove all legacy `x_*` fields.
 - Update option resolution in `app/services/crawler/options/resolver.py` to:
+
   - Read `wait_for_selector` / `wait_for_selector_state`.
   - Accept `timeout_seconds` (convert to ms internally).
   - Stop referencing `x_wait_*` fields; reference `force_headful` and `force_user_data` instead of `x_force_*`.
 - Ensure the adapter still passes `wait_selector`, `wait_selector_state`, `timeout` (ms), and `network_idle` to the underlying fetcher.
-
 - Update specialized schemas to rename force flags:
+
   - `app/schemas/auspost.py`: `x_force_headful` → `force_headful`, `x_force_user_data` → `force_user_data`.
   - `app/schemas/dpd.py`: `x_force_headful` → `force_headful`, `x_force_user_data` → `force_user_data`.
 

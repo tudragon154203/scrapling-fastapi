@@ -1,19 +1,22 @@
 from typing import Optional
 from pydantic import BaseModel, Field, field_validator
+from pydantic.config import ConfigDict
 
 
 class DPDCrawlRequest(BaseModel):
     """Request body for DPD tracking crawling.
     
-    Accepts a tracking code and optional legacy compatibility flags.
+    Accepts a tracking code and optional force flags.
     """
+    # Allow additional fields to be ignored to keep endpoint lenient
+    model_config = ConfigDict(extra='allow')
     
     tracking_code: str = Field(..., description="DPD tracking code (required, non-empty)")
-    x_force_user_data: Optional[bool] = Field(
+    force_user_data: Optional[bool] = Field(
         default=False, 
         description="Enable Camoufox persistent user data if configured"
     )
-    x_force_headful: Optional[bool] = Field(
+    force_headful: Optional[bool] = Field(
         default=False, 
         description="Forces headful mode on Windows; ignored on Linux/Docker"
     )

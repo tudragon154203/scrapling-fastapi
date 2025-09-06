@@ -50,10 +50,9 @@ def test_generic_crawl_with_max_retries_one(monkeypatch):
 
     req = CrawlRequest(
         url="https://example.com",
-        wait_selector="body",
-        wait_selector_state="visible",
-        timeout_ms=5000,
-        headless=True,
+        wait_for_selector="body",
+        wait_for_selector_state="visible",
+        timeout_seconds=5,
         network_idle=True,
     )
 
@@ -85,10 +84,9 @@ def test_generic_crawl_with_max_retries_greater_than_one(monkeypatch):
 
     req = CrawlRequest(
         url="https://example.com",
-        wait_selector="body",
-        wait_selector_state="visible",
-        timeout_ms=5000,
-        headless=True,
+        wait_for_selector="body",
+        wait_for_selector_state="visible",
+        timeout_seconds=5,
         network_idle=True,
     )
 
@@ -99,7 +97,7 @@ def test_generic_crawl_with_max_retries_greater_than_one(monkeypatch):
 
 
 def test_user_data_with_supported_param(monkeypatch):
-    """Test x_force_user_data=true with supported user_data_dir parameter (via patched builder)."""
+    """Test force_user_data=true with supported user_data_dir parameter (via patched builder)."""
     from app.services.crawler.generic import GenericCrawler
     from app.schemas.crawl import CrawlRequest
 
@@ -153,7 +151,7 @@ def test_user_data_with_supported_param(monkeypatch):
 
     req = CrawlRequest(
         url="https://example.com",
-        x_force_user_data=True,
+        force_user_data=True,
     )
 
     crawler = GenericCrawler()
@@ -167,7 +165,7 @@ def test_user_data_with_supported_param(monkeypatch):
 
 
 def test_user_data_without_env_var(monkeypatch):
-    """Test x_force_user_data=true but no CAMOUFOX_USER_DATA_DIR set."""
+    """Test force_user_data=true but no CAMOUFOX_USER_DATA_DIR set."""
     from app.services.crawler.generic import GenericCrawler
     from app.schemas.crawl import CrawlRequest
 
@@ -184,7 +182,7 @@ def test_user_data_without_env_var(monkeypatch):
 
     req = CrawlRequest(
         url="https://example.com",
-        x_force_user_data=True,
+        force_user_data=True,
     )
 
     crawler = GenericCrawler()
@@ -194,7 +192,7 @@ def test_user_data_without_env_var(monkeypatch):
 
 
 def test_user_data_unsupported_param(monkeypatch):
-    """Test x_force_user_data=true with unsupported user data parameters."""
+    """Test force_user_data=true with unsupported user data parameters."""
     from app.services.crawler.generic import GenericCrawler
     from app.schemas.crawl import CrawlRequest
 
@@ -238,7 +236,7 @@ def test_user_data_unsupported_param(monkeypatch):
 
     req = CrawlRequest(
         url="https://example.com",
-        x_force_user_data=True,
+        force_user_data=True,
     )
 
     crawler = GenericCrawler()

@@ -107,12 +107,12 @@ class FetchArgComposer:
             return getattr(caps, f"supports_{name}", False)
 
         fetch_kwargs: Dict[str, Any] = dict(
-            headless=options["headless"],
-            network_idle=options["network_idle"],
-            wait_selector=options["wait_selector"],
-            wait_selector_state=options.get("wait_selector_state") or None,
-            timeout=options["timeout_ms"],
-            wait=options["wait_ms"] or 0,
+            headless=options.get("headless", True),
+            network_idle=options.get("network_idle", False),
+            wait_selector=options.get("wait_for_selector"),
+            wait_selector_state=options.get("wait_for_selector_state"),
+            timeout=(options.get("timeout_seconds") * 1000) if options.get("timeout_seconds") else options.get("timeout_ms", 20000),  # Use converted seconds or default ms
+            wait=0,  # Fixed wait time, wait_ms removed from new schema
         )
 
         if caps.supports_proxy and proxy:

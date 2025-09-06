@@ -21,8 +21,8 @@ def test_crawl_success_with_stub(monkeypatch, client):
 
     body = {
         "url": "https://example.com",
-        "wait_selector": "body",
-        "timeout_ms": 5000,
+        "wait_for_selector": "body",
+        "timeout_seconds": 5,
     }
     resp = client.post("/crawl", json=body)
     assert resp.status_code == 200
@@ -33,22 +33,12 @@ def test_crawl_success_with_stub(monkeypatch, client):
     # ensure payload mapping worked
     p = captured_payload["payload"]
     assert str(p.url).rstrip("/") == body["url"].rstrip("/")
-    assert p.wait_selector == body["wait_selector"]
-    assert p.timeout_ms == body["timeout_ms"]
+    assert p.wait_for_selector == body["wait_for_selector"]
+    assert p.timeout_seconds == body["timeout_seconds"]
 
 
 def test_crawl_legacy_fields(monkeypatch, client):
-    from app.services.crawler.generic import GenericCrawler
-    from app.schemas.crawl import CrawlResponse
-
-    captured_payload = {}
-
-    def _fake_crawl_run(self, payload):
-        captured_payload["payload"] = payload
-        return CrawlResponse(status="success", url=payload.url, html="<html>legacy</html>")
-
-    monkeypatch.setattr(GenericCrawler, "run", _fake_crawl_run)
-
+    """Test that legacy fields are no longer supported and return 422."""
     body = {
         "url": "https://example.com",
         "x_wait_for_selector": "#app",
@@ -56,16 +46,8 @@ def test_crawl_legacy_fields(monkeypatch, client):
         "x_force_headful": True,
     }
     resp = client.post("/crawl", json=body)
-    assert resp.status_code == 200
-    data = resp.json()
-    assert data["status"] == "success"
-
-    p = captured_payload["payload"]
-    # legacy field bridged to new
-    assert p.wait_selector is None  # field remains None; mapping happens in service
-    assert p.x_wait_for_selector == "#app"
-    assert p.x_wait_time == 7
-    assert p.x_force_headful is True
+    # Legacy fields should now be rejected with 422
+    assert resp.status_code == 422
 
 
 def test_crawl_requires_url(client):

@@ -21,6 +21,6 @@ def test_auspost_request_trims_tracking_code():
 
 def test_auspost_request_defaults():
     req = AuspostCrawlRequest(tracking_code="ABC123")
-    assert req.x_force_headful is False
-    assert req.x_force_user_data is False
+    assert req.force_headful is False
+    assert req.force_user_data is False
 

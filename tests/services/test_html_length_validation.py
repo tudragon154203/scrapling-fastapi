@@ -10,10 +10,9 @@ def _make_request():
 
     return CrawlRequest(
         url="https://example.com",
-        wait_selector="body",
-        wait_selector_state="visible",
-        timeout_ms=2000,
-        headless=True,
+        wait_for_selector="body",
+        wait_for_selector_state="visible",
+        timeout_seconds=2,
         network_idle=False,
     )
 
@@ -90,4 +89,3 @@ def test_retry_succeeds_after_short_html_then_long(monkeypatch):
     assert res.status == "success"
     assert calls["count"] == 3
     assert res.html and len(res.html) >= 500
-

@@ -72,10 +72,9 @@ def test_graceful_no_proxy_when_unsupported(monkeypatch):
 
     req = CrawlRequest(
         url="https://example.com",
-        wait_selector="body",
-        wait_selector_state="visible",
-        timeout_ms=2000,
-        headless=True,
+        wait_for_selector="body",
+        wait_for_selector_state="visible",
+        timeout_seconds=2,
         network_idle=False,
     )
 

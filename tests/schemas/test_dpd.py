@@ -11,19 +11,19 @@ class TestDPDCrawlRequest:
         """Test valid basic request with just tracking code."""
         request = DPDCrawlRequest(tracking_code="12345678901234")
         assert request.tracking_code == "12345678901234"
-        assert request.x_force_user_data is False
-        assert request.x_force_headful is False
+        assert request.force_user_data is False
+        assert request.force_headful is False
 
     def test_valid_request_with_all_fields(self):
         """Test valid request with all optional fields."""
         request = DPDCrawlRequest(
             tracking_code="12345678901234",
-            x_force_user_data=True,
-            x_force_headful=True
+            force_user_data=True,
+            force_headful=True
         )
         assert request.tracking_code == "12345678901234"
-        assert request.x_force_user_data is True
-        assert request.x_force_headful is True
+        assert request.force_user_data is True
+        assert request.force_headful is True
 
     def test_tracking_code_trimmed(self):
         """Test that tracking code is trimmed of whitespace."""
@@ -51,18 +51,18 @@ class TestDPDCrawlRequest:
     def test_defaults_when_not_provided(self):
         """Test that boolean fields default to False when not provided."""
         request = DPDCrawlRequest(tracking_code="12345678901234")
-        assert request.x_force_user_data is False
-        assert request.x_force_headful is False
+        assert request.force_user_data is False
+        assert request.force_headful is False
 
     def test_explicit_false_values(self):
         """Test that explicitly setting False values works."""
         request = DPDCrawlRequest(
             tracking_code="12345678901234",
-            x_force_user_data=False,
-            x_force_headful=False
+            force_user_data=False,
+            force_headful=False
         )
-        assert request.x_force_user_data is False
-        assert request.x_force_headful is False
+        assert request.force_user_data is False
+        assert request.force_headful is False
 
 
 class TestDPDCrawlResponse:

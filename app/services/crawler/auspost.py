@@ -34,14 +34,12 @@ class AuspostCrawler:
         """Convert AusPost request to generic crawl request."""
         return CrawlRequest(
             url="https://auspost.com.au/mypost/track/search",
-            headless=False,
-            x_force_headful=auspost_request.x_force_headful,
-            x_force_user_data=auspost_request.x_force_user_data,
-            wait_selector="h3#trackingPanelHeading",
-            wait_selector_state="visible",
+            wait_for_selector="h3#trackingPanelHeading",
+            wait_for_selector_state="visible",
             network_idle=True,
-            x_wait_time=2,
-            timeout_ms=30_000,
+            force_headful=auspost_request.force_headful,
+            force_user_data=auspost_request.force_user_data,
+            timeout_seconds=30,  # Converted from 30_000ms to seconds
         )
     
     def _convert_crawl_to_auspost_response(self, 

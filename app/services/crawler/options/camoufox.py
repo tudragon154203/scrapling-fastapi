@@ -23,7 +23,7 @@ class CamoufoxArgsBuilder:
         additional_args: Dict[str, Any] = {}
 
         # User data directory with parameter detection
-        if hasattr(payload, 'x_force_user_data') and payload.x_force_user_data is True and settings.camoufox_user_data_dir:
+        if hasattr(payload, 'force_user_data') and payload.force_user_data is True and settings.camoufox_user_data_dir:
             user_data_param = None
             for param in ("user_data_dir", "profile_dir", "profile_path", "user_data"):
                 if getattr(caps, param, False):

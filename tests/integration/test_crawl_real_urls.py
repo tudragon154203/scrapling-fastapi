@@ -32,13 +32,11 @@ def _disable_proxies_and_reduce_retries(monkeypatch):
 def _make_body(url: str) -> dict:
     return {
         "url": url,
-        "wait_selector": "body",
-        "wait_selector_state": "visible",
+        "wait_for_selector": "body",
+        "wait_for_selector_state": "visible",
         # Avoid network_idle to prevent hangs on long-polling pages
         "network_idle": False,
-        "timeout_ms": 60000,
-        # Add a small fixed wait for dynamic content
-        "x_wait_time": 8,
+        "timeout_seconds": 60,
     }
 
 

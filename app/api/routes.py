@@ -20,7 +20,7 @@ def health() -> dict:
 def crawl(payload: CrawlRequest) -> CrawlResponse:
     """Generic crawl endpoint using Scrapling.
 
-    Accepts both new and legacy field names to ease migration.
+    Accepts the simplified request model only (breaking change).
     """
     crawler = GenericCrawler()
     return crawler.run(payload)
@@ -44,5 +44,4 @@ def crawl_auspost_endpoint(payload: AuspostCrawlRequest) -> AuspostCrawlResponse
     """
     crawler = AuspostCrawler()
     return crawler.run(payload)
-
 

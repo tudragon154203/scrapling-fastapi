@@ -36,14 +36,12 @@ class DPDCrawler:
         
         return CrawlRequest(
             url=f"https://dhlparcel.nl/en/track-and-trace/{dpd_request.tracking_code}",
-            headless=True,
-            x_force_headful=dpd_request.x_force_headful,
-            x_force_user_data=dpd_request.x_force_user_data,
-            wait_selector="div.delivery-info",
-            wait_selector_state="visible",
+            wait_for_selector="div.delivery-info",
+            wait_for_selector_state="visible",
             network_idle=True,
-            x_wait_time=2,
-            timeout_ms=30_000,
+            force_headful=dpd_request.force_headful,
+            force_user_data=dpd_request.force_user_data,
+            timeout_seconds=30,  # Converted from 30_000ms to seconds
         )
 
 

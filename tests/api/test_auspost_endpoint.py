@@ -29,8 +29,8 @@ def test_auspost_crawl_success_with_stub(monkeypatch, client):
 
     p = captured_payload["payload"]
     assert p.tracking_code == body["tracking_code"]
-    assert p.x_force_user_data is False
-    assert p.x_force_headful is False
+    assert p.force_user_data is False
+    assert p.force_headful is False
 
 
 def test_auspost_crawl_with_all_flags(monkeypatch, client):
@@ -51,8 +51,8 @@ def test_auspost_crawl_with_all_flags(monkeypatch, client):
 
     body = {
         "tracking_code": "ABC123",
-        "x_force_user_data": True,
-        "x_force_headful": True,
+        "force_user_data": True,
+        "force_headful": True,
     }
     resp = client.post("/crawl/auspost", json=body)
 
@@ -62,8 +62,8 @@ def test_auspost_crawl_with_all_flags(monkeypatch, client):
     assert data["tracking_code"] == "ABC123"
 
     p = captured_payload["payload"]
-    assert p.x_force_user_data is True
-    assert p.x_force_headful is True
+    assert p.force_user_data is True
+    assert p.force_headful is True
 
 
 def test_auspost_crawl_requires_tracking_code(client):
