@@ -143,9 +143,9 @@ class FetchArgComposer:
         if caps.supports_proxy and proxy:
             fetch_kwargs["proxy"] = proxy
             redacted_proxy = _redact_proxy(proxy)
-            logger.info(f"Using proxy: {redacted_proxy}")
+            logger.debug(f"Using proxy: {redacted_proxy}")
         else:
-            logger.info("No proxy used for this request")
+            logger.debug("No proxy used for this request")
 
         # Note: geoip, extra_headers, and page_action support need to be handled differently
         # since they're not in the basic FetchCapabilities class

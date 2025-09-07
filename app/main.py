@@ -4,10 +4,14 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import router as api_router
 from app.core.config import get_settings
+from app.core.logging import setup_logger
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Initialize logging
+    setup_logger()
+    
     # Startup tasks (future: warm-ups, health checks, etc.)
     yield
     # Shutdown tasks (future: cleanup, metrics flush, etc.)

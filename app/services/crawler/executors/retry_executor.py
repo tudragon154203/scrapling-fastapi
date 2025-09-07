@@ -112,7 +112,7 @@ class RetryingExecutor(IExecutor):
                             mode = "direct"
 
                 redacted_proxy = self._redact_proxy(selected_proxy)
-                logger.info(f"Attempt {attempt_count+1} using {mode} connection, proxy: {redacted_proxy}")
+                logger.debug(f"Attempt {attempt_count+1} using {mode} connection, proxy: {redacted_proxy}")
 
                 try:
                     fetch_kwargs = self.arg_composer.compose(
@@ -141,7 +141,7 @@ class RetryingExecutor(IExecutor):
                     if html and html_has_doc and html_len >= min_len:
                         if selected_proxy:
                             self.health_tracker.mark_success(selected_proxy)
-                            logger.info(f"Proxy {redacted_proxy} recovered")
+                            logger.debug(f"Proxy {redacted_proxy} recovered")
                         logger.info(f"Attempt {attempt_count+1} outcome: success (html-ok)")
                         return CrawlResponse(status="success", url=request.url, html=html)
 
@@ -149,7 +149,7 @@ class RetryingExecutor(IExecutor):
                     if status == 200 and html:
                         if selected_proxy:
                             self.health_tracker.mark_success(selected_proxy)
-                            logger.info(f"Proxy {redacted_proxy} recovered")
+                            logger.debug(f"Proxy {redacted_proxy} recovered")
                         logger.info(f"Attempt {attempt_count+1} outcome: success (status-200) but html too short: {html_len} < {min_len}")
                         return CrawlResponse(status="success", url=request.url, html=html)
 
