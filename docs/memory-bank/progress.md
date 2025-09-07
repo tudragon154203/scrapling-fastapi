@@ -209,3 +209,36 @@
 ### Files Modified
 - `app/services/crawler/adapters/scrapling_fetcher.py`
 - `tests/services/test_scrapling_fetcher.py` (new)
+## Sprint 17 - Humanize AusPost Crawler
+**Status:** ✅ Completed
+**Date:** 2025-09-07
+
+### Changes Made
+1. **Humanize Helper Creation**
+   - Created `app/services/crawler/actions/humanize.py` with human-like action sequences
+   - Implemented randomized delays, mouse movements, and scrolling patterns
+
+2. **AusPost Integration**
+   - Updated `app/services/crawler/auspost.py` to integrate humanization logic
+   - Added humanization calls before and after critical interactions
+
+3. **Configuration Updates**
+   - Added humanization settings to `app/core/config.py`
+   - Added environment variables for humanization control
+
+4. **Testing**
+   - Added unit tests in `tests/services/test_humanize_actions.py`
+   - Updated integration tests for AusPost with humanization verification
+
+### Key Features
+- Human-like behavior patterns to avoid bot detection
+- Configurable humanization parameters via environment variables
+- Seamless integration with existing AusPost crawler
+- Comprehensive test coverage for humanization features
+
+### Files Modified
+- `app/services/crawler/actions/humanize.py` (new)
+- `app/services/crawler/auspost.py`
+- `app/core/config.py`
+- `tests/services/test_humanize_actions.py` (new)
+- `tests/integration/test_auspost_integration.py` (updated)

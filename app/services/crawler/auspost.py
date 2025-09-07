@@ -1,4 +1,4 @@
-import logging
+﻿import logging
 
 import app.core.config as app_config
 from app.schemas.auspost import AuspostCrawlRequest, AuspostCrawlResponse
@@ -6,6 +6,7 @@ from app.schemas.crawl import CrawlRequest, CrawlResponse
 
 from .core.engine import CrawlerEngine
 from .actions.auspost import AuspostTrackAction
+from .executors.auspost_no_proxy import SingleAttemptNoProxy
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +15,8 @@ class AuspostCrawler:
     """AusPost-specific crawler that uses the CrawlerEngine with page actions."""
     
     def __init__(self, engine: CrawlerEngine = None):
-        self.engine = engine or CrawlerEngine.from_settings(app_config.get_settings())
+        # For AusPost, use a single-attempt, no-proxy executor to improve stability with DataDome
+        self.engine = engine or CrawlerEngine(executor=SingleAttemptNoProxy())
     
     def run(self, request: AuspostCrawlRequest) -> AuspostCrawlResponse:
         """Run an AusPost crawl request."""
@@ -26,6 +28,32 @@ class AuspostCrawler:
         
         # Execute crawl with page action
         crawl_response = self.engine.run(crawl_request, page_action)
+
+        # Fallback: if environment does not support interactive page actions
+        # (e.g., NotImplementedError from underlying driver), try direct details URL
+        if (
+            crawl_response.status == "failure"
+            and isinstance(crawl_response.message, str)
+            and "NotImplementedError" in crawl_response.message
+        ):
+            try:
+                details_url = f"https://auspost.com.au/mypost/track/details/{request.tracking_code}"
+                fb_request = CrawlRequest(
+                    url=details_url,
+                    wait_for_selector="h3#trackingPanelHeading",
+                    wait_for_selector_state="visible",
+                    network_idle=True,
+                    force_headful=request.force_headful,
+                    force_user_data=request.force_user_data,
+                    timeout_seconds=30,
+                )
+                fb_response = self.engine.run(fb_request, page_action=None)
+                # Prefer successful fallback result
+                if fb_response.status == "success":
+                    return self._convert_crawl_to_auspost_response(fb_response, request.tracking_code)
+            except Exception:
+                # Ignore fallback errors and return original failure below
+                pass
         
         # Convert back to AusPost response
         return self._convert_crawl_to_auspost_response(crawl_response, request.tracking_code)
@@ -42,9 +70,11 @@ class AuspostCrawler:
             timeout_seconds=30,  # Converted from 30_000ms to seconds
         )
     
-    def _convert_crawl_to_auspost_response(self, 
-                                         crawl_response: CrawlResponse, 
-                                         tracking_code: str) -> AuspostCrawlResponse:
+    def _convert_crawl_to_auspost_response(
+        self, 
+        crawl_response: CrawlResponse, 
+        tracking_code: str
+    ) -> AuspostCrawlResponse:
         """Convert generic crawl response to AusPost-specific response."""
         return AuspostCrawlResponse(
             status=crawl_response.status,
@@ -52,8 +82,3 @@ class AuspostCrawler:
             html=crawl_response.html,
             message=crawl_response.message
         )
-
-
-
-
-

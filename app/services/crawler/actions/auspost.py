@@ -1,10 +1,18 @@
-import logging
+﻿import logging
 from typing import Any
 
 import app.core.config as app_config
 from app.schemas.auspost import AuspostCrawlRequest
 
 from .base import BasePageAction
+from .humanize import (
+    human_pause,
+    move_mouse_to_locator,
+    jitter_mouse,
+    click_like_human,
+    type_like_human,
+    scroll_noise,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +35,20 @@ class AuspostTrackAction(BasePageAction):
         - Handles "Verifying the device..." interstitial if it appears
         - Waits for details URL and selector to appear
         """
+        settings = app_config.get_settings()
+        humanize = getattr(settings, 'auspost_humanize_enabled', True)
+
+        if humanize:
+            logger.debug("Humanization enabled for AusPost tracking action")
+            logger.debug("Applying initial humanized pause and scroll noise")
+            # initial small dwell
+            try:
+                human_pause(0.25, 0.8)
+                scroll_noise(page, cycles_range=(1, 2))  # small, once
+            except Exception:
+                # Best-effort humanization; skip on any env limitations
+                pass
+
         # We'll attempt up to 3 submissions to handle flows where
         # the site returns to the search page after verification.
         
@@ -37,6 +59,14 @@ class AuspostTrackAction(BasePageAction):
                     break
             except Exception:
                 pass
+
+            if humanize:
+                # short pre-interaction dwell (settings-based)
+                logger.debug("Applying pre-interaction humanized pause")
+                try:
+                    human_pause(settings.auspost_micro_pause_min_s, settings.auspost_micro_pause_max_s)
+                except Exception:
+                    human_pause(0.15, 0.4)
 
             try:
                 # If the global header/site search is open, close it so it doesn't steal focus
@@ -56,12 +86,25 @@ class AuspostTrackAction(BasePageAction):
                     'input[aria-label*="tracking"]',
                     'input[aria-label*="Tracking"]',
                 ], timeout=10_000)
-                input_locator.click()
-                try:
-                    input_locator.fill("")
-                except Exception:
-                    pass
-                input_locator.fill(self.tracking_code)
+                if humanize:
+                    logger.debug("Using humanized input interaction: mouse move, jitter, click, type")
+                    try:
+                        move_mouse_to_locator(page, input_locator)
+                        jitter_mouse(page, input_locator)
+                    except Exception:
+                        pass
+                    input_locator.click()
+                    try:
+                        type_like_human(input_locator, self.tracking_code)
+                    except Exception:
+                        input_locator.fill(self.tracking_code)
+                else:
+                    input_locator.click()
+                    try:
+                        input_locator.fill("")
+                    except Exception:
+                        pass
+                    input_locator.fill(self.tracking_code)
 
                 # Prefer clicking the Track/Search button using its data-testid
                 try:
@@ -70,7 +113,15 @@ class AuspostTrackAction(BasePageAction):
                         'main button[data-testid="SearchButton"]',
                         'button[data-testid="SearchButton"]',
                     ], timeout=5_000)
-                    track_btn.click()
+                    if humanize:
+                        logger.debug("Using humanized click for track button")
+                        try:
+                            jitter_mouse(page, track_btn)
+                            click_like_human(track_btn)
+                        except Exception:
+                            track_btn.click()
+                    else:
+                        track_btn.click()
                 except Exception:
                     # Fallback: press Enter
                     page.keyboard.press("Enter")
@@ -82,6 +133,7 @@ class AuspostTrackAction(BasePageAction):
                 tried_generic = False
                 try:
                     page.wait_for_url("**/mypost/track/details/**", timeout=15_000)
+                    break
                 except Exception:
                     try:
                         btn = page.locator('button:has-text("Track"), button:has-text("Search")').first
@@ -90,10 +142,18 @@ class AuspostTrackAction(BasePageAction):
                         tried_generic = True
                         try:
                             page.wait_for_url("**/mypost/track/details/**", timeout=15_000)
+                            break
                         except Exception:
                             pass
                     except Exception:
                         pass
+                    if humanize:
+                        logger.debug("Applying humanized pause and scroll noise after failed attempt")
+                        try:
+                            human_pause(0.25, 0.7)
+                            scroll_noise(page, cycles_range=(1, 1))
+                        except Exception:
+                            pass
 
                 # If we are still on search page (common after verification), loop and retry
                 try:
@@ -116,6 +176,14 @@ class AuspostTrackAction(BasePageAction):
         except Exception:
             pass
 
+        if humanize:
+            logger.debug("Applying final humanized pause and scroll noise")
+            try:
+                human_pause(0.2, 0.5)
+                scroll_noise(page, cycles_range=(1, 2))
+            except Exception:
+                pass
+
         return page
     
     def _close_global_search(self, page: Any) -> None:
@@ -129,7 +197,7 @@ class AuspostTrackAction(BasePageAction):
                         "button[aria-label*='Close']",
                         "button[aria-label*='close']",
                         "button[title*='Close']",
-                        "button:has-text('×')",
+                        "button:has-text('Ã—')",
                         "[role='dialog'] button",
                     ], timeout=2_000)
                     close_btn.click()
@@ -161,3 +229,5 @@ class AuspostTrackAction(BasePageAction):
                 pass
         except Exception:
             pass
+
+

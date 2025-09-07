@@ -1,33 +1,35 @@
 import logging
 import sys
 import asyncio
-from typing import Any, Dict, Optional
+from typing import Optional
 
 import app.core.config as app_config
 from app.schemas.crawl import CrawlRequest, CrawlResponse
-from app.services.crawler.core.interfaces import IExecutor, PageAction
-from app.services.crawler.core.types import FetchCapabilities
 from app.services.crawler.adapters.scrapling_fetcher import ScraplingFetcherAdapter, FetchArgComposer
+from app.services.crawler.core.interfaces import PageAction
 from app.services.crawler.options.resolver import OptionsResolver
 from app.services.crawler.options.camoufox import CamoufoxArgsBuilder
+from app.services.crawler.executors.single_executor import SingleAttemptExecutor
+
 
 logger = logging.getLogger(__name__)
 
 
-class SingleAttemptExecutor(IExecutor):
-    """Single-attempt crawl executor that performs one fetch operation."""
-    
-    def __init__(self, fetch_client: Optional[ScraplingFetcherAdapter] = None,
+class SingleAttemptNoProxy(SingleAttemptExecutor):
+    """Single attempt executor that forces no proxy for AusPost endpoint.
+
+    This isolates AusPost from global proxy settings, aiding DataDome troubleshooting
+    and allowing stable profile/cookie evolution without proxy interference.
+    """
+
+    def __init__(self,
+                 fetch_client: Optional[ScraplingFetcherAdapter] = None,
                  options_resolver: Optional[OptionsResolver] = None,
                  arg_composer: Optional[FetchArgComposer] = None,
                  camoufox_builder: Optional[CamoufoxArgsBuilder] = None):
-        self.fetch_client = fetch_client or ScraplingFetcherAdapter()
-        self.options_resolver = options_resolver or OptionsResolver()
-        self.arg_composer = arg_composer or FetchArgComposer()
-        self.camoufox_builder = camoufox_builder or CamoufoxArgsBuilder()
-    
+        super().__init__(fetch_client, options_resolver, arg_composer, camoufox_builder)
+
     def execute(self, request: CrawlRequest, page_action: Optional[PageAction] = None) -> CrawlResponse:
-        """Execute a single crawl attempt."""
         settings = app_config.get_settings()
 
         # Ensure proper event loop policy on Windows for Playwright
@@ -36,7 +38,7 @@ class SingleAttemptExecutor(IExecutor):
                 asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
             except Exception:
                 pass
-        
+
         # Resolve options and potential lightweight headers early so we can fallback if needed
         options = self.options_resolver.resolve(request, settings)
         additional_args, extra_headers = self.camoufox_builder.build(request, settings, caps={})
@@ -45,12 +47,8 @@ class SingleAttemptExecutor(IExecutor):
             caps = self.fetch_client.detect_capabilities()
             additional_args, extra_headers = self.camoufox_builder.build(request, settings, caps)
 
-            if not caps.supports_proxy:
-                logger.warning(
-                    "StealthyFetcher.fetch does not support proxy parameter, continuing without proxy"
-                )
-
-            selected_proxy = getattr(settings, "private_proxy_url", None) or None
+            # Always force no proxy for AusPost
+            selected_proxy = None
 
             fetch_kwargs = self.arg_composer.compose(
                 options=options,
@@ -105,33 +103,3 @@ class SingleAttemptExecutor(IExecutor):
                 html=None,
                 message=f"Exception during crawl: {type(e).__name__}: {e}",
             )
-    def _http_fallback(self, url: str, timeout_ms: int, min_len: int):
-        """Attempt a simple HTTP GET as a fallback when Scrapling fails."""
-        try:
-            from urllib.request import Request, urlopen
-            import ssl
-            hdrs = {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122 Safari/537.36",
-                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-            }
-            req = Request(url, headers=hdrs)
-            ctx = ssl.create_default_context()
-            try:
-                resp = urlopen(req, timeout=max(1, int(timeout_ms/1000)), context=ctx)
-            except TypeError:
-                resp = urlopen(req, timeout=max(1, int(timeout_ms/1000)))
-            status = getattr(resp, "status", 200)
-            data = resp.read()
-            try:
-                html = data.decode("utf-8", errors="ignore")
-            except Exception:
-                try:
-                    html = data.decode("latin-1", errors="ignore")
-                except Exception:
-                    html = ""
-            if status == 200 and html and len(html) >= min_len and "<html" in html.lower():
-                return CrawlResponse(status="success", url=url, html=html)
-            return None
-        except Exception:
-            return None
-

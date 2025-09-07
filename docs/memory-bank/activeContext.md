@@ -1,33 +1,32 @@
 # Active Context
 
-## Current Sprint: Sprint 15 - GeoIP Auto Enable
+## Current Sprint: Sprint 17 - Humanize AusPost Crawler
 
 ### Completed Work
-- ✅ Implemented automatic GeoIP enabling when fetcher supports `geoip` parameter
-- ✅ Removed dependency on proxy presence and `camoufox_geoip` setting for GeoIP
-- ✅ Added GeoIP database error fallback with automatic retry without geoip
-- ✅ Updated `FetchArgComposer` to unconditionally set `geoip=True` when supported
-- ✅ Enhanced `ScraplingFetcherAdapter` with `_fetch_with_geoip_fallback()` method
-- ✅ Added comprehensive unit tests for GeoIP capability detection and fallback
+- ✅ Created new `humanize.py` helper module for humanization actions
+- ✅ Integrated humanization logic into `auspost.py` crawler service
+- ✅ Added new configuration settings for humanization in `config.py`
+- ✅ Implemented unit and integration tests for humanization features
+- ✅ Enhanced AusPost crawler with human-like behavior patterns
 - ✅ Maintained backward compatibility with existing API contracts
-- ✅ All existing tests continue to pass with new GeoIP behavior
+- ✅ All existing tests continue to pass with new humanization features
 
 ### Current Focus
-- Sprint 15 completed: GeoIP auto-enablement and fallback implementation
-- Monitoring GeoIP success rates and fallback behavior
-- Ensuring consistent GeoIP behavior across all endpoints
+- Sprint 17 completed: Humanization features implemented for AusPost crawler
+- Monitoring humanization effectiveness and success rates
+- Ensuring consistent human-like behavior across AusPost endpoints
 
 ### Next Steps
-- Monitor GeoIP success rates and fallback frequency
-- Verify integration with proxy rotation and retry mechanisms
-- Consider additional stealth parameter optimizations
+- Monitor humanization success rates and effectiveness
+- Verify integration with existing proxy and retry mechanisms
+- Consider additional humanization features for other crawlers
 - Plan next sprint implementation
 
 ### Technical Notes
-- GeoIP now enabled automatically when fetcher supports `geoip` parameter
-- No environment configuration required for GeoIP enabling
-- Automatic fallback when MaxMind database is missing or invalid
-- Fallback detects `InvalidDatabaseError` and `GeoLite2-City.mmdb` errors
-- Single retry attempt without geoip on database errors
-- All endpoints (`/crawl`, `/crawl/auspost`, `/crawl/dpd`) benefit from auto GeoIP
-- Comprehensive test coverage for capability detection and error fallback
+- New `humanize.py` module provides human-like action sequences
+- Humanization integrated into AusPost crawler for improved stealth
+- Configuration settings added for customizable humanization parameters
+- Unit tests added for humanize actions in `tests/services/test_humanize_actions.py`
+- Integration tests updated to verify humanization in AusPost flows
+- Backward compatibility maintained with existing API contracts
+- All endpoints benefit from enhanced humanization capabilities

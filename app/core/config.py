@@ -60,6 +60,27 @@ try:
         # When set on Linux, enables virtual display (e.g., "xvfb")
         camoufox_virtual_display: Optional[str] = Field(default=None)
 
+        # AusPost humanization settings
+        auspost_humanize_enabled: bool = Field(default=True, env="AUSPOST_HUMANIZE_ENABLED")
+        auspost_humanize_scroll: bool = Field(default=True, env="AUSPOST_HUMANIZE_SCROLL")
+        auspost_typing_delay_ms_min: int = Field(default=60, env="AUSPOST_TYPING_DELAY_MS_MIN")
+        auspost_typing_delay_ms_max: int = Field(default=140, env="AUSPOST_TYPING_DELAY_MS_MAX")
+        auspost_mouse_steps_min: int = Field(default=12, env="AUSPOST_MOUSE_STEPS_MIN")
+        auspost_mouse_steps_max: int = Field(default=28, env="AUSPOST_MOUSE_STEPS_MAX")
+        auspost_jitter_radius_px: int = Field(default=3, env="AUSPOST_JITTER_RADIUS_PX")
+        auspost_jitter_steps: int = Field(default=2, env="AUSPOST_JITTER_STEPS")
+        auspost_micro_pause_min_s: float = Field(default=0.15, env="AUSPOST_MICRO_PAUSE_MIN_S")
+        auspost_micro_pause_max_s: float = Field(default=0.40, env="AUSPOST_MICRO_PAUSE_MAX_S")
+        # Intensity and probability (light by default)
+        auspost_mouse_move_prob: float = Field(default=0.5, env="AUSPOST_MOUSE_MOVE_PROB")
+        auspost_mouse_jitter_prob: float = Field(default=0.5, env="AUSPOST_MOUSE_JITTER_PROB")
+        auspost_scroll_prob: float = Field(default=0.25, env="AUSPOST_SCROLL_PROB")
+        # Scroll bounds (make small by default)
+        auspost_scroll_cycles_min: int = Field(default=1, env="AUSPOST_SCROLL_CYCLES_MIN")
+        auspost_scroll_cycles_max: int = Field(default=1, env="AUSPOST_SCROLL_CYCLES_MAX")
+        auspost_scroll_dy_min: int = Field(default=80, env="AUSPOST_SCROLL_DY_MIN")
+        auspost_scroll_dy_max: int = Field(default=180, env="AUSPOST_SCROLL_DY_MAX")
+
         model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="allow")
 
     @lru_cache()
@@ -105,6 +126,25 @@ except Exception:
         # Allow HTTP-only fallback on non-200/short HTML
         http_fallback_on_failure: bool = False
 
+        # AusPost humanization settings
+        auspost_humanize_enabled: bool = True
+        auspost_humanize_scroll: bool = True
+        auspost_typing_delay_ms_min: int = 60
+        auspost_typing_delay_ms_max: int = 140
+        auspost_mouse_steps_min: int = 12
+        auspost_mouse_steps_max: int = 28
+        auspost_jitter_radius_px: int = 3
+        auspost_jitter_steps: int = 2
+        auspost_micro_pause_min_s: float = 0.15
+        auspost_micro_pause_max_s: float = 0.40
+        auspost_mouse_move_prob: float = 0.5
+        auspost_mouse_jitter_prob: float = 0.5
+        auspost_scroll_prob: float = 0.25
+        auspost_scroll_cycles_min: int = 1
+        auspost_scroll_cycles_max: int = 1
+        auspost_scroll_dy_min: int = 80
+        auspost_scroll_dy_max: int = 180
+
     @lru_cache()
     def get_settings() -> "Settings":
         return Settings(
@@ -134,4 +174,21 @@ except Exception:
             camoufox_virtual_display=os.getenv("CAMOUFOX_VIRTUAL_DISPLAY"),
             min_html_content_length=int(os.getenv("MIN_HTML_CONTENT_LENGTH", "500")),
             http_fallback_on_failure=os.getenv("HTTP_FALLBACK_ON_FAILURE", "false").lower() in {"1", "true", "yes"},
+            auspost_humanize_enabled=os.getenv("AUSPOST_HUMANIZE_ENABLED", "true").lower() in {"1", "true", "yes"},
+            auspost_humanize_scroll=os.getenv("AUSPOST_HUMANIZE_SCROLL", "true").lower() in {"1", "true", "yes"},
+            auspost_typing_delay_ms_min=int(os.getenv("AUSPOST_TYPING_DELAY_MS_MIN", "60")),
+            auspost_typing_delay_ms_max=int(os.getenv("AUSPOST_TYPING_DELAY_MS_MAX", "140")),
+            auspost_mouse_steps_min=int(os.getenv("AUSPOST_MOUSE_STEPS_MIN", "12")),
+            auspost_mouse_steps_max=int(os.getenv("AUSPOST_MOUSE_STEPS_MAX", "28")),
+            auspost_jitter_radius_px=int(os.getenv("AUSPOST_JITTER_RADIUS_PX", "3")),
+            auspost_jitter_steps=int(os.getenv("AUSPOST_JITTER_STEPS", "2")),
+            auspost_micro_pause_min_s=float(os.getenv("AUSPOST_MICRO_PAUSE_MIN_S", "0.15")),
+            auspost_micro_pause_max_s=float(os.getenv("AUSPOST_MICRO_PAUSE_MAX_S", "0.40")),
+            auspost_mouse_move_prob=float(os.getenv("AUSPOST_MOUSE_MOVE_PROB", "0.5")),
+            auspost_mouse_jitter_prob=float(os.getenv("AUSPOST_MOUSE_JITTER_PROB", "0.5")),
+            auspost_scroll_prob=float(os.getenv("AUSPOST_SCROLL_PROB", "0.25")),
+            auspost_scroll_cycles_min=int(os.getenv("AUSPOST_SCROLL_CYCLES_MIN", "1")),
+            auspost_scroll_cycles_max=int(os.getenv("AUSPOST_SCROLL_CYCLES_MAX", "1")),
+            auspost_scroll_dy_min=int(os.getenv("AUSPOST_SCROLL_DY_MIN", "80")),
+            auspost_scroll_dy_max=int(os.getenv("AUSPOST_SCROLL_DY_MAX", "180")),
         )
