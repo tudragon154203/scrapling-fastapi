@@ -52,11 +52,17 @@ class RetryingExecutor(IExecutor):
 
         last_error = None
 
+        user_data_cleanup = None
         try:
             caps = self.fetch_client.detect_capabilities()
 
             options = self.options_resolver.resolve(request, settings)
             additional_args, extra_headers = self.camoufox_builder.build(request, settings, caps)
+            # Capture optional cleanup callback from user-data context (read/write modes)
+            try:
+                user_data_cleanup = additional_args.get('_user_data_cleanup') if additional_args else None
+            except Exception:
+                user_data_cleanup = None
             if not caps.supports_proxy:
                 logger.warning(
                     "StealthyFetcher.fetch does not support proxy parameter, continuing without proxy"
@@ -221,6 +227,13 @@ class RetryingExecutor(IExecutor):
                 html=None,
                 message="Scrapling library not available",
             )
+        finally:
+            # Cleanup any user-data clone directory or release write-mode lock
+            if user_data_cleanup:
+                try:
+                    user_data_cleanup()
+                except Exception as e:
+                    logger.warning(f"Failed to cleanup user data context: {e}")
     
     def _load_public_proxies(self, file_path: Optional[str]) -> List[str]:
         """Load public proxies from a file."""

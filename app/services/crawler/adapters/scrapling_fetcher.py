@@ -135,9 +135,19 @@ class FetchArgComposer:
         fetch_kwargs: Dict[str, Any] = dict(
             headless=options.get("headless", True),
             network_idle=options.get("network_idle", False),
-            timeout=(options.get("timeout_seconds") * 1000) if options.get("timeout_seconds") else options.get("timeout_ms", 20000),  # Use converted seconds or default ms
             wait=0,  # Fixed wait time, wait_ms removed from new schema
         )
+
+        # Timeout handling: allow disabling in write mode
+        if options.get("disable_timeout") is True:
+            # Explicitly pass None to signal unlimited timeout in write mode
+            fetch_kwargs["timeout"] = None
+        else:
+            fetch_kwargs["timeout"] = (
+                (options.get("timeout_seconds") * 1000)
+                if options.get("timeout_seconds")
+                else options.get("timeout_ms", 20000)
+            )  # Use converted seconds or default ms
 
         # Only add selector-related args if selector is provided
         if options.get("wait_for_selector"):
