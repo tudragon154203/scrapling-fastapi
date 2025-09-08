@@ -1,32 +1,30 @@
 # Active Context
 
-## Current Sprint: Sprint 17 - Humanize AusPost Crawler
+## Current Sprint: Sprint 19 - Browse Endpoint
 
 ### Completed Work
-- ✅ Created new `humanize.py` helper module for humanization actions
-- ✅ Integrated humanization logic into `auspost.py` crawler service
-- ✅ Added new configuration settings for humanization in `config.py`
-- ✅ Implemented unit and integration tests for humanization features
-- ✅ Enhanced AusPost crawler with human-like behavior patterns
-- ✅ Maintained backward compatibility with existing API contracts
-- ✅ All existing tests continue to pass with new humanization features
+- ✅ Created `POST /browse` endpoint with optional URL parameter
+- ✅ Implemented `BrowseCrawler` service with CrawlerEngine integration
+- ✅ Added `WaitForUserCloseAction` for manual browser closure handling
+- ✅ Implemented exclusive lock for master profile write access
+- ✅ Always uses headful mode with user data write mode
+- ✅ Added comprehensive API and service-level tests
+- ✅ Updated Memory Bank with implementation details
+- ✅ All tests pass successfully
 
-### Current Focus
-- Sprint 17 completed: Humanization features implemented for AusPost crawler
-- Monitoring humanization effectiveness and success rates
-- Ensuring consistent human-like behavior across AusPost endpoints
+### Sprint Goal Achieved
+Successfully implemented a dedicated `/browse` endpoint for free browsing sessions to populate the CAMOUFOX_USER_DATA_DIR with persistent user data, without automatic termination or HTML return requirements.
 
 ### Next Steps
-- Monitor humanization success rates and effectiveness
-- Verify integration with existing proxy and retry mechanisms
-- Consider additional humanization features for other crawlers
+- Monitor browse endpoint usage and effectiveness
+- Consider additional browse-related features if needed
 - Plan next sprint implementation
 
 ### Technical Notes
-- New `humanize.py` module provides human-like action sequences
-- Humanization integrated into AusPost crawler for improved stealth
-- Configuration settings added for customizable humanization parameters
-- Unit tests added for humanize actions in `tests/services/test_humanize_actions.py`
-- Integration tests updated to verify humanization in AusPost flows
-- Backward compatibility maintained with existing API contracts
-- All endpoints benefit from enhanced humanization capabilities
+- Endpoint mimics `/crawl` behavior with forced headful and user data write mode
+- Uses `CAMOUFOX_USER_DATA_DIR` environment variable (default: `data/camoufox_profiles`)
+- Writes to master profile directory: `<CAMOUFOX_USER_DATA_DIR>/master`
+- Acquires exclusive lock to ensure single writer session
+- No HTML content return - purely for user data population
+- Reuses existing user data context management from `app/services/crawler/options/user_data.py`
+- All existing tests continue to pass

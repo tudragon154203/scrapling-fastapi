@@ -20,20 +20,12 @@ class OptionsResolver(IOptionsResolver):
             (request.timeout_seconds * 1000) if request.timeout_seconds is not None else settings.default_timeout_ms
         )
 
-        # Determine headless mode: respect force_headful, otherwise use .env setting
+        # Determine headless mode
+        # Enforce headful when explicitly requested, regardless of platform.
+        # Otherwise, respect the .env/default setting.
         if request.force_headful is True:
-            try:
-                import platform  # local import to avoid module-level cost
-                if platform.system().lower() == "windows":
-                    headless = False
-                else:
-                    # On non-Windows, ignore headful request per legacy behavior
-                    headless = settings.default_headless
-            except Exception:
-                # If platform detection fails, fall back to forcing headful
-                headless = False
+            headless = False
         else:
-            # If force_headful is False or None, respect the .env setting
             headless = settings.default_headless
 
         network_idle: bool = (

@@ -7,11 +7,10 @@ from pydantic.config import ConfigDict
 
 class DPDCrawlRequest(BaseModel):
     """Request body for DPD tracking crawling.
-    
+
     Accepts a tracking code and optional force flags.
     """
-    # Allow additional fields to be ignored to keep endpoint lenient
-    model_config = ConfigDict(extra='allow')
+    model_config = ConfigDict(extra='forbid')
     
     # Accept both `tracking_code` (preferred) and legacy `tracking_number`
     tracking_code: str = Field(

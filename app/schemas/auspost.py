@@ -13,8 +13,7 @@ class AuspostCrawlRequest(BaseModel):
     optional force flags. When a URL is provided, the tracking code is
     extracted automatically.
     """
-    # Allow additional fields to be ignored to keep endpoint lenient
-    model_config = ConfigDict(extra='allow')
+    model_config = ConfigDict(extra='forbid')
     
     tracking_code: str = Field(..., description="AusPost tracking code (required, non-empty)")
     force_user_data: Optional[bool] = Field(

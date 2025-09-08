@@ -245,31 +245,17 @@ def test_dpd_crawl_invalid_json(client):
     assert resp.status_code == 422
 
 
-def test_dpd_crawl_additional_fields_ignored(monkeypatch, client):
-    """Test that additional fields in request are ignored gracefully."""
-    from app.services.crawler.dpd import DPDCrawler
-    from app.schemas.dpd import DPDCrawlResponse
-
-    captured_payload = {}
-
-    def _fake_crawl_run(self, payload):
-        captured_payload["payload"] = payload
-        return DPDCrawlResponse(
-            status="success",
-            tracking_code=payload.tracking_code,
-            html="<html>DPD tracking</html>"
-        )
-
-    monkeypatch.setattr(DPDCrawler, "run", _fake_crawl_run)
-
+def test_dpd_crawl_additional_fields_rejected(client):
+    """Test that additional fields in request are rejected."""
     body = {
         "tracking_code": "12345678901234",
-        "extra_field": "should be ignored",
+        "extra_field": "should be rejected",
         "another_field": 123
     }
     resp = client.post("/crawl/dpd", json=body)
-    
-    assert resp.status_code == 200
-    data = resp.json()
-    assert data["status"] == "success"
-    assert data["tracking_code"] == "12345678901234"
+
+    assert resp.status_code == 422
+    error_detail = resp.json()
+    assert "detail" in error_detail
+    error_str = str(error_detail["detail"])
+    assert "extra" in error_str.lower() or "forbid" in error_str.lower()

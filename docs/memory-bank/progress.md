@@ -1,5 +1,81 @@
 # Progress Log
 
+## Sprint 19 - Browse Endpoint
+**Status:** ✅ Completed
+**Date:** 2025-09-08
+
+### Sprint Goal
+Implement a dedicated `/browse` endpoint for free browsing sessions to populate the CAMOUFOX_USER_DATA_DIR with persistent user data, without automatic termination or HTML return requirements.
+
+### Planned Changes
+1. **API Endpoint Creation**
+   - Add `POST /browse` endpoint in `app/api/routes.py`
+   - Implement request/response schemas for browse functionality
+   - Add proper error handling and validation
+
+2. **Browse Service Implementation**
+   - Create browse service logic in `app/services/crawler/`
+   - Integrate with existing CrawlerEngine infrastructure
+   - Use WaitForUserCloseAction for manual browser closure
+   - Implement exclusive lock for master profile access
+
+3. **Configuration Integration**
+   - Ensure proper integration with existing user data infrastructure
+   - Use CAMOUFOX_USER_DATA_DIR environment variable
+   - Force headful mode and user data write mode
+
+4. **Testing**
+   - Add unit tests for browse endpoint functionality
+   - Add integration tests for browse sessions
+   - Test lock acquisition and release logic
+   - Verify user data directory population
+
+### Changes Made
+1. **Schema Creation**
+   - Added `app/schemas/browse.py` with `BrowseRequest` and `BrowseResponse` models
+   - `BrowseRequest` accepts optional URL parameter with extra fields allowed
+   - `BrowseResponse` returns simple status and message
+
+2. **Browse Service Implementation**
+   - Created `app/services/crawler/browse.py` with `BrowseCrawler` class
+   - Integrated with existing `CrawlerEngine` infrastructure
+   - Uses `WaitForUserCloseAction` for manual browser closure handling
+   - Implements exclusive lock for master profile access via `user_data_context`
+   - Always forces headful mode and user data write mode
+
+3. **API Endpoint Addition**
+   - Added `POST /browse` endpoint in `app/api/routes.py`
+   - Implemented proper error handling and response formatting
+   - Follows same pattern as other endpoints with handler function and FastAPI route
+
+4. **Testing**
+   - Added comprehensive API tests in `tests/api/test_browse_endpoint.py`
+   - Added service-level tests in `tests/services/test_browse_crawl.py`
+   - Tests cover success/failure paths, URL validation, and parameter handling
+   - All tests pass successfully
+
+### Key Features
+- `POST /browse` endpoint with optional URL parameter
+- Always uses headful mode with user data write mode
+- Browser remains open until manually closed by user
+- Returns simple status response without HTML content
+- Exclusive lock for master profile write access
+- Reuses existing CrawlerEngine and user data infrastructure
+
+### Files Modified
+- `app/schemas/browse.py` (new)
+- `app/services/crawler/browse.py` (new)
+- `app/api/routes.py`
+- `tests/api/test_browse_endpoint.py` (new)
+- `tests/services/test_browse_crawl.py` (new)
+- `docs/memory-bank/activeContext.md`
+- `docs/memory-bank/progress.md`
+
+### Dependencies
+- Existing user data infrastructure (Sprint 18)
+- WaitForUserCloseAction functionality
+- Crawler engine and executor patterns
+
 ## Sprint 09 - Headless Parameter Cleanup
 **Status:** ✅ Completed
 **Date:** 2025-09-05

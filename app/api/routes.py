@@ -4,9 +4,11 @@ from types import SimpleNamespace, FunctionType
 from app.schemas.crawl import CrawlRequest, CrawlResponse
 from app.schemas.dpd import DPDCrawlRequest, DPDCrawlResponse
 from app.schemas.auspost import AuspostCrawlRequest, AuspostCrawlResponse
+from app.schemas.browse import BrowseRequest, BrowseResponse
 from app.services.crawler.generic import GenericCrawler
 from app.services.crawler.dpd import DPDCrawler
 from app.services.crawler.auspost import AuspostCrawler
+from app.services.crawler.browse import BrowseCrawler
 from fastapi.responses import JSONResponse
 
 
@@ -34,13 +36,22 @@ def crawl_endpoint(payload: CrawlRequest):
 
     Accepts the simplified request model only (breaking change).
     Delegates to the plain `crawl` function to ease testing via patching.
+    
+    Note: user_data_mode defaults to "read" only. Write mode is not supported.
     """
+    # Reject user_data_mode="write" with clear error
+    if payload.user_data_mode == "write":
+        return JSONResponse(
+            content={"status": "error", "message": "user_data_mode='write' is not supported on /crawl endpoint. Use read mode only."},
+            status_code=400
+        )
+    
     # If tests patch `crawl` (becomes a Mock), pass a lightweight object to match expectations
     if not isinstance(crawl, FunctionType):
         req_obj = SimpleNamespace(
             url=str(payload.url).rstrip("/"),
             force_user_data=payload.force_user_data,
-            user_data_mode=payload.user_data_mode or "read",
+            user_data_mode="read",  # Always use read mode
         )
     else:
         req_obj = payload
@@ -73,7 +84,6 @@ def crawl_dpd_endpoint(payload: DPDCrawlRequest):
         req_obj = SimpleNamespace(
             tracking_number=getattr(payload, "tracking_number", payload.tracking_code),
             force_user_data=payload.force_user_data,
-            user_data_mode=payload.user_data_mode or "read",
         )
     else:
         req_obj = payload
@@ -107,7 +117,6 @@ def crawl_auspost_endpoint(payload: AuspostCrawlRequest):
             tracking_code=payload.tracking_code,
             details_url=payload.details_url,
             force_user_data=payload.force_user_data,
-            user_data_mode=payload.user_data_mode or "read",
         )
     else:
         req_obj = payload
@@ -115,6 +124,43 @@ def crawl_auspost_endpoint(payload: AuspostCrawlRequest):
     result = crawl_auspost(request=req_obj)
     if isinstance(result, AuspostCrawlResponse):
         return result
+    status_code = getattr(result, "status_code", 200)
+    body = getattr(result, "json", None)
+    if isinstance(body, dict):
+        return JSONResponse(content=body, status_code=int(status_code))
+    return JSONResponse(content={}, status_code=int(status_code))
+
+
+def browse(request: BrowseRequest) -> BrowseResponse:
+    """Browse handler used by the API route."""
+    crawler = BrowseCrawler()
+    return crawler.run(request)
+
+
+@router.post("/browse", response_model=BrowseResponse, tags=["browse"])
+def browse_endpoint(payload: BrowseRequest):
+    """Browse endpoint for interactive user data population sessions.
+
+    Launches a headful browser session for manual browsing to populate persistent user data.
+    The browser remains open until manually closed by the user.
+    """
+    if not isinstance(browse, FunctionType):
+        req_obj = SimpleNamespace(url=str(payload.url) if payload.url else None)
+    else:
+        req_obj = payload
+
+    result = browse(request=req_obj)
+    # If a proper BrowseResponse, map HTTP status code based on outcome
+    if isinstance(result, BrowseResponse):
+        if result.status == "success":
+            return result
+        # failure: map to specific HTTP status codes
+        message = (result.message or "").lower()
+        if "lock" in message or "exclusive" in message:
+            return JSONResponse(content=result.model_dump(), status_code=409)
+        return JSONResponse(content=result.model_dump(), status_code=500)
+
+    # Fallback for patched/mocked results with `.status_code` and `.json`
     status_code = getattr(result, "status_code", 200)
     body = getattr(result, "json", None)
     if isinstance(body, dict):

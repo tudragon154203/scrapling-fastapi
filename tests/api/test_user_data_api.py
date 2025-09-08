@@ -11,12 +11,11 @@ class TestUserDataAPI:
         """Set up test fixtures."""
         self.client = TestClient(app)
 
-    def test_crawl_endpoint_with_read_mode(self):
-        """Test crawl endpoint with force_user_data and read mode."""
+    def test_crawl_endpoint_with_force_user_data(self):
+        """Test crawl endpoint with force_user_data."""
         payload = {
             "url": "https://example.com",
-            "force_user_data": True,
-            "user_data_mode": "read"
+            "force_user_data": True
         }
         
         with patch('app.api.routes.crawl') as mock_crawl:
@@ -33,55 +32,22 @@ class TestUserDataAPI:
             call_args = mock_crawl.call_args[1]['request']
             assert call_args.url == "https://example.com"
             assert call_args.force_user_data is True
-            assert call_args.user_data_mode == "read"
 
-    def test_crawl_endpoint_with_write_mode(self):
-        """Test crawl endpoint with force_user_data and write mode."""
+    def test_crawl_endpoint_rejects_write_mode(self):
+        """Test crawl endpoint rejects user_data_mode='write' with 400 error."""
         payload = {
             "url": "https://example.com",
             "force_user_data": True,
             "user_data_mode": "write"
         }
         
-        with patch('app.api.routes.crawl') as mock_crawl:
-            mock_crawl.return_value = Mock(
-                status_code=200,
-                json={"status": "success", "url": "https://example.com", "html": "<html></html>"}
-            )
-            
-            response = self.client.post("/crawl", json=payload)
-            assert response.status_code == 200
-            
-            # Verify the request was processed correctly
-            mock_crawl.assert_called_once()
-            call_args = mock_crawl.call_args[1]['request']
-            assert call_args.url == "https://example.com"
-            assert call_args.force_user_data is True
-            assert call_args.user_data_mode == "write"
-
-    def test_crawl_endpoint_with_default_mode(self):
-        """Test crawl endpoint with force_user_data but default user_data_mode."""
-        payload = {
-            "url": "https://example.com",
-            "force_user_data": True
-            # user_data_mode should default to "read"
-        }
+        response = self.client.post("/crawl", json=payload)
+        assert response.status_code == 400
         
-        with patch('app.api.routes.crawl') as mock_crawl:
-            mock_crawl.return_value = Mock(
-                status_code=200,
-                json={"status": "success", "url": "https://example.com", "html": "<html></html>"}
-            )
-            
-            response = self.client.post("/crawl", json=payload)
-            assert response.status_code == 200
-            
-            # Verify the request was processed correctly
-            mock_crawl.assert_called_once()
-            call_args = mock_crawl.call_args[1]['request']
-            assert call_args.url == "https://example.com"
-            assert call_args.force_user_data is True
-            assert call_args.user_data_mode == "read"  # Default
+        # Verify error message
+        error_data = response.json()
+        assert error_data["status"] == "error"
+        assert "user_data_mode='write' is not supported on /crawl endpoint" in error_data["message"]
 
     def test_crawl_endpoint_without_force_user_data(self):
         """Test crawl endpoint without force_user_data (should not use user data)."""
@@ -105,32 +71,22 @@ class TestUserDataAPI:
             assert call_args.url == "https://example.com"
             assert call_args.force_user_data is False
 
-    def test_crawl_endpoint_invalid_mode(self):
-        """Test crawl endpoint with invalid user_data_mode should fail validation."""
+    def test_crawl_endpoint_rejects_extra_fields(self):
+        """Test crawl endpoint rejects extra fields."""
         payload = {
             "url": "https://example.com",
             "force_user_data": True,
-            "user_data_mode": "invalid_mode"
+            "extra_field": "should_be_rejected"
         }
         
         response = self.client.post("/crawl", json=payload)
         assert response.status_code == 422  # Validation error
-        
-        # Should contain validation error for user_data_mode
-        error_data = response.json()
-        assert "detail" in error_data
-        assert any(
-            error["loc"] == ["body", "user_data_mode"] and 
-            error["msg"] == "user_data_mode must be either 'read' or 'write'"
-            for error in error_data["detail"]
-        )
 
     def test_dpd_endpoint_with_user_data(self):
         """Test DPD endpoint with user data support."""
         payload = {
             "tracking_number": "1234567890",
-            "force_user_data": True,
-            "user_data_mode": "read"
+            "force_user_data": True
         }
         
         with patch('app.api.routes.crawl_dpd') as mock_crawl_dpd:
@@ -147,4 +103,3 @@ class TestUserDataAPI:
             call_args = mock_crawl_dpd.call_args[1]['request']
             assert call_args.tracking_number == "1234567890"
             assert call_args.force_user_data is True
-            assert call_args.user_data_mode == "read"

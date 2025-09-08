@@ -39,7 +39,6 @@ The `/browse` endpoint enables interactive browsing sessions specifically design
 The endpoint mimics `/crawl` behavior when configured with:
 - `force_headful: true` - Always uses headful mode for interactive browsing
 - `force_user_data: true` - Enables persistent user data functionality
-- `user_data_mode: "write"` - Uses master profile for updating login/cookies
 
 ### User Data Directory Structure
 - Uses `CAMOUFOX_USER_DATA_DIR` environment variable (default: `data/camoufox_profiles`)
@@ -78,7 +77,7 @@ The endpoint mimics `/crawl` behavior when configured with:
 
 ### Unit Tests
 - Test URL validation and parameter handling
-- Verify force flags are properly set (`force_headful=true`, `force_user_data=true`, `user_data_mode="write"`)
+- Verify force flags are properly set (`force_headful=true`, `force_user_data=true`)
 - Test lock acquisition and release logic
 - Verify `WaitForUserCloseAction` is applied
 
