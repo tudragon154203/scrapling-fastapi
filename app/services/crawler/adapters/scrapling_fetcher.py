@@ -48,6 +48,7 @@ class ScraplingFetcherAdapter(IFetchClient):
             supports_profile_dir=_ok("profile_dir"),
             supports_profile_path=_ok("profile_path"),
             supports_user_data=_ok("user_data"),
+            supports_custom_config=_ok("custom_config"),
         )
         return self._capabilities
     
@@ -114,8 +115,45 @@ class ScraplingFetcherAdapter(IFetchClient):
                 retry_args.pop("geoip", None)
                 return StealthyFetcher.fetch(url, **retry_args)
             else:
-                # Re-raise if not a GeoIP error
+                # Consider light-weight HTTP fallback for navigation timeouts on JS-heavy pages
+                if ("Timeout" in error_type or "Timeout" in error_str or "Page.goto" in error_str) \
+                   and (args.get("wait_selector") is not None) \
+                   and (not bool(args.get("network_idle", False))):
+                    try:
+                        return self._http_fallback(url)
+                    except Exception:
+                        pass
+                # Re-raise if not handled
                 raise
+
+    def _http_fallback(self, url: str) -> Any:
+        """Simple HTTP fallback returning a minimal response-like object.
+
+        Used as a best-effort escape hatch when Playwright navigation waits fail,
+        especially on pages that still serve static HTML. Not a full replacement
+        for browser fetch; only used when Scrapling navigation times out.
+        """
+        try:
+            import types
+            from urllib.request import Request, urlopen
+            # Use a desktop UA to avoid trivial bot blocks
+            req = Request(
+                url,
+                headers={
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                                   "(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+                },
+            )
+            with urlopen(req, timeout=30) as resp:
+                html_bytes = resp.read() or b""
+                html = html_bytes.decode("utf-8", errors="ignore")
+                holder = types.SimpleNamespace()
+                holder.status = getattr(resp, "status", 200) or 200
+                holder.html_content = html
+                return holder
+        except Exception as e:
+            logger.info(f"HTTP fallback failed: {type(e).__name__}: {e}")
+            raise
 
 
 class FetchArgComposer:
@@ -178,6 +216,18 @@ class FetchArgComposer:
 
         if _ok("page_action") and page_action is not None:
             fetch_kwargs["page_action"] = page_action
+
+        # Avoid strict 'load' navigation wait for selector-driven flows
+        # When a selector is provided and network_idle is False, prefer a lighter wait
+        # by hinting the engine via custom_config. This relies on Scrapling/Camoufox
+        # honoring 'wait_until' for navigation.
+        if options.get("prefer_domcontentloaded") and _ok("custom_config"):
+            # Initialize or extend custom_config
+            cfg = fetch_kwargs.get("custom_config") or {}
+            # Use commonly recognized keys
+            cfg.setdefault("wait_until", "domcontentloaded")
+            cfg.setdefault("goto_wait_until", "domcontentloaded")
+            fetch_kwargs["custom_config"] = cfg
 
         # Enable Cloudflare solving when supported by StealthyFetcher
         # if caps.supports_solve_cloudflare:

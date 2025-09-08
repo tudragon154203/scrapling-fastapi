@@ -59,6 +59,7 @@ class FetchCapabilities:
     supports_profile_dir: bool = False
     supports_profile_path: bool = False
     supports_user_data: bool = False
+    supports_custom_config: bool = False
     
     def __bool__(self) -> bool:
         """Return True if any capabilities are supported."""

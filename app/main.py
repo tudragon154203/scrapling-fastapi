@@ -40,11 +40,6 @@ def create_app() -> FastAPI:
         details = []
         for err in raw_details:
             err = dict(err)
-            loc = err.get("loc", ())
-            if isinstance(loc, (list, tuple)) and len(loc) >= 2 and loc[0] == "body" and loc[-1] == "user_data_mode":
-                err["loc"] = ["body", "user_data_mode"]
-                err["msg"] = "user_data_mode must be either 'read' or 'write'"
-                err["type"] = "value_error"
             # Ensure ctx is JSON serializable
             if "ctx" in err:
                 ctx = err["ctx"]

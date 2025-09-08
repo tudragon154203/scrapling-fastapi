@@ -27,26 +27,25 @@ class CamoufoxArgsBuilder:
         additional_args: Dict[str, Any] = {}
 
         # User data directory with parameter detection
-        if (hasattr(payload, 'force_user_data') and payload.force_user_data is True and 
-            settings.camoufox_user_data_dir and hasattr(payload, 'user_data_mode')):
-            
+        if (hasattr(payload, 'force_user_data') and payload.force_user_data is True and
+            settings.camoufox_user_data_dir):
+
             user_data_param = None
             for param in ("user_data_dir", "profile_dir", "profile_path", "user_data"):
                 if getattr(caps, param, False):
                     user_data_param = param
                     break
-            
+
             if user_data_param:
                 try:
-                    # Get user data context based on mode
-                    mode = getattr(payload, 'user_data_mode', 'read')
-                    with user_data_mod.user_data_context(settings.camoufox_user_data_dir, mode) as (effective_dir, cleanup):
-                        logger.debug(f"Using user data directory: {effective_dir} (mode: {mode})")
+                    # Get user data context (always temporary clone)
+                    with user_data_mod.user_data_context(settings.camoufox_user_data_dir) as (effective_dir, cleanup):
+                        logger.debug(f"Using user data directory: {effective_dir}")
                         additional_args[user_data_param] = effective_dir
-                        
+
                         # Store cleanup function in additional_args for post-fetch cleanup
                         additional_args['_user_data_cleanup'] = cleanup
-                            
+
                 except Exception as e:
                     logger.warning(f"Failed to setup user data directory: {e}")
                     # Continue without user-data on error

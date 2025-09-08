@@ -23,7 +23,7 @@ class BrowseCrawler:
             # Convert browse request to crawl request with forced flags
             crawl_request = self._convert_browse_to_crawl_request(request)
 
-            # Use user data context for write mode
+            # Use user data context (always temporary clone)
             settings = app_config.get_settings()
             user_data_dir = getattr(settings, 'camoufox_user_data_dir', 'data/camoufox_profiles')
 
@@ -31,7 +31,6 @@ class BrowseCrawler:
                 try:
                     # Update crawl request with effective user data directory
                     crawl_request.force_user_data = True
-                    crawl_request.user_data_mode = 'write'
 
                     # Create wait for user close action
                     page_action = WaitForUserCloseAction()
@@ -65,6 +64,5 @@ class BrowseCrawler:
             url=url,
             force_headful=True,  # Always use headful mode for interactive browsing
             force_user_data=True,  # Always enable user data
-            user_data_mode="write",  # Always use write mode for data population
             timeout_seconds=None,  # No timeout for manual sessions
         )

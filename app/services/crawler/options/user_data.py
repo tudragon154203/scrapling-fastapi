@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 @contextmanager
 def user_data_context(base_dir: str, mode: str) -> ContextManager[Tuple[str, Callable[[], None]]]:
     """Context manager for managing user data directories with exclusive locking.
-    
+
     Args:
         base_dir: Root directory for user data
         mode: Either 'read' or 'write'
@@ -91,15 +91,27 @@ def _write_mode_context(base_path: Path) -> Tuple[str, Callable[[], None]]:
                     pass
             raise RuntimeError(f"Failed to acquire lock for write mode: {e}")
     
-    # Cleanup function: just release the lock if using fcntl
+    # Cleanup function: release lock and cleanup lock file
     def cleanup():
-        if FCNTL_AVAILABLE and lock_fd is not None:
-            try:
-                fcntl.flock(lock_fd, fcntl.LOCK_UN)
-                os.close(lock_fd)
-                logger.debug("Released exclusive lock for write mode")
-            except Exception as e:
-                logger.warning(f"Failed to release lock: {e}")
+        try:
+            if FCNTL_AVAILABLE and lock_fd is not None:
+                # Unix/Linux: release fcntl lock
+                try:
+                    fcntl.flock(lock_fd, fcntl.LOCK_UN)
+                    os.close(lock_fd)
+                except Exception as e:
+                    logger.warning(f"Failed to release fcntl lock: {e}")
+            else:
+                # Windows: cleanup lock file
+                try:
+                    if lock_file.exists():
+                        lock_file.unlink()
+                except Exception as e:
+                    logger.warning(f"Failed to remove lock file: {e}")
+            
+            logger.debug(f"Released exclusive lock for write mode on {master_dir}")
+        except Exception as e:
+            logger.warning(f"Failed to cleanup lock: {e}")
     
     return str(master_dir), cleanup
 

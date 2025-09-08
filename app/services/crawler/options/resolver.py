@@ -32,11 +32,11 @@ class OptionsResolver(IOptionsResolver):
             request.network_idle if request.network_idle is not None else settings.default_network_idle
         )
 
-        # Disable timeout entirely in persistent write mode (interactive sessions)
-        disable_timeout: bool = bool(
-            getattr(request, "force_user_data", False) is True
-            and getattr(request, "user_data_mode", "read") == "write"
-        )
+        # Timeouts are always enabled
+        disable_timeout: bool = False
+
+        # Prefer lighter navigation wait when caller supplied a selector and not using network-idle
+        prefer_domcontentloaded: bool = bool(wait_selector and not network_idle)
 
         # Return an options dict expected by our fetch arg composer
         return {
@@ -48,4 +48,5 @@ class OptionsResolver(IOptionsResolver):
             "headless": headless,
             "network_idle": network_idle,
             "disable_timeout": disable_timeout,
+            "prefer_domcontentloaded": prefer_domcontentloaded,
         }

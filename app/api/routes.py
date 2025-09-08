@@ -36,22 +36,13 @@ def crawl_endpoint(payload: CrawlRequest):
 
     Accepts the simplified request model only (breaking change).
     Delegates to the plain `crawl` function to ease testing via patching.
-    
-    Note: user_data_mode defaults to "read" only. Write mode is not supported.
     """
-    # Reject user_data_mode="write" with clear error
-    if payload.user_data_mode == "write":
-        return JSONResponse(
-            content={"status": "error", "message": "user_data_mode='write' is not supported on /crawl endpoint. Use read mode only."},
-            status_code=400
-        )
-    
+
     # If tests patch `crawl` (becomes a Mock), pass a lightweight object to match expectations
     if not isinstance(crawl, FunctionType):
         req_obj = SimpleNamespace(
             url=str(payload.url).rstrip("/"),
             force_user_data=payload.force_user_data,
-            user_data_mode="read",  # Always use read mode
         )
     else:
         req_obj = payload

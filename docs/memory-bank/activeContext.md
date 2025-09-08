@@ -28,3 +28,14 @@ Successfully implemented a dedicated `/browse` endpoint for free browsing sessio
 - No HTML content return - purely for user data population
 - Reuses existing user data context management from `app/services/crawler/options/user_data.py`
 - All existing tests continue to pass
+
+### Recent Architectural Changes
+- **Removed `user_data_mode` field**: The `user_data_mode` field has been completely removed from the system architecture
+- **Standardized to `read_mode` behavior**: All user data operations now consistently use temporary, disposable user data sessions with timeouts enabled
+- **Simplified user data management**: The system exclusively uses temporary clones of the master profile directory, ensuring all sessions respect timeout constraints
+
+### Browse Endpoint Behavior Update
+- **Browse endpoint requires write mode behavior**: The `/browse` endpoint should use write mode to allow persistent user data population
+- **Write mode characteristics**: Direct access to master directory, exclusive locking, persistent data storage
+- **Implementation needed**: The user data context needs to be enhanced to support write mode for browse sessions
+- **Current limitation**: Browse endpoint currently uses read mode clones instead of write mode master directory access
