@@ -51,7 +51,7 @@ def test_disable_timeout_in_write_mode():
         page_action=None,
     )
 
-    # We explicitly set timeout to None in write mode
+    # We use a very large numeric timeout in write mode (not None)
     assert "timeout" in kwargs
-    assert kwargs["timeout"] is None
-
+    assert isinstance(kwargs["timeout"], int)
+    assert kwargs["timeout"] >= 86_400_000  # at least 24h

@@ -138,10 +138,11 @@ class FetchArgComposer:
             wait=0,  # Fixed wait time, wait_ms removed from new schema
         )
 
-        # Timeout handling: allow disabling in write mode
+        # Timeout handling: allow effectively disabling in write mode by using a very large value
         if options.get("disable_timeout") is True:
-            # Explicitly pass None to signal unlimited timeout in write mode
-            fetch_kwargs["timeout"] = None
+            # Use a very large timeout (defaults to 24h) to emulate no-timeout without passing null
+            large_timeout_ms = getattr(settings, "write_mode_timeout_ms", 86_400_000)
+            fetch_kwargs["timeout"] = large_timeout_ms
         else:
             fetch_kwargs["timeout"] = (
                 (options.get("timeout_seconds") * 1000)
