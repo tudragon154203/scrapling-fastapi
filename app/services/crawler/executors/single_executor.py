@@ -63,6 +63,13 @@ class SingleAttemptExecutor(IExecutor):
             )
 
             page = self.fetch_client.fetch(str(request.url), fetch_kwargs)
+            
+            # Cleanup user data context after fetch if cleanup function was stored
+            if fetch_kwargs.get('_user_data_cleanup'):
+                try:
+                    fetch_kwargs['_user_data_cleanup']()
+                except Exception as e:
+                    logger.warning(f"Failed to cleanup user data context: {e}")
 
             if getattr(page, "status", None) == 200:
                 html = getattr(page, "html_content", None)

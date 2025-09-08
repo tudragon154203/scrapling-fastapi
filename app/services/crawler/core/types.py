@@ -55,6 +55,10 @@ class FetchCapabilities:
     supports_page_action: bool = True  # Force enable since we know StealthyFetcher supports it
     supports_geoip: bool = False
     supports_extra_headers: bool = False
+    supports_user_data_dir: bool = False
+    supports_profile_dir: bool = False
+    supports_profile_path: bool = False
+    supports_user_data: bool = False
     
     def __bool__(self) -> bool:
         """Return True if any capabilities are supported."""

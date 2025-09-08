@@ -1,5 +1,5 @@
 from typing import Optional
-from pydantic import BaseModel, AnyUrl, Field
+from pydantic import BaseModel, AnyUrl, Field, field_validator
 from pydantic.config import ConfigDict
 
 
@@ -22,7 +22,15 @@ class CrawlRequest(BaseModel):
 
     # Force flags
     force_headful: Optional[bool] = None
-    force_user_data: Optional[bool] = None  # reserved for future
+    force_user_data: Optional[bool] = None
+    user_data_mode: Optional[str] = Field(default="read")
+
+    @field_validator('user_data_mode')
+    @classmethod
+    def validate_user_data_mode(cls, v):
+        if v is not None and v not in ['read', 'write']:
+            raise ValueError("user_data_mode must be either 'read' or 'write'")
+        return v
 
 
 class CrawlResponse(BaseModel):

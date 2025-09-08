@@ -1,5 +1,7 @@
 from typing import Optional
 from pydantic import BaseModel, Field, field_validator
+from pydantic.alias_generators import to_camel
+from pydantic import AliasChoices
 from pydantic.config import ConfigDict
 
 
@@ -11,7 +13,12 @@ class DPDCrawlRequest(BaseModel):
     # Allow additional fields to be ignored to keep endpoint lenient
     model_config = ConfigDict(extra='allow')
     
-    tracking_code: str = Field(..., description="DPD tracking code (required, non-empty)")
+    # Accept both `tracking_code` (preferred) and legacy `tracking_number`
+    tracking_code: str = Field(
+        ..., 
+        description="DPD tracking code (required, non-empty)",
+        validation_alias=AliasChoices("tracking_code", "tracking_number"),
+    )
     force_user_data: Optional[bool] = Field(
         default=False, 
         description="Enable Camoufox persistent user data if configured"

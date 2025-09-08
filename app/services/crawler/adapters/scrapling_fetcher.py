@@ -44,6 +44,10 @@ class ScraplingFetcherAdapter(IFetchClient):
             supports_page_action=_ok("page_action"),
             supports_geoip=_ok("geoip"),
             supports_extra_headers=_ok("extra_headers"),
+            supports_user_data_dir=_ok("user_data_dir"),
+            supports_profile_dir=_ok("profile_dir"),
+            supports_profile_path=_ok("profile_path"),
+            supports_user_data=_ok("user_data"),
         )
         return self._capabilities
     
@@ -153,7 +157,10 @@ class FetchArgComposer:
             fetch_kwargs["geoip"] = True
 
         if caps.supports_additional_args and additional_args:
-            fetch_kwargs["additional_args"] = additional_args
+            # Filter out internal cleanup function
+            filtered_additional_args = {k: v for k, v in additional_args.items() if not k.startswith('_')}
+            if filtered_additional_args:
+                fetch_kwargs["additional_args"] = filtered_additional_args
 
         if _ok("extra_headers") and extra_headers:
             fetch_kwargs["extra_headers"] = extra_headers
