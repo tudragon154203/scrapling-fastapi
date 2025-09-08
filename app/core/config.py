@@ -1,4 +1,4 @@
-from typing import Optional
+﻿from typing import Optional
 import os
 from functools import lru_cache
 from pydantic import Field
@@ -42,22 +42,15 @@ try:
         # Content validation
         min_html_content_length: int = Field(default=500)
         
-        # Allow HTTP-only fallback on non-200/short HTML
-        http_fallback_on_failure: bool = Field(default=False)
         
         # Camoufox user data directory (single profile dir)
         camoufox_user_data_dir: Optional[str] = Field(default=None)
 
         # Camoufox stealth extras (optional, no API changes)
-        # Locale string like "en-US,en;q=0.9" or a single locale like "en-US"
-        camoufox_locale: Optional[str] = Field(default=None)
-        # Window size, e.g. "1366x768" or "1366,768"; parsed at runtime
-        camoufox_window: Optional[str] = Field(default=None)
-        # When true, relaxes COOP to allow interactions within cross-origin iframes
+        camoufox_locale: Optional[str] = Field(default=None)  # e.g., "en-US,en;q=0.9"
+        camoufox_window: Optional[str] = Field(default=None)  # e.g., "1366x768"
         camoufox_disable_coop: bool = Field(default=False)
-        # When true and a proxy is used, spoof geolocation/timezone/WebRTC via Camoufox
         camoufox_geoip: bool = Field(default=True)
-        # When set on Linux, enables virtual display (e.g., "xvfb")
         camoufox_virtual_display: Optional[str] = Field(default=None)
 
         # AusPost humanization settings
@@ -71,15 +64,17 @@ try:
         auspost_jitter_steps: int = Field(default=2, env="AUSPOST_JITTER_STEPS")
         auspost_micro_pause_min_s: float = Field(default=0.15, env="AUSPOST_MICRO_PAUSE_MIN_S")
         auspost_micro_pause_max_s: float = Field(default=0.40, env="AUSPOST_MICRO_PAUSE_MAX_S")
-        # Intensity and probability (light by default)
-        auspost_mouse_move_prob: float = Field(default=0.5, env="AUSPOST_MOUSE_MOVE_PROB")
-        auspost_mouse_jitter_prob: float = Field(default=0.5, env="AUSPOST_MOUSE_JITTER_PROB")
-        auspost_scroll_prob: float = Field(default=0.25, env="AUSPOST_SCROLL_PROB")
-        # Scroll bounds (make small by default)
+        # Intensity and probability
+        auspost_mouse_move_prob: float = Field(default=1.0, env="AUSPOST_MOUSE_MOVE_PROB")
+        auspost_mouse_jitter_prob: float = Field(default=1.0, env="AUSPOST_MOUSE_JITTER_PROB")
+        auspost_scroll_prob: float = Field(default=1.0, env="AUSPOST_SCROLL_PROB")
         auspost_scroll_cycles_min: int = Field(default=1, env="AUSPOST_SCROLL_CYCLES_MIN")
         auspost_scroll_cycles_max: int = Field(default=1, env="AUSPOST_SCROLL_CYCLES_MAX")
         auspost_scroll_dy_min: int = Field(default=80, env="AUSPOST_SCROLL_DY_MIN")
         auspost_scroll_dy_max: int = Field(default=180, env="AUSPOST_SCROLL_DY_MAX")
+
+        # AusPost endpoint behavior
+        auspost_use_proxy: bool = Field(default=False, env="AUSPOST_USE_PROXY")
 
         model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="allow")
 
@@ -123,27 +118,26 @@ except Exception:
 
         # Content validation
         min_html_content_length: int = 500
-        # Allow HTTP-only fallback on non-200/short HTML
-        http_fallback_on_failure: bool = False
 
         # AusPost humanization settings
         auspost_humanize_enabled: bool = True
         auspost_humanize_scroll: bool = True
-        auspost_typing_delay_ms_min: int = 60
-        auspost_typing_delay_ms_max: int = 140
+        auspost_typing_delay_ms_min: int = 100
+        auspost_typing_delay_ms_max: int = 300
         auspost_mouse_steps_min: int = 12
         auspost_mouse_steps_max: int = 28
         auspost_jitter_radius_px: int = 3
         auspost_jitter_steps: int = 2
         auspost_micro_pause_min_s: float = 0.15
         auspost_micro_pause_max_s: float = 0.40
-        auspost_mouse_move_prob: float = 0.5
-        auspost_mouse_jitter_prob: float = 0.5
-        auspost_scroll_prob: float = 0.25
+        auspost_mouse_move_prob: float = 1.0
+        auspost_mouse_jitter_prob: float = 1.0
+        auspost_scroll_prob: float = 1.0
         auspost_scroll_cycles_min: int = 1
         auspost_scroll_cycles_max: int = 1
         auspost_scroll_dy_min: int = 80
         auspost_scroll_dy_max: int = 180
+        auspost_use_proxy: bool = False
 
     @lru_cache()
     def get_settings() -> "Settings":
@@ -168,12 +162,10 @@ except Exception:
             camoufox_user_data_dir=os.getenv("CAMOUFOX_USER_DATA_DIR"),
             camoufox_locale=os.getenv("CAMOUFOX_LOCALE"),
             camoufox_window=os.getenv("CAMOUFOX_WINDOW"),
-            camoufox_disable_coop=os.getenv("CAMOUFOX_DISABLE_COOP", "false").lower()
-            in {"1", "true", "yes"},
+            camoufox_disable_coop=os.getenv("CAMOUFOX_DISABLE_COOP", "false").lower() in {"1", "true", "yes"},
             camoufox_geoip=os.getenv("CAMOUFOX_GEOIP", "true").lower() in {"1", "true", "yes"},
             camoufox_virtual_display=os.getenv("CAMOUFOX_VIRTUAL_DISPLAY"),
             min_html_content_length=int(os.getenv("MIN_HTML_CONTENT_LENGTH", "500")),
-            http_fallback_on_failure=os.getenv("HTTP_FALLBACK_ON_FAILURE", "false").lower() in {"1", "true", "yes"},
             auspost_humanize_enabled=os.getenv("AUSPOST_HUMANIZE_ENABLED", "true").lower() in {"1", "true", "yes"},
             auspost_humanize_scroll=os.getenv("AUSPOST_HUMANIZE_SCROLL", "true").lower() in {"1", "true", "yes"},
             auspost_typing_delay_ms_min=int(os.getenv("AUSPOST_TYPING_DELAY_MS_MIN", "60")),
@@ -184,11 +176,12 @@ except Exception:
             auspost_jitter_steps=int(os.getenv("AUSPOST_JITTER_STEPS", "2")),
             auspost_micro_pause_min_s=float(os.getenv("AUSPOST_MICRO_PAUSE_MIN_S", "0.15")),
             auspost_micro_pause_max_s=float(os.getenv("AUSPOST_MICRO_PAUSE_MAX_S", "0.40")),
-            auspost_mouse_move_prob=float(os.getenv("AUSPOST_MOUSE_MOVE_PROB", "0.5")),
-            auspost_mouse_jitter_prob=float(os.getenv("AUSPOST_MOUSE_JITTER_PROB", "0.5")),
-            auspost_scroll_prob=float(os.getenv("AUSPOST_SCROLL_PROB", "0.25")),
+            auspost_mouse_move_prob=float(os.getenv("AUSPOST_MOUSE_MOVE_PROB", "1.0")),
+            auspost_mouse_jitter_prob=float(os.getenv("AUSPOST_MOUSE_JITTER_PROB", "1.0")),
+            auspost_scroll_prob=float(os.getenv("AUSPOST_SCROLL_PROB", "1.0")),
             auspost_scroll_cycles_min=int(os.getenv("AUSPOST_SCROLL_CYCLES_MIN", "1")),
             auspost_scroll_cycles_max=int(os.getenv("AUSPOST_SCROLL_CYCLES_MAX", "1")),
             auspost_scroll_dy_min=int(os.getenv("AUSPOST_SCROLL_DY_MIN", "80")),
             auspost_scroll_dy_max=int(os.getenv("AUSPOST_SCROLL_DY_MAX", "180")),
+            auspost_use_proxy=os.getenv("AUSPOST_USE_PROXY", "false").lower() in {"1", "true", "yes"},
         )

@@ -82,3 +82,4 @@ class AuspostCrawler:
             html=crawl_response.html,
             message=crawl_response.message
         )
+

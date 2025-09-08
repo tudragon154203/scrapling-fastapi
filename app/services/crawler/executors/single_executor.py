@@ -71,16 +71,8 @@ class SingleAttemptExecutor(IExecutor):
                     return CrawlResponse(status="success", url=request.url, html=html)
                 else:
                     msg = f"HTML too short (<{min_len} chars); suspected bot detection"
-                    if getattr(settings, "http_fallback_on_failure", False):
-                        fb = self._http_fallback(str(request.url), options["timeout_ms"], min_len)
-                        if fb is not None:
-                            return fb
                     return CrawlResponse(status="failure", url=request.url, html=None, message=msg)
             else:
-                if getattr(settings, "http_fallback_on_failure", False):
-                    fb = self._http_fallback(str(request.url), options["timeout_ms"], int(getattr(settings, "min_html_content_length", 500) or 0))
-                    if fb is not None:
-                        return fb
                 return CrawlResponse(
                     status="failure",
                     url=request.url,
@@ -95,43 +87,11 @@ class SingleAttemptExecutor(IExecutor):
                     html=None,
                     message="Scrapling library not available",
                 )
-            if getattr(settings, "http_fallback_on_failure", False):
-                fb = self._http_fallback(str(request.url), options["timeout_ms"], int(getattr(settings, "min_html_content_length", 500) or 0))
-                if fb is not None:
-                    return fb
             return CrawlResponse(
                 status="failure",
                 url=request.url,
                 html=None,
                 message=f"Exception during crawl: {type(e).__name__}: {e}",
             )
-    def _http_fallback(self, url: str, timeout_ms: int, min_len: int):
-        """Attempt a simple HTTP GET as a fallback when Scrapling fails."""
-        try:
-            from urllib.request import Request, urlopen
-            import ssl
-            hdrs = {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122 Safari/537.36",
-                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-            }
-            req = Request(url, headers=hdrs)
-            ctx = ssl.create_default_context()
-            try:
-                resp = urlopen(req, timeout=max(1, int(timeout_ms/1000)), context=ctx)
-            except TypeError:
-                resp = urlopen(req, timeout=max(1, int(timeout_ms/1000)))
-            status = getattr(resp, "status", 200)
-            data = resp.read()
-            try:
-                html = data.decode("utf-8", errors="ignore")
-            except Exception:
-                try:
-                    html = data.decode("latin-1", errors="ignore")
-                except Exception:
-                    html = ""
-            if status == 200 and html and len(html) >= min_len and "<html" in html.lower():
-                return CrawlResponse(status="success", url=url, html=html)
-            return None
-        except Exception:
-            return None
+    
 

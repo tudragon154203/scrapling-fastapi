@@ -69,16 +69,8 @@ class SingleAttemptNoProxy(SingleAttemptExecutor):
                     return CrawlResponse(status="success", url=request.url, html=html)
                 else:
                     msg = f"HTML too short (<{min_len} chars); suspected bot detection"
-                    if getattr(settings, "http_fallback_on_failure", False):
-                        fb = self._http_fallback(str(request.url), options["timeout_ms"], min_len)
-                        if fb is not None:
-                            return fb
                     return CrawlResponse(status="failure", url=request.url, html=None, message=msg)
             else:
-                if getattr(settings, "http_fallback_on_failure", False):
-                    fb = self._http_fallback(str(request.url), options["timeout_ms"], int(getattr(settings, "min_html_content_length", 500) or 0))
-                    if fb is not None:
-                        return fb
                 return CrawlResponse(
                     status="failure",
                     url=request.url,
@@ -93,10 +85,6 @@ class SingleAttemptNoProxy(SingleAttemptExecutor):
                     html=None,
                     message="Scrapling library not available",
                 )
-            if getattr(settings, "http_fallback_on_failure", False):
-                fb = self._http_fallback(str(request.url), options["timeout_ms"], int(getattr(settings, "min_html_content_length", 500) or 0))
-                if fb is not None:
-                    return fb
             return CrawlResponse(
                 status="failure",
                 url=request.url,

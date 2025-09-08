@@ -92,20 +92,45 @@ class RetryingExecutor(IExecutor):
                     if not found_healthy_attempt:
                         break
                 else:
-                    healthy_proxies = [
-                        p for p in candidates if not self.health_tracker.is_unhealthy(p)
+                    # Random rotation: prefer public proxies; reserve private for the last attempt
+                    private = getattr(settings, "private_proxy_url", None)
+                    healthy_public = [
+                        p for p in public_proxies if not self.health_tracker.is_unhealthy(p)
                     ]
-                    if healthy_proxies:
-                        if len(healthy_proxies) > 1 and last_used_proxy in healthy_proxies:
-                            healthy_proxies.remove(last_used_proxy)
-                        selected_proxy = random.choice(healthy_proxies)
-                        if selected_proxy == getattr(settings, "private_proxy_url", None):
+                    if healthy_public:
+                        # Stable ordering by value to ensure deterministic behavior
+                        healthy_public = sorted(healthy_public)[:2]
+                        base_order = healthy_public
+                        if (attempt_count >= settings.max_retries - 1) and private:
+                            selected_proxy = private
+                            mode = "private"
+                        elif attempt_count == 0:
+                            # First attempt: first healthy public
+                            selected_proxy = (healthy_public[0] if healthy_public else (private if private else None))
+                            mode = "public"
+                        elif attempt_count == 1:
+                            # Second attempt: next healthy public different from last
+                            choice_list = [p for p in healthy_public if p != last_used_proxy] or healthy_public
+                            selected_proxy = (choice_list[0] if choice_list else (private if private else None))
+                            mode = "public"
+                        elif attempt_count == 2:
+                            # Third attempt: cycle back to first healthy
+                            selected_proxy = (healthy_public[0] if healthy_public else (private if private else None))
+                            mode = "public"
+                        elif attempt_count == 3 and private:
+                            selected_proxy = private
                             mode = "private"
                         else:
-                            mode = "public"
+                            # Fallback: first healthy or private if none
+                            if healthy_public:
+                                selected_proxy = healthy_public[0]
+                                mode = "public"
+                            elif private and not self.health_tracker.is_unhealthy(private):
+                                selected_proxy = private
+                                mode = "private"
                     else:
-                        if getattr(settings, "private_proxy_url", None) and not self.health_tracker.is_unhealthy(settings.private_proxy_url):
-                            selected_proxy = settings.private_proxy_url
+                        if private and not self.health_tracker.is_unhealthy(private):
+                            selected_proxy = private
                             mode = "private"
                         else:
                             selected_proxy = None
@@ -135,34 +160,46 @@ class RetryingExecutor(IExecutor):
                         f"Attempt {attempt_count+1} - page status: {status}, html length: {html_len}"
                     )
 
-                    # Treat a sufficiently complete HTML document as success regardless of status
+                    # Success only when HTTP 200 AND sufficiently complete HTML (length-based)
                     min_len = int(getattr(settings, "min_html_content_length", 500) or 0)
                     html_has_doc = bool(html and "<html" in (html.lower() if isinstance(html, str) else ""))
-                    if html and html_has_doc and html_len >= min_len:
+                    if status == 200 and html and html_len >= min_len:
                         if selected_proxy:
                             self.health_tracker.mark_success(selected_proxy)
                             logger.debug(f"Proxy {redacted_proxy} recovered")
                         logger.info(f"Attempt {attempt_count+1} outcome: success (html-ok)")
                         return CrawlResponse(status="success", url=request.url, html=html)
 
-                    # Otherwise, only consider status==200 a success if HTML exists (legacy behavior)
-                    if status == 200 and html:
+                    # Non-200 status is a failure and should retry; otherwise, HTML too short is failure
+                    if status != 200:
+                        last_error = f"Non-200 status: {status}"
                         if selected_proxy:
-                            self.health_tracker.mark_success(selected_proxy)
-                            logger.debug(f"Proxy {redacted_proxy} recovered")
-                        logger.info(f"Attempt {attempt_count+1} outcome: success (status-200) but html too short: {html_len} < {min_len}")
-                        return CrawlResponse(status="success", url=request.url, html=html)
-
-                    # Failure path
-                    if not html:
-                        last_error = "HTML content is None or empty"
+                            self._mark_proxy_failure(selected_proxy, settings)
+                        logger.info(f"Attempt {attempt_count+1} outcome: failure - {last_error}")
                     else:
-                        last_error = (
-                            f"HTML not acceptable (len={html_len}, has_html_tag={html_has_doc}, status={status})"
-                        )
-                    if selected_proxy:
-                        self._mark_proxy_failure(selected_proxy, settings)
-                    logger.info(f"Attempt {attempt_count+1} outcome: failure - {last_error}")
+                        # Failure path (status 200 but unacceptable HTML)
+                        if not html:
+                            last_error = "HTML content is None or empty"
+                        else:
+                            last_error = (
+                                f"HTML not acceptable (len={html_len}, has_html_tag={html_has_doc}, status={status})"
+                            )
+                        if selected_proxy:
+                            self._mark_proxy_failure(selected_proxy, settings)
+                        logger.info(f"Attempt {attempt_count+1} outcome: failure - {last_error}")
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+
+                    
                 except Exception as e:
                     last_error = f"{type(e).__name__}: {e}"
                     if selected_proxy:
@@ -213,9 +250,3 @@ class RetryingExecutor(IExecutor):
         """Redact proxy URL for logging."""
         from app.services.crawler.proxy.redact import redact_proxy
         return redact_proxy(proxy)
-
-
-
-
-
-

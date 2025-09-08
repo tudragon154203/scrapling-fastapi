@@ -1,4 +1,4 @@
-import pytest
+﻿import pytest
 from app.core.config import get_settings
 
 
@@ -23,7 +23,7 @@ def _disable_proxies_and_reduce_retries(monkeypatch):
         x.private_proxy_url = None
         x.max_retries = 1
         # Enable lightweight HTTP fallback to improve resiliency for public sites
-        x.http_fallback_on_failure = True
+        # HTTP fallback removed from service; rely on Scrapling only
         return x
 
     monkeypatch.setattr(app_config, "get_settings", _wrapped)
@@ -142,3 +142,4 @@ def test_crawl_laposte(client):
     html = data.get("html") or ""
     assert "<html" in html.lower()
     assert len(html) >= _min_len()
+

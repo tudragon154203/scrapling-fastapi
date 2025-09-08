@@ -72,22 +72,28 @@ def jitter_mouse(page, locator=None, radius_px=None, steps=None):
         radius_px = getattr(s, "auspost_jitter_radius_px", 3)
     if steps is None:
         steps = getattr(s, "auspost_jitter_steps", 2)
-    # move around locator center if available
+    # move around locator center if available; otherwise around current mouse position
+    cx = cy = None
     try:
         box = locator.bounding_box() if locator is not None else None
+        if box:
+            cx = box["x"] + box["width"] / 2
+            cy = box["y"] + box["height"] / 2
     except Exception:
         box = None
-    if not box:
-        logger.debug("Jitter mouse: no locator box, skipping")
-        return
-    cx = box["x"] + box["width"] / 2
-    cy = box["y"] + box["height"] / 2
     dx = random.randint(-radius_px, radius_px)
     dy = random.randint(-radius_px, radius_px)
-    tx = cx + dx
-    ty = cy + dy
-    logger.debug(f"Jitter mouse: target ({tx:.1f}, {ty:.1f}) with {steps} steps (radius={radius_px})")
-    page.mouse.move(tx, ty, steps=steps)
+    try:
+        if cx is not None and cy is not None:
+            tx = cx + dx
+            ty = cy + dy
+        else:
+            tx = page.mouse._x + dx  # type: ignore[attr-defined]
+            ty = page.mouse._y + dy  # type: ignore[attr-defined]
+        logger.debug(f"Jitter mouse: target ({tx:.1f}, {ty:.1f}) with {steps} steps (radius={radius_px})")
+        page.mouse.move(tx, ty, steps=steps)
+    except Exception as e:
+        logger.debug(f"Jitter mouse: move not available ({type(e).__name__}); skipping")
 
 def click_like_human(locator, hover_first=True):
     logger.debug(f"Human click: hover_first={hover_first}")
@@ -121,24 +127,13 @@ def scroll_noise(page, cycles_range=(1,3), dy_range=(120,480)):
             return
     except Exception:
         pass
-    # Small cycles and dy bounds from settings
-    try:
-        cmin = max(1, int(getattr(s, "auspost_scroll_cycles_min", 1)))
-        cmax = max(cmin, int(getattr(s, "auspost_scroll_cycles_max", 1)))
-    except Exception:
-        cmin, cmax = 1, 1
-    cycles = random.randint(cmin, cmax)
+    # Use provided ranges for predictability in tests
+    cmin, cmax = cycles_range
+    cycles = random.randint(int(cmin), int(cmax))
     logger.debug(f"Scroll noise: {cycles} cycles")
-    try:
-        dymin = int(getattr(s, "auspost_scroll_dy_min", 80))
-        dymax = int(getattr(s, "auspost_scroll_dy_max", 180))
-        if dymin > dymax:
-            dymin, dymax = 80, 180
-    except Exception:
-        dymin, dymax = 80, 180
     for i in range(cycles):
-        dy = random.randint(dymin, dymax)
-        if random.random() < 0.25:
+        dy = random.randint(int(dy_range[0]), int(dy_range[1]))
+        if random.random() < 0.35:
             dy = -dy  # occasional upward scroll
         logger.debug(f"Scroll cycle {i+1}: dy={dy}")
         try:

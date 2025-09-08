@@ -13,6 +13,7 @@ Improve the AusPost endpoint's reliability against bot protection by simulating 
 ## Solution
 
 Add a reusable humanization helper and weave it into `AuspostTrackAction` so the flow feels like a person:
+
 - Mouse moves along stepped paths, with hover and slight jitter before click.
 - Type the tracking code with per-character delay instead of instantaneous fill.
 - Random micro-pauses between actions; realistic order (hover -> click, brief dwell before typing).
@@ -22,26 +23,42 @@ Add a reusable humanization helper and weave it into `AuspostTrackAction` so the
 ## Design
 
 - New helper: `app/services/crawler/actions/humanize.py`
+
   - `human_pause(min_s, max_s)` - sleep for a small random interval.
   - `move_mouse_to_locator(page, locator, *, steps_range=(12,28), pre_hover=True)` - compute target box center, move mouse using `page.mouse.move(..., steps=n)` with random steps; optional `locator.hover()` pre-hover.
   - `jitter_mouse(page, radius_px=3, steps=2)` - tiny random wiggle before click.
   - `click_like_human(locator, *, hover_first=True)` - hover -> jitter -> `locator.click()`.
   - `type_like_human(locator, text, delay_ms_range=(60,140))` - use `locator.type(text, delay=ms)`.
   - `scroll_noise(page, cycles_range=(1,3), dy_range=(120,480))` - `page.mouse.wheel(0, +/-dy)` with occasional up/down.
-
 - Integrate into `AuspostTrackAction` (`app/services/crawler/actions/auspost.py`)
+
   - Before focusing the input, add a tiny pause and move mouse to the input like a user, then click.
   - Replace `fill(self.tracking_code)` with `type_like_human(...)`.
   - Move to the Track/Search button, hover, slight jitter, then click.
   - Between attempts and while waiting for verification/device checks, add brief `human_pause` and occasional `scroll_noise` that does not blur the form (for example, once after page load, not constantly).
-
 - Configuration (opt-in; safe defaults): `app/core/config.py`
+
   - `auspost_humanize_enabled: bool = True`
   - `auspost_humanize_scroll: bool = True`
   - `auspost_typing_delay_ms_min: int = 60`
   - `auspost_typing_delay_ms_max: int = 140`
   - `auspost_mouse_steps_min: int = 12`
   - `auspost_mouse_steps_max: int = 28`
+  - `auspost_jitter_radius_px: int = 3`
+  - `auspost_jitter_steps: int = 2`
+  - `auspost_micro_pause_min_s: float = 0.15`
+  - `auspost_micro_pause_max_s: float = 0.40`
+  - Intensity/probability gates:
+    - `auspost_mouse_move_prob: float = 0.5`
+    - `auspost_mouse_jitter_prob: float = 0.5`
+    - `auspost_scroll_prob: float = 0.25`
+  - Scroll bounds (light by default):
+    - `auspost_scroll_cycles_min: int = 1`
+    - `auspost_scroll_cycles_max: int = 1`
+    - `auspost_scroll_dy_min: int = 80`
+    - `auspost_scroll_dy_max: int = 180`
+  - AusPost endpoint behavior:
+    - `auspost_use_proxy: bool = False` (toggle to run AusPost with or without proxies)
   - `.env` example:
 
 ```env
@@ -52,6 +69,21 @@ AUSPOST_TYPING_DELAY_MS_MIN=60
 AUSPOST_TYPING_DELAY_MS_MAX=140
 AUSPOST_MOUSE_STEPS_MIN=12
 AUSPOST_MOUSE_STEPS_MAX=28
+#! Optional fine-tuning (reduced motion)
+AUSPOST_JITTER_RADIUS_PX=2
+AUSPOST_JITTER_STEPS=2
+AUSPOST_MICRO_PAUSE_MIN_S=0.15
+AUSPOST_MICRO_PAUSE_MAX_S=0.40
+AUSPOST_MOUSE_MOVE_PROB=0.35
+AUSPOST_MOUSE_JITTER_PROB=0.30
+AUSPOST_SCROLL_PROB=0.15
+AUSPOST_SCROLL_CYCLES_MIN=1
+AUSPOST_SCROLL_CYCLES_MAX=1
+AUSPOST_SCROLL_DY_MIN=60
+AUSPOST_SCROLL_DY_MAX=120
+
+# Endpoint behavior
+AUSPOST_USE_PROXY=false
 ```
 
 - Logging
@@ -143,10 +175,15 @@ def move_mouse_to_locator(page, locator, steps_range=(12, 28), pre_hover=True):
         locator.hover()
     page.mouse.move(cx, cy, steps=steps)
 
-def jitter_mouse(page, radius_px=3, steps=2):
-    # small wiggle near current position
-    page.mouse.move(page.mouse._x + random.randint(-radius_px, radius_px),
-                    page.mouse._y + random.randint(-radius_px, radius_px), steps=steps)
+def jitter_mouse(page, locator, radius_px=3, steps=2):
+    # jitter around locator center (guarded; skips if no bounding box)
+    box = locator.bounding_box()
+    if not box:
+        return
+    cx = box["x"] + box["width"]/2
+    cy = box["y"] + box["height"]/2
+    page.mouse.move(cx + random.randint(-radius_px, radius_px),
+                    cy + random.randint(-radius_px, radius_px), steps=steps)
 
 def click_like_human(locator, hover_first=True):
     if hover_first:
@@ -168,13 +205,15 @@ def scroll_noise(page, cycles_range=(1,3), dy_range=(120,480)):
 ```
 
 Notes
+
 - Keep scroll noise light and avoid while the form has focus to prevent unwanted page movement.
 - Replace `.fill()` with `.type()` only for the tracking input to keep humanization targeted.
-- All randomness must stay within small, user-plausible ranges.
+- All randomness stays within small, user-plausible ranges; probability gates reduce frequency of motion.
 
 ## DataDome Considerations
 
 Humanization helps, but fingerprint/geo coherence matters:
+
 - Enable `force_user_data` on this endpoint so the DataDome cookie persists across attempts.
 - Prefer headful (`force_headful=true`) during troubleshooting; headless can work once the profile stabilizes.
 - Ensure locale and headers match proxy geography:
@@ -182,6 +221,10 @@ Humanization helps, but fingerprint/geo coherence matters:
   - Use residential or high-quality datacenter proxies; keep IP stable per profile.
 - Leverage existing Camoufox features (WebGL, media, timezone/webRTC/UA harmonization) via our adapter.
 - Avoid rapid re-queries; add dwell time after success to mimic reading.
+
+Windows note
+
+- On Windows, the crawler sets `asyncio.WindowsProactorEventLoopPolicy()` to ensure Playwright runs without `NotImplementedError` from the default selector loop.
 
 Example request with persistence knobs:
 
@@ -203,6 +246,7 @@ Caution: respect target site Terms; use legitimate purposes and rate limits.
 - Unit (actions): monkeypatch Playwright `locator.type` to assert `delay` is within configured range; assert `mouse.move(..., steps=...)` uses range; guard random with seeded RNG in test mode.
 - Integration: run `/crawl/auspost` with humanization on; confirm navigation reaches details and HTML length >= `min_html_content_length`.
 - Toggle: with `AUSPOST_HUMANIZE_ENABLED=false`, verify the flow still works using the previous deterministic behavior.
+- Proxy behavior: set `AUSPOST_USE_PROXY=true` to run AusPost via the default engine (proxies, retries per global settings); set to `false` to use the no-proxy single-attempt executor.
 
 ## Acceptance Criteria
 
@@ -211,18 +255,23 @@ Caution: respect target site Terms; use legitimate purposes and rate limits.
 - Behavior is gated by settings, on by default, and fully off when disabled.
 - Logs (DEBUG) show chosen delays/steps when enabled.
 - No regression in tests; success rate improves on real runs.
+- HTTP fallback completely removed; all fetches use Scrapling/Playwright only.
 
 ## Related Files
 
-- Modified: `app/services/crawler/actions/auspost.py`
+- Modified: `app/services/crawler/actions/auspost.py` (integrated humanization; safe fallbacks; optional direct-details fallback on NotImplementedError)
 - New: `app/services/crawler/actions/humanize.py`
-- Modified: `app/core/config.py` (new settings)
+- Modified: `app/services/crawler/executors/single_executor.py` (Windows event loop policy; no HTTP fallback)
+- New: `app/services/crawler/executors/auspost_no_proxy.py` (single-attempt, no-proxy executor)
+- Modified: `app/services/crawler/auspost.py` (AUSPOST_USE_PROXY toggles engine)
+- Modified: `app/core/config.py` (new settings and AUSPOST_USE_PROXY)
 - Unchanged API: `app/api/routes.py` — request/response remain the same
 
 ## Future Enhancements
+
+* Click random page and go back to main page before typing the url
 
 - Add curved/Bezier mouse paths and edge-following to further mimic human motion.
 - Track per-profile success/failure with DataDome to adapt pacing.
 - Consider a "profile warm-up" task that visits harmless pages first to seed cookies.
 - Optional global "humanize level" (off | light | strong) to scale delays.
-
