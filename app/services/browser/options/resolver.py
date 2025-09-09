@@ -3,8 +3,8 @@ from typing import Dict, Any, Optional
 
 import app.core.config as app_config
 from app.schemas.crawl import CrawlRequest
-from app.services.crawler.core.interfaces import IOptionsResolver
-from app.services.crawler.core.types import CrawlOptions
+from app.services.common.interfaces import IOptionsResolver
+from app.services.common.types import CrawlOptions
 
 
 class OptionsResolver(IOptionsResolver):

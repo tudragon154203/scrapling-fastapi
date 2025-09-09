@@ -1,7 +1,7 @@
 import random
 from typing import List, Dict, Any, Optional
 
-from app.services.crawler.core.interfaces import IAttemptPlanner
+from app.services.common.interfaces import IAttemptPlanner
 
 
 class AttemptPlanner(IAttemptPlanner):

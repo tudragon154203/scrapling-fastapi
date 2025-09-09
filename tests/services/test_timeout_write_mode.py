@@ -8,9 +8,9 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from app.schemas.crawl import CrawlRequest
-from app.services.crawler.options.resolver import OptionsResolver
-from app.services.crawler.adapters.scrapling_fetcher import FetchArgComposer
-from app.services.crawler.core.types import FetchCapabilities
+from app.services.browser.options.resolver import OptionsResolver
+from app.services.common.adapters.scrapling_fetcher import FetchArgComposer
+from app.services.common.types import FetchCapabilities
 
 
 class DummySettings:
@@ -19,17 +19,17 @@ class DummySettings:
     default_timeout_ms = 20000
 
 
-def test_disable_timeout_in_write_mode():
+def test_crawl_timeout_respects_defaults():
     req = CrawlRequest(
         url="https://example.com",
         force_user_data=True,
-        user_data_mode="write",
         force_headful=True,
     )
     settings = DummySettings()
 
     opts = OptionsResolver().resolve(req, settings)
-    assert opts.get("disable_timeout") is True
+    # In new model, disable_timeout is not used for /crawl
+    assert opts.get("disable_timeout") is False
 
     caps = FetchCapabilities(
         supports_proxy=False,
@@ -51,7 +51,7 @@ def test_disable_timeout_in_write_mode():
         page_action=None,
     )
 
-    # We use a very large numeric timeout in write mode (not None)
+    # Timeout should be set to default and not be extremely large
     assert "timeout" in kwargs
     assert isinstance(kwargs["timeout"], int)
-    assert kwargs["timeout"] >= 86_400_000  # at least 24h
+    assert kwargs["timeout"] == settings.default_timeout_ms

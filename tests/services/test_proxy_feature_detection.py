@@ -63,7 +63,7 @@ def _mock_settings_no_proxy():
 
 
 def test_graceful_no_proxy_when_unsupported(monkeypatch):
-    from app.services.crawler.core.engine import CrawlerEngine
+    from app.services.common.engine import CrawlerEngine
     from app.schemas.crawl import CrawlRequest
 
     # Install fake scrapling without proxy support, and patch settings

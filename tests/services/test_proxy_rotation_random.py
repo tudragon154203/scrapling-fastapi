@@ -8,7 +8,7 @@ from unittest.mock import patch
 import pytest
 
 from app.services.crawler.executors.retry_executor import RetryingExecutor
-from app.services.crawler.core.engine import CrawlerEngine
+from app.services.common.engine import CrawlerEngine
 from app.services.crawler.proxy.health import get_health_tracker, reset_health_tracker
 from app.schemas.crawl import CrawlRequest
 

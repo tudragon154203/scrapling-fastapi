@@ -9,7 +9,7 @@ import time
 
 from app.main import app
 from app.core.config import Settings
-from app.services.crawler.options.user_data import FCNTL_AVAILABLE
+from app.services.browser.options.user_data import FCNTL_AVAILABLE
 import logging
 logger = logging.getLogger(__name__)
 
@@ -52,7 +52,7 @@ class TestBrowseE2E:
         the user data context is properly loaded and the directory is accessible.
         """
         from app.schemas.browse import BrowseResponse
-        from app.services.crawler.browse import BrowseCrawler
+        from app.services.browser.browse import BrowseCrawler
         
         captured_load_calls = []
         captured_directories = []
@@ -81,11 +81,11 @@ class TestBrowseE2E:
         mock_response.status = "success"
         mock_engine.run.return_value = mock_response
         
-        # Patch imports
-        with patch('app.services.crawler.browse.CrawlerEngine') as mock_engine_class, \
-             patch('app.services.crawler.browse.app_config.get_settings', return_value=mock_settings):
+# Patch imports
+        with patch('app.services.browser.browse.CrawlerEngine') as mock_engine_class, \
+             patch('app.services.browser.browse.app_config.get_settings', return_value=mock_settings):
             mock_engine_class.return_value = mock_engine
-            with patch('app.services.crawler.browse.user_data_context', side_effect=mock_user_data_context):
+            with patch('app.services.browser.browse.user_data_context', side_effect=mock_user_data_context):
                 
                 # Test the browse endpoint
                 body = {"url": "https://example.com"}
@@ -148,10 +148,10 @@ class TestBrowseE2E:
         mock_response.status = "success"
         mock_engine.run.return_value = mock_response
         
-        with patch('app.services.crawler.browse.CrawlerEngine') as mock_engine_class, \
-             patch('app.services.crawler.browse.app_config.get_settings', return_value=mock_settings):
+        with patch('app.services.browser.browse.CrawlerEngine') as mock_engine_class, \
+             patch('app.services.browser.browse.app_config.get_settings', return_value=mock_settings):
             mock_engine_class.return_value = mock_engine
-            with patch('app.services.crawler.browse.user_data_context', side_effect=mock_user_data_context):
+            with patch('app.services.browser.browse.user_data_context', side_effect=mock_user_data_context):
                 
                 # Test browse endpoint
                 body = {"url": "https://example.com"}
@@ -197,10 +197,10 @@ class TestBrowseE2E:
         mock_response.status = "success"
         mock_engine.run.return_value = mock_response
         
-        with patch('app.services.crawler.browse.CrawlerEngine') as mock_engine_class, \
-             patch('app.services.crawler.browse.app_config.get_settings', return_value=Settings()):
+        with patch('app.services.browser.browse.CrawlerEngine') as mock_engine_class, \
+             patch('app.services.browser.browse.app_config.get_settings', return_value=Settings()):
             mock_engine_class.return_value = mock_engine
-            with patch('app.services.crawler.browse.user_data_context', side_effect=mock_user_data_context):
+            with patch('app.services.browser.browse.user_data_context', side_effect=mock_user_data_context):
                 
                 # Test browse endpoint
                 body = {"url": "https://example.com"}
@@ -246,11 +246,11 @@ class TestBrowseE2E:
             captured_requests.append(crawl_request)
             return mock_response
         
-        with patch('app.services.crawler.browse.CrawlerEngine') as mock_engine_class, \
-             patch('app.services.crawler.browse.app_config.get_settings', return_value=mock_settings):
+        with patch('app.services.browser.browse.CrawlerEngine') as mock_engine_class, \
+             patch('app.services.browser.browse.app_config.get_settings', return_value=mock_settings):
             mock_engine_class.return_value = mock_engine
             mock_engine.run.side_effect = capture_engine_run
-            with patch('app.services.crawler.browse.user_data_context', side_effect=mock_user_data_context):
+            with patch('app.services.browser.browse.user_data_context', side_effect=mock_user_data_context):
                 
                 # Test with different URLs to ensure consistent behavior
                 test_urls = [None, "https://example.com", "https://google.com"]
@@ -277,7 +277,7 @@ class TestBrowseE2E:
         This test verifies that the master.lock file is removed after the browse session
         completes, ensuring subsequent launches can proceed without conflicts.
         """
-        from app.services.crawler.options.user_data import user_data_context
+        from app.services.browser.options.user_data import user_data_context
         
         lock_file = Path(temp_user_data_dir) / 'master.lock'
         
@@ -306,10 +306,10 @@ class TestBrowseE2E:
         mock_response.status = "success"
         mock_engine.run.return_value = mock_response
         
-        with patch('app.services.crawler.browse.CrawlerEngine') as mock_engine_class, \
-             patch('app.services.crawler.browse.app_config.get_settings', return_value=mock_settings):
+        with patch('app.services.browser.browse.CrawlerEngine') as mock_engine_class, \
+             patch('app.services.browser.browse.app_config.get_settings', return_value=mock_settings):
             mock_engine_class.return_value = mock_engine
-            with patch('app.services.crawler.browse.user_data_context', side_effect=mock_user_data_context):
+            with patch('app.services.browser.browse.user_data_context', side_effect=mock_user_data_context):
                 
                 # First browse session
                 body = {"url": "https://example.com"}
@@ -347,7 +347,7 @@ class TestBrowseE2E:
         This test addresses the issue where closing the browser causes
         multiple relaunch attempts due to improper lock cleanup.
         """
-        from app.services.crawler.browse import BrowseCrawler
+        from app.services.browser.browse import BrowseCrawler
         from app.schemas.browse import BrowseResponse
         
         # Track actual lock file operations
@@ -401,15 +401,15 @@ class TestBrowseE2E:
         mock_settings = Settings()
         mock_settings.camoufox_user_data_dir = temp_user_data_dir
         
-        with patch('app.services.crawler.browse.CrawlerEngine') as mock_engine_class, \
-             patch('app.services.crawler.browse.app_config.get_settings', return_value=mock_settings):
+        with patch('app.services.browser.browse.CrawlerEngine') as mock_engine_class, \
+             patch('app.services.browser.browse.app_config.get_settings', return_value=mock_settings):
             mock_engine_class.return_value = MagicMock()
             
             # Apply BrowseCrawler mocks
             monkeypatch.setattr(BrowseCrawler, '__init__', mock_browse_crawler_init)
             monkeypatch.setattr(BrowseCrawler, 'run', mock_browse_crawler_run)
             
-            with patch('app.services.crawler.browse.user_data_context', side_effect=mock_user_data_context):
+            with patch('app.services.browser.browse.user_data_context', side_effect=mock_user_data_context):
                 
                 # First browse session
                 body = {"url": "https://example.com"}
@@ -508,12 +508,12 @@ class TestBrowseE2E:
             
             return mock_response
         
-        with patch('app.services.crawler.browse.CrawlerEngine') as mock_engine_class, \
-             patch('app.services.crawler.browse.app_config.get_settings', return_value=mock_settings):
+        with patch('app.services.browser.browse.CrawlerEngine') as mock_engine_class, \
+             patch('app.services.browser.browse.app_config.get_settings', return_value=mock_settings):
             mock_engine_class.return_value = mock_engine
             mock_engine.run.side_effect = simulate_user_data_writing
             
-            with patch('app.services.crawler.browse.user_data_context', side_effect=mock_user_data_context):
+            with patch('app.services.browser.browse.user_data_context', side_effect=mock_user_data_context):
                 
                 # First browse session with simulated user data writing
                 body = {"url": "https://example.com"}

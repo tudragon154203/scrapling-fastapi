@@ -1,7 +1,7 @@
 import random
 from typing import List, Optional
 
-from app.services.crawler.core.interfaces import IProxyListSource
+from app.services.common.interfaces import IProxyListSource
 
 
 class ProxyListFileSource(IProxyListSource):

@@ -5,8 +5,8 @@ from typing import Any, Dict, Optional
 from urllib import request as urllib_request
 from urllib.error import URLError, HTTPError
 
-from app.services.crawler.core.interfaces import IFetchClient
-from app.services.crawler.core.types import FetchCapabilities
+from app.services.common.interfaces import IFetchClient
+from app.services.common.types import FetchCapabilities
 from app.services.crawler.proxy.redact import redact_proxy as _redact_proxy
 
 

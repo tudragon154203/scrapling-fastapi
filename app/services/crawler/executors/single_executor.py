@@ -5,11 +5,11 @@ from typing import Any, Dict, Optional
 
 import app.core.config as app_config
 from app.schemas.crawl import CrawlRequest, CrawlResponse
-from app.services.crawler.core.interfaces import IExecutor, PageAction
-from app.services.crawler.core.types import FetchCapabilities
-from app.services.crawler.adapters.scrapling_fetcher import ScraplingFetcherAdapter, FetchArgComposer
-from app.services.crawler.options.resolver import OptionsResolver
-from app.services.crawler.options.camoufox import CamoufoxArgsBuilder
+from app.services.common.interfaces import IExecutor, PageAction
+from app.services.common.types import FetchCapabilities
+from app.services.common.adapters.scrapling_fetcher import ScraplingFetcherAdapter, FetchArgComposer
+from app.services.browser.options.resolver import OptionsResolver
+from app.services.browser.options.camoufox import CamoufoxArgsBuilder
 
 logger = logging.getLogger(__name__)
 

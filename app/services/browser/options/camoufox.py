@@ -3,8 +3,8 @@ import logging
 from typing import Dict, Any, Optional, Tuple
 
 import app.core.config as app_config
-from app.services.crawler.core.interfaces import IFetchArgComposer
-from app.services.crawler.options import user_data as user_data_mod
+from app.services.common.interfaces import IFetchArgComposer
+from app.services.browser.options import user_data as user_data_mod
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +26,7 @@ class CamoufoxArgsBuilder:
         """
         additional_args: Dict[str, Any] = {}
 
-        # User data directory with parameter detection
+        # User data directory with parameter detection (read-mode for crawl flows)
         if (hasattr(payload, 'force_user_data') and payload.force_user_data is True and
             settings.camoufox_user_data_dir):
 
@@ -38,8 +38,8 @@ class CamoufoxArgsBuilder:
 
             if user_data_param:
                 try:
-                    # Get user data context (always temporary clone)
-                    with user_data_mod.user_data_context(settings.camoufox_user_data_dir) as (effective_dir, cleanup):
+                    # Crawl flows use read mode clones; browse handles write mode separately
+                    with user_data_mod.user_data_context(settings.camoufox_user_data_dir, 'read') as (effective_dir, cleanup):
                         logger.debug(f"Using user data directory: {effective_dir}")
                         additional_args[user_data_param] = effective_dir
 

@@ -2,7 +2,7 @@ import logging
 import threading
 import time
 from typing import Dict, Any
-from app.services.crawler.core.interfaces import IProxyHealthTracker
+from app.services.common.interfaces import IProxyHealthTracker
 
 logger = logging.getLogger(__name__)
 

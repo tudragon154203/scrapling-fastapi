@@ -1,9 +1,9 @@
 from typing import Optional
 from app.schemas.crawl import CrawlRequest, CrawlResponse
-from app.services.crawler.core.engine import CrawlerEngine
-from app.services.crawler.core.interfaces import PageAction
+from app.services.common.engine import CrawlerEngine
+from app.services.common.interfaces import PageAction
 from app.services.crawler.executors.retry_executor import RetryingExecutor
-from app.services.crawler.actions.wait_for_close import WaitForUserCloseAction
+from app.services.browser.actions.wait_for_close import WaitForUserCloseAction
 import app.core.config as app_config
 
 

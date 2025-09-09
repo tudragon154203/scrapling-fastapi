@@ -1,5 +1,17 @@
 # Progress Log
 
+## Documentation Update - Port Numbers
+**Status:** ✅ Completed
+**Date:** 2025-09-09
+
+### Task Goal
+Updated documentation for dev and production run commands regarding port numbers.
+
+### Changes Made
+- Development run command now uses port 5681
+- Production pm2 command continues to use port 5680
+- Updated relevant documentation files
+
 ## User Data Mode Standardization
 **Status:** ✅ Completed
 **Date:** 2025-09-08

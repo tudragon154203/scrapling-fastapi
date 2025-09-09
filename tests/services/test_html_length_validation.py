@@ -42,7 +42,7 @@ def _install_fake_scrapling_with_html_lengths(monkeypatch, html_lengths):
 
 
 def test_single_attempt_fails_on_short_html(monkeypatch):
-    from app.services.crawler.core.engine import CrawlerEngine
+    from app.services.common.engine import CrawlerEngine
 
     class MockSettings:
         max_retries = 1
@@ -62,7 +62,7 @@ def test_single_attempt_fails_on_short_html(monkeypatch):
 
 
 def test_retry_succeeds_after_short_html_then_long(monkeypatch):
-    from app.services.crawler.core.engine import CrawlerEngine
+    from app.services.common.engine import CrawlerEngine
 
     class MockSettings:
         max_retries = 3

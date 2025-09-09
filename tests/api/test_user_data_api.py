@@ -34,7 +34,7 @@ class TestUserDataAPI:
             assert call_args.force_user_data is True
 
     def test_crawl_endpoint_rejects_write_mode(self):
-        """Test crawl endpoint rejects user_data_mode='write' with 400 error."""
+        """Test crawl endpoint rejects user_data_mode extra field with 422."""
         payload = {
             "url": "https://example.com",
             "force_user_data": True,
@@ -42,12 +42,10 @@ class TestUserDataAPI:
         }
         
         response = self.client.post("/crawl", json=payload)
-        assert response.status_code == 400
-        
-        # Verify error message
-        error_data = response.json()
-        assert error_data["status"] == "error"
-        assert "user_data_mode='write' is not supported on /crawl endpoint" in error_data["message"]
+        assert response.status_code == 422
+        # Pydantic validation error structure
+        data = response.json()
+        assert "detail" in data
 
     def test_crawl_endpoint_without_force_user_data(self):
         """Test crawl endpoint without force_user_data (should not use user data)."""

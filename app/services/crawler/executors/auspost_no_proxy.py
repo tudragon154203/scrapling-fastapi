@@ -5,10 +5,10 @@ from typing import Optional
 
 import app.core.config as app_config
 from app.schemas.crawl import CrawlRequest, CrawlResponse
-from app.services.crawler.adapters.scrapling_fetcher import ScraplingFetcherAdapter, FetchArgComposer
-from app.services.crawler.core.interfaces import PageAction
-from app.services.crawler.options.resolver import OptionsResolver
-from app.services.crawler.options.camoufox import CamoufoxArgsBuilder
+from app.services.common.adapters.scrapling_fetcher import ScraplingFetcherAdapter, FetchArgComposer
+from app.services.common.interfaces import PageAction
+from app.services.browser.options.resolver import OptionsResolver
+from app.services.browser.options.camoufox import CamoufoxArgsBuilder
 from app.services.crawler.executors.single_executor import SingleAttemptExecutor
 
 

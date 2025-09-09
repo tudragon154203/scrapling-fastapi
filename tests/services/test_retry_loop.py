@@ -68,7 +68,7 @@ def _make_request():
 
 
 def test_retry_success_on_second_attempt(monkeypatch):
-    from app.services.crawler.core.engine import CrawlerEngine
+    from app.services.common.engine import CrawlerEngine
 
     # Patch settings and scrapling
     monkeypatch.setattr("app.core.config.get_settings", lambda: _mock_settings(max_retries=3))
@@ -86,7 +86,7 @@ def test_retry_success_on_second_attempt(monkeypatch):
 
 
 def test_retry_failure_after_exhausting_attempts(monkeypatch):
-    from app.services.crawler.core.engine import CrawlerEngine
+    from app.services.common.engine import CrawlerEngine
 
     monkeypatch.setattr("app.core.config.get_settings", lambda: _mock_settings(max_retries=3))
     calls = _install_fake_scrapling(monkeypatch, side_effects=[500, 500, 500])
@@ -103,7 +103,7 @@ def test_retry_failure_after_exhausting_attempts(monkeypatch):
 
 
 def test_retry_non200_then_success(monkeypatch):
-    from app.services.crawler.core.engine import CrawlerEngine
+    from app.services.common.engine import CrawlerEngine
 
     monkeypatch.setattr("app.core.config.get_settings", lambda: _mock_settings(max_retries=3))
     calls = _install_fake_scrapling(monkeypatch, side_effects=[500, 200])

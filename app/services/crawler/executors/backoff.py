@@ -1,5 +1,5 @@
 import random
-from app.services.crawler.core.interfaces import IBackoffPolicy
+from app.services.common.interfaces import IBackoffPolicy
 
 
 class BackoffPolicy(IBackoffPolicy):

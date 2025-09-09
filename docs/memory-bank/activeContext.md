@@ -39,3 +39,7 @@ Successfully implemented a dedicated `/browse` endpoint for free browsing sessio
 - **Write mode characteristics**: Direct access to master directory, exclusive locking, persistent data storage
 - **Implementation needed**: The user data context needs to be enhanced to support write mode for browse sessions
 - **Current limitation**: Browse endpoint currently uses read mode clones instead of write mode master directory access
+
+### Port Configuration Decision
+- **Development run command**: Now uses port 5681
+- **Production pm2 command**: Continues to use port 5680

@@ -142,7 +142,7 @@ def test_user_data_with_supported_param(monkeypatch):
     monkeypatch.setitem(sys.modules, "scrapling.fetchers", fake_fetchers)
 
     # Patch CamoufoxArgsBuilder to return user_data_dir in additional_args
-    from app.services.crawler.options.camoufox import CamoufoxArgsBuilder
+    from app.services.browser.options.camoufox import CamoufoxArgsBuilder
 
     def _fake_build(payload, settings, caps):
         return {"user_data_dir": settings.camoufox_user_data_dir}, None

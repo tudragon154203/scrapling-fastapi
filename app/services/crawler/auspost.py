@@ -4,7 +4,7 @@ import app.core.config as app_config
 from app.schemas.auspost import AuspostCrawlRequest, AuspostCrawlResponse
 from app.schemas.crawl import CrawlRequest, CrawlResponse
 
-from .core.engine import CrawlerEngine
+from app.services.common.engine import CrawlerEngine
 from .actions.auspost import AuspostTrackAction
 from .executors.auspost_no_proxy import SingleAttemptNoProxy
 

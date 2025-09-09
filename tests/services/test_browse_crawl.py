@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import patch, MagicMock
 
-from app.services.crawler.browse import BrowseCrawler
+from app.services.browser.browse import BrowseCrawler
 from app.schemas.browse import BrowseRequest, BrowseResponse
 from app.schemas.crawl import CrawlRequest
 
@@ -57,7 +57,7 @@ def test_browse_success_path(browse_crawler, mock_engine):
     mock_crawl_response.status = "success"
     mock_engine.run.return_value = mock_crawl_response
 
-    with patch('app.services.crawler.browse.user_data_context') as mock_context:
+    with patch('app.services.browser.browse.user_data_context') as mock_context:
         mock_context.return_value.__enter__.return_value = ('/tmp/test_dir', lambda: None)
 
         result = browse_crawler.run(request)
@@ -78,7 +78,7 @@ def test_browse_success_path(browse_crawler, mock_engine):
         # Note: user_data_mode is not set on CrawlRequest - it's handled by user_data_context
 
         # Verify page action is WaitForUserCloseAction
-        from app.services.crawler.actions.wait_for_close import WaitForUserCloseAction
+        from app.services.browser.actions.wait_for_close import WaitForUserCloseAction
         assert isinstance(page_action, WaitForUserCloseAction)
 
 
@@ -89,7 +89,7 @@ def test_browse_engine_failure(browse_crawler, mock_engine):
     # Mock engine to raise exception
     mock_engine.run.side_effect = Exception("Browser launch failed")
 
-    with patch('app.services.crawler.browse.user_data_context') as mock_context:
+    with patch('app.services.browser.browse.user_data_context') as mock_context:
         mock_context.return_value.__enter__.return_value = ('/tmp/test_dir', lambda: None)
 
         result = browse_crawler.run(request)
@@ -103,7 +103,7 @@ def test_browse_user_data_context_failure(browse_crawler, mock_engine):
     """Test browse session when user data context fails."""
     request = BrowseRequest(url="https://example.com")
 
-    with patch('app.services.crawler.browse.user_data_context') as mock_context:
+    with patch('app.services.browser.browse.user_data_context') as mock_context:
         mock_context.side_effect = RuntimeError("Lock acquisition failed")
 
         result = browse_crawler.run(request)
@@ -131,7 +131,7 @@ def test_browse_cleanup_called(browse_crawler, mock_engine):
     mock_crawl_response.status = "success"
     mock_engine.run.return_value = mock_crawl_response
 
-    with patch('app.services.crawler.browse.user_data_context') as mock_context:
+    with patch('app.services.browser.browse.user_data_context') as mock_context:
         mock_context.return_value.__enter__.return_value = ('/tmp/test_dir', mock_cleanup)
 
         result = browse_crawler.run(request)

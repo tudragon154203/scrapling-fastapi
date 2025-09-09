@@ -9,10 +9,10 @@ Prerequisites
 - Node.js and npm (for pm2 in production)
   - Install pm2 globally: `npm install -g pm2`
 
-Quick dev run
+## Quick dev run - Port 5681
 
 ```
-python -m uvicorn app.main:app --host 0.0.0.0 --port 5680 --reload
+python -m uvicorn app.main:app --host 0.0.0.0 --port 5681 --reload
 ```
 
 Setup
@@ -28,9 +28,9 @@ Setup
 
 3) Run in reload mode
 
-- `python -m uvicorn app.main:app --host 0.0.0.0 --port 5680 --reload`
+- `python -m uvicorn app.main:app --host 0.0.0.0 --port 5681 --reload`
 
-## Run in Production (pm2)
+## Run in Production (pm2) - Port 5680
 
 Use pm2 to manage the application in production. On Windows, prefer the ecosystem file method.
 
@@ -69,4 +69,3 @@ Option B — one‑liner
 ## Tests
 
 - `python -m pytest -q`
-

@@ -4,8 +4,8 @@ import inspect
 import pytest
 from unittest.mock import MagicMock
 
-from app.services.crawler.adapters.scrapling_fetcher import FetchArgComposer, ScraplingFetcherAdapter
-from app.services.crawler.core.types import FetchCapabilities
+from app.services.common.adapters.scrapling_fetcher import FetchArgComposer, ScraplingFetcherAdapter
+from app.services.common.types import FetchCapabilities
 
 
 def _create_fake_caps(supports_geoip=False, **kwargs):

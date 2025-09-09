@@ -6,9 +6,9 @@ import shutil
 from unittest.mock import Mock, patch
 from pathlib import Path
 
-from app.services.crawler.options.user_data import user_data_context
+from app.services.browser.options.user_data import user_data_context
 from app.schemas.crawl import CrawlRequest
-from app.services.crawler.options.camoufox import CamoufoxArgsBuilder
+from app.services.browser.options.camoufox import CamoufoxArgsBuilder
 
 
 class TestUserDataContext:
@@ -108,39 +108,7 @@ class TestUserDataContext:
         cleanup_func()  # Manually call cleanup
         assert not os.path.exists(effective_dir)
 
-    def test_request_validation_invalid_mode(self):
-        """Test that request schema validation rejects invalid user_data_mode."""
-        with pytest.raises(ValueError, match="user_data_mode must be either 'read' or 'write'"):
-            CrawlRequest(
-                url="https://example.com",
-                force_user_data=True,
-                user_data_mode="invalid_mode"
-            )
-
-    def test_request_validation_valid_modes(self):
-        """Test that request schema validation accepts valid user_data_mode values."""
-        # Test read mode
-        request_read = CrawlRequest(
-            url="https://example.com",
-            force_user_data=True,
-            user_data_mode="read"
-        )
-        assert request_read.user_data_mode == "read"
-
-        # Test write mode
-        request_write = CrawlRequest(
-            url="https://example.com",
-            force_user_data=True,
-            user_data_mode="write"
-        )
-        assert request_write.user_data_mode == "write"
-
-        # Test default (read)
-        request_default = CrawlRequest(
-            url="https://example.com",
-            force_user_data=True
-        )
-        assert request_default.user_data_mode == "read"
+    # Removed schema-level user_data_mode validation in new model
 
     @pytest.mark.skipif(sys.platform == "win32", reason="fcntl not available on Windows")
     @patch('fcntl.flock')
@@ -166,7 +134,6 @@ class TestUserDataContext:
         request = CrawlRequest(
             url="https://example.com",
             force_user_data=True,
-            user_data_mode="read"
         )
         
         additional_args, extra_headers = CamoufoxArgsBuilder.build(
@@ -186,7 +153,6 @@ class TestUserDataContext:
         request = CrawlRequest(
             url="https://example.com",
             force_user_data=False,
-            user_data_mode="read"
         )
         
         additional_args, extra_headers = CamoufoxArgsBuilder.build(
@@ -205,7 +171,6 @@ class TestUserDataContext:
         request = CrawlRequest(
             url="https://example.com",
             force_user_data=True,
-            user_data_mode="read"
         )
         
         additional_args, extra_headers = CamoufoxArgsBuilder.build(
@@ -227,7 +192,6 @@ class TestUserDataContext:
         request = CrawlRequest(
             url="https://example.com",
             force_user_data=True,
-            user_data_mode="read"
         )
         
         additional_args, extra_headers = CamoufoxArgsBuilder.build(
@@ -237,35 +201,4 @@ class TestUserDataContext:
         # Should not contain user data parameters when settings not configured
         assert "user_data_dir" not in additional_args
 
-    def test_camoufox_builder_write_mode(self, temp_base_dir):
-        """Test CamoufoxArgsBuilder integration with write mode."""
-        mock_settings = Mock()
-        mock_settings.camoufox_user_data_dir = temp_base_dir
-        mock_settings.camoufox_window = None
-        mock_settings.camoufox_disable_coop = False
-        mock_settings.camoufox_locale = None
-        mock_settings.camoufox_virtual_display = None
-        
-        mock_caps = Mock()
-        mock_caps.user_data_dir = True
-        mock_caps.profile_dir = False
-        mock_caps.profile_path = False
-        mock_caps.user_data = False
-        
-        request = CrawlRequest(
-            url="https://example.com",
-            force_user_data=True,
-            user_data_mode="write"
-        )
-        
-        with patch('app.services.crawler.options.user_data.user_data_context') as mock_context:
-            mock_context.return_value.__enter__ = Mock(return_value=(temp_base_dir, Mock()))
-            mock_context.return_value.__exit__ = Mock(return_value=None)
-            
-            additional_args, extra_headers = CamoufoxArgsBuilder.build(
-                request, mock_settings, mock_caps
-            )
-            
-            # Verify context was called with write mode
-            mock_context.assert_called_once_with(temp_base_dir, "write")
-            assert "user_data_dir" in additional_args
+    # Write-mode handling is now covered by browse flow; builder uses read-mode only

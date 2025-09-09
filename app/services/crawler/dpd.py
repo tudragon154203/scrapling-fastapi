@@ -4,7 +4,7 @@ import app.core.config as app_config
 from app.schemas.crawl import CrawlRequest, CrawlResponse
 from app.schemas.dpd import DPDCrawlRequest, DPDCrawlResponse
 
-from .core.engine import CrawlerEngine
+from app.services.common.engine import CrawlerEngine
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +53,6 @@ class DPDCrawler:
             force_user_data=dpd_request.force_user_data,
             timeout_seconds=30,  # Converted from 30_000ms to seconds
         )
-
 
 
 

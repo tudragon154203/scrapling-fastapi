@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from app.services.crawler.actions.humanize import (
+from app.services.browser.actions.humanize import (
     human_pause,
     move_mouse_to_locator,
     jitter_mouse,

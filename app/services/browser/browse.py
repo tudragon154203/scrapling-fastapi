@@ -4,10 +4,10 @@ from typing import Optional
 import app.core.config as app_config
 from app.schemas.crawl import CrawlRequest
 from app.schemas.browse import BrowseRequest, BrowseResponse
-from app.services.crawler.core.engine import CrawlerEngine
-from app.services.crawler.actions.wait_for_close import WaitForUserCloseAction
-from app.services.crawler.options.user_data import user_data_context
-from app.services.crawler.executors.browse_executor import BrowseExecutor
+from app.services.common.engine import CrawlerEngine
+from app.services.browser.actions.wait_for_close import WaitForUserCloseAction
+from app.services.browser.options.user_data import user_data_context
+from app.services.browser.executors.browse_executor import BrowseExecutor
 
 logger = logging.getLogger(__name__)
 

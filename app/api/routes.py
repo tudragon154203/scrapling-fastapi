@@ -8,7 +8,7 @@ from app.schemas.browse import BrowseRequest, BrowseResponse
 from app.services.crawler.generic import GenericCrawler
 from app.services.crawler.dpd import DPDCrawler
 from app.services.crawler.auspost import AuspostCrawler
-from app.services.crawler.browse import BrowseCrawler
+from app.services.browser.browse import BrowseCrawler
 from fastapi.responses import JSONResponse
 
 

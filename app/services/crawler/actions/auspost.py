@@ -4,8 +4,8 @@ from typing import Any
 import app.core.config as app_config
 from app.schemas.auspost import AuspostCrawlRequest
 
-from .base import BasePageAction
-from .humanize import (
+from app.services.browser.actions.base import BasePageAction
+from app.services.browser.actions.humanize import (
     human_pause,
     move_mouse_to_locator,
     jitter_mouse,

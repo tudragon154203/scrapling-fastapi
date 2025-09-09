@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Any
-from app.services.crawler.core.interfaces import PageAction
+from app.services.common.interfaces import PageAction
 
 
 class BasePageAction(PageAction, ABC):

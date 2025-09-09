@@ -46,4 +46,3 @@ class WaitForUserCloseAction(BasePageAction):
             # Do not fail the crawl due to waiting logic; just log and continue
             logger.warning(f"WaitForUserCloseAction encountered an error: {type(e).__name__}: {e}")
         return page
-

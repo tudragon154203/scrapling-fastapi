@@ -5,7 +5,7 @@ from app.schemas.browse import BrowseResponse
 
 def test_browse_success_with_url(monkeypatch, client):
     """Test successful browse request with URL."""
-    from app.services.crawler.browse import BrowseCrawler
+    from app.services.browser.browse import BrowseCrawler
 
     captured_payload = {}
 
@@ -35,7 +35,7 @@ def test_browse_success_with_url(monkeypatch, client):
 
 def test_browse_success_without_url(monkeypatch, client):
     """Test successful browse request without URL."""
-    from app.services.crawler.browse import BrowseCrawler
+    from app.services.browser.browse import BrowseCrawler
 
     captured_payload = {}
 
@@ -63,7 +63,7 @@ def test_browse_success_without_url(monkeypatch, client):
 
 def test_browse_failure(monkeypatch, client):
     """Test browse request that returns failure."""
-    from app.services.crawler.browse import BrowseCrawler
+    from app.services.browser.browse import BrowseCrawler
 
     def _fake_browse_run(self, payload):
         return BrowseResponse(
@@ -127,7 +127,7 @@ def test_browse_invalid_json(client):
 
 def test_browse_lock_conflict_returns_409(monkeypatch, client):
     """Failure due to lock acquisition should map to 409."""
-    from app.services.crawler.browse import BrowseCrawler
+    from app.services.browser.browse import BrowseCrawler
     from app.schemas.browse import BrowseResponse
 
     def _fake_browse_run(self, payload):
@@ -149,7 +149,7 @@ def test_browse_only_launches_once_without_retries(monkeypatch, client):
     This test verifies that the browse crawler is instantiated and run exactly once,
     ensuring no retries occur even if the browser session fails.
     """
-    from app.services.crawler.browse import BrowseCrawler
+    from app.services.browser.browse import BrowseCrawler
     from app.schemas.browse import BrowseResponse
     
     # Track class instantiation and method calls

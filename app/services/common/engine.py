@@ -3,10 +3,10 @@ from typing import Any, Optional
 
 import app.core.config as app_config
 from app.schemas.crawl import CrawlRequest, CrawlResponse
-from app.services.crawler.core.interfaces import ICrawlerEngine, IExecutor, PageAction
-from app.services.crawler.adapters.scrapling_fetcher import ScraplingFetcherAdapter
-from app.services.crawler.options.resolver import OptionsResolver
-from app.services.crawler.options.camoufox import CamoufoxArgsBuilder
+from app.services.common.interfaces import ICrawlerEngine, IExecutor, PageAction
+from app.services.common.adapters.scrapling_fetcher import ScraplingFetcherAdapter
+from app.services.browser.options.resolver import OptionsResolver
+from app.services.browser.options.camoufox import CamoufoxArgsBuilder
 from app.services.crawler.executors.single_executor import SingleAttemptExecutor
 from app.services.crawler.executors.retry_executor import RetryingExecutor
 from app.services.crawler.executors.backoff import BackoffPolicy
