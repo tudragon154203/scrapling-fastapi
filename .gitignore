@@ -89,3 +89,6 @@ CLAUDE.md
 .playwright-mcp
 .codex*
 GEMINI.md
+scripts/
+memory/
+template/
