@@ -422,3 +422,19 @@ Implement a dedicated `/browse` endpoint for free browsing sessions to populate 
 - `app/core/config.py`
 - `tests/services/test_humanize_actions.py` (new)
 - `tests/integration/test_auspost_integration.py` (updated)
+## Document Enrichment - TikTok Endpoint Specification
+**Status:** ✅ Completed
+**Date:** 2025-09-09
+
+### Task Goal
+Enrich the `docs/sprint/21_tiktok_endpoint.md` document with detailed technical specifications for the new `/tiktok` endpoint.
+
+### Changes Made
+- Documented API request and response schemas.
+- Detailed the login check mechanism (cookies, DOM elements).
+- Clarified user data directory management.
+- Outlined interactive browsing capabilities.
+- Provided architectural considerations for `TiktokExecutor` and `AbstractBrowsingExecutor`.
+
+### Files Modified
+- `docs/sprint/21_tiktok_endpoint.md`
