@@ -41,7 +41,14 @@ class BrowseCrawler:
 
             with user_data_context(user_data_dir, 'write') as (effective_dir, cleanup):
                 try:
-                    # Update crawl request with effective user data directory
+                    # Signal write-mode to CamoufoxArgsBuilder via settings (runtime-only flags)
+                    try:
+                        setattr(settings, '_camoufox_user_data_mode', 'write')
+                        setattr(settings, '_camoufox_effective_user_data_dir', effective_dir)
+                    except Exception:
+                        pass
+
+                    # Update crawl request with user-data enablement
                     crawl_request.force_user_data = True
 
                     # Create wait for user close action
@@ -58,6 +65,14 @@ class BrowseCrawler:
 
                 finally:
                     # Ensure cleanup is called
+                    try:
+                        # Remove runtime flags to avoid leaking into subsequent requests
+                        if hasattr(settings, '_camoufox_user_data_mode'):
+                            delattr(settings, '_camoufox_user_data_mode')
+                        if hasattr(settings, '_camoufox_effective_user_data_dir'):
+                            delattr(settings, '_camoufox_effective_user_data_dir')
+                    except Exception:
+                        pass
                     cleanup()
 
         except Exception as e:

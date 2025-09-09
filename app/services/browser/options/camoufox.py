@@ -26,7 +26,9 @@ class CamoufoxArgsBuilder:
         """
         additional_args: Dict[str, Any] = {}
 
-        # User data directory with parameter detection (read-mode for crawl flows)
+        # User data directory with parameter detection
+        # - Crawl flows: use read-mode clones (temporary)
+        # - Browse flows: if BrowseCrawler set write-mode flags on settings, use master directly
         if (hasattr(payload, 'force_user_data') and payload.force_user_data is True and
             settings.camoufox_user_data_dir):
 
@@ -38,13 +40,21 @@ class CamoufoxArgsBuilder:
 
             if user_data_param:
                 try:
-                    # Crawl flows use read mode clones; browse handles write mode separately
-                    with user_data_mod.user_data_context(settings.camoufox_user_data_dir, 'read') as (effective_dir, cleanup):
-                        logger.debug(f"Using user data directory: {effective_dir}")
-                        additional_args[user_data_param] = effective_dir
+                    # Check if browse flow requested write mode via settings flags
+                    write_mode = getattr(settings, '_camoufox_user_data_mode', None) == 'write'
+                    write_dir = getattr(settings, '_camoufox_effective_user_data_dir', None)
 
-                        # Store cleanup function in additional_args for post-fetch cleanup
-                        additional_args['_user_data_cleanup'] = cleanup
+                    if write_mode and write_dir:
+                        # Use master directory directly (lock managed by BrowseCrawler)
+                        logger.debug(f"Using WRITE user data directory: {write_dir}")
+                        additional_args[user_data_param] = write_dir
+                    else:
+                        # Default to read-mode clone for regular crawl flows
+                        with user_data_mod.user_data_context(settings.camoufox_user_data_dir, 'read') as (effective_dir, cleanup):
+                            logger.debug(f"Using user data directory: {effective_dir}")
+                            additional_args[user_data_param] = effective_dir
+                            # Store cleanup function in additional_args for post-fetch cleanup
+                            additional_args['_user_data_cleanup'] = cleanup
 
                 except Exception as e:
                     logger.warning(f"Failed to setup user data directory: {e}")
