@@ -6,7 +6,7 @@ from pathlib import Path
 
 import app.core.config as app_config
 from app.services.common.interfaces import IFetchArgComposer
-from app.services.browser.options import user_data as user_data_mod
+from app.services.common.browser import user_data as user_data_mod
 
 logger = logging.getLogger(__name__)
 

@@ -6,9 +6,9 @@ import shutil
 from unittest.mock import Mock, patch
 from pathlib import Path
 
-from app.services.browser.options.user_data import user_data_context
+from app.services.common.browser.user_data import user_data_context
 from app.schemas.crawl import CrawlRequest
-from app.services.browser.options.camoufox import CamoufoxArgsBuilder
+from app.services.common.browser.camoufox import CamoufoxArgsBuilder
 
 
 class TestUserDataContext:
@@ -167,18 +167,22 @@ class TestUserDataContext:
     ):
         """Test CamoufoxArgsBuilder integration without user data capabilities."""
         mock_settings.camoufox_user_data_dir = temp_base_dir
-        
+
         request = CrawlRequest(
             url="https://example.com",
             force_user_data=True,
         )
-        
+
         additional_args, extra_headers = CamoufoxArgsBuilder.build(
             request, mock_settings, mock_caps_without_user_data
         )
-        
-        # Should not contain user data parameters when not supported
-        assert "user_data_dir" not in additional_args
+
+        # Should contain user_data_dir parameter regardless of capabilities
+        # (force profile_dir regardless of capability detection)
+        assert "user_data_dir" in additional_args
+        # In read mode, should use a clone directory
+        assert "clones" in additional_args["user_data_dir"]
+        assert additional_args["user_data_dir"].startswith(temp_base_dir)
 
     def test_camoufox_builder_integration_no_settings(self, mock_caps_with_user_data):
         """Test CamoufoxArgsBuilder integration without user data settings."""

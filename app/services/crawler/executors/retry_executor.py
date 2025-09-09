@@ -12,7 +12,7 @@ from app.services.common.types import FetchCapabilities
 from app.services.common.adapters.scrapling_fetcher import ScraplingFetcherAdapter, FetchArgComposer
 from app.services.crawler.executors.backoff import BackoffPolicy
 from app.services.browser.options.resolver import OptionsResolver
-from app.services.browser.options.camoufox import CamoufoxArgsBuilder
+from app.services.common.browser.camoufox import CamoufoxArgsBuilder
 from app.services.crawler.proxy.plan import AttemptPlanner
 from app.services.crawler.proxy.health import get_health_tracker
 

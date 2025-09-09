@@ -9,7 +9,7 @@ import time
 
 from app.main import app
 from app.core.config import Settings
-from app.services.browser.options.user_data import FCNTL_AVAILABLE
+from app.services.common.browser.user_data import FCNTL_AVAILABLE
 import logging
 logger = logging.getLogger(__name__)
 
@@ -277,7 +277,7 @@ class TestBrowseE2E:
         This test verifies that the master.lock file is removed after the browse session
         completes, ensuring subsequent launches can proceed without conflicts.
         """
-        from app.services.browser.options.user_data import user_data_context
+        from app.services.common.browser.user_data import user_data_context
         
         lock_file = Path(temp_user_data_dir) / 'master.lock'
         

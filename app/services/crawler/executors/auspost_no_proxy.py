@@ -8,7 +8,7 @@ from app.schemas.crawl import CrawlRequest, CrawlResponse
 from app.services.common.adapters.scrapling_fetcher import ScraplingFetcherAdapter, FetchArgComposer
 from app.services.common.interfaces import PageAction
 from app.services.browser.options.resolver import OptionsResolver
-from app.services.browser.options.camoufox import CamoufoxArgsBuilder
+from app.services.common.browser.camoufox import CamoufoxArgsBuilder
 from app.services.crawler.executors.single_executor import SingleAttemptExecutor
 
 

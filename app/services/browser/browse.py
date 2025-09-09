@@ -6,7 +6,7 @@ from app.schemas.crawl import CrawlRequest
 from app.schemas.browse import BrowseRequest, BrowseResponse
 from app.services.common.engine import CrawlerEngine
 from app.services.browser.actions.wait_for_close import WaitForUserCloseAction
-from app.services.browser.options.user_data import user_data_context
+from app.services.common.browser.user_data import user_data_context
 from app.services.browser.executors.browse_executor import BrowseExecutor
 
 logger = logging.getLogger(__name__)

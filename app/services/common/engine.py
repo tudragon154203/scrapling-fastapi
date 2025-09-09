@@ -6,7 +6,7 @@ from app.schemas.crawl import CrawlRequest, CrawlResponse
 from app.services.common.interfaces import ICrawlerEngine, IExecutor, PageAction
 from app.services.common.adapters.scrapling_fetcher import ScraplingFetcherAdapter
 from app.services.browser.options.resolver import OptionsResolver
-from app.services.browser.options.camoufox import CamoufoxArgsBuilder
+from app.services.common.browser.camoufox import CamoufoxArgsBuilder
 from app.services.crawler.executors.single_executor import SingleAttemptExecutor
 from app.services.crawler.executors.retry_executor import RetryingExecutor
 from app.services.crawler.executors.backoff import BackoffPolicy
