@@ -7,6 +7,7 @@ from app.schemas.browse import BrowseRequest, BrowseResponse
 from app.services.crawler.core.engine import CrawlerEngine
 from app.services.crawler.actions.wait_for_close import WaitForUserCloseAction
 from app.services.crawler.options.user_data import user_data_context
+from app.services.crawler.executors.browse_executor import BrowseExecutor
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +16,18 @@ class BrowseCrawler:
     """Browse-specific crawler for interactive user data population sessions."""
 
     def __init__(self, engine: CrawlerEngine = None):
-        self.engine = engine or CrawlerEngine.from_settings(app_config.get_settings())
+        # Use a custom browse engine that respects user close actions
+        if engine is None:
+            # Create a browse-specific engine that never retries
+            browse_engine = BrowseExecutor()
+            self.engine = CrawlerEngine(
+                executor=browse_engine,
+                fetch_client=browse_engine.fetch_client,
+                options_resolver=browse_engine.options_resolver,
+                camoufox_builder=browse_engine.camoufox_builder
+            )
+        else:
+            self.engine = engine
 
     def run(self, request: BrowseRequest) -> BrowseResponse:
         """Run a browse request for user data population."""

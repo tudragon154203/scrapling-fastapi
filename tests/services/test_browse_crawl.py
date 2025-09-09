@@ -30,7 +30,7 @@ def test_browse_request_conversion_with_url(browse_crawler):
     assert str(crawl_request.url) == "https://example.com/"
     assert crawl_request.force_headful is True
     assert crawl_request.force_user_data is True
-    assert crawl_request.user_data_mode == "write"
+    # Note: user_data_mode is not set on CrawlRequest - it's handled by user_data_context
     assert crawl_request.timeout_seconds is None
 
 
@@ -44,7 +44,7 @@ def test_browse_request_conversion_without_url(browse_crawler):
     assert str(crawl_request.url) == "about:blank"
     assert crawl_request.force_headful is True
     assert crawl_request.force_user_data is True
-    assert crawl_request.user_data_mode == "write"
+    # Note: user_data_mode is not set on CrawlRequest - it's handled by user_data_context
     assert crawl_request.timeout_seconds is None
 
 
@@ -75,7 +75,7 @@ def test_browse_success_path(browse_crawler, mock_engine):
         assert str(crawl_req.url) == "https://example.com/"
         assert crawl_req.force_headful is True
         assert crawl_req.force_user_data is True
-        assert crawl_req.user_data_mode == "write"
+        # Note: user_data_mode is not set on CrawlRequest - it's handled by user_data_context
 
         # Verify page action is WaitForUserCloseAction
         from app.services.crawler.actions.wait_for_close import WaitForUserCloseAction

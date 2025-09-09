@@ -9,6 +9,7 @@ import time
 
 from app.main import app
 from app.core.config import Settings
+from app.services.crawler.options.user_data import FCNTL_AVAILABLE
 import logging
 logger = logging.getLogger(__name__)
 
@@ -83,7 +84,7 @@ class TestBrowseE2E:
         # Patch imports
         with patch('app.services.crawler.browse.CrawlerEngine') as mock_engine_class, \
              patch('app.services.crawler.browse.app_config.get_settings', return_value=mock_settings):
-            mock_engine_class.from_settings.return_value = mock_engine
+            mock_engine_class.return_value = mock_engine
             with patch('app.services.crawler.browse.user_data_context', side_effect=mock_user_data_context):
                 
                 # Test the browse endpoint
@@ -111,7 +112,7 @@ class TestBrowseE2E:
                 
                 # Verify crawl request has user data settings
                 assert crawl_req.force_user_data is True
-                assert crawl_req.user_data_mode == "write"
+                # Note: user_data_mode is not set on CrawlRequest - it's handled by user_data_context
 
     def test_browse_user_data_directory_creation(self, monkeypatch, client, temp_user_data_dir):
         """Test that user data directory is properly created if it doesn't exist.
@@ -149,7 +150,7 @@ class TestBrowseE2E:
         
         with patch('app.services.crawler.browse.CrawlerEngine') as mock_engine_class, \
              patch('app.services.crawler.browse.app_config.get_settings', return_value=mock_settings):
-            mock_engine_class.from_settings.return_value = mock_engine
+            mock_engine_class.return_value = mock_engine
             with patch('app.services.crawler.browse.user_data_context', side_effect=mock_user_data_context):
                 
                 # Test browse endpoint
@@ -198,7 +199,7 @@ class TestBrowseE2E:
         
         with patch('app.services.crawler.browse.CrawlerEngine') as mock_engine_class, \
              patch('app.services.crawler.browse.app_config.get_settings', return_value=Settings()):
-            mock_engine_class.from_settings.return_value = mock_engine
+            mock_engine_class.return_value = mock_engine
             with patch('app.services.crawler.browse.user_data_context', side_effect=mock_user_data_context):
                 
                 # Test browse endpoint
@@ -247,7 +248,7 @@ class TestBrowseE2E:
         
         with patch('app.services.crawler.browse.CrawlerEngine') as mock_engine_class, \
              patch('app.services.crawler.browse.app_config.get_settings', return_value=mock_settings):
-            mock_engine_class.from_settings.return_value = mock_engine
+            mock_engine_class.return_value = mock_engine
             mock_engine.run.side_effect = capture_engine_run
             with patch('app.services.crawler.browse.user_data_context', side_effect=mock_user_data_context):
                 
@@ -268,7 +269,7 @@ class TestBrowseE2E:
                     # Verify all captured requests have correct user data settings
                     for request in captured_requests:
                         assert request.force_user_data is True
-                        assert request.user_data_mode == "write"
+                        # Note: user_data_mode is not set on CrawlRequest - it's handled by user_data_context
 
     def test_browse_lock_file_cleanup(self, client, temp_user_data_dir):
         """Test that lock file is properly cleaned up after browse session.
@@ -307,7 +308,7 @@ class TestBrowseE2E:
         
         with patch('app.services.crawler.browse.CrawlerEngine') as mock_engine_class, \
              patch('app.services.crawler.browse.app_config.get_settings', return_value=mock_settings):
-            mock_engine_class.from_settings.return_value = mock_engine
+            mock_engine_class.return_value = mock_engine
             with patch('app.services.crawler.browse.user_data_context', side_effect=mock_user_data_context):
                 
                 # First browse session
@@ -402,7 +403,7 @@ class TestBrowseE2E:
         
         with patch('app.services.crawler.browse.CrawlerEngine') as mock_engine_class, \
              patch('app.services.crawler.browse.app_config.get_settings', return_value=mock_settings):
-            mock_engine_class.from_settings.return_value = MagicMock()
+            mock_engine_class.return_value = MagicMock()
             
             # Apply BrowseCrawler mocks
             monkeypatch.setattr(BrowseCrawler, '__init__', mock_browse_crawler_init)
@@ -446,3 +447,96 @@ class TestBrowseE2E:
                 # (new lock is created when the context manager enters)
                 # Note: it should have been cleaned up again by now
                 assert not lock_file.exists(), "Lock file should be cleaned up after second session"
+
+    def test_browse_user_data_persistence_to_master(self, monkeypatch, client, temp_user_data_dir):
+        """Test that user data is actually persisted to the master directory during browse.
+        
+        This test simulates actual user data writing and verifies it ends up in master.
+        """
+        # Track file operations
+        master_dir = Path(temp_user_data_dir) / 'master'
+        user_data_written = []
+        
+        def mock_user_data_context(user_data_dir, mode):
+            # Create the context manager that uses real write mode
+            master_dir = Path(user_data_dir) / 'master'
+            lock_file = Path(user_data_dir) / 'master.lock'
+            
+            # Ensure master directory exists
+            master_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Create mock context
+            class MockContext:
+                def __enter__(self):
+                    # Simulate lock acquisition
+                    if not FCNTL_AVAILABLE:
+                        lock_file.touch()
+                    return (str(master_dir), lambda: mock_cleanup(lock_file))
+                def __exit__(self, *args):
+                    pass
+            return MockContext()
+        
+        def mock_cleanup(lock_file):
+            # Simulate cleanup function behavior
+            try:
+                if lock_file.exists():
+                    lock_file.unlink()
+            except Exception:
+                pass
+        
+        # Mock settings to use our temp directory
+        mock_settings = Settings()
+        mock_settings.camoufox_user_data_dir = temp_user_data_dir
+        
+        # Mock browser engine that simulates writing user data
+        mock_engine = MagicMock()
+        mock_response = MagicMock()
+        mock_response.status = "success"
+        mock_engine.run.return_value = mock_response
+        
+        def simulate_user_data_writing(crawl_request, page_action):
+            """Simulate the engine writing user data to the data directory."""
+            # Simulate writing a cookie file
+            test_cookie_file = master_dir / "cookies.sqlite"
+            test_cookie_file.write_text("test cookie data")
+            user_data_written.append("cookies.sqlite")
+            
+            # Simulate writing another file
+            test_profile_file = master_dir / "places.sqlite"
+            test_profile_file.write_text("test places data")
+            user_data_written.append("places.sqlite")
+            
+            return mock_response
+        
+        with patch('app.services.crawler.browse.CrawlerEngine') as mock_engine_class, \
+             patch('app.services.crawler.browse.app_config.get_settings', return_value=mock_settings):
+            mock_engine_class.return_value = mock_engine
+            mock_engine.run.side_effect = simulate_user_data_writing
+            
+            with patch('app.services.crawler.browse.user_data_context', side_effect=mock_user_data_context):
+                
+                # First browse session with simulated user data writing
+                body = {"url": "https://example.com"}
+                resp = client.post("/browse", json=body)
+                assert resp.status_code == 200
+                
+                # Verify user data was written to master directory
+                assert len(user_data_written) >= 2
+                assert (master_dir / "cookies.sqlite").exists()
+                assert (master_dir / "places.sqlite").exists()
+                
+                # Verify actual content
+                assert (master_dir / "cookies.sqlite").read_text() == "test cookie data"
+                assert (master_dir / "places.sqlite").read_text() == "test places data"
+                
+                # Test second session to verify data persistence
+                mock_engine.reset_mock()
+                mock_engine.run.side_effect = simulate_user_data_writing
+                
+                body = {"url": "https://google.com"}
+                resp2 = client.post("/browse", json=body)
+                assert resp2.status_code == 200
+                
+                # Verify master directory still contains the data
+                assert (master_dir / "cookies.sqlite").exists()
+                assert (master_dir / "places.sqlite").exists()

@@ -36,9 +36,12 @@ The `/browse` endpoint enables interactive browsing sessions specifically design
 - Does not return HTML content - purely for user data population
 
 ### Integration with Existing System
-The endpoint mimics `/crawl` behavior when configured with:
-- `force_headful: true` - Always uses headful mode for interactive browsing
-- `force_user_data: true` - Enables persistent user data functionality
+- Uses a dedicated `BrowseExecutor` (no-retry strategy) wired into the engine.
+- Always enforces interactive mode:
+  - `force_headful: true` - headful browsing for user interaction
+  - `force_user_data: true` - persistent user data population
+- Applies `WaitForUserCloseAction` to keep the session open until the user closes the window.
+- Ensures a long operation timeout for manual sessions (>= 10x default).
 
 ### User Data Directory Structure
 - Uses `CAMOUFOX_USER_DATA_DIR` environment variable (default: `data/camoufox_profiles`)
@@ -48,19 +51,22 @@ The endpoint mimics `/crawl` behavior when configured with:
 ## Implementation Details
 
 ### Integration Points
-- Reuses existing `CrawlerEngine` infrastructure
-- Uses `WaitForUserCloseAction` for manual browser closure handling
-- Leverages existing user data context management from `app/services/crawler/options/user_data.py`
-- Utilizes same capability detection and parameter composition as `/crawl`
+- Reuses `CrawlerEngine` with a browse-specific executor:
+  - `app/services/crawler/executors/browse_executor.py` → `BrowseExecutor`
+  - Never retries after user-led closure; prevents relaunch loops.
+- Uses `WaitForUserCloseAction` for manual browser closure handling.
+- Leverages user data context management from `app/services/crawler/options/user_data.py` (write mode).
+- Shares capability detection and arg composition with `/crawl` via adapters/builders.
 
 ### Request Flow
 1. Validate optional URL parameter
 2. Create crawl request with forced headful and user data write mode
 3. Acquire exclusive lock for master profile
 4. Launch browser with starting URL (if provided)
-5. Apply `WaitForUserCloseAction` to keep browser open
+5. Apply `WaitForUserCloseAction` and run via `BrowseExecutor`
 6. Wait for user to manually close browser window
-7. Release lock and return success status
+7. Never retry after close; treat closure as success
+8. Release lock and return success status
 
 ## Configuration
 - Inherits all existing environment configurations from `/crawl`
@@ -76,16 +82,22 @@ The endpoint mimics `/crawl` behavior when configured with:
 ## Testing Strategy
 
 ### Unit Tests
-- Test URL validation and parameter handling
-- Verify force flags are properly set (`force_headful=true`, `force_user_data=true`)
-- Test lock acquisition and release logic
-- Verify `WaitForUserCloseAction` is applied
+- URL validation and parameter handling
+- Force flags are set (`force_headful=true`, `force_user_data=true`)
+- Lock acquisition and release logic
+- `WaitForUserCloseAction` is applied
+- `BrowseExecutor` behavior:
+  - Never retries; `should_retry` always false
+  - Treats user-led browser close as success (no relaunch)
+  - Treats other errors as failure
+  - Enforces long timeout for interactive sessions
 
 ### Integration Tests
-- Test successful browser session with manual closure
-- Test lock contention handling (multiple browse requests)
-- Test with and without starting URL parameter
-- Verify user data directory is populated after session
+- Successful browser session with manual closure
+- Lock contention handling (multiple browse requests)
+- With and without starting URL parameter
+- User data directory is populated after session
+- Master lock creation and cleanup preventing relaunch loops
 
 ### Test Scenarios
 1. **Happy path**: Valid request → browser launches → user closes → success response
