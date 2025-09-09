@@ -48,7 +48,7 @@ try:
 
         # Camoufox stealth extras (optional, no API changes)
         camoufox_locale: Optional[str] = Field(default=None)  # e.g., "en-US,en;q=0.9"
-        camoufox_window: Optional[str] = Field(default=None)  # e.g., "1366x768"
+        camoufox_window: Optional[str] = Field(default="1280x720")  # e.g., "1366x768"
         camoufox_disable_coop: bool = Field(default=False)
         camoufox_geoip: bool = Field(default=True)
         camoufox_virtual_display: Optional[str] = Field(default=None)
@@ -111,7 +111,7 @@ except Exception:
         camoufox_user_data_dir: Optional[str] = None
         # Camoufox stealth extras
         camoufox_locale: Optional[str] = None
-        camoufox_window: Optional[str] = None
+        camoufox_window: Optional[str] = "1280x720"
         camoufox_disable_coop: bool = False
         camoufox_geoip: bool = True
         camoufox_virtual_display: Optional[str] = None
