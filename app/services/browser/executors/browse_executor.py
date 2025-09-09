@@ -48,6 +48,7 @@ class BrowseExecutor(IExecutor):
 
         try:
             caps = self.fetch_client.detect_capabilities()
+            logger.debug(f"Detected capabilities: {caps}")
             additional_args, extra_headers = self.camoufox_builder.build(request, settings, caps)
 
             if not caps.supports_proxy:

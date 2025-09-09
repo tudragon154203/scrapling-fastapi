@@ -145,7 +145,9 @@ def test_user_data_with_supported_param(monkeypatch):
     from app.services.browser.options.camoufox import CamoufoxArgsBuilder
 
     def _fake_build(payload, settings, caps):
-        return {"user_data_dir": settings.camoufox_user_data_dir}, None
+        return {
+            "user_data_dir": settings.camoufox_user_data_dir
+        }, None
 
     monkeypatch.setattr(CamoufoxArgsBuilder, "build", staticmethod(_fake_build))
 
@@ -243,7 +245,7 @@ def test_user_data_unsupported_param(monkeypatch):
     res = crawler.run(req)
     assert res.status == "success"
     assert calls["count"] == 1
-    # Check that no user_data_dir was passed
+    # Check that no user data parameters were passed
     kwargs = calls["kwargs"][0]
     if "additional_args" in kwargs:
         assert "user_data_dir" not in kwargs["additional_args"]
