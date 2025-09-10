@@ -16,8 +16,20 @@ class TestTikTokSessionEndpoint:
         assert resp.status_code == 200
         assert resp.json() == {"status": "ok"}
     
-    def test_empty_request_body_accepted(self, client):
+    @patch('app.services.tiktok.service.TiktokService')
+    def test_empty_request_body_accepted(self, mock_tiktok_service, client):
         """Test that empty request body is accepted by the endpoint"""
+        # Mock the service to return a logged out response
+        mock_service = mock_tiktok_service.return_value
+        mock_service.create_session = AsyncMock(return_value={
+            "status": "error",
+            "message": "Not logged in to TikTok",
+            "error_details": {
+                "code": "NOT_LOGGED_IN",
+                "details": "User is not logged in to TikTok"
+            }
+        })
+        
         resp = client.post("/tiktok/session", content="")
         assert resp.status_code in [200, 409, 423, 504]
         
@@ -26,8 +38,20 @@ class TestTikTokSessionEndpoint:
         assert "message" in response_data
         assert response_data["status"] in ["success", "error"]
     
-    def test_valid_json_empty_body(self, client):
+    @patch('app.services.tiktok.service.TiktokService')
+    def test_valid_json_empty_body(self, mock_tiktok_service, client):
         """Test that valid JSON with empty object is accepted"""
+        # Mock the service to return a logged out response
+        mock_service = mock_tiktok_service.return_value
+        mock_service.create_session = AsyncMock(return_value={
+            "status": "error",
+            "message": "Not logged in to TikTok",
+            "error_details": {
+                "code": "NOT_LOGGED_IN",
+                "details": "User is not logged in to TikTok"
+            }
+        })
+        
         resp = client.post("/tiktok/session", json={})
         assert resp.status_code in [200, 409, 423, 504]
         
@@ -151,8 +175,20 @@ class TestTikTokSessionEndpoint:
         assert response_data["message"] == "Unexpected error occurred"
         assert response_data["error_details"]["code"] == "INTERNAL_ERROR"
     
-    def test_post_request_without_json(self, client):
+    @patch('app.services.tiktok.service.TiktokService')
+    def test_post_request_without_json(self, mock_tiktok_service, client):
         """Test POST request without JSON body (should still work)"""
+        # Mock the service to return a logged out response
+        mock_service = mock_tiktok_service.return_value
+        mock_service.create_session = AsyncMock(return_value={
+            "status": "error",
+            "message": "Not logged in to TikTok",
+            "error_details": {
+                "code": "NOT_LOGGED_IN",
+                "details": "User is not logged in to TikTok"
+            }
+        })
+        
         resp = client.post("/tiktok/session", data="not json")
         assert resp.status_code in [200, 409, 423, 504]
         
