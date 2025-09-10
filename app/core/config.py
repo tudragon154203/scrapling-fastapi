@@ -76,6 +76,14 @@ try:
         # AusPost endpoint behavior
         auspost_use_proxy: bool = Field(default=False, env="AUSPOST_USE_PROXY")
 
+        # TikTok session configuration
+        tiktok_master_user_data_dir: Optional[str] = Field(default="./user_data/master", env="TIKTOK_MASTER_USER_DATA_DIR")
+        tiktok_clones_user_data_dir: Optional[str] = Field(default="./user_data/clones", env="TIKTOK_CLONES_USER_DATA_DIR")
+        tiktok_write_mode_enabled: bool = Field(default=False, env="TIKTOK_WRITE_MODE_ENABLED")
+        tiktok_login_detection_timeout: int = Field(default=8, env="TIKTOK_LOGIN_DETECTION_TIMEOUT")
+        tiktok_max_session_duration: int = Field(default=300, env="TIKTOK_MAX_SESSION_DURATION")
+        tiktok_url: str = Field(default="https://www.tiktok.com/", env="TIKTOK_URL")
+
         model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="allow")
 
     @lru_cache()
@@ -138,6 +146,14 @@ except Exception:
         auspost_scroll_dy_min: int = 80
         auspost_scroll_dy_max: int = 180
         auspost_use_proxy: bool = False
+
+        # TikTok session configuration
+        tiktok_master_user_data_dir: Optional[str] = "./user_data/master"
+        tiktok_clones_user_data_dir: Optional[str] = "./user_data/clones"
+        tiktok_write_mode_enabled: bool = False
+        tiktok_login_detection_timeout: int = 8
+        tiktok_max_session_duration: int = 300
+        tiktok_url: str = "https://www.tiktok.com/"
 
     @lru_cache()
     def get_settings() -> "Settings":

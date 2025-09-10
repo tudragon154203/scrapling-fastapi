@@ -1,14 +1,16 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException, status
 from types import SimpleNamespace, FunctionType
 
 from app.schemas.crawl import CrawlRequest, CrawlResponse
 from app.schemas.dpd import DPDCrawlRequest, DPDCrawlResponse
 from app.schemas.auspost import AuspostCrawlRequest, AuspostCrawlResponse
 from app.schemas.browse import BrowseRequest, BrowseResponse
+from app.schemas.tiktok import TikTokSessionRequest, TikTokSessionResponse
 from app.services.crawler.generic import GenericCrawler
 from app.services.crawler.dpd import DPDCrawler
 from app.services.crawler.auspost import AuspostCrawler
 from app.services.browser.browse import BrowseCrawler
+from app.services.tiktok.service import TiktokService
 from fastapi.responses import JSONResponse
 
 
@@ -153,6 +155,72 @@ def browse_endpoint(payload: BrowseRequest):
 
     # Fallback for patched/mocked results with `.status_code` and `.json`
     status_code = getattr(result, "status_code", 200)
+    body = getattr(result, "json", None)
+    if isinstance(body, dict):
+        return JSONResponse(content=body, status_code=int(status_code))
+    return JSONResponse(content={}, status_code=int(status_code))
+
+
+# TikTok session service instance
+tiktok_service = TiktokService()
+
+
+def create_tiktok_session(request: TikTokSessionRequest) -> TikTokSessionResponse:
+    """TikTok session creation handler used by the API route."""
+    return tiktok_service.create_session(request)
+
+
+@router.post("/tiktok/session", response_model=TikTokSessionResponse, tags=["TikTok Session"])
+async def create_tiktok_session_endpoint(request: TikTokSessionRequest):
+    """Create TikTok interactive session with automatic login status checking.
+    
+    Creates an interactive browser session for TikTok with automatic login status checking.
+    The endpoint operates similarly to the existing `/browse` endpoint but with TikTok-specific considerations:
+    - Launches browser with TikTok-specific configuration
+    - Checks TikTok login status using multiple detection methods
+    - Returns 409 if user is not logged in
+    - Provides full interactive capabilities when logged in
+    - Uses read-only user data directory cloning
+    
+    The endpoint expects an empty request body - all configuration is derived from context.
+    """
+    if not isinstance(create_tiktok_session, FunctionType):
+        # This would be patched for testing
+        req_obj = SimpleNamespace()
+    else:
+        req_obj = request
+
+    result = create_tiktok_session(request=req_obj)
+    
+    # If a proper TikTokSessionResponse, map HTTP status code based on outcome
+    if isinstance(result, TikTokSessionResponse):
+        if result.status == "success":
+            return result
+        # Handle error responses with appropriate HTTP status codes
+        if result.error_details:
+            error_code = result.error_details.get("code", "").upper()
+            
+            if error_code == "NOT_LOGGED_IN":
+                return JSONResponse(
+                    content=result.model_dump(),
+                    status_code=status.HTTP_409_CONFLICT
+                )
+            elif error_code == "USER_DATA_LOCKED":
+                return JSONResponse(
+                    content=result.model_dump(),
+                    status_code=status.HTTP_423_LOCKED
+                )
+            elif error_code == "SESSION_TIMEOUT":
+                return JSONResponse(
+                    content=result.model_dump(),
+                    status_code=status.HTTP_504_GATEWAY_TIMEOUT
+                )
+            
+        # Default to 500 for other errors
+        return JSONResponse(content=result.model_dump(), status_code=500)
+    
+    # Fallback for patched/mocked results with `.status_code` and `.json`
+    status_code = getattr(result, "status_code", 500)
     body = getattr(result, "json", None)
     if isinstance(body, dict):
         return JSONResponse(content=body, status_code=int(status_code))
