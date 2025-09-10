@@ -4,10 +4,12 @@ TikTok-specific browsing executor using ScraplingFetcherAdapter like BrowseExecu
 import sys
 import asyncio
 from typing import Dict, Any, Optional
+from contextlib import contextmanager
 
 from app.services.common.executor import AbstractBrowsingExecutor
 from app.schemas.tiktok import TikTokSessionConfig
 from app.services.common.adapters.scrapling_fetcher import ScraplingFetcherAdapter, FetchArgComposer
+from app.services.common.browser.user_data import user_data_context
 from app.core.config import get_settings
 
 
@@ -20,6 +22,7 @@ class TiktokExecutor(AbstractBrowsingExecutor):
         self.fetcher = ScraplingFetcherAdapter()
         self.arg_composer = FetchArgComposer()
         self.settings = get_settings()
+        self._user_data_cleanup = None
         
     async def get_config(self) -> Dict[str, Any]:
         """Get TikTok-specific browser configuration"""
@@ -45,12 +48,24 @@ class TiktokExecutor(AbstractBrowsingExecutor):
                 pass
         
         # Use ScraplingFetcherAdapter like BrowseExecutor does
+        # Create a mock request object with force_user_data=True to trigger CamoufoxArgsBuilder
+        class MockRequest:
+            force_user_data = True
+        
+        from app.services.common.browser.camoufox import CamoufoxArgsBuilder
+        camoufox_builder = CamoufoxArgsBuilder()
+        
+        # Build additional args using CamoufoxArgsBuilder
+        additional_args, extra_headers = camoufox_builder.build(
+            MockRequest(), self.settings, self.fetcher.detect_capabilities()
+        )
+        
         fetch_kwargs = self.arg_composer.compose(
             options=config,
             caps=self.fetcher.detect_capabilities(),
             selected_proxy=config.get("proxy"),
-            additional_args={},
-            extra_headers=None,
+            additional_args=additional_args,
+            extra_headers=extra_headers,
             settings=self.settings,
             page_action=None
         )
@@ -62,6 +77,42 @@ class TiktokExecutor(AbstractBrowsingExecutor):
         self.browser = result
         
         print(f"Using ScraplingFetcher for TikTok session: {config['url']}")
+    
+    async def start_session(self) -> None:
+        """Start TikTok session using ScraplingFetcher"""
+        try:
+            # Get browser configuration
+            config = await self.get_config()
+            
+            # Setup browser (CamoufoxArgsBuilder will handle user data directory)
+            await self.setup_browser()
+            
+            self.start_time = asyncio.get_event_loop().time()
+            print(f"TikTok session started")
+            
+        except Exception as e:
+            await self._cleanup_on_error()
+            raise
+    
+    async def cleanup(self) -> None:
+        """Cleanup browser resources and user data context"""
+        try:
+            # Clean up user data context if it exists
+            if self._user_data_cleanup:
+                self._user_data_cleanup()
+                self._user_data_cleanup = None
+                
+            # Clean up cloned user data directory
+            if self.user_data_dir and "temp_" in self.user_data_dir:
+                import shutil
+                import os
+                try:
+                    shutil.rmtree(self.user_data_dir)
+                except Exception as e:
+                    print(f"Failed to clean up temp directory: {e}")
+                    
+        except Exception as e:
+            print(f"Error during cleanup: {e}")
         
     async def detect_login_state(self, timeout: int = 8) -> str:
         """Detect TikTok login state"""

@@ -1,7 +1,8 @@
 """
-TikTok login detection utilities - simplified for StealthyFetcher approach
+TikTok login detection utilities for StealthyFetcher approach
 """
 import asyncio
+import re
 from typing import Dict, Any, Optional, Literal
 from enum import Enum
 
@@ -27,41 +28,86 @@ class LoginDetector:
         
     async def detect_login_state(self, timeout: int = 8) -> TikTokLoginState:
         """
-        Detect TikTok login state - simplified version for StealthyFetcher approach
+        Detect TikTok login state by analyzing HTML content
         
         Args:
             timeout: Maximum time to spend on detection
             
         Returns:
-            TikTokLoginState: Always returns UNCERTAIN for now
+            TikTokLoginState: LOGGED_IN, LOGGED_OUT, or UNCERTAIN
         """
-        # With StealthyFetcher approach, we can't do proper login detection
-        # Return UNCERTAIN to allow the session to proceed
-        return TikTokLoginState.UNCERTAIN
+        try:
+            # Check if we have HTML content from StealthyFetcher
+            if hasattr(self.browser, 'html_content') and self.browser.html_content:
+                html_content = self.browser.html_content.lower()
+                
+                # Check for logged-in indicators
+                logged_in_indicators = [
+                    r'profile-avatar',  # Profile avatar element
+                    r'user.*avatar',   # User avatar
+                    r'logged.*in',     # "Logged in" text
+                    r'sign.*out',      # "Sign out" button
+                    r'log.*out',       # "Log out" button
+                    r'account',        # Account menu
+                    r'notification',   # Notifications
+                    r'message',        # Messages
+                    r'inbox',          # Inbox
+                ]
+                
+                # Check for logged-out indicators
+                logged_out_indicators = [
+                    r'login.*button',  # Login button
+                    r'sign.*in',       # Sign in button
+                    r'log.*in',        # Log in button
+                    r'register',       # Register button
+                    r'create.*account', # Create account
+                    r'join.*tiktok',   # Join TikTok
+                ]
+                
+                # Count matches for each indicator type
+                logged_in_matches = sum(1 for pattern in logged_in_indicators
+                                      if re.search(pattern, html_content))
+                logged_out_matches = sum(1 for pattern in logged_out_indicators
+                                       if re.search(pattern, html_content))
+                
+                # Determine login state based on indicator counts
+                if logged_in_matches > logged_out_matches:
+                    return TikTokLoginState.LOGGED_IN
+                elif logged_out_matches > logged_in_matches:
+                    return TikTokLoginState.LOGGED_OUT
+                else:
+                    return TikTokLoginState.UNCERTAIN
+                    
+            return TikTokLoginState.UNCERTAIN
+            
+        except Exception:
+            return TikTokLoginState.UNCERTAIN
     
     async def _try_combo_detection(self, timeout: float) -> TikTokLoginState:
-        """Simplified detection"""
-        return TikTokLoginState.UNCERTAIN
+        """Try multiple detection methods"""
+        return await self.detect_login_state(timeout)
     
     async def _detect_dom_elements(self, timeout: float) -> TikTokLoginState:
-        """Simplified DOM detection"""
-        return TikTokLoginState.UNCERTAIN
+        """Detect login state using HTML content analysis"""
+        return await self.detect_login_state(timeout)
     
     async def _detect_api_requests(self, timeout: float) -> TikTokLoginState:
-        """Simplified API detection"""
+        """API detection not available with StealthyFetcher"""
         return TikTokLoginState.UNCERTAIN
     
     async def _try_fallback_refresh(self, timeout: float) -> TikTokLoginState:
-        """Simplified refresh fallback"""
+        """Refresh fallback not available with StealthyFetcher"""
         return TikTokLoginState.UNCERTAIN
     
     async def get_detection_details(self) -> Dict[str, Any]:
         """Get detailed information about the detection process"""
+        login_state = await self.detect_login_state()
         return {
             "selectors_used": self.selectors,
             "api_endpoints_checked": self.api_endpoints,
             "login_detection_enabled": self.config.login_detection_refresh,
-            "detection_timeout": self.config.login_detection_timeout
+            "detection_timeout": self.config.login_detection_timeout,
+            "detected_state": login_state.value if hasattr(login_state, 'value') else str(login_state)
         }
     
     async def update_selectors(self, new_selectors: Dict[str, str]) -> None:
@@ -86,7 +132,8 @@ class LoginDetector:
             if not selector:
                 return False
                 
-            # Simplified test - always return True for now
+            # For StealthyFetcher, we can't test selectors directly
+            # Return True if selector exists
             return True
             
         except Exception:
@@ -94,10 +141,12 @@ class LoginDetector:
     
     async def get_login_state_details(self) -> Dict[str, Any]:
         """Get comprehensive login state information"""
+        login_state = await self.detect_login_state()
         return {
-            "dom_detection": TikTokLoginState.UNCERTAIN,
+            "dom_detection": login_state,
             "api_detection": TikTokLoginState.UNCERTAIN,
-            "browser_url": None,
+            "browser_url": getattr(self.browser, 'url', None),
             "page_title": None,
-            "detection_method": "simplified"
+            "detection_method": "html_content_analysis",
+            "html_available": hasattr(self.browser, 'html_content') and bool(self.browser.html_content)
         }
