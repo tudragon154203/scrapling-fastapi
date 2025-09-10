@@ -252,14 +252,14 @@ class TiktokService:
         created_at = metadata["created_at"]
         last_activity = metadata["last_activity"]
         max_duration = metadata["config"].max_session_duration
-        
+
         # Use the later of creation time or last activity
         time_reference = max(created_at, last_activity)
-        
+
         timeout_at = time_reference + timedelta(seconds=max_duration)
         now = datetime.now()
-        
-        max(0, int((timeout_at - now).total_seconds()))
+
+        return max(0, int((timeout_at - now).total_seconds()))
     
     async def _cleanup_session(self, session_id: str) -> None:
         """Clean up session resources"""

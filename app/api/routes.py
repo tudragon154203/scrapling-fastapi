@@ -165,9 +165,9 @@ def browse_endpoint(payload: BrowseRequest):
 tiktok_service = TiktokService()
 
 
-def create_tiktok_session(request: TikTokSessionRequest) -> TikTokSessionResponse:
+async def create_tiktok_session(request: TikTokSessionRequest) -> TikTokSessionResponse:
     """TikTok session creation handler used by the API route."""
-    return tiktok_service.create_session(request)
+    return await tiktok_service.create_session(request)
 
 
 @router.post("/tiktok/session", response_model=TikTokSessionResponse, tags=["TikTok Session"])

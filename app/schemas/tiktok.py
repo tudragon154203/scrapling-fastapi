@@ -38,20 +38,20 @@ class TikTokSessionResponse(BaseModel):
     
     model_config = {
         "json_schema_extra": {
-            "examples": {
-                "success": {
+            "examples": [
+                {
                     "status": "success",
                     "message": "TikTok session established successfully"
                 },
-                "error": {
-                    "status": "error", 
+                {
+                    "status": "error",
                     "message": "Not logged in to TikTok",
                     "error_details": {
                         "code": "NOT_LOGGED_IN",
                         "details": "User is not logged in to TikTok"
                     }
                 }
-            }
+            ]
         }
     }
 
