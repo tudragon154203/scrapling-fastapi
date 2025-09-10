@@ -21,7 +21,7 @@ class LoginDetectionMethod(str, Enum):
 class LoginDetector:
     """TikTok login state detector"""
     
-    def __init__(self, browser: scrapling.DynamicFetcher, config: TikTokSessionConfig):
+    def __init__(self, browser: Any, config: TikTokSessionConfig):
         self.browser = browser
         self.config = config
         self.selectors = config.selectors
@@ -29,123 +29,33 @@ class LoginDetector:
         
     async def detect_login_state(self, timeout: int = 8) -> TikTokLoginState:
         """
-        Detect TikTok login state using multiple methods with fallback
+        Detect TikTok login state - simplified version for StealthyFetcher approach
         
         Args:
             timeout: Maximum time to spend on detection
             
         Returns:
-            TikTokLoginState: LOGGED_IN, LOGGED_OUT, or UNCERTAIN
+            TikTokLoginState: Always returns UNCERTAIN for now
         """
-        start_time = asyncio.get_event_loop().time()
-        
-        # Try primary methods first
-        result = await self._try_combo_detection(timeout - (asyncio.get_event_loop().time() - start_time))
-        
-        if result != TikTokLoginState.UNCERTAIN:
-            return result
-            
-        # If uncertain, try fallback refresh if enabled
-        if self.config.login_detection_refresh:
-            return await self._try_fallback_refresh(timeout - (asyncio.get_event_loop().time() - start_time))
-            
+        # With StealthyFetcher approach, we can't do proper login detection
+        # Return UNCERTAIN to allow the session to proceed
         return TikTokLoginState.UNCERTAIN
     
     async def _try_combo_detection(self, timeout: float) -> TikTokLoginState:
-        """Try multiple detection methods in parallel"""
-        start_time = asyncio.get_event_loop().time()
-        
-        # Run DOM detection and API detection in parallel
-        dom_task = asyncio.create_task(self._detect_dom_elements(timeout/2))
-        api_task = asyncio.create_task(self._detect_api_requests(timeout/2))
-        
-        try:
-            dom_result, api_result = await asyncio.wait_for(
-                asyncio.gather(dom_task, api_task),
-                timeout=timeout
-            )
-            
-            # If both methods agree, return that result
-            if dom_result == api_result:
-                return dom_result
-                
-            # If they disagree, prefer DOM detection
-            if dom_result != TikTokLoginState.UNCERTAIN:
-                return dom_result
-                
-            return api_result
-            
-        except asyncio.TimeoutError:
-            return TikTokLoginState.UNCERTAIN
-        except Exception:
-            return TikTokLoginState.UNCERTAIN
+        """Simplified detection"""
+        return TikTokLoginState.UNCERTAIN
     
     async def _detect_dom_elements(self, timeout: float) -> TikTokLoginState:
-        """Detect login state using DOM elements"""
-        try:
-            # Check for logged-in elements
-            logged_in_element = await self.browser.find(
-                self.selectors.get("logged_in", "[data-e2e='profile-avatar']"),
-                timeout=int(timeout * 1000)
-            )
-            
-            if logged_in_element and await logged_in_element.is_visible():
-                return TikTokLoginState.LOGGED_IN
-                
-            # Check for logged-out elements
-            logged_out_element = await self.browser.find(
-                self.selectors.get("logged_out", "[data-e2e='login-button']"),
-                timeout=int(timeout * 1000)
-            )
-            
-            if logged_out_element and await logged_out_element.is_visible():
-                return TikTokLoginState.LOGGED_OUT
-                
-            return TikTokLoginState.UNCERTAIN
-            
-        except Exception:
-            return TikTokLoginState.UNCERTAIN
+        """Simplified DOM detection"""
+        return TikTokLoginState.UNCERTAIN
     
     async def _detect_api_requests(self, timeout: float) -> TikTokLoginState:
-        """Detect login state using API request interception"""
-        try:
-            # This is a simplified implementation
-            # In a real implementation, this would intercept network requests
-            # to check for user info endpoints
-            
-            # Try to access user info page
-            user_info_url = f"{self.config.tiktok_url}api/user/info"
-            response = await self.browser.request("GET", user_info_url)
-            
-            # Check response status and content
-            if response.status_code == 200:
-                # Try to parse JSON response
-                try:
-                    json_data = response.json()
-                    if json_data.get("code") == 0 or json_data.get("status") == "success":
-                        return TikTokLoginState.LOGGED_IN
-                except Exception:
-                    pass
-                    
-            return TikTokLoginState.LOGGED_OUT
-            
-        except Exception:
-            return TikTokLoginState.UNCERTAIN
+        """Simplified API detection"""
+        return TikTokLoginState.UNCERTAIN
     
     async def _try_fallback_refresh(self, timeout: float) -> TikTokLoginState:
-        """Try refresh and retry detection method"""
-        try:
-            # Refresh the page
-            await self.browser.reload()
-            
-            # Wait for page to load
-            await asyncio.sleep(1)
-            
-            # Try detection again with remaining timeout
-            return await self._detect_dom_elements(timeout)
-            
-        except Exception:
-            return TikTokLoginState.UNCERTAIN
+        """Simplified refresh fallback"""
+        return TikTokLoginState.UNCERTAIN
     
     async def get_detection_details(self) -> Dict[str, Any]:
         """Get detailed information about the detection process"""

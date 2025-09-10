@@ -9,7 +9,7 @@ from abc import ABC, abstractmethod
 from typing import Optional, Dict, Any
 from pathlib import Path
 
-import scrapling
+from typing import Optional, Dict, Any
 
 from app.core.config import get_settings
 
@@ -21,7 +21,7 @@ class AbstractBrowsingExecutor(ABC):
         self.settings = get_settings()
         self.user_data_dir = user_data_dir
         self.proxy = proxy
-        self.browser: Optional[scrapling.DynamicFetcher] = None
+        self.browser: Optional[Any] = None
         self.session_id: Optional[str] = None
         self.start_time: Optional[float] = None
         
@@ -48,7 +48,7 @@ class AbstractBrowsingExecutor(ABC):
             return temp_dir
         
         # Check if it's a relative path that should be cloned
-        master_dir = Path(self.settings.tiktok_master_user_data_dir or "./user_data/master")
+        master_dir = Path(self.settings.camoufox_user_data_dir or "./user_data/master")
         
         if self.user_data_dir.startswith("./user_data/clones/") or not Path(self.user_data_dir).exists():
             # Clone from master directory
@@ -102,8 +102,8 @@ class AbstractBrowsingExecutor(ABC):
         """Cleanup on error"""
         try:
             if self.browser:
-                await self.cleanup()
-            self.browser = None
+                # Just set browser to None instead of calling cleanup which might fail
+                self.browser = None
             self.user_data_dir = None
         except Exception as cleanup_error:
             logger = getattr(self, 'logger', None)

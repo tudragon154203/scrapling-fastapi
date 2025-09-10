@@ -97,18 +97,11 @@ class TestTikTokLoginDetectionContract:
         from app.services.tiktok.utils.login_detection import LoginDetector
         from app.schemas.tiktok import TikTokSessionConfig, TikTokLoginState
 
-        # Create mock response for logged-in user
-        class MockResponseLoggedIn:
-            def __init__(self):
-                self.status_code = 200
-
-            def json(self):
-                return {"code": 0, "status": "success"}
-
         # Create mock browser for logged-in scenario
         class MockBrowserLoggedIn:
-            async def request(self, method, url):
-                return MockResponseLoggedIn()
+            async def execute(self, js_code):
+                # Simulate successful API response with code 0
+                return {"status": "success", "code": 0, "data": {"status": "success"}}
 
         config = TikTokSessionConfig()
         detector = LoginDetector(MockBrowserLoggedIn(), config)
@@ -117,18 +110,11 @@ class TestTikTokLoginDetectionContract:
         result = await detector._detect_api_requests(2)
         assert result == TikTokLoginState.LOGGED_IN
 
-        # Create mock response for logged-out user
-        class MockResponseLoggedOut:
-            def __init__(self):
-                self.status_code = 401
-
-            def json(self):
-                return {"code": -1, "status": "error"}
-
         # Create mock browser for logged-out scenario
         class MockBrowserLoggedOut:
-            async def request(self, method, url):
-                return MockResponseLoggedOut()
+            async def execute(self, js_code):
+                # Simulate failed API response or error
+                return {"status": "error", "code": -1}
 
         detector_logged_out = LoginDetector(MockBrowserLoggedOut(), config)
 

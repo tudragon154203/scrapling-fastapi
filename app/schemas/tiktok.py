@@ -52,7 +52,8 @@ class TikTokSessionResponse(BaseModel):
                     }
                 }
             ]
-        }
+        },
+        "exclude_none": True  # Exclude None values from serialization
     }
 
 

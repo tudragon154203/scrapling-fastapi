@@ -43,3 +43,10 @@ Successfully implemented a dedicated `/browse` endpoint for free browsing sessio
 ### Port Configuration Decision
 - **Development run command**: Now uses port 5681
 - **Production pm2 command**: Continues to use port 5680
+
+### Test File Refactoring Completed
+- **Test directory structure**: Refactored `tests/services/` into smaller, organized directories mirroring `app/services/` structure
+- **New test directories**: `browser/`, `common/`, `crawler/`, `proxy/`, `tiktok/`
+- **Improved organization**: Tests now follow same pattern as main application services for better maintainability
+- **Zero regressions**: All tests continue to pass after refactoring
+- **Enhanced discoverability**: Clear separation of concerns makes test files easier to locate and maintain

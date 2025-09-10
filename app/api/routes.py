@@ -202,22 +202,22 @@ async def create_tiktok_session_endpoint(request: TikTokSessionRequest):
             
             if error_code == "NOT_LOGGED_IN":
                 return JSONResponse(
-                    content=result.model_dump(),
+                    content=result.model_dump(exclude_none=True),
                     status_code=status.HTTP_409_CONFLICT
                 )
             elif error_code == "USER_DATA_LOCKED":
                 return JSONResponse(
-                    content=result.model_dump(),
+                    content=result.model_dump(exclude_none=True),
                     status_code=status.HTTP_423_LOCKED
                 )
             elif error_code == "SESSION_TIMEOUT":
                 return JSONResponse(
-                    content=result.model_dump(),
+                    content=result.model_dump(exclude_none=True),
                     status_code=status.HTTP_504_GATEWAY_TIMEOUT
                 )
             
         # Default to 500 for other errors
-        return JSONResponse(content=result.model_dump(), status_code=500)
+        return JSONResponse(content=result.model_dump(exclude_none=True), status_code=500)
     
     # Fallback for patched/mocked results with `.status_code` and `.json`
     status_code = getattr(result, "status_code", 500)
