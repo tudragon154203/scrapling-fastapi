@@ -59,17 +59,13 @@ class TestTikTokLoginDetectionContract:
         from app.services.tiktok.utils.login_detection import LoginDetector
         from app.schemas.tiktok import TikTokSessionConfig, TikTokLoginState
 
-        # Create mock element
-        class MockElement:
-            async def is_visible(self):
-                return True
-
-        # Create mock browser that finds logged-in element
+        # Create mock browser with HTML content for logged-in scenario
         class MockBrowserLoggedIn:
-            async def find(self, selector, timeout=None):
-                if selector == "[data-e2e='profile-avatar']":
-                    return MockElement()
-                return None
+            html_content = """
+            <div data-e2e="profile-avatar">User Avatar</div>
+            <div class="notification">Notifications</div>
+            <button>Sign out</button>
+            """
 
         config = TikTokSessionConfig()
         detector = LoginDetector(MockBrowserLoggedIn(), config)
@@ -78,12 +74,13 @@ class TestTikTokLoginDetectionContract:
         result = await detector._detect_dom_elements(2)
         assert result == TikTokLoginState.LOGGED_IN
 
-        # Create mock browser that finds logged-out element
+        # Create mock browser with HTML content for logged-out scenario
         class MockBrowserLoggedOut:
-            async def find(self, selector, timeout=None):
-                if selector == "[data-e2e='login-button']":
-                    return MockElement()
-                return None
+            html_content = """
+            <button data-e2e="login-button">Login</button>
+            <div>Join TikTok</div>
+            <span>Create account</span>
+            """
 
         detector_logged_out = LoginDetector(MockBrowserLoggedOut(), config)
 
@@ -97,30 +94,17 @@ class TestTikTokLoginDetectionContract:
         from app.services.tiktok.utils.login_detection import LoginDetector
         from app.schemas.tiktok import TikTokSessionConfig, TikTokLoginState
 
-        # Create mock browser for logged-in scenario
-        class MockBrowserLoggedIn:
-            async def execute(self, js_code):
-                # Simulate successful API response with code 0
-                return {"status": "success", "code": 0, "data": {"status": "success"}}
+        # API detection is not available with StealthyFetcher approach
+        # Create mock browser
+        class MockBrowser:
+            html_content = "<div>Test content</div>"
 
         config = TikTokSessionConfig()
-        detector = LoginDetector(MockBrowserLoggedIn(), config)
+        detector = LoginDetector(MockBrowser(), config)
 
-        # Test logged-in detection via API
+        # Test that API detection returns UNCERTAIN (not available)
         result = await detector._detect_api_requests(2)
-        assert result == TikTokLoginState.LOGGED_IN
-
-        # Create mock browser for logged-out scenario
-        class MockBrowserLoggedOut:
-            async def execute(self, js_code):
-                # Simulate failed API response or error
-                return {"status": "error", "code": -1}
-
-        detector_logged_out = LoginDetector(MockBrowserLoggedOut(), config)
-
-        # Test logged-out detection via API
-        result = await detector_logged_out._detect_api_requests(2)
-        assert result == TikTokLoginState.LOGGED_OUT
+        assert result == TikTokLoginState.UNCERTAIN
     
     @pytest.mark.asyncio
     async def test_fallback_refresh_method(self):

@@ -28,7 +28,7 @@ class TiktokExecutor(AbstractBrowsingExecutor):
         """Get TikTok-specific browser configuration"""
         return {
             "url": self.config.tiktok_url,
-            "headless": False,  # Non-headless for interactive sessions
+            "headless": self.config.headless,
             "stealth": True,
             "user_data_dir": self.user_data_dir,
             "proxy": self.proxy,

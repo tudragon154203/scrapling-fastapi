@@ -80,6 +80,7 @@ class TikTokSessionConfig(BaseModel):
     # Browser configuration
     tiktok_url: str = Field(default="https://www.tiktok.com/", description="TikTok base URL")
     max_session_duration: int = Field(default=300, description="Maximum session duration in seconds")
+    headless: bool = Field(default=False, description="Run browser in headless mode")
     
     # Selectors for login detection
     selectors: Dict[str, str] = Field(

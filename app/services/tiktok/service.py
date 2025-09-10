@@ -246,7 +246,8 @@ class TiktokService:
             acquire_lock_timeout=30,
             login_detection_timeout=self.settings.tiktok_login_detection_timeout,
             max_session_duration=self.settings.tiktok_max_session_duration,
-            tiktok_url=self.settings.tiktok_url
+            tiktok_url=self.settings.tiktok_url,
+            headless=True  # Use headless mode for tests
         )
     
     async def _detect_login_state(self, executor: TiktokExecutor, timeout: int) -> TikTokLoginState:

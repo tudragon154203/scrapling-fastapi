@@ -1,5 +1,6 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, Request
 from types import SimpleNamespace, FunctionType
+from typing import Optional
 
 from app.schemas.crawl import CrawlRequest, CrawlResponse
 from app.schemas.dpd import DPDCrawlRequest, DPDCrawlResponse
@@ -173,7 +174,7 @@ async def create_tiktok_session(request: TikTokSessionRequest) -> TikTokSessionR
 
 
 @router.post("/tiktok/session", response_model=TikTokSessionResponse, tags=["TikTok Session"])
-async def create_tiktok_session_endpoint(request: TikTokSessionRequest):
+async def create_tiktok_session_endpoint(request: Request):
     """Create TikTok interactive session with automatic login status checking.
     
     Creates an interactive browser session for TikTok with automatic login status checking.
@@ -186,22 +187,42 @@ async def create_tiktok_session_endpoint(request: TikTokSessionRequest):
     
     The endpoint expects an empty request body - all configuration is derived from context.
     """
+    # Try to parse the request body as JSON, but don't fail if it's not JSON
+    try:
+        body = await request.body()
+        if body:
+            json_data = await request.json()
+            req_obj = TikTokSessionRequest(**json_data)
+        else:
+            req_obj = TikTokSessionRequest()
+    except Exception as e:
+        # Check if it's a validation error (extra fields)
+        if "extra_forbidden" in str(e) or "Extra inputs are not permitted" in str(e):
+            # Return 422 for validation errors
+            return JSONResponse(
+                content={"detail": [{"type": "extra_forbidden", "msg": "Extra inputs are not permitted"}]},
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY
+            )
+        # If JSON parsing fails, create empty request
+        req_obj = TikTokSessionRequest()
+
     if not isinstance(create_tiktok_session, FunctionType):
         # This would be patched for testing
         req_obj = SimpleNamespace()
-    else:
-        req_obj = request
 
     result = await create_tiktok_session(request=req_obj)
     
     # If a proper TikTokSessionResponse, map HTTP status code based on outcome
     if isinstance(result, TikTokSessionResponse):
         if result.status == "success":
-            return result
+            return JSONResponse(
+                content=result.model_dump(exclude_none=True),
+                status_code=status.HTTP_200_OK
+            )
         # Handle error responses with appropriate HTTP status codes
         if result.error_details:
             error_code = result.error_details.get("code", "").upper()
-            
+
             if error_code == "NOT_LOGGED_IN":
                 return JSONResponse(
                     content=result.model_dump(exclude_none=True),
@@ -217,7 +238,12 @@ async def create_tiktok_session_endpoint(request: TikTokSessionRequest):
                     content=result.model_dump(exclude_none=True),
                     status_code=status.HTTP_504_GATEWAY_TIMEOUT
                 )
-            
+            elif error_code in ["INTERNAL_ERROR", "UNKNOWN_ERROR", "SESSION_CREATION_FAILED"]:
+                return JSONResponse(
+                    content=result.model_dump(exclude_none=True),
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+
         # Default to 500 for other errors
         return JSONResponse(content=result.model_dump(exclude_none=True), status_code=500)
     

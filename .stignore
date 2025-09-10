@@ -1,3 +1,4 @@
 model_cache/*
 .vscode/settings.json
 *.ps1
+data\camoufox_profiles\clones
