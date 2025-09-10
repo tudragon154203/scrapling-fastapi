@@ -190,7 +190,7 @@ async def create_tiktok_session_endpoint(request: TikTokSessionRequest):
     else:
         req_obj = request
 
-    result = create_tiktok_session(request=req_obj)
+    result = await create_tiktok_session(request=req_obj)
     
     # If a proper TikTokSessionResponse, map HTTP status code based on outcome
     if isinstance(result, TikTokSessionResponse):

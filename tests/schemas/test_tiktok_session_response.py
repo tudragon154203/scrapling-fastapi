@@ -10,31 +10,24 @@ class TestTikTokSessionResponseSchema:
     
     def test_success_response_valid(self):
         """Test that success response body is valid"""
-        # This test should pass - success responses should be valid
-        assert True  # Placeholder - will be implemented with actual schema
-        
-        # In real implementation:
-        # from app.schemas.tiktok import TikTokSessionResponse
-        # response = TikTokSessionResponse(status="success", message="TikTok session established successfully")
-        # assert response.status == "success"
-        # assert isinstance(response.message, str)
-        # assert len(response.message) > 0
+        from app.schemas.tiktok import TikTokSessionResponse
+        response = TikTokSessionResponse(status="success", message="TikTok session established successfully")
+        assert response.status == "success"
+        assert isinstance(response.message, str)
+        assert len(response.message) > 0
     
     def test_error_response_valid(self):
         """Test that error response body is valid"""
-        # This test should pass - error responses should be valid
-        assert True  # Placeholder - will be implemented with actual schema
-        
-        # In real implementation:
-        # from app.schemas.tiktok import TikTokSessionResponse
-        # response = TikTokSessionResponse(
-        #     status="error",
-        #     message="Not logged in to TikTok",
-        #     error_details={"code": "NOT_LOGGED_IN", "details": "User is not logged in to TikTok"}
-        # )
-        # assert response.status == "error"
-        # assert isinstance(response.message, str)
-        # assert "error_details" in response
+        from app.schemas.tiktok import TikTokSessionResponse
+        response = TikTokSessionResponse(
+            status="error",
+            message="Not logged in to TikTok",
+            error_details={"code": "NOT_LOGGED_IN", "details": "User is not logged in to TikTok"}
+        )
+        assert response.status == "error"
+        assert isinstance(response.message, str)
+        assert response.error_details is not None
+        assert "code" in response.error_details
     
     def test_success_response_variations_valid(self):
         """Test various valid success response variations"""

@@ -229,9 +229,12 @@ class TiktokService:
     
     async def _load_tiktok_config(self, user_data_dir: Optional[str] = None) -> TikTokSessionConfig:
         """Load TikTok configuration from settings"""
+        # Use CAMOUFOX_USER_DATA_DIR for both master and clones directories
+        base_user_data_dir = self.settings.camoufox_user_data_dir or "./user_data"
+        
         return TikTokSessionConfig(
-            user_data_master_dir=self.settings.tiktok_master_user_data_dir or "./user_data/master",
-            user_data_clones_dir=self.settings.tiktok_clones_user_data_dir or "./user_data/clones",
+            user_data_master_dir=base_user_data_dir,
+            user_data_clones_dir=base_user_data_dir,
             write_mode_enabled=self.settings.tiktok_write_mode_enabled,
             acquire_lock_timeout=30,
             login_detection_timeout=self.settings.tiktok_login_detection_timeout,
