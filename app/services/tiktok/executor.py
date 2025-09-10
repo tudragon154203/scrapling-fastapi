@@ -1,28 +1,31 @@
 """
-TikTok-specific browsing executor
+TikTok-specific browsing executor using ScraplingFetcherAdapter like BrowseExecutor
 """
+import sys
 import asyncio
 from typing import Dict, Any, Optional
-import types
 
 from app.services.common.executor import AbstractBrowsingExecutor
 from app.schemas.tiktok import TikTokSessionConfig
+from app.services.common.adapters.scrapling_fetcher import ScraplingFetcherAdapter, FetchArgComposer
 from app.core.config import get_settings
 
 
 class TiktokExecutor(AbstractBrowsingExecutor):
-    """TikTok-specific browsing executor"""
+    """TikTok-specific browsing executor using ScraplingFetcherAdapter"""
     
     def __init__(self, config: TikTokSessionConfig, proxy: Optional[Dict[str, str]] = None):
         super().__init__(user_data_dir=config.user_data_clones_dir, proxy=proxy)
         self.config = config
+        self.fetcher = ScraplingFetcherAdapter()
+        self.arg_composer = FetchArgComposer()
         self.settings = get_settings()
         
     async def get_config(self) -> Dict[str, Any]:
         """Get TikTok-specific browser configuration"""
         return {
             "url": self.config.tiktok_url,
-            "headless": True,
+            "headless": False,  # Non-headless for interactive sessions
             "stealth": True,
             "user_data_dir": self.user_data_dir,
             "proxy": self.proxy,
@@ -31,20 +34,34 @@ class TiktokExecutor(AbstractBrowsingExecutor):
         }
     
     async def setup_browser(self) -> None:
-        """Setup browser with TikTok-specific configuration"""
+        """Setup browser with TikTok-specific configuration using ScraplingFetcher"""
         config = await self.get_config()
         
-        # Create a simple mock browser object for basic session functionality
-        # This avoids the Playwright subprocess issues on Windows
-        self.browser = types.SimpleNamespace()
-        self.browser.url = config["url"]
-        self.browser.is_visible = lambda selector: True
-        self.browser.find = lambda selector, timeout=5000: None
-        self.browser.reload = lambda: None
-        self.browser.execute = lambda script: None
+        # Ensure proper event loop policy on Windows for Playwright
+        if sys.platform == "win32":
+            try:
+                asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+            except Exception:
+                pass
         
-        # Log that we're using mock browser mode
-        print(f"Using mock browser for TikTok session: {config['url']}")
+        # Use ScraplingFetcherAdapter like BrowseExecutor does
+        fetch_kwargs = self.arg_composer.compose(
+            options=config,
+            caps=self.fetcher.detect_capabilities(),
+            selected_proxy=config.get("proxy"),
+            additional_args={},
+            extra_headers=None,
+            settings=self.settings,
+            page_action=None
+        )
+        
+        # Launch browser using ScraplingFetcher
+        result = self.fetcher.fetch(config["url"], fetch_kwargs)
+        
+        # Create browser reference for compatibility
+        self.browser = result
+        
+        print(f"Using ScraplingFetcher for TikTok session: {config['url']}")
         
     async def detect_login_state(self, timeout: int = 8) -> str:
         """Detect TikTok login state"""
@@ -55,27 +72,27 @@ class TiktokExecutor(AbstractBrowsingExecutor):
     
     async def navigate_to_profile(self) -> None:
         """Navigate to user profile page"""
-        # Not implemented with StealthyFetcher approach
+        # Not implemented with mock approach
         pass
         
     async def search_hashtag(self, hashtag: str) -> None:
         """Search for a hashtag"""
-        # Not implemented with StealthyFetcher approach
+        # Not implemented with mock approach
         pass
             
     async def watch_video(self, video_url: str) -> None:
         """Watch a specific video"""
-        # Not implemented with StealthyFetcher approach
+        # Not implemented with mock approach
         pass
         
     async def like_post(self) -> bool:
         """Like the current post"""
-        # Not implemented with StealthyFetcher approach
+        # Not implemented with mock approach
         return False
             
     async def follow_user(self, username: str) -> bool:
         """Follow a user"""
-        # Not implemented with StealthyFetcher approach
+        # Not implemented with mock approach
         return False
             
     async def get_video_info(self) -> Dict[str, Any]:
