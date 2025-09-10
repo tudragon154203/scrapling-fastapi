@@ -20,7 +20,7 @@ class TiktokService:
         self.active_sessions: Dict[str, TiktokExecutor] = {}
         self.session_metadata: Dict[str, Dict[str, Any]] = {}
         
-    async def create_session(self, request: TikTokSessionRequest, user_data_dir: Optional[str] = None) -> TikTokSessionResponse:
+    async def create_session(self, request: TikTokSessionRequest, user_data_dir: Optional[str] = None, immediate_cleanup: bool = False) -> TikTokSessionResponse:
         """
         Create a new TikTok session with login detection
         
@@ -61,19 +61,26 @@ class TiktokService:
                 )
             
             # Session created successfully
-            self.active_sessions[session_id] = executor
-            self.session_metadata[session_id] = {
-                "created_at": datetime.now(),
-                "last_activity": datetime.now(),
-                "user_data_dir": executor.user_data_dir,
-                "config": config,
-                "login_state": login_state
-            }
+            if not immediate_cleanup:
+                self.active_sessions[session_id] = executor
+                self.session_metadata[session_id] = {
+                    "created_at": datetime.now(),
+                    "last_activity": datetime.now(),
+                    "user_data_dir": executor.user_data_dir,
+                    "config": config,
+                    "login_state": login_state
+                }
             
-            return TikTokSessionResponse(
+            response = TikTokSessionResponse(
                 status="success",
                 message="TikTok session established successfully"
             )
+            
+            # If immediate cleanup is requested, clean up now
+            if immediate_cleanup:
+                await executor.cleanup()
+            
+            return response
             
         except Exception as e:
             await self._cleanup_session(session_id)

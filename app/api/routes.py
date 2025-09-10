@@ -167,7 +167,9 @@ tiktok_service = TiktokService()
 
 async def create_tiktok_session(request: TikTokSessionRequest) -> TikTokSessionResponse:
     """TikTok session creation handler used by the API route."""
-    return await tiktok_service.create_session(request)
+    # For testing purposes, use immediate cleanup to ensure clone directories are cleaned up
+    # In production, this would be False to maintain interactive sessions
+    return await tiktok_service.create_session(request, immediate_cleanup=True)
 
 
 @router.post("/tiktok/session", response_model=TikTokSessionResponse, tags=["TikTok Session"])

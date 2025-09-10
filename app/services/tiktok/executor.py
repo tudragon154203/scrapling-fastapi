@@ -60,6 +60,9 @@ class TiktokExecutor(AbstractBrowsingExecutor):
             MockRequest(), self.settings, self.fetcher.detect_capabilities()
         )
         
+        # Store cleanup function BEFORE it gets filtered out by FetchArgComposer
+        self._user_data_cleanup = additional_args.get('_user_data_cleanup')
+        
         fetch_kwargs = self.arg_composer.compose(
             options=config,
             caps=self.fetcher.detect_capabilities(),
@@ -97,19 +100,23 @@ class TiktokExecutor(AbstractBrowsingExecutor):
     async def cleanup(self) -> None:
         """Cleanup browser resources and user data context"""
         try:
-            # Clean up user data context if it exists
+            # Clean up user data context if it exists (from CamoufoxArgsBuilder)
             if self._user_data_cleanup:
-                self._user_data_cleanup()
+                try:
+                    self._user_data_cleanup()
+                except Exception as e:
+                    print(f"Failed to cleanup user data context: {e}")
                 self._user_data_cleanup = None
                 
-            # Clean up cloned user data directory
-            if self.user_data_dir and "temp_" in self.user_data_dir:
-                import shutil
-                import os
+            # Clean up browser resources
+            if self.browser:
                 try:
-                    shutil.rmtree(self.user_data_dir)
+                    # For StealthyFetcher result, we might not have a close method
+                    # The cleanup is handled by the fetch operation itself
+                    pass
                 except Exception as e:
-                    print(f"Failed to clean up temp directory: {e}")
+                    print(f"Failed to cleanup browser: {e}")
+                self.browser = None
                     
         except Exception as e:
             print(f"Error during cleanup: {e}")
@@ -118,32 +125,33 @@ class TiktokExecutor(AbstractBrowsingExecutor):
         """Detect TikTok login state"""
         from app.services.tiktok.utils.login_detection import LoginDetector
         
-        # For now, return uncertain state since we don't have a real browser
-        return "uncertain"
+        detector = LoginDetector(self.browser, self.config)
+        return await detector.detect_login_state(timeout=timeout)
     
     async def navigate_to_profile(self) -> None:
         """Navigate to user profile page"""
-        # Not implemented with mock approach
+        profile_url = f"{self.config.tiktok_url.rstrip('/')}/@me"
+        # Not implemented with StealthyFetcher approach
         pass
         
     async def search_hashtag(self, hashtag: str) -> None:
         """Search for a hashtag"""
-        # Not implemented with mock approach
+        # Not implemented with StealthyFetcher approach
         pass
             
     async def watch_video(self, video_url: str) -> None:
         """Watch a specific video"""
-        # Not implemented with mock approach
+        # Not implemented with StealthyFetcher approach
         pass
         
     async def like_post(self) -> bool:
         """Like the current post"""
-        # Not implemented with mock approach
+        # Not implemented with StealthyFetcher approach
         return False
             
     async def follow_user(self, username: str) -> bool:
         """Follow a user"""
-        # Not implemented with mock approach
+        # Not implemented with StealthyFetcher approach
         return False
             
     async def get_video_info(self) -> Dict[str, Any]:
@@ -168,26 +176,12 @@ class TiktokExecutor(AbstractBrowsingExecutor):
         """Wait for specified seconds"""
         await asyncio.sleep(seconds)
             
-    async def cleanup(self) -> None:
-        """Cleanup browser resources"""
-        try:
-            # Clean up cloned user data directory
-            if self.user_data_dir and "temp_" in self.user_data_dir:
-                import shutil
-                import os
-                try:
-                    shutil.rmtree(self.user_data_dir)
-                except Exception as e:
-                    print(f"Failed to clean up temp directory: {e}")
-                    
-        except Exception as e:
-            print(f"Error during cleanup: {e}")
-            
     async def close(self) -> None:
         """Close the current session"""
         await self.cleanup()
         
     async def is_still_active(self) -> bool:
         """Check if the browser session is still active"""
-        # Always return True for basic functionality
-        return True
+        # For StealthyFetcher approach, we can't easily check if browser is still active
+        # Return True as long as we have a browser reference
+        return self.browser is not None
