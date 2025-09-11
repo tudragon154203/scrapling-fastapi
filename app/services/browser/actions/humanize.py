@@ -99,7 +99,11 @@ def click_like_human(locator, hover_first=True):
     logger.debug(f"Human click: hover_first={hover_first}")
     if hover_first:
         locator.hover()
+        # Short pause after hover to mimic human behavior
+        human_pause(0.1, 0.2)
     locator.click()
+    # Short pause after click to allow page to respond
+    human_pause(0.2, 0.4)
 
 def type_like_human(locator, text, delay_ms_range=None):
     """Type text with a per-char delay from settings unless overridden."""
