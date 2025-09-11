@@ -6,7 +6,7 @@ import uuid
 from typing import Dict, Any, Optional, Literal
 from datetime import datetime, timedelta
 
-from app.services.tiktok.executor import TiktokExecutor
+from app.services.tiktok.tiktok_executor import TiktokExecutor
 from app.services.tiktok.utils.login_detection import LoginDetector
 from app.schemas.tiktok import TikTokSessionRequest, TikTokSessionResponse, TikTokLoginState, TikTokSessionConfig
 from app.core.config import get_settings

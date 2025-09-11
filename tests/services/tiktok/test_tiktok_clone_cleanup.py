@@ -8,7 +8,7 @@ import shutil
 from pathlib import Path
 from unittest.mock import patch, MagicMock, AsyncMock
 
-from app.services.tiktok.executor import TiktokExecutor
+from app.services.tiktok.tiktok_executor import TiktokExecutor
 from app.schemas.tiktok import TikTokSessionConfig
 
 
