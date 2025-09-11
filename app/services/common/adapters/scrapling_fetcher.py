@@ -215,9 +215,17 @@ class FetchArgComposer:
             fetch_kwargs["geoip"] = True
 
         if caps.supports_additional_args and additional_args:
-            # Pass additional args through, including cleanup function which will be handled by the executor
-            if additional_args:
-                fetch_kwargs["additional_args"] = additional_args
+            # Filter out any private/sentinel keys (e.g., cleanup callbacks) so they are NOT
+            # forwarded into browser launch kwargs (e.g., Playwright), which would error.
+            try:
+                safe_additional_args = {
+                    k: v for k, v in (additional_args or {}).items() if not str(k).startswith("_")
+                }
+            except Exception:
+                safe_additional_args = additional_args or {}
+
+            if safe_additional_args:
+                fetch_kwargs["additional_args"] = safe_additional_args
 
         if _ok("extra_headers") and extra_headers:
             fetch_kwargs["extra_headers"] = extra_headers

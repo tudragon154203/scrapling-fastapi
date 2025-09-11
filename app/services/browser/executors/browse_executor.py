@@ -45,11 +45,22 @@ class BrowseExecutor(IExecutor):
         # Resolve options and potential lightweight headers early so we can fallback if needed
         options = self.options_resolver.resolve(request, settings)
         additional_args, extra_headers = self.camoufox_builder.build(request, settings, caps={})
+        # Capture optional user-data cleanup callback early
+        user_data_cleanup = None
+        try:
+            user_data_cleanup = additional_args.get('_user_data_cleanup') if additional_args else None
+        except Exception:
+            user_data_cleanup = None
 
         try:
             caps = self.fetch_client.detect_capabilities()
             logger.debug(f"Detected capabilities: {caps}")
             additional_args, extra_headers = self.camoufox_builder.build(request, settings, caps)
+            # Refresh cleanup callback in case caps-dependent build altered args
+            try:
+                user_data_cleanup = additional_args.get('_user_data_cleanup') if additional_args else user_data_cleanup
+            except Exception:
+                pass
 
             if not caps.supports_proxy:
                 logger.warning(
@@ -84,9 +95,9 @@ class BrowseExecutor(IExecutor):
             # at this point since the fetch only returns after the user closes the browser
             
             # Cleanup user data context after fetch if cleanup function was stored
-            if fetch_kwargs.get('_user_data_cleanup'):
+            if user_data_cleanup:
                 try:
-                    fetch_kwargs['_user_data_cleanup']()
+                    user_data_cleanup()
                 except Exception as e:
                     logger.warning(f"Failed to cleanup user data context: {e}")
 
