@@ -18,6 +18,7 @@ class ScraplingFetcherAdapter(IFetchClient):
     
     def __init__(self):
         self._capabilities: Optional[FetchCapabilities] = None
+        self._user_data_cleanup = None
         
     def detect_capabilities(self) -> FetchCapabilities:
         """Detect fetch capabilities by introspecting StealthyFetcher.fetch signature."""
@@ -55,6 +56,7 @@ class ScraplingFetcherAdapter(IFetchClient):
     def fetch(self, url: str, args: Dict[str, Any]) -> Any:
         """Fetch the given URL using StealthyFetcher with thread safety."""
         logger.info(f"Launching browser for URL: {url}")
+        
         try:
             from scrapling.fetchers import StealthyFetcher
         except ImportError:
@@ -154,6 +156,13 @@ class ScraplingFetcherAdapter(IFetchClient):
         except Exception as e:
             logger.info(f"HTTP fallback failed: {type(e).__name__}: {e}")
             raise
+    
+    def get_user_data_cleanup(self) -> Optional[callable]:
+        """Get the user data cleanup function for cleanup after fetch."""
+        cleanup_func = self._user_data_cleanup
+        # Reset the cleanup function after getting it
+        self._user_data_cleanup = None
+        return cleanup_func
 
 
 class FetchArgComposer:
@@ -206,10 +215,9 @@ class FetchArgComposer:
             fetch_kwargs["geoip"] = True
 
         if caps.supports_additional_args and additional_args:
-            # Filter out internal cleanup function
-            filtered_additional_args = {k: v for k, v in additional_args.items() if not k.startswith('_')}
-            if filtered_additional_args:
-                fetch_kwargs["additional_args"] = filtered_additional_args
+            # Pass additional args through, including cleanup function which will be handled by the executor
+            if additional_args:
+                fetch_kwargs["additional_args"] = additional_args
 
         if _ok("extra_headers") and extra_headers:
             fetch_kwargs["extra_headers"] = extra_headers

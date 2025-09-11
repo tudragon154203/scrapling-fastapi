@@ -60,7 +60,7 @@ class TiktokExecutor(AbstractBrowsingExecutor):
             MockRequest(), self.settings, self.fetcher.detect_capabilities()
         )
         
-        # Store cleanup function BEFORE it gets filtered out by FetchArgComposer
+        # Get cleanup function before it gets filtered out
         self._user_data_cleanup = additional_args.get('_user_data_cleanup')
         
         fetch_kwargs = self.arg_composer.compose(
