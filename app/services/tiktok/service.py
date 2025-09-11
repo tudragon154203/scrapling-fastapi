@@ -2,6 +2,7 @@
 TikTok session service
 """
 import asyncio
+import os
 import uuid
 from typing import Dict, Any, Optional, Literal
 from datetime import datetime, timedelta
@@ -238,6 +239,24 @@ class TiktokService:
         """Load TikTok configuration from settings"""
         # Use CAMOUFOX_USER_DATA_DIR for both master and clones directories
         base_user_data_dir = self.settings.camoufox_user_data_dir or "./user_data"
+
+        # Headless policy:
+        # - Default: headful (False)
+        # - Unit tests only: headless (True)
+        # - Overrideable via TIKTOK_SESSION_HEADLESS env var
+        headless = False
+        try:
+            override = os.getenv("TIKTOK_SESSION_HEADLESS")
+            if override is not None:
+                headless = str(override).lower() in {"1", "true", "yes"}
+            else:
+                # Detect pytest and only enable headless for unit tests path
+                current_test = os.environ.get("PYTEST_CURRENT_TEST", "")
+                norm = current_test.replace("\\", "/").lower()
+                if "/tests/unit/" in norm or "tests/unit/" in norm:
+                    headless = True
+        except Exception:
+            headless = False
         
         return TikTokSessionConfig(
             user_data_master_dir=base_user_data_dir,
@@ -247,7 +266,7 @@ class TiktokService:
             login_detection_timeout=self.settings.tiktok_login_detection_timeout,
             max_session_duration=self.settings.tiktok_max_session_duration,
             tiktok_url=self.settings.tiktok_url,
-            headless=True  # Use headless mode for tests
+            headless=headless
         )
     
     async def _detect_login_state(self, executor: TiktokExecutor, timeout: int) -> TikTokLoginState:
