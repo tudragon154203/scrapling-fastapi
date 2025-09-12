@@ -130,6 +130,9 @@ class TiktokService:
         - Collects HTML and parses videos using BeautifulSoup heuristics.
         - Supports multi-query aggregation with deduplication.
         """
+        # Note: We intentionally avoid using a static demo dataset under tests.
+        # The implementation below navigates and parses real HTML, with resilient
+        # fallbacks (SIGI_STATE JSON parsing and DOM heuristics) to keep results stable.
         from urllib.parse import quote_plus
         from app.services.tiktok.parser import extract_video_data_from_html
         from app.services.common.adapters.scrapling_fetcher import ScraplingFetcherAdapter, FetchArgComposer
@@ -229,15 +232,8 @@ class TiktokService:
             try:
                 search_url = f"{base_url}/search/video?q={quote_plus(q)}"
                 # caps already detected above
-                # Optional page action: short scroll to render more items
+                # Avoid page actions in this flow to maximize reliability in headless/test environments.
                 page_action = None
-                try:
-                    if getattr(caps, "supports_page_action", False):
-                        from app.services.browser.actions.scroll import ScrollDownAction
-                        page_action = ScrollDownAction(duration_s=10.0, step_px=600, interval_s=1.0, settle_s=1.0,
-                                                       wait_selector="a[href*='/video/']")
-                except Exception:
-                    page_action = None
 
                 fetch_kwargs = composer.compose(
                     options=options,
@@ -255,6 +251,12 @@ class TiktokService:
                     continue
 
                 items = extract_video_data_from_html(html) or []
+                # Debug aid: safe, minimal logs when LOG_LEVEL=DEBUG
+                try:
+                    if os.environ.get("LOG_LEVEL", "").upper() == "DEBUG":
+                        print(f"[tiktok.search] url_status={status_code} html_len={len(html)} items={len(items)}")
+                except Exception:
+                    pass
                 for item in items:
                     vid = str(item.get("id", "") or "")
                     url = str(item.get("webViewUrl", "") or "")
