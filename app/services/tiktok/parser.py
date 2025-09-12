@@ -230,6 +230,7 @@ def extract_video_data_from_html(html_content: str) -> List[Dict[str, Any]]:
             return cap.get_text(strip=True)
         # Broader selectors adapted from demo with sanity checks
         selectors = [
+            '[data-e2e="search-card-video-caption"]',
             '.search-card-video-caption',
             '[class*="caption"]',
             '[class*="title"]',
@@ -309,6 +310,10 @@ def extract_video_data_from_html(html_content: str) -> List[Dict[str, Any]]:
         return 0
 
     def _best_time_from(item) -> str:
+        # Prefer explicit time selector
+        time_el = item.find(attrs={"data-e2e": "search-card-time"})
+        if time_el and time_el.get_text(strip=True):
+            return time_el.get_text(strip=True)
         # Prefer <time> tag
         for el in item.select('time, small, span, div') or []:
             txt = el.get_text(strip=True) if el else ""
@@ -380,6 +385,35 @@ def extract_video_data_from_html(html_content: str) -> List[Dict[str, Any]]:
                 data["authorHandle"] = _best_author_from(ctx, data["webViewUrl"]) if data["webViewUrl"] else _best_author_from(ctx, "")
         data["likeCount"] = _best_like_from(item)
         data["uploadTime"] = _best_time_from(item)
+        
+        # Add positional caption and time if available (new approach)
+        # Find all caption and time elements in the document
+        if not hasattr(extract_video_data_from_html, '_cached_caption_elements'):
+            extract_video_data_from_html._cached_caption_elements = soup.find_all(attrs={"data-e2e": "search-card-video-caption"})
+        if not hasattr(extract_video_data_from_html, '_cached_time_elements'):
+            extract_video_data_from_html._cached_time_elements = soup.find_all(attrs={"data-e2e": "search-card-time"})
+        
+        caption_elements = extract_video_data_from_html._cached_caption_elements
+        time_elements = extract_video_data_from_html._cached_time_elements
+        
+        # Get the index of current item among video items
+        try:
+            item_index = video_items.index(item)
+        except ValueError:
+            item_index = -1
+            
+        # Add positional caption if available
+        if item_index >= 0 and item_index < len(caption_elements) and not data.get("caption"):
+            caption_text = caption_elements[item_index].get_text(strip=True)
+            if caption_text:
+                data["caption"] = caption_text
+                
+        # Add positional time if available
+        if item_index >= 0 and item_index < len(time_elements) and not data.get("uploadTime"):
+            time_text = time_elements[item_index].get_text(strip=True)
+            if time_text:
+                data["uploadTime"] = time_text
+        
         if data["id"] and data["webViewUrl"]:
             results.append(data)
 
