@@ -15,7 +15,7 @@ class TestTikTokSearchEndpoint:
         assert resp.status_code == 200
         assert resp.json() == {"status": "ok"}
     
-    @patch('app.api.routes.tiktok_service', new_callable=AsyncMock)
+    @patch('app.api.tiktok.tiktok_service', new_callable=AsyncMock)
     def test_valid_search_request(self, mock_tiktok_service, client):
         """Test that valid search request is accepted by the endpoint"""
         # Mock the service to return successful search results
@@ -52,7 +52,7 @@ class TestTikTokSearchEndpoint:
         assert response_data["totalResults"] == 1
         assert response_data["query"] == "test"
     
-    @patch('app.api.routes.tiktok_service', new_callable=AsyncMock)
+    @patch('app.api.tiktok.tiktok_service', new_callable=AsyncMock)
     def test_search_with_multiple_queries(self, mock_tiktok_service, client):
         """Test search with multiple queries"""
         # Mock the service to return successful search results
@@ -84,7 +84,7 @@ class TestTikTokSearchEndpoint:
         response_data = resp.json()
         assert response_data["query"] == "test query"
     
-    @patch('app.api.routes.tiktok_service', new_callable=AsyncMock)
+    @patch('app.api.tiktok.tiktok_service', new_callable=AsyncMock)
     def test_not_logged_in_error_response(self, mock_tiktok_service, client):
         """Test response when user is not logged in"""
         # Mock the service to return a not logged in error
@@ -111,7 +111,7 @@ class TestTikTokSearchEndpoint:
         assert response_data["error"]["code"] == "NOT_LOGGED_IN"
         assert response_data["error"]["message"] == "TikTok session is not logged in"
     
-    @patch('app.api.routes.tiktok_service', new_callable=AsyncMock)
+    @patch('app.api.tiktok.tiktok_service', new_callable=AsyncMock)
     def test_validation_error_response(self, mock_tiktok_service, client):
         """Test response for validation errors"""
         # Mock the service to return a validation error
@@ -137,7 +137,7 @@ class TestTikTokSearchEndpoint:
         assert "error" in response_data
         assert response_data["error"]["code"] == "VALIDATION_ERROR"
     
-    @patch('app.api.routes.tiktok_service', new_callable=AsyncMock)
+    @patch('app.api.tiktok.tiktok_service', new_callable=AsyncMock)
     def test_rate_limited_error_response(self, mock_tiktok_service, client):
         """Test response when rate limited"""
         # Mock the service to return a rate limited error
@@ -163,7 +163,7 @@ class TestTikTokSearchEndpoint:
         assert response_data["error"]["code"] == "RATE_LIMITED"
         assert response_data["error"]["message"] == "Too many requests"
     
-    @patch('app.api.routes.tiktok_service', new_callable=AsyncMock)
+    @patch('app.api.tiktok.tiktok_service', new_callable=AsyncMock)
     def test_scrape_failed_error_response(self, mock_tiktok_service, client):
         """Test response for scrape failures"""
         # Mock the service to return a scrape failed error
@@ -218,7 +218,7 @@ class TestTikTokSearchEndpoint:
         response_data = resp.json()
         assert "detail" in response_data
     
-    @patch('app.api.routes.tiktok_service', new_callable=AsyncMock)
+    @patch('app.api.tiktok.tiktok_service', new_callable=AsyncMock)
     def test_response_consistency_with_schema(self, mock_tiktok_service, client):
         """Test that response is consistent with TikTokSearchResponse schema"""
         mock_tiktok_service.search_tiktok = AsyncMock(return_value={
@@ -263,7 +263,7 @@ class TestTikTokSearchEndpoint:
         assert video.uploadTime == "2023-01-01"
         assert video.webViewUrl == "https://www.tiktok.com/@testuser/video/123456789"
     
-    @patch('app.api.routes.tiktok_service', new_callable=AsyncMock)
+    @patch('app.api.tiktok.tiktok_service', new_callable=AsyncMock)
     def test_response_content_type(self, mock_tiktok_service, client):
         """Test that response has correct content type"""
         mock_tiktok_service.search_tiktok = AsyncMock(return_value={

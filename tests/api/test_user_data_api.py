@@ -18,7 +18,7 @@ class TestUserDataAPI:
             "force_user_data": True
         }
         
-        with patch('app.api.routes.crawl') as mock_crawl:
+        with patch('app.api.crawl.crawl') as mock_crawl:
             mock_crawl.return_value = Mock(
                 status_code=200,
                 json={"status": "success", "url": "https://example.com", "html": "<html></html>"}
@@ -54,7 +54,7 @@ class TestUserDataAPI:
             "force_user_data": False
         }
         
-        with patch('app.api.routes.crawl') as mock_crawl:
+        with patch('app.api.crawl.crawl') as mock_crawl:
             mock_crawl.return_value = Mock(
                 status_code=200,
                 json={"status": "success", "url": "https://example.com", "html": "<html></html>"}
@@ -87,7 +87,7 @@ class TestUserDataAPI:
             "force_user_data": True
         }
         
-        with patch('app.api.routes.crawl_dpd') as mock_crawl_dpd:
+        with patch('app.api.crawl.crawl_dpd') as mock_crawl_dpd:
             mock_crawl_dpd.return_value = Mock(
                 status_code=200,
                 json={"status": "success", "url": "https://example.com", "html": "<html></html>"}

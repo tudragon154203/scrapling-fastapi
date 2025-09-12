@@ -18,7 +18,7 @@ class TestTikTokSessionEndpoint:
         assert resp.status_code == 200
         assert resp.json() == {"status": "ok"}
     
-    @patch('app.api.routes.tiktok_service', new_callable=AsyncMock)
+    @patch('app.api.tiktok.tiktok_service', new_callable=AsyncMock)
     def test_empty_request_body_accepted(self, mock_tiktok_service, client):
         """Test that empty request body is accepted by the endpoint"""
         # Mock the service to return a logged out response
@@ -39,7 +39,7 @@ class TestTikTokSessionEndpoint:
         assert "message" in response_data
         assert response_data["status"] in ["success", "error"]
     
-    @patch('app.api.routes.tiktok_service', new_callable=AsyncMock)
+    @patch('app.api.tiktok.tiktok_service', new_callable=AsyncMock)
     def test_valid_json_empty_body(self, mock_tiktok_service, client):
         """Test that valid JSON with empty object is accepted"""
         # Mock the service to return a logged out response
@@ -69,7 +69,7 @@ class TestTikTokSessionEndpoint:
         response_data = resp.json()
         assert "detail" in response_data
     
-    @patch('app.api.routes.tiktok_service', new_callable=AsyncMock)
+    @patch('app.api.tiktok.tiktok_service', new_callable=AsyncMock)
     def test_success_response_structure(self, mock_tiktok_service, client):
         """Test that successful response has correct structure"""
         # Mock the service to return a success response
@@ -86,7 +86,7 @@ class TestTikTokSessionEndpoint:
         assert response_data["message"] == "TikTok session established successfully"
         assert "error_details" not in response_data
     
-    @patch('app.api.routes.tiktok_service', new_callable=AsyncMock)
+    @patch('app.api.tiktok.tiktok_service', new_callable=AsyncMock)
     def test_not_logged_in_response(self, mock_tiktok_service, client):
         """Test response when user is not logged in"""
         # Mock the service to return a not logged in error
@@ -107,7 +107,7 @@ class TestTikTokSessionEndpoint:
         assert response_data["message"] == "Not logged in to TikTok"
         assert response_data["error_details"]["code"] == "NOT_LOGGED_IN"
     
-    @patch('app.api.routes.tiktok_service', new_callable=AsyncMock)
+    @patch('app.api.tiktok.tiktok_service', new_callable=AsyncMock)
     def test_user_data_locked_response(self, mock_tiktok_service, client):
         """Test response when user data is locked"""
         # Mock the service to return a user data locked error
@@ -128,7 +128,7 @@ class TestTikTokSessionEndpoint:
         assert response_data["message"] == "User data directory is locked"
         assert response_data["error_details"]["code"] == "USER_DATA_LOCKED"
     
-    @patch('app.api.routes.tiktok_service', new_callable=AsyncMock)
+    @patch('app.api.tiktok.tiktok_service', new_callable=AsyncMock)
     def test_session_timeout_response(self, mock_tiktok_service, client):
         """Test response when session times out"""
         # Mock the service to return a session timeout error
@@ -149,7 +149,7 @@ class TestTikTokSessionEndpoint:
         assert response_data["message"] == "Session creation timed out"
         assert response_data["error_details"]["code"] == "SESSION_TIMEOUT"
     
-    @patch('app.api.routes.tiktok_service', new_callable=AsyncMock)
+    @patch('app.api.tiktok.tiktok_service', new_callable=AsyncMock)
     def test_generic_error_response(self, mock_tiktok_service, client):
         """Test response for generic server errors"""
         # Mock the service to return a generic error
@@ -170,7 +170,7 @@ class TestTikTokSessionEndpoint:
         assert response_data["message"] == "Unexpected error occurred"
         assert response_data["error_details"]["code"] == "INTERNAL_ERROR"
     
-    @patch('app.api.routes.tiktok_service', new_callable=AsyncMock)
+    @patch('app.api.tiktok.tiktok_service', new_callable=AsyncMock)
     def test_post_request_without_json(self, mock_tiktok_service, client):
         """Test POST request without JSON body (should still work)"""
         # Mock the service to return a logged out response
@@ -190,7 +190,7 @@ class TestTikTokSessionEndpoint:
         assert "status" in response_data
         assert "message" in response_data
     
-    @patch('app.api.routes.tiktok_service', new_callable=AsyncMock)
+    @patch('app.api.tiktok.tiktok_service', new_callable=AsyncMock)
     def test_endpoint_preserves_cors_headers(self, mock_tiktok_service, client):
         """Test that endpoint preserves CORS headers from FastAPI middleware"""
         mock_tiktok_service.create_session = AsyncMock(return_value=TikTokSessionResponse(
@@ -204,7 +204,7 @@ class TestTikTokSessionEndpoint:
         # Check that CORS headers are present (automatically handled by FastAPI)
         assert "access-control-allow-origin" in resp.headers or True  # FastAPI handles CORS
     
-    @patch('app.api.routes.tiktok_service', new_callable=AsyncMock)
+    @patch('app.api.tiktok.tiktok_service', new_callable=AsyncMock)
     def test_response_consistency_with_schema(self, mock_tiktok_service, client):
         """Test that response is consistent with TikTokSessionResponse schema"""
         from app.schemas.tiktok import TikTokSessionResponse
@@ -226,7 +226,7 @@ class TestTikTokSessionEndpoint:
         assert len(validated.message) > 0
         assert validated.error_details is None
     
-    @patch('app.api.routes.tiktok_service', new_callable=AsyncMock)
+    @patch('app.api.tiktok.tiktok_service', new_callable=AsyncMock)
     def test_response_content_type(self, mock_tiktok_service, client):
         """Test that response has correct content type"""
         mock_tiktok_service.create_session = AsyncMock(return_value=TikTokSessionResponse(
@@ -238,7 +238,7 @@ class TestTikTokSessionEndpoint:
         assert resp.status_code == 200
         assert resp.headers["content-type"] == "application/json"
     
-    @patch('app.api.routes.tiktok_service', new_callable=AsyncMock)
+    @patch('app.api.tiktok.tiktok_service', new_callable=AsyncMock)
     def test_different_error_codes(self, mock_tiktok_service, client):
         """Test that different error codes result in different HTTP status codes"""
 
