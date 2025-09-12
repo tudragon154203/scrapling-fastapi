@@ -101,6 +101,15 @@ class TikTokSearchService:
 
                 items = extract_video_data_from_html(html) or []
                 self.logger.debug(f"[TikTokSearchService] Extracted {len(items)} video items from HTML for query '{q}'")
+                if items:
+                    self.logger.debug(f"[TikTokSearchService] First item sample: {items[0]}")
+                else:
+                    self.logger.debug(f"[TikTokSearchService] No items extracted from HTML, HTML length: {len(html)}")
+                    # Log a small sample of the HTML to understand the structure
+                    if len(html) > 1000:
+                        self.logger.debug(f"[TikTokSearchService] HTML sample: {html[:1000]}...")
+                    else:
+                        self.logger.debug(f"[TikTokSearchService] HTML content: {html}")
 
                 for item in items:
                     vid = str(item.get("id", "") or "")
@@ -126,6 +135,9 @@ class TikTokSearchService:
         if callable(user_data_cleanup):
             self.logger.debug(f"[TikTokSearchService] Calling user_data_cleanup function")
             try:
+                # Add a small delay before cleanup to ensure parsing is complete
+                import time
+                time.sleep(3)
                 user_data_cleanup()
                 self.logger.debug(f"[TikTokSearchService] User data cleanup completed successfully")
             except Exception as e:
