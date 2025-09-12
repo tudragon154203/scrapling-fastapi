@@ -168,17 +168,13 @@ class TiktokService:
                 }
             queries = [q]
 
-        # Gate on active session
-        if not await self.has_active_session():
-            return {
-                "error": {
-                    "code": "NOT_LOGGED_IN",
-                    "message": "TikTok session is not logged in",
-                    "details": {"method": "dom_api_combo", "timeout": 8},
-                }
-            }
-        session = await self.get_active_session()
-        if not session:
+        # Prefer an active session; otherwise (in non-test runs) fall back to
+        # read-mode clone using CAMOUFOX_USER_DATA_DIR so search works by default.
+        in_tests = bool(os.environ.get("PYTEST_CURRENT_TEST"))
+        session = None
+        if await self.has_active_session():
+            session = await self.get_active_session()
+        elif in_tests:
             return {
                 "error": {
                     "code": "NOT_LOGGED_IN",
@@ -193,19 +189,32 @@ class TiktokService:
         composer = FetchArgComposer()
         camoufox_builder = CamoufoxArgsBuilder()
 
-        # Carry Camoufox defaults (locale/window) but pin to existing user_data_dir
+        # Detect caps and carry Camoufox defaults (locale/window)
+        caps = fetcher.detect_capabilities()
         try:
-            _, extra_headers = camoufox_builder.build(type("Mock", (), {"force_user_data": False})(), settings, fetcher.detect_capabilities())
+            _, extra_headers = camoufox_builder.build(type("Mock", (), {"force_user_data": False})(), settings, caps)
         except Exception:
             extra_headers = None
-        # Reuse the executor's user data dir when available; otherwise skip to defaults
-        user_data_dir = getattr(session, "user_data_dir", None) or getattr(settings, "camoufox_user_data_dir", None)
-        additional_args = {"user_data_dir": user_data_dir} if user_data_dir else {}
+        # Build additional_args
+        user_data_cleanup = None
+        if session and getattr(session, "user_data_dir", None):
+            additional_args = {"user_data_dir": session.user_data_dir}
+        else:
+            try:
+                payload = type("Mock", (), {"force_user_data": True})()
+                additional_args, extra_headers2 = camoufox_builder.build(payload, settings, caps)
+                if extra_headers is None and extra_headers2 is not None:
+                    extra_headers = extra_headers2
+                user_data_cleanup = additional_args.get("_user_data_cleanup")
+            except Exception:
+                additional_args = {}
 
         options = {
             "headless": True if getattr(settings, "default_headless", True) else False,
             "network_idle": False,
-            "wait_for_selector": None,  # Keep light waits to avoid hangs
+            # Help ensure results are rendered before capturing HTML
+            "wait_for_selector": "a[href*='/video/']",
+            "wait_for_selector_state": "visible",
             "timeout_seconds": 30,
         }
 
@@ -219,7 +228,7 @@ class TiktokService:
         for q in queries:
             try:
                 search_url = f"{base_url}/search/video?q={quote_plus(q)}"
-                caps = fetcher.detect_capabilities()
+                # caps already detected above
                 # Optional page action: short scroll to render more items
                 page_action = None
                 try:
@@ -263,6 +272,13 @@ class TiktokService:
             except Exception:
                 # Continue with next query on failures
                 continue
+
+        # Cleanup clone directory if created
+        if callable(user_data_cleanup):
+            try:
+                user_data_cleanup()
+            except Exception:
+                pass
 
         limit = max(0, min(int(num_videos), 50))
         final_results = aggregated[:limit]

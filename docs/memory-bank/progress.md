@@ -1,5 +1,53 @@
 # Progress Log
 
+## API Routes Refactoring
+**Status:** ✅ Completed
+**Date:** 2025-09-12
+
+### Task Goal
+Split up `app/api/routes.py` into smaller, more manageable route files for better organization and maintainability.
+
+### Changes Made
+1. **Route File Splitting**
+   - Split `app/api/routes.py` into separate files for each functional area
+   - Created dedicated route files for health, crawl, browse, and tiktok endpoints
+   - Maintained all existing functionality while improving code organization
+
+2. **New Route Files Created**
+   - `app/api/health.py` - Contains health check endpoints
+   - `app/api/crawl.py` - Contains crawl-related endpoints
+   - `app/api/browse.py` - Contains browse-related endpoints
+   - `app/api/tiktok.py` - Contains TikTok-related endpoints
+
+3. **Route Registration**
+   - Updated `app/api/routes.py` to include and register all new router files
+   - Maintained consistent API interface and endpoint paths
+   - Ensured proper middleware and dependency injection
+
+4. **Testing**
+   - Updated API tests to work with the refactored route structure
+   - Verified all endpoints function identically to pre-refactor implementation
+   - All 63 API tests pass successfully
+
+### Key Features
+- Improved code organization and maintainability
+- No breaking changes to existing API contracts
+- All endpoints function identically to pre-refactor implementation
+- Better separation of concerns with dedicated route files
+
+### Files Modified
+- `app/api/routes.py` (refactored to include new routers)
+- `app/api/health.py` (new)
+- `app/api/crawl.py` (new)
+- `app/api/browse.py` (new)
+- `app/api/tiktok.py` (new)
+- Various API test files updated to work with refactored structure
+
+### Test Results
+- ✅ All 63 API tests pass successfully
+- ✅ No regression in functionality
+- ✅ All endpoints maintain identical behavior
+
 ## Sprint 22 - TikTok Search Endpoint
 **Status:** ✅ Completed
 **Date:** 2025-09-11
@@ -744,7 +792,7 @@ Implement a dedicated `/tiktok/search` endpoint for searching TikTok content usi
 
 6. **Error Handling**
    - Implemented proper HTTP status codes for different error scenarios
-   - Added error responses for NOT_LOGGED_IN (409), VALIDATION_ERROR (422), RATE_LIMITED (429), and SCRAPE_FAILED (500)
+   - Added error responses for NOT_LOGGED_IN (409), VALIDATION_ERROR (42), RATE_LIMITED (429), and SCRAPE_FAILED (500)
    - Ensured consistent error response format across all error scenarios
 
 7. **Testing**

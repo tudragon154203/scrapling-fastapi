@@ -93,3 +93,6 @@ Implement a dedicated `/tiktok/search` endpoint for searching TikTok content usi
 - **JSON export**: Structured data output to `browsing_tiktok_search.json` for further analysis
 - **Key decisions**: Use of BeautifulSoup4 for HTML parsing, robust error handling for missing data elements, and proper numeric conversion for engagement metrics
 - **Current status**: HTML post-processing script integration completed, TikTok search data extraction workflow fully functional
+
+### Decisions and Current Focus
+- **API Routes Refactoring**: The API routes in `app/api/routes.py` have been refactored for better organization and maintainability. Routes are now modularized into `health.py`, `crawl.py`, `browse.py`, and `tiktok.py`. The main `app/api/routes.py` now acts as an aggregator, importing and including the modularized routes for each functionality area.
