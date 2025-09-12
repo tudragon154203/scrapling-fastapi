@@ -25,7 +25,7 @@ class TikTokSearchService:
         recency_days: str = "ALL",
     ) -> Dict[str, Any]:
         from urllib.parse import quote_plus
-        from app.services.tiktok.parser import extract_video_data_from_html
+        from app.services.tiktok.parser.orchestrator import TikTokSearchParser
         from app.services.common.adapters.scrapling_fetcher import ScraplingFetcherAdapter, FetchArgComposer
         from app.services.common.browser.camoufox import CamoufoxArgsBuilder
 
@@ -110,7 +110,7 @@ class TikTokSearchService:
                     self.logger.warning(f"[TikTokSearchService] Invalid response for query '{q}': status={status_code}, html_length={len(html)}")
                     continue
 
-                items = extract_video_data_from_html(html) or []
+                items = TikTokSearchParser().parse(html) or []
                 self.logger.debug(f"[TikTokSearchService] Extracted {len(items)} video items from HTML for query '{q}'")
                 if items:
                     self.logger.debug(f"[TikTokSearchService] First item sample: {items[0]}")

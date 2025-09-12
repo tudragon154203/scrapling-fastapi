@@ -2,7 +2,8 @@
 Unit tests for TikTok HTML Parser
 """
 import pytest
-from app.services.tiktok.parser import parse_like_count, extract_video_data_from_html
+from app.services.tiktok.parser.utils import parse_like_count
+from app.services.tiktok.parser.html_parser import extract_video_data_from_html
 
 
 class TestTikTokParser:
@@ -52,6 +53,7 @@ class TestTikTokParser:
         assert video["caption"] == "Test video caption"
         assert video["authorHandle"] == "testuser"
         assert video["likeCount"] == 15900
+        assert video["uploadTime"] == "2023-01-01"
         assert video["webViewUrl"] == "https://www.tiktok.com/@testuser/video/123456789"
     
     def test_extract_video_data_from_html_with_multiple_videos(self):
@@ -74,8 +76,10 @@ class TestTikTokParser:
         results = extract_video_data_from_html(html_content)
         
         assert len(results) == 2
-        assert results[0]["id"] == "11111"
-        assert results[1]["id"] == "222222"
+        assert results[0]["id"] == "11111111"
+        assert results[0]["uploadTime"] == "2023-01-01"
+        assert results[1]["id"] == "22222222"
+        assert results[1]["uploadTime"] == "2023-01-02"
     
     def test_extract_video_data_from_html_with_missing_data(self):
         """Test extracting video data from HTML with missing data"""
@@ -92,10 +96,10 @@ class TestTikTokParser:
         assert video["id"] == "123456789"
         assert video["webViewUrl"] == "https://www.tiktok.com/@testuser/video/123456789"
         # Other fields should have default values
-        assert video["caption"] == ""
+        assert video["caption"] == "Video Link"
         assert video["authorHandle"] == "testuser"
         assert video["likeCount"] == 0
-        assert video["uploadTime"] == ""
+        assert video["uploadTime"] == "" # Still empty as no time element is present
     
     def test_extract_video_data_from_html_with_empty_html(self):
         """Test extracting video data from empty HTML"""
@@ -112,3 +116,24 @@ class TestTikTokParser:
         
         results = extract_video_data_from_html(html_content)
         assert len(results) == 0
+
+    def test_extract_video_data_from_demo_html(self):
+        """Test extracting video data from the full demo HTML file"""
+        with open("demo/browsing_tiktok_search.html", "r", encoding="utf-8") as f:
+            html_content = f.read()
+        
+        results = extract_video_data_from_html(html_content)
+        
+        # Assert that results are not empty
+        assert len(results) > 0
+        
+        # Find a specific video by ID and check its uploadTime
+        # Using a video from the provided HTML: 7474929793650216214 (first one in the HTML)
+        found_video = next((video for video in results if video["id"] == "7474929793650216214"), None)
+        assert found_video is not None, "Video with ID 7474929793650216214 not found"
+        assert found_video["uploadTime"] == "2-24" # Expected upload time from the HTML
+        
+        # Another video: 7343616838871338260 (second one in the HTML)
+        found_video = next((video for video in results if video["id"] == "7343616838871338260"), None)
+        assert found_video is not None, "Video with ID 7343616838871338260 not found"
+        assert found_video["uploadTime"] == "2024-3-7" # Expected upload time from the HTML
