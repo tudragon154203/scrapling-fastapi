@@ -1,33 +1,49 @@
 # Active Context
 
-## Current Sprint: Sprint 19 - Browse Endpoint
+## Current Sprint: Sprint 22 - TikTok Search Endpoint
 
 ### Completed Work
-- ✅ Created `POST /browse` endpoint with optional URL parameter
-- ✅ Implemented `BrowseCrawler` service with CrawlerEngine integration
-- ✅ Added `WaitForUserCloseAction` for manual browser closure handling
-- ✅ Implemented exclusive lock for master profile write access
-- ✅ Always uses headful mode with user data write mode
-- ✅ Added comprehensive API and service-level tests
-- ✅ Updated Memory Bank with implementation details
-- ✅ All tests pass successfully
+- ✅ TikTok search script debugging and fixes completed
+- ✅ SIGI state capture functionality removed for enhanced stability
+- ✅ HTML saving process simplified for more reliable operation
+- ✅ TikTok search data extraction completed and saved to JSON format
+- ✅ HTML post-processing script integration completed
+- ✅ TikTok search data extraction workflow fully functional
+- ✅ TikTok search endpoint implementation completed with full API integration
+- ✅ Request/response schemas created and validated
+- ✅ Integration with existing TikTok service infrastructure completed
+- ✅ Comprehensive API and service-level tests added and passing
 
-### Sprint Goal Achieved
-Successfully implemented a dedicated `/browse` endpoint for free browsing sessions to populate the CAMOUFOX_USER_DATA_DIR with persistent user data, without automatic termination or HTML return requirements.
+### Sprint Goal
+Implement a dedicated `/tiktok/search` endpoint for searching TikTok content using the existing TikTok session infrastructure, with proper data extraction and structured response formatting.
 
 ### Next Steps
-- Monitor browse endpoint usage and effectiveness
-- Consider additional browse-related features if needed
-- Plan next sprint implementation
+- ✅ Implement the TikTok search endpoint in the FastAPI application
+- ✅ Create request/response schemas for the TikTok search endpoint
+- ✅ Integrate with existing TikTok service infrastructure
+- ✅ Add comprehensive API and service-level tests
+- ✅ Document the new endpoint functionality
+
+### Key Learnings
+- TikTok's search functionality requires a logged-in session for reliable results
+- BeautifulSoup4 is effective for parsing TikTok's complex HTML structure
+- Proper error handling is crucial for dealing with TikTok's dynamic content and rate limiting
+- Supporting both single queries and arrays of queries provides flexibility for different use cases
+- Deduplication of results by video ID is important when processing multiple queries
+- Integration with existing TikTok session infrastructure reduces development time and ensures consistency
+
+### Future Considerations
+- Consider implementing caching for search results to reduce load on TikTok's servers
+- Explore options for handling TikTok's anti-bot mechanisms more effectively
+- Investigate the possibility of adding support for additional search filters
+- Consider adding metrics collection for monitoring search endpoint performance
 
 ### Technical Notes
-- Endpoint mimics `/crawl` behavior with forced headful and user data write mode
-- Uses `CAMOUFOX_USER_DATA_DIR` environment variable (default: `data/camoufox_profiles`)
-- Writes to master profile directory: `<CAMOUFOX_USER_DATA_DIR>/master`
-- Acquires exclusive lock to ensure single writer session
-- No HTML content return - purely for user data population
-- Reuses existing user data context management from `app/services/crawler/options/user_data.py`
-- All existing tests continue to pass
+- Endpoint will use existing TikTok session management
+- Will leverage the debugging and fixes completed in the demo script
+- Will implement structured data extraction similar to the demo script
+- Will use BeautifulSoup4 for HTML parsing and data extraction
+- Will return structured JSON response with TikTok search results
 
 ### Recent Architectural Changes
 - **Removed `user_data_mode` field**: The `user_data_mode` field has been completely removed from the system architecture

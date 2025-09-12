@@ -82,21 +82,24 @@ class SingleAttemptExecutor(IExecutor):
                 except Exception as e:
                     logger.warning(f"Failed to cleanup user data context: {e}")
 
-            if getattr(page, "status", None) == 200:
-                html = getattr(page, "html_content", None)
-                min_len = int(getattr(settings, "min_html_content_length", 500) or 0)
+            status_code = getattr(page, "status", None)
+            html = getattr(page, "html_content", None)
+            min_len = int(getattr(settings, "min_html_content_length", 500) or 0)
+
+            # Treat any 2xx status as potentially successful
+            if isinstance(status_code, int) and 200 <= status_code < 300:
                 if html and len(html) >= min_len:
                     return CrawlResponse(status="success", url=request.url, html=html)
-                else:
-                    msg = f"HTML too short (<{min_len} chars); suspected bot detection"
-                    return CrawlResponse(status="failure", url=request.url, html=None, message=msg)
-            else:
-                return CrawlResponse(
-                    status="failure",
-                    url=request.url,
-                    html=None,
-                    message=f"HTTP status: {getattr(page, 'status', 'unknown')}",
-                )
+                msg = f"HTML too short (<{min_len} chars); suspected bot detection"
+                return CrawlResponse(status="failure", url=request.url, html=None, message=msg)
+
+            # Non-2xx status: return failure
+            return CrawlResponse(
+                status="failure",
+                url=request.url,
+                html=None,
+                message=f"HTTP status: {status_code if status_code is not None else 'unknown'}",
+            )
         except Exception as e:
             if isinstance(e, ImportError):
                 return CrawlResponse(

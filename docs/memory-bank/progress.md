@@ -1,5 +1,55 @@
 # Progress Log
 
+## Sprint 22 - TikTok Search Endpoint
+**Status:** ✅ Completed
+**Date:** 2025-09-11
+
+### Sprint Goal
+Implement a dedicated `/tiktok/search` endpoint for searching TikTok content using the existing TikTok session infrastructure, with proper data extraction and structured response formatting.
+
+### Planned Changes
+1. **API Endpoint Creation**
+   - Add `POST /tiktok/search` endpoint in `app/api/routes.py`
+   - Implement request/response schemas for TikTok search functionality
+   - Add proper error handling and validation
+
+2. **TikTok Search Service Implementation**
+   - Create TikTok search service logic in `app/services/tiktok/`
+   - Integrate with existing TikTok service infrastructure
+   - Implement structured data extraction using BeautifulSoup4
+   - Return structured JSON response with TikTok search results
+
+3. **Configuration Integration**
+   - Ensure proper integration with existing TikTok session management
+   - Use CAMOUFOX_USER_DATA_DIR environment variable
+   - Leverage existing user data infrastructure
+
+4. **Testing**
+   - Add unit tests for TikTok search endpoint functionality
+   - Add integration tests for TikTok search operations
+   - Test data extraction and response formatting
+   - Verify error handling for various scenarios
+
+### Current Progress
+- ✅ Completed analysis of TikTok search requirements
+- ✅ Reviewed existing TikTok session infrastructure
+- ✅ Analyzed demo script implementation for data extraction patterns
+- ✅ Planning API endpoint implementation
+- ✅ Planning service layer implementation
+
+### Key Features Planned
+- `POST /tiktok/search` endpoint with search query parameter
+- Structured data extraction from TikTok search results
+- JSON response with video metadata, user information, and engagement metrics
+- Integration with existing TikTok session management
+- Reuse of existing CrawlerEngine and user data infrastructure
+
+### Dependencies
+- Existing TikTok session infrastructure (Sprint 21)
+- BeautifulSoup4 for HTML parsing
+- Crawler engine and executor patterns
+- Existing user data infrastructure
+
 ## TikTok Session Endpoint E2E Test Creation
 **Status:** ✅ Completed
 **Date:** 2025-09-10
@@ -433,6 +483,7 @@ Implement a dedicated `/browse` endpoint for free browsing sessions to populate 
 ### Files Modified
 - `app/services/crawler/adapters/scrapling_fetcher.py`
 - `tests/services/test_scrapling_fetcher.py` (new)
+
 ## Sprint 17 - Humanize AusPost Crawler
 **Status:** ✅ Completed
 **Date:** 2025-09-07
@@ -466,6 +517,7 @@ Implement a dedicated `/browse` endpoint for free browsing sessions to populate 
 - `app/core/config.py`
 - `tests/services/test_humanize_actions.py` (new)
 - `tests/integration/test_auspost_integration.py` (updated)
+
 ## Document Enrichment - TikTok Endpoint Specification
 **Status:** ✅ Completed
 **Date:** 2025-09-09
@@ -497,7 +549,7 @@ Refactor test files in `tests/services/` directory into smaller, organized direc
   - `tests/services/common/` - Common service tests
   - `tests/services/crawler/` - Crawler service tests
   - `tests/services/proxy/` - Proxy functionality tests
-  - `tests/services/tiktok/` - TikTok service tests
+ - `tests/services/tiktok/` - TikTok service tests
 - **File Organization**: Moved existing test files to appropriate subdirectories
 - **Import Updates**: Ensured all import paths remain valid after restructuring
 - **Test Verification**: Ran all tests to confirm zero regressions
@@ -654,4 +706,71 @@ Integrate HTML post-processing logic into `demo/browsing_tiktok_search.py` to re
 - `demo/browsing_tiktok_search.py` (updated with HTML post-processing logic)
 - `browsing_tiktok_search.json` (generated with extracted TikTok search data)
 - `docs/memory-bank/progress.md` (updated)
+
+## Sprint 22 - TikTok Search Endpoint Implementation
+**Status:** ✅ Completed
+**Date:** 2025-09-11
+
+### Task Goal
+Implement a dedicated `/tiktok/search` endpoint for searching TikTok content using the existing TikTok session infrastructure, with proper data extraction and structured response formatting.
+
+### Changes Made
+1. **API Endpoint Creation**
+   - Added `POST /tiktok/search` endpoint in `app/api/routes.py`
+   - Implemented request/response schemas for TikTok search functionality
+   - Added proper error handling and validation with HTTP status codes
+
+2. **TikTok Search Service Implementation**
+   - Created TikTok search service logic in `app/services/tiktok/service.py`
+   - Integrated with existing TikTok service infrastructure
+   - Implemented structured data extraction using BeautifulSoup4 in `app/services/tiktok/parser.py`
+   - Return structured JSON response with TikTok search results
+
+3. **Schema Creation**
+   - Added `TikTokSearchRequest` and `TikTokSearchResponse` models in `app/schemas/tiktok.py`
+   - Implemented validation for search parameters including query, numVideos, sortType, and recencyDays
+   - Added error response schemas for consistent error handling
+
+4. **HTML Parsing Logic**
+   - Created dedicated parser module in `app/services/tiktok/parser.py`
+   - Implemented video data extraction from TikTok search results HTML
+   - Added support for parsing like counts, captions, author handles, and upload times
+   - Implemented robust error handling for missing or malformed data
+
+5. **Multiple Query Support**
+   - Added support for both single queries and arrays of queries
+   - Implemented deduplication logic by video ID and web view URL
+   - Added result aggregation with proper ordering preservation
+
+6. **Error Handling**
+   - Implemented proper HTTP status codes for different error scenarios
+   - Added error responses for NOT_LOGGED_IN (409), VALIDATION_ERROR (422), RATE_LIMITED (429), and SCRAPE_FAILED (500)
+   - Ensured consistent error response format across all error scenarios
+
+7. **Testing**
+   - Added comprehensive API tests in `tests/api/test_tiktok_search_endpoint.py`
+   - Added service-level tests in `tests/services/tiktok/test_tiktok_search_service.py`
+   - Added parser tests in `tests/services/tiktok/test_tiktok_parser.py`
+   - Tests cover success/failure paths, validation, and error handling scenarios
+
+### Key Features
+- `POST /tiktok/search` endpoint with search query parameter
+- Support for both single queries and arrays of queries
+- Structured data extraction from TikTok search results
+- JSON response with video metadata, user information, and engagement metrics
+- Integration with existing TikTok session management
+- Reuse of existing CrawlerEngine and user data infrastructure
+- Comprehensive error handling with appropriate HTTP status codes
+- Deduplication and aggregation of results from multiple queries
+
+### Files Modified
+- `app/schemas/tiktok.py` (added search schemas)
+- `app/api/routes.py` (added search endpoint)
+- `app/services/tiktok/service.py` (added search functionality)
+- `app/services/tiktok/parser.py` (new parser module)
+- `tests/api/test_tiktok_search_endpoint.py` (new)
+- `tests/services/tiktok/test_tiktok_search_service.py` (new)
+- `tests/services/tiktok/test_tiktok_parser.py` (new)
+- `docs/memory-bank/progress.md` (updated)
+- `docs/memory-bank/activeContext.md` (updated)
 - `docs/memory-bank/activeContext.md` (updated)

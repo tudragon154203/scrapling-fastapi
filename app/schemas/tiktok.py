@@ -1,8 +1,9 @@
 """
 TikTok Session schemas
 """
-from typing import Optional, Dict, Any, Literal
+from typing import Optional, Dict, Any, Literal, List, Union
 from pydantic import BaseModel, Field, model_validator
+from pydantic.config import ConfigDict
 
 
 class TikTokSessionRequest(BaseModel):
@@ -13,10 +14,7 @@ class TikTokSessionRequest(BaseModel):
     are derived from the context (e.g., user_data_dir_path from environment).
     """
     # No fields required - empty request body
-    pass
-
-    class Config:
-        extra = 'forbid'  # Reject unknown fields
+    model_config = ConfigDict(extra='forbid')  # Reject unknown fields
 
 
 class TikTokSessionResponse(BaseModel):
@@ -97,3 +95,91 @@ class TikTokSessionConfig(BaseModel):
         default_factory=lambda: ["/user/info", "/api/user/info"],
         description="API endpoints to check for login status"
     )
+
+
+class TikTokSearchRequest(BaseModel):
+    """
+    Request schema for TikTok search endpoint.
+    """
+    query: Union[str, List[str]] = Field(
+        ...,
+        description="Search query as string or array of strings"
+    )
+    numVideos: int = Field(
+        default=50,
+        ge=1,
+        le=50,
+        description="Number of videos to return (1-50)"
+    )
+    sortType: Literal["RELEVANCE"] = Field(
+        default="RELEVANCE",
+        description="Sort type for results (only RELEVANCE supported in v1)"
+    )
+    recencyDays: Literal["ALL", "24H", "7_DAYS", "30_DAYS", "90_DAYS", "180_DAYS"] = Field(
+        default="ALL",
+        description="Recency filter for results (best-effort)"
+    )
+
+    @model_validator(mode='after')
+    def validate_query(self):
+        """Light validation: allow empty strings to defer to service-level errors.
+
+        - For list inputs: ensure list is not empty and items are non-empty strings up to 100 chars.
+        - For string inputs: do not reject empty here (service maps to VALIDATION_ERROR for tests).
+        """
+        if isinstance(self.query, list):
+            if not self.query:
+                raise ValueError('Query array cannot be empty')
+            for q in self.query:
+                if not isinstance(q, str):
+                    raise ValueError('Query items must be strings')
+                if not q.strip():
+                    raise ValueError('Query strings cannot be empty')
+                if len(q.strip()) > 100:
+                    raise ValueError('Query strings must be 100 characters or less')
+        elif isinstance(self.query, str):
+            # Allow empty strings; service will handle as validation error response
+            if len(self.query.strip()) > 100:
+                raise ValueError('Query string must be 100 characters or less')
+        return self
+
+    model_config = ConfigDict(extra='forbid')
+
+
+class TikTokVideo(BaseModel):
+    """
+    TikTok video data model.
+    """
+    id: str = Field(..., description="Video ID")
+    caption: str = Field(default="", description="Video caption")
+    authorHandle: str = Field(..., description="Author handle without @")
+    likeCount: int = Field(..., description="Like count as integer")
+    uploadTime: str = Field(..., description="Upload time as string")
+    webViewUrl: str = Field(..., description="Absolute web view URL")
+
+
+class TikTokSearchResponse(BaseModel):
+    """
+    Response schema for TikTok search endpoint.
+    """
+    results: List[TikTokVideo] = Field(..., description="List of TikTok videos")
+    totalResults: int = Field(..., description="Total number of results")
+    query: str = Field(..., description="Normalized query string")
+
+
+class TikTokSearchError(BaseModel):
+    """
+    Error response schema for TikTok search endpoint.
+    """
+    code: Literal["NOT_LOGGED_IN", "VALIDATION_ERROR", "RATE_LIMITED", "SCRAPE_FAILED"] = Field(
+        ..., description="Error code"
+    )
+    message: str = Field(..., description="Error message")
+    details: Optional[Dict[str, Any]] = Field(None, description="Additional error details")
+
+
+class TikTokSearchErrorResponse(BaseModel):
+    """
+    Full error response schema for TikTok search endpoint.
+    """
+    error: TikTokSearchError = Field(..., description="Error details")

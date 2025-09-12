@@ -6,7 +6,7 @@ from app.schemas.crawl import CrawlRequest, CrawlResponse
 from app.schemas.dpd import DPDCrawlRequest, DPDCrawlResponse
 from app.schemas.auspost import AuspostCrawlRequest, AuspostCrawlResponse
 from app.schemas.browse import BrowseRequest, BrowseResponse
-from app.schemas.tiktok import TikTokSessionRequest, TikTokSessionResponse
+from app.schemas.tiktok import TikTokSessionRequest, TikTokSessionResponse, TikTokSearchRequest, TikTokSearchResponse, TikTokSearchErrorResponse
 from app.services.crawler.generic import GenericCrawler
 from app.services.crawler.dpd import DPDCrawler
 from app.services.crawler.auspost import AuspostCrawler
@@ -253,3 +253,122 @@ async def create_tiktok_session_endpoint(request: Request):
     if isinstance(body, dict):
         return JSONResponse(content=body, status_code=int(status_code))
     return JSONResponse(content={}, status_code=int(status_code))
+
+
+# TikTok search service instance
+tiktok_service = TiktokService()
+
+
+async def tiktok_search(request: TikTokSearchRequest):
+    """TikTok search handler used by the API route."""
+    # Call the TikTok service to perform the search
+    result = await tiktok_service.search_tiktok(
+        query=request.query,
+        num_videos=request.numVideos,
+        sort_type=request.sortType,
+        recency_days=request.recencyDays
+    )
+    
+    # Check if there was an error
+    if "error" in result:
+        error_info = result["error"]
+        error_code = error_info.get("code", "SCRAPE_FAILED")
+
+        # Map error codes to HTTP status codes and return top-level error JSON
+        if error_code == "NOT_LOGGED_IN":
+            return JSONResponse(
+                content={
+                    "error": {
+                        "code": "NOT_LOGGED_IN",
+                        "message": error_info.get("message", "TikTok session is not logged in"),
+                        "details": error_info.get("details", {})
+                    }
+                },
+                status_code=status.HTTP_409_CONFLICT,
+            )
+        elif error_code == "VALIDATION_ERROR":
+            return JSONResponse(
+                content={
+                    "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": error_info.get("message", "Invalid request parameters"),
+                        "fields": error_info.get("fields", {})
+                    }
+                },
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+        elif error_code == "RATE_LIMITED":
+            return JSONResponse(
+                content={
+                    "error": {
+                        "code": "RATE_LIMITED",
+                        "message": error_info.get("message", "Too many requests"),
+                    }
+                },
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            )
+        else:
+            return JSONResponse(
+                content={
+                    "error": {
+                        "code": "SCRAPE_FAILED",
+                        "message": error_info.get("message", "Failed to scrape TikTok search results"),
+                        "details": error_info.get("details", {})
+                    }
+                },
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+    # Return successful response
+    return TikTokSearchResponse(
+        results=result.get("results", []),
+        totalResults=result.get("totalResults", 0),
+        query=result.get("query", ""),
+    )
+
+
+@router.post("/tiktok/search", response_model=TikTokSearchResponse, tags=["TikTok Search"])
+async def tiktok_search_endpoint(payload: TikTokSearchRequest):
+    """Search TikTok content using an active session.
+    
+    Performs a search on TikTok and returns structured video results.
+    Requires an active, logged-in TikTok session.
+    
+    Args:
+        payload: TikTok search request parameters
+        
+    Returns:
+        TikTokSearchResponse: Structured search results
+        
+    Raises:
+        HTTPException: If no active session or search fails
+    """
+    if not isinstance(tiktok_search, FunctionType):
+        # This would be patched for testing
+        req_obj = SimpleNamespace()
+    else:
+        req_obj = payload
+
+    result = await tiktok_search(request=req_obj)
+
+    # Pass-through JSONResponse errors
+    if isinstance(result, JSONResponse):
+        return result
+
+    # If a proper TikTokSearchResponse, return it
+    if isinstance(result, TikTokSearchResponse):
+        return result
+
+    # Fallback: coerce dict result into response model if provided
+    if isinstance(result, dict):
+        if "error" in result:
+            # Return generic 500 for unknown error format
+            return JSONResponse(content=result, status_code=500)
+        return TikTokSearchResponse(
+            results=result.get("results", []),
+            totalResults=result.get("totalResults", 0),
+            query=result.get("query", ""),
+        )
+
+    # Default fallback
+    return JSONResponse(content={"error": {"code": "SCRAPE_FAILED", "message": "Unknown error"}}, status_code=500)

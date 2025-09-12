@@ -4,7 +4,7 @@ TikTok session service
 import asyncio
 import os
 import uuid
-from typing import Dict, Any, Optional, Literal
+from typing import Dict, Any, Optional, Literal, Union, List
 from datetime import datetime, timedelta
 
 from app.services.tiktok.tiktok_executor import TiktokExecutor
@@ -95,6 +95,184 @@ class TiktokService:
                     "method": "internal_error"
                 }
             )
+    
+    async def has_active_session(self) -> bool:
+        """
+        Check if there is an active TikTok session
+        
+        Returns:
+            bool: True if there is an active session, False otherwise
+        """
+        # For now, we'll check if there are any active sessions
+        # In a more complex implementation, we might want to check session validity
+        return len(self.active_sessions) > 0
+    
+    async def get_active_session(self) -> Optional[TiktokExecutor]:
+        """
+        Get the active TikTok session executor
+        
+        Returns:
+            TiktokExecutor: The active session executor or None if no active session
+        """
+        # For now, we'll return the first active session
+        # In a more complex implementation, we might want to select based on criteria
+        if self.active_sessions:
+            # Get the first session
+            session_id = next(iter(self.active_sessions))
+            return self.active_sessions[session_id]
+        return None
+    
+    async def search_tiktok(self, query: Union[str, List[str]], num_videos: int = 50, sort_type: str = "RELEVANCE", recency_days: str = "ALL") -> Dict[str, Any]:
+        """
+        Perform a TikTok search using the active session's user data.
+
+        - Navigates directly to TikTok search results pages.
+        - Collects HTML and parses videos using BeautifulSoup heuristics.
+        - Supports multi-query aggregation with deduplication.
+        """
+        from urllib.parse import quote_plus
+        from app.services.tiktok.parser import extract_video_data_from_html
+        from app.services.common.adapters.scrapling_fetcher import ScraplingFetcherAdapter, FetchArgComposer
+        from app.services.common.browser.camoufox import CamoufoxArgsBuilder
+
+        # Enforce sort type (v1)
+        if str(sort_type or "").upper() != "RELEVANCE":
+            return {
+                "error": {
+                    "code": "VALIDATION_ERROR",
+                    "message": "Unsupported sortType; only RELEVANCE is supported",
+                    "fields": {"sortType": "Must be 'RELEVANCE'"},
+                }
+            }
+
+        # Normalize and validate query input
+        if isinstance(query, list):
+            queries = [str(x).strip() for x in query if str(x or "").strip()]
+            if not queries:
+                return {
+                    "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "Query array cannot be empty",
+                        "fields": {"query": "Provide at least one non-empty string"},
+                    }
+                }
+        else:
+            q = str(query or "").strip()
+            if not q:
+                return {
+                    "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "Invalid request parameters",
+                        "fields": {"query": "Query cannot be empty"},
+                    }
+                }
+            queries = [q]
+
+        # Gate on active session
+        if not await self.has_active_session():
+            return {
+                "error": {
+                    "code": "NOT_LOGGED_IN",
+                    "message": "TikTok session is not logged in",
+                    "details": {"method": "dom_api_combo", "timeout": 8},
+                }
+            }
+        session = await self.get_active_session()
+        if not session:
+            return {
+                "error": {
+                    "code": "NOT_LOGGED_IN",
+                    "message": "TikTok session is not logged in",
+                    "details": {"method": "dom_api_combo", "timeout": 8},
+                }
+            }
+
+        # Prepare fetcher to reuse session cookies via user_data_dir
+        settings = self.settings
+        fetcher = ScraplingFetcherAdapter()
+        composer = FetchArgComposer()
+        camoufox_builder = CamoufoxArgsBuilder()
+
+        # Carry Camoufox defaults (locale/window) but pin to existing user_data_dir
+        try:
+            _, extra_headers = camoufox_builder.build(type("Mock", (), {"force_user_data": False})(), settings, fetcher.detect_capabilities())
+        except Exception:
+            extra_headers = None
+        # Reuse the executor's user data dir when available; otherwise skip to defaults
+        user_data_dir = getattr(session, "user_data_dir", None) or getattr(settings, "camoufox_user_data_dir", None)
+        additional_args = {"user_data_dir": user_data_dir} if user_data_dir else {}
+
+        options = {
+            "headless": True if getattr(settings, "default_headless", True) else False,
+            "network_idle": False,
+            "wait_for_selector": None,  # Keep light waits to avoid hangs
+            "timeout_seconds": 30,
+        }
+
+        # Aggregate across queries with dedupe
+        seen_ids = set()
+        seen_urls = set()
+        aggregated: List[Dict[str, Any]] = []
+
+        base_url = str(settings.tiktok_url or "https://www.tiktok.com/").rstrip("/")
+
+        for q in queries:
+            try:
+                search_url = f"{base_url}/search/video?q={quote_plus(q)}"
+                caps = fetcher.detect_capabilities()
+                # Optional page action: short scroll to render more items
+                page_action = None
+                try:
+                    if getattr(caps, "supports_page_action", False):
+                        from app.services.browser.actions.scroll import ScrollDownAction
+                        page_action = ScrollDownAction(duration_s=10.0, step_px=600, interval_s=1.0, settle_s=1.0,
+                                                       wait_selector="a[href*='/video/']")
+                except Exception:
+                    page_action = None
+
+                fetch_kwargs = composer.compose(
+                    options=options,
+                    caps=caps,
+                    selected_proxy=getattr(settings, "private_proxy_url", None) or None,
+                    additional_args=additional_args,
+                    extra_headers=extra_headers,
+                    settings=settings,
+                    page_action=page_action,
+                )
+                page = fetcher.fetch(search_url, fetch_kwargs)
+                status_code = int(getattr(page, "status", 0) or 0)
+                html = getattr(page, "html_content", "") or ""
+                if status_code < 200 or status_code >= 300 or not html:
+                    continue
+
+                items = extract_video_data_from_html(html) or []
+                for item in items:
+                    vid = str(item.get("id", "") or "")
+                    url = str(item.get("webViewUrl", "") or "")
+                    if vid and vid not in seen_ids:
+                        seen_ids.add(vid)
+                        if url:
+                            seen_urls.add(url)
+                        aggregated.append(item)
+                    elif (not vid) and url and (url not in seen_urls):
+                        seen_urls.add(url)
+                        aggregated.append(item)
+
+                if len(aggregated) >= int(num_videos):
+                    break
+            except Exception:
+                # Continue with next query on failures
+                continue
+
+        limit = max(0, min(int(num_videos), 50))
+        final_results = aggregated[:limit]
+        normalized_query = " ".join(queries)
+
+        return {
+            "results": final_results,
+            "totalResults": len(final_results),
+            "query": normalized_query,
+        }
     
     async def close_session(self, session_id: str) -> bool:
         """
