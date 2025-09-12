@@ -93,6 +93,17 @@ class TikTokSearchService:
                 status_code = int(getattr(page, "status", 0) or 0)
                 html = getattr(page, "html_content", "") or ""
                 
+                # Check if logging level is DEBUG and export raw HTML to file
+                if self.logger.level <= logging.DEBUG:
+                    try:
+                        self.logger.debug("[TikTokSearchService] Exporting HTML to tiktok_search.html")
+                        file_path = os.path.join(os.getcwd(), 'tiktok_search.html')
+                        with open(file_path, "w", encoding="utf-8") as f:
+                            f.write(html)
+                        self.logger.debug("[TikTokSearchService] Raw HTML exported to tiktok_search.html")
+                    except Exception as e:
+                        self.logger.warning(f"[TikTokSearchService] Failed to export raw HTML: {e}")
+                
                 self.logger.debug(f"[TikTokSearchService] Fetch result - status_code: {status_code}, html_length: {len(html)}")
                 
                 if status_code < 200 or status_code >= 300 or not html:

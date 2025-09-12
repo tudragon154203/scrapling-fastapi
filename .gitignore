@@ -32,6 +32,8 @@ wheels/
 *.egg
 MANIFEST
 
+*.html
+
 # Testing
 .pytest_cache/
 .coverage
