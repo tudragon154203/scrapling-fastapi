@@ -10,33 +10,17 @@ class TestTikTokSearchIntegration:
 
     def test_tiktok_search_endpoint(self):
         """Test TikTok search endpoint with query 'gái xinh' and numVideos 10"""
-        # First, attempt to create a TikTok session
+        # First, create a TikTok session - test requires successful session creation
         session_response = client.post("/tiktok/session", json={})
         
-        # If session creation fails (user not logged in), test should handle gracefully
-        if session_response.status_code != 200:
-            # Session creation failed - this is expected in test environments
-            # The search endpoint should return a 409 Conflict error in this case
-            payload = {
-                "query": "gái xinh",
-                "numVideos": 10
-            }
-            
-            # Make request to the TikTok search endpoint
-            response = client.post("/tiktok/search", json=payload)
-            
-            # Verify response status code is 409 (Conflict) when not logged in
-            assert response.status_code == 409
-            
-            # Parse response data
-            data = response.json()
-            
-            # Verify error response structure
-            assert "error" in data
-            assert data["error"]["code"] == "NOT_LOGGED_IN"
-            return  # Exit test as we can't proceed without a session
+        # Demand session-response 200 without mocking and without graceful fallback
+        assert session_response.status_code == 200, f"Session creation failed with status {session_response.status_code}: {session_response.text}"
         
-        # If session creation was successful, proceed with search
+        # Verify session response structure
+        session_data = session_response.json()
+        assert session_data["status"] == "success"
+        assert "TikTok session established successfully" in session_data["message"]
+        
         # Prepare the request payload
         payload = {
             "query": "gái xinh",
