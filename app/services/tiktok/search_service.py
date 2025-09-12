@@ -47,28 +47,12 @@ class TikTokSearchService:
         queries: List[str] = queries_or_err  # type: ignore
         self.logger.debug(f"[TikTokSearchService] Normalized queries: {queries}")
 
-        # 3) Select session policy for tests vs normal runs
+        # 3) Check test environment
         in_tests = self._is_tests_env()
         self.logger.debug(f"[TikTokSearchService] Test environment: {in_tests}")
         
-        has_active_session = await self.service.has_active_session()
-        self.logger.debug(f"[TikTokSearchService] Has active session: {has_active_session}")
-        
-        session = await self.service.get_active_session() if has_active_session else None
-        self.logger.debug(f"[TikTokSearchService] Session obtained: {session is not None}")
-        
-        if not session and in_tests:
-            self.logger.warning(f"[TikTokSearchService] No active session in test environment - returning error")
-            return {
-                "error": {
-                    "code": "NOT_LOGGED_IN",
-                    "message": "TikTok session is not logged in",
-                    "details": {"method": "dom_api_combo", "timeout": self.settings.tiktok_login_detection_timeout},
-                }
-            }
-
-        # 4) Prepare fetch context
-        self.logger.debug(f"[TikTokSearchService] Preparing fetch context - session: {session is not None}, in_tests: {in_tests}")
+        # 4) Prepare fetch context (search operates independently of sessions)
+        self.logger.debug(f"[TikTokSearchService] Preparing fetch context for independent search")
         (
             fetcher,
             composer,
@@ -77,7 +61,7 @@ class TikTokSearchService:
             extra_headers,
             user_data_cleanup,
             options,
-        ) = self._prepare_fetch_context(session=session, in_tests=in_tests)
+        ) = self._prepare_fetch_context(in_tests=in_tests)
 
         # 5) Fetch and aggregate results across queries
         aggregated: List[Dict[str, Any]] = []
@@ -207,11 +191,21 @@ class TikTokSearchService:
             }
         return True, [q]
 
-    def _prepare_fetch_context(self, session: Optional[Any], in_tests: bool):
+    def _prepare_fetch_context(self, in_tests: bool):
+        import sys
+        import asyncio
         from app.services.common.adapters.scrapling_fetcher import ScraplingFetcherAdapter, FetchArgComposer
         from app.services.common.browser.camoufox import CamoufoxArgsBuilder
 
-        self.logger.debug(f"[TikTokSearchService] Preparing fetch context - session: {session is not None}, in_tests: {in_tests}")
+        self.logger.debug(f"[TikTokSearchService] Preparing fetch context for independent search - in_tests: {in_tests}")
+        
+        # Ensure proper event loop policy on Windows for Playwright/Scrapling
+        if sys.platform == "win32":
+            try:
+                asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+                self.logger.debug(f"[TikTokSearchService] Set WindowsProactorEventLoopPolicy for Scrapling compatibility")
+            except Exception as e:
+                self.logger.warning(f"[TikTokSearchService] Failed to set Windows event loop policy: {e}")
         
         settings = self.settings
         fetcher = ScraplingFetcherAdapter()
@@ -231,23 +225,19 @@ class TikTokSearchService:
         user_data_cleanup = None
         additional_args = {}
         
-        if session and getattr(session, "user_data_dir", None):
-            self.logger.debug(f"[TikTokSearchService] Using session user_data_dir: {session.user_data_dir}")
-            additional_args = {"user_data_dir": session.user_data_dir}
-        else:
-            try:
-                payload = type("Mock", (), {"force_user_data": True})()
-                additional_args, extra_headers2 = camoufox_builder.build(payload, settings, caps)
-                self.logger.debug(f"[TikTokSearchService] Built additional args for forced user data: {len(additional_args)} args")
-                if extra_headers is None and extra_headers2 is not None:
-                    extra_headers = extra_headers2
-                    self.logger.debug(f"[TikTokSearchService] Updated extra headers from camoufox build")
-                user_data_cleanup = additional_args.get("_user_data_cleanup")
-                if user_data_cleanup:
-                    self.logger.debug(f"[TikTokSearchService] Set up user_data_cleanup function")
-            except Exception as e:
-                self.logger.error(f"[TikTokSearchService] Failed to build additional args: {e}", exc_info=True)
-                additional_args = {}
+        try:
+            payload = type("Mock", (), {"force_user_data": True})()
+            additional_args, extra_headers2 = camoufox_builder.build(payload, settings, caps)
+            self.logger.debug(f"[TikTokSearchService] Built additional args for forced user data: {len(additional_args)} args")
+            if extra_headers is None and extra_headers2 is not None:
+                extra_headers = extra_headers2
+                self.logger.debug(f"[TikTokSearchService] Updated extra headers from camoufox build")
+            user_data_cleanup = additional_args.get("_user_data_cleanup")
+            if user_data_cleanup:
+                self.logger.debug(f"[TikTokSearchService] Set up user_data_cleanup function")
+        except Exception as e:
+            self.logger.error(f"[TikTokSearchService] Failed to build additional args: {e}", exc_info=True)
+            additional_args = {}
 
         headless_opt = True if in_tests else False
         self.logger.debug(f"[TikTokSearchService] Headless mode set to: {headless_opt}")

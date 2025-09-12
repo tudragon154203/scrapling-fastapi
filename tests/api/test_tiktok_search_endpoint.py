@@ -86,13 +86,13 @@ class TestTikTokSearchEndpoint:
     
     @patch('app.api.tiktok.tiktok_service', new_callable=AsyncMock)
     def test_not_logged_in_error_response(self, mock_tiktok_service, client):
-        """Test response when user is not logged in"""
-        # Mock the service to return a not logged in error
+        """Test response for network connection errors (replacing session dependency)"""
+        # Mock the service to return a network connection error
         mock_tiktok_service.search_tiktok = AsyncMock(return_value={
             "error": {
-                "code": "NOT_LOGGED_IN",
-                "message": "TikTok session is not logged in",
-                "details": {"method": "dom_api_combo", "timeout": 8}
+                "code": "SCRAPE_FAILED",
+                "message": "Failed to connect to TikTok",
+                "details": {"error": "Network connection failed"}
             }
         })
         
@@ -104,12 +104,12 @@ class TestTikTokSearchEndpoint:
         }
         
         resp = client.post("/tiktok/search", json=search_request)
-        assert resp.status_code == 409  # HTTP 409 Conflict
+        assert resp.status_code == 500  # HTTP 500 Internal Server Error
         
         response_data = resp.json()
         assert "error" in response_data
-        assert response_data["error"]["code"] == "NOT_LOGGED_IN"
-        assert response_data["error"]["message"] == "TikTok session is not logged in"
+        assert response_data["error"]["code"] == "SCRAPE_FAILED"
+        assert response_data["error"]["message"] == "Failed to connect to TikTok"
     
     @patch('app.api.tiktok.tiktok_service', new_callable=AsyncMock)
     def test_validation_error_response(self, mock_tiktok_service, client):

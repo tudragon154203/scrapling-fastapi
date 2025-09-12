@@ -87,7 +87,17 @@ class ScraplingFetcherAdapter(IFetchClient):
 
         def _runner():
             try:
-                result = self._fetch_with_geoip_fallback(url, args)
+                import sys
+                import asyncio
+                # Set proper event loop policy for Windows in the thread
+                if sys.platform == "win32":
+                    try:
+                        asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+                    except Exception:
+                        pass
+                
+                from scrapling.fetchers import StealthyFetcher
+                result = StealthyFetcher.fetch(url, **args)
                 holder["result"] = result
             except Exception as e:
                 holder["exc"] = e

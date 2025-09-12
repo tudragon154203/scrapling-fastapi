@@ -64,6 +64,16 @@ async def tiktok_search_endpoint(payload: TikTokSearchRequest):
 
     if "error" in result:
         err = result["error"] or {}
+        # Handle both string error messages and structured error objects
+        if isinstance(err, str):
+            # Convert string error to structured error format
+            code = "SCRAPE_FAILED"
+            if "not logged" in err.lower() or "session" in err.lower():
+                code = "NOT_LOGGED_IN"
+            elif "validation" in err.lower():
+                code = "VALIDATION_ERROR"
+            err = {"code": code, "message": err}
+        
         code = (err.get("code") or "").upper()
         status_map = {
             "NOT_LOGGED_IN": status.HTTP_409_CONFLICT,

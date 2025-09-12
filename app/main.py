@@ -1,3 +1,14 @@
+# Set Windows event loop policy at the very beginning to prevent Playwright subprocess issues
+import platform
+if platform.system() == "Windows":
+    try:
+        import asyncio
+        # Use WindowsSelectorEventLoopPolicy for subprocess compatibility
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(f"Failed to set Windows event loop policy: {e}")
+
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware

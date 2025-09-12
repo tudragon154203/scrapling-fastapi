@@ -139,24 +139,8 @@ class TiktokService:
         try:
             from app.services.tiktok.search_service import TikTokSearchService
             
-            # Check session status before search
-            has_session = await self.has_active_session()
-            self.logger.debug(f"[TiktokService] Session check before search: {has_session}")
-            
-            if not has_session:
-                self.logger.warning(f"[TiktokService] No active session available for search")
-                return {"error": "No active TikTok session available"}
-            
-            # Get active session info
-            active_session = await self.get_active_session()
-            if active_session:
-                self.logger.debug(f"[TiktokService] Active session obtained: {active_session}")
-            else:
-                self.logger.warning(f"[TiktokService] Failed to obtain active session")
-                return {"error": "Failed to obtain active TikTok session"}
-            
-            # Execute search
-            self.logger.debug(f"[TiktokService] Creating TikTokSearchService and executing search")
+            # Execute search (search operates independently of sessions)
+            self.logger.debug(f"[TiktokService] Creating TikTokSearchService and executing independent search")
             search_service = TikTokSearchService(self)
             result = await search_service.search(query, num_videos=num_videos, sort_type=sort_type, recency_days=recency_days)
             
