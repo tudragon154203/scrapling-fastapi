@@ -32,8 +32,11 @@ class TiktokExecutor(AbstractBrowsingExecutor):
             "stealth": True,
             "user_data_dir": self.user_data_dir,
             "proxy": self.proxy,
-            "timeout": 30000,
-            "network_idle_timeout": 10000
+            # Compose-friendly keys below help trigger HTTP fallback on launch/goto timeouts
+            "timeout_seconds": 30,
+            "network_idle": False,
+            "wait_for_selector": "html",
+            "wait_for_selector_state": "visible",
         }
     
     async def setup_browser(self) -> None:

@@ -143,31 +143,32 @@ def extract_video_data_from_html(html_content: str) -> List[Dict[str, Any]]:
     # First try the original method for backward compatibility with demo HTML
     video_containers = soup.find_all('div', id=re.compile(r'^column-item-video-container-\d+$'))
     
-    # If no containers found with specific IDs, use a more general approach
+    # If no containers found with specific IDs, use a guarded general approach
     if not video_containers:
         # Find all links to TikTok videos
         video_links = soup.find_all('a', href=re.compile(r'/@[^/]+/video/\d+'))
-        
-        # Create virtual containers by finding the parent elements of video links
-        video_containers = []
-        seen_containers = set()
-        
-        for link in video_links:
-            # Find a suitable parent container (div, article, section, etc.)
-            parent = link
-            for _ in range(10):  # Look up to 10 levels up
-                parent = parent.parent
-                if not parent or parent.name in ['html', 'body']:
-                    break
-                if parent.name in ['div', 'article', 'section'] and parent not in seen_containers:
-                    video_containers.append(parent)
-                    seen_containers.add(parent)
-                    break
-            
-            # If no suitable parent found, use the link's immediate parent
-            if link.parent and link.parent not in seen_containers and link.parent.name != 'body':
-                video_containers.append(link.parent)
-                seen_containers.add(link.parent)
+        # Guard: only treat as search results when there are multiple matches
+        if len(video_links) >= 3:
+            # Create virtual containers by finding the parent elements of video links
+            video_containers = []
+            seen_containers = set()
+            for link in video_links:
+                # Find a suitable parent container (div, article, section, etc.)
+                parent = link
+                for _ in range(10):  # Look up to 10 levels up
+                    parent = parent.parent
+                    if not parent or parent.name in ['html', 'body']:
+                        break
+                    if parent.name in ['div', 'article', 'section'] and parent not in seen_containers:
+                        video_containers.append(parent)
+                        seen_containers.add(parent)
+                        break
+                # If no suitable parent found, use the link's immediate parent
+                if link.parent and link.parent not in seen_containers and link.parent.name != 'body':
+                    video_containers.append(link.parent)
+                    seen_containers.add(link.parent)
+        else:
+            video_containers = []
     
     results = []
     

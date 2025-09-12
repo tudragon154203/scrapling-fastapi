@@ -3,6 +3,7 @@ TikTok session service
 """
 import asyncio
 import os
+import logging
 import uuid
 from typing import Dict, Any, Optional, Literal, Union, List
 from datetime import datetime, timedelta
@@ -20,6 +21,7 @@ class TiktokService:
         self.settings = get_settings()
         self.active_sessions: Dict[str, TiktokExecutor] = {}
         self.session_metadata: Dict[str, Dict[str, Any]] = {}
+        self.logger = logging.getLogger(__name__)
         
     async def create_session(self, request: TikTokSessionRequest, user_data_dir: Optional[str] = None, immediate_cleanup: bool = False) -> TikTokSessionResponse:
         """
@@ -105,7 +107,9 @@ class TiktokService:
         """
         # For now, we'll check if there are any active sessions
         # In a more complex implementation, we might want to check session validity
-        return len(self.active_sessions) > 0
+        has_session = len(self.active_sessions) > 0
+        self.logger.debug(f"[TiktokService] has_active_session called - current sessions: {len(self.active_sessions)}, result: {has_session}")
+        return has_session
     
     async def get_active_session(self) -> Optional[TiktokExecutor]:
         """
@@ -116,181 +120,54 @@ class TiktokService:
         """
         # For now, we'll return the first active session
         # In a more complex implementation, we might want to select based on criteria
+        session_count = len(self.active_sessions)
+        self.logger.debug(f"[TiktokService] get_active_session called - available sessions: {session_count}")
+        
         if self.active_sessions:
             # Get the first session
             session_id = next(iter(self.active_sessions))
+            self.logger.debug(f"[TiktokService] Returning active session: {session_id}")
             return self.active_sessions[session_id]
+        
+        self.logger.debug(f"[TiktokService] No active session available")
         return None
     
     async def search_tiktok(self, query: Union[str, List[str]], num_videos: int = 50, sort_type: str = "RELEVANCE", recency_days: str = "ALL") -> Dict[str, Any]:
-        """
-        Perform a TikTok search using the active session's user data.
-
-        - Navigates directly to TikTok search results pages.
-        - Collects HTML and parses videos using BeautifulSoup heuristics.
-        - Supports multi-query aggregation with deduplication.
-        """
-        # Note: We intentionally avoid using a static demo dataset under tests.
-        # The implementation below navigates and parses real HTML, with resilient
-        # fallbacks (SIGI_STATE JSON parsing and DOM heuristics) to keep results stable.
-        from urllib.parse import quote_plus
-        from app.services.tiktok.parser import extract_video_data_from_html
-        from app.services.common.adapters.scrapling_fetcher import ScraplingFetcherAdapter, FetchArgComposer
-        from app.services.common.browser.camoufox import CamoufoxArgsBuilder
-
-        # Enforce sort type (v1)
-        if str(sort_type or "").upper() != "RELEVANCE":
-            return {
-                "error": {
-                    "code": "VALIDATION_ERROR",
-                    "message": "Unsupported sortType; only RELEVANCE is supported",
-                    "fields": {"sortType": "Must be 'RELEVANCE'"},
-                }
-            }
-
-        # Normalize and validate query input
-        if isinstance(query, list):
-            queries = [str(x).strip() for x in query if str(x or "").strip()]
-            if not queries:
-                return {
-                    "error": {
-                        "code": "VALIDATION_ERROR",
-                        "message": "Query array cannot be empty",
-                        "fields": {"query": "Provide at least one non-empty string"},
-                    }
-                }
-        else:
-            q = str(query or "").strip()
-            if not q:
-                return {
-                    "error": {
-                        "code": "VALIDATION_ERROR",
-                        "message": "Invalid request parameters",
-                        "fields": {"query": "Query cannot be empty"},
-                    }
-                }
-            queries = [q]
-
-        # Prefer an active session; otherwise (in non-test runs) fall back to
-        # read-mode clone using CAMOUFOX_USER_DATA_DIR so search works by default.
-        in_tests = bool(os.environ.get("PYTEST_CURRENT_TEST"))
-        session = None
-        if await self.has_active_session():
-            session = await self.get_active_session()
-        elif in_tests:
-            return {
-                "error": {
-                    "code": "NOT_LOGGED_IN",
-                    "message": "TikTok session is not logged in",
-                    "details": {"method": "dom_api_combo", "timeout": 8},
-                }
-            }
-
-        # Prepare fetcher to reuse session cookies via user_data_dir
-        settings = self.settings
-        fetcher = ScraplingFetcherAdapter()
-        composer = FetchArgComposer()
-        camoufox_builder = CamoufoxArgsBuilder()
-
-        # Detect caps and carry Camoufox defaults (locale/window)
-        caps = fetcher.detect_capabilities()
+        """Delegate to TikTokSearchService to execute the search."""
+        self.logger.debug(f"[TiktokService] search_tiktok called - query: {query}, num_videos: {num_videos}, sort_type: {sort_type}, recency_days: {recency_days}")
+        
         try:
-            _, extra_headers = camoufox_builder.build(type("Mock", (), {"force_user_data": False})(), settings, caps)
-        except Exception:
-            extra_headers = None
-        # Build additional_args
-        user_data_cleanup = None
-        if session and getattr(session, "user_data_dir", None):
-            additional_args = {"user_data_dir": session.user_data_dir}
-        else:
-            try:
-                payload = type("Mock", (), {"force_user_data": True})()
-                additional_args, extra_headers2 = camoufox_builder.build(payload, settings, caps)
-                if extra_headers is None and extra_headers2 is not None:
-                    extra_headers = extra_headers2
-                user_data_cleanup = additional_args.get("_user_data_cleanup")
-            except Exception:
-                additional_args = {}
+            from app.services.tiktok.search_service import TikTokSearchService
+            
+            # Check session status before search
+            has_session = await self.has_active_session()
+            self.logger.debug(f"[TiktokService] Session check before search: {has_session}")
+            
+            if not has_session:
+                self.logger.warning(f"[TiktokService] No active session available for search")
+                return {"error": "No active TikTok session available"}
+            
+            # Get active session info
+            active_session = await self.get_active_session()
+            if active_session:
+                self.logger.debug(f"[TiktokService] Active session obtained: {active_session}")
+            else:
+                self.logger.warning(f"[TiktokService] Failed to obtain active session")
+                return {"error": "Failed to obtain active TikTok session"}
+            
+            # Execute search
+            self.logger.debug(f"[TiktokService] Creating TikTokSearchService and executing search")
+            search_service = TikTokSearchService(self)
+            result = await search_service.search(query, num_videos=num_videos, sort_type=sort_type, recency_days=recency_days)
+            
+            self.logger.debug(f"[TiktokService] Search completed successfully - total results: {len(result.get('results', []))}")
+            return result
+            
+        except Exception as e:
+            self.logger.error(f"[TiktokService] Exception in search_tiktok: {e}", exc_info=True)
+            return {"error": f"Search failed: {str(e)}"}
 
-        options = {
-            "headless": True if getattr(settings, "default_headless", True) else False,
-            "network_idle": False,
-            # Help ensure results are rendered before capturing HTML
-            "wait_for_selector": "a[href*='/video/']",
-            "wait_for_selector_state": "visible",
-            "timeout_seconds": 30,
-        }
-
-        # Aggregate across queries with dedupe
-        seen_ids = set()
-        seen_urls = set()
-        aggregated: List[Dict[str, Any]] = []
-
-        base_url = str(settings.tiktok_url or "https://www.tiktok.com/").rstrip("/")
-
-        for q in queries:
-            try:
-                search_url = f"{base_url}/search/video?q={quote_plus(q)}"
-                # caps already detected above
-                # Avoid page actions in this flow to maximize reliability in headless/test environments.
-                page_action = None
-
-                fetch_kwargs = composer.compose(
-                    options=options,
-                    caps=caps,
-                    selected_proxy=getattr(settings, "private_proxy_url", None) or None,
-                    additional_args=additional_args,
-                    extra_headers=extra_headers,
-                    settings=settings,
-                    page_action=page_action,
-                )
-                page = fetcher.fetch(search_url, fetch_kwargs)
-                status_code = int(getattr(page, "status", 0) or 0)
-                html = getattr(page, "html_content", "") or ""
-                if status_code < 200 or status_code >= 300 or not html:
-                    continue
-
-                items = extract_video_data_from_html(html) or []
-                # Debug aid: safe, minimal logs when LOG_LEVEL=DEBUG
-                try:
-                    if os.environ.get("LOG_LEVEL", "").upper() == "DEBUG":
-                        print(f"[tiktok.search] url_status={status_code} html_len={len(html)} items={len(items)}")
-                except Exception:
-                    pass
-                for item in items:
-                    vid = str(item.get("id", "") or "")
-                    url = str(item.get("webViewUrl", "") or "")
-                    if vid and vid not in seen_ids:
-                        seen_ids.add(vid)
-                        if url:
-                            seen_urls.add(url)
-                        aggregated.append(item)
-                    elif (not vid) and url and (url not in seen_urls):
-                        seen_urls.add(url)
-                        aggregated.append(item)
-
-                if len(aggregated) >= int(num_videos):
-                    break
-            except Exception:
-                # Continue with next query on failures
-                continue
-
-        # Cleanup clone directory if created
-        if callable(user_data_cleanup):
-            try:
-                user_data_cleanup()
-            except Exception:
-                pass
-
-        limit = max(0, min(int(num_videos), 50))
-        final_results = aggregated[:limit]
-        normalized_query = " ".join(queries)
-
-        return {
-            "results": final_results,
-            "totalResults": len(final_results),
-            "query": normalized_query,
-        }
+    # Search helpers moved to app.services.tiktok.search_service
     
     async def close_session(self, session_id: str) -> bool:
         """
@@ -302,8 +179,11 @@ class TiktokService:
         Returns:
             bool: True if session was closed successfully
         """
+        self.logger.debug(f"[TiktokService] Attempting to close session: {session_id}")
+        
         try:
             if session_id not in self.active_sessions:
+                self.logger.warning(f"[TiktokService] Session {session_id} not found in active sessions")
                 return False
                 
             executor = self.active_sessions[session_id]
@@ -314,10 +194,11 @@ class TiktokService:
             if session_id in self.session_metadata:
                 del self.session_metadata[session_id]
                 
+            self.logger.debug(f"[TiktokService] Successfully closed session: {session_id}")
             return True
             
         except Exception as e:
-            print(f"Error closing session {session_id}: {e}")
+            self.logger.error(f"[TiktokService] Error closing session {session_id}: {e}", exc_info=True)
             return False
     
     async def keep_alive(self, session_id: str) -> bool:
@@ -358,23 +239,31 @@ class TiktokService:
         Returns:
             Dict with session information or None if not found
         """
+        self.logger.debug(f"[TiktokService] Getting session info for: {session_id}")
+        
         try:
             if session_id not in self.active_sessions:
+                self.logger.warning(f"[TiktokService] Session {session_id} not found")
                 return None
                 
             executor = self.active_sessions[session_id]
             metadata = self.session_metadata[session_id]
             
+            self.logger.debug(f"[TiktokService] Session {session_id} metadata: {metadata}")
+            
             session_info = await executor.get_session_info()
             
-            return {
+            result = {
                 **metadata,
                 **session_info,
                 "timeout_remaining": self._get_timeout_remaining(metadata)
             }
             
+            self.logger.debug(f"[TiktokService] Session {session_id} info retrieved successfully")
+            return result
+            
         except Exception as e:
-            print(f"Error getting session info for {session_id}: {e}")
+            self.logger.error(f"[TiktokService] Error getting session info for {session_id}: {e}", exc_info=True)
             return None
     
     async def perform_action(self, session_id: str, action: str, **kwargs) -> Dict[str, Any]:
@@ -389,24 +278,32 @@ class TiktokService:
         Returns:
             Dict with action result
         """
+        self.logger.debug(f"[TiktokService] Performing action '{action}' on session '{session_id}' with args: {kwargs}")
+        
         try:
             if session_id not in self.active_sessions:
+                self.logger.warning(f"[TiktokService] Session {session_id} not found for action '{action}'")
                 return {"error": "Session not found"}
                 
             executor = self.active_sessions[session_id]
             
             # Update last activity
             self.session_metadata[session_id]["last_activity"] = datetime.now()
+            self.logger.debug(f"[TiktokService] Updated last activity for session {session_id}")
             
             # Perform the action
             if hasattr(executor, action):
                 method = getattr(executor, action)
+                self.logger.debug(f"[TiktokService] Found method '{action}' on executor")
                 result = await method(**kwargs)
+                self.logger.debug(f"[TiktokService] Action '{action}' completed successfully")
                 return {"success": True, "result": result}
             else:
+                self.logger.warning(f"[TiktokService] Unknown action '{action}' requested")
                 return {"error": f"Unknown action: {action}"}
                 
         except Exception as e:
+            self.logger.error(f"[TiktokService] Exception performing action '{action}' on session {session_id}: {e}", exc_info=True)
             return {"error": str(e)}
     
     async def check_session_timeout(self, session_id: str) -> bool:
@@ -437,22 +334,17 @@ class TiktokService:
         base_user_data_dir = self.settings.camoufox_user_data_dir or "./user_data"
 
         # Headless policy:
-        # - Default: headful (False)
-        # - Unit tests only: headless (True)
-        # - Overrideable via TIKTOK_SESSION_HEADLESS env var
-        headless = False
+        # - Default aligns with global HEADLESS setting (settings.default_headless)
+        # - Unit tests (some) force headless
+        headless = bool(getattr(self.settings, "default_headless", True))
         try:
-            override = os.getenv("TIKTOK_SESSION_HEADLESS")
-            if override is not None:
-                headless = str(override).lower() in {"1", "true", "yes"}
-            else:
-                # Detect pytest and only enable headless for unit tests path
-                current_test = os.environ.get("PYTEST_CURRENT_TEST", "")
-                norm = current_test.replace("\\", "/").lower()
-                if "/tests/unit/" in norm or "tests/unit/" in norm:
-                    headless = True
+            # Detect pytest and only enable headless for unit tests path
+            current_test = os.environ.get("PYTEST_CURRENT_TEST", "")
+            norm = current_test.replace("\\", "/").lower()
+            if "/tests/unit/" in norm or "tests/unit/" in norm:
+                headless = True
         except Exception:
-            headless = False
+            headless = bool(getattr(self.settings, "default_headless", True))
         
         return TikTokSessionConfig(
             user_data_master_dir=base_user_data_dir,
