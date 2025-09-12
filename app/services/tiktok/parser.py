@@ -134,182 +134,272 @@ def _from_sigi_state(html: str) -> List[Dict[str, Any]]:
 
 def extract_video_data_from_html(html_content: str) -> List[Dict[str, Any]]:
     """
-    Extract video data from HTML content using data-e2e attributes for TikTok search results.
+    Extract video data from TikTok search HTML.
+
+    Order of strategies (most reliable first):
+    1) Parse embedded SIGI_STATE JSON (structured, complete fields)
+    2) Parse DOM via data-e2e search item blocks
+    3) Fallback to demo container structure heuristics
     """
-    soup = BeautifulSoup(html_content, 'html.parser')
-    
-    # Find all video items using data-e2e attribute
-    video_items = soup.find_all(attrs={"data-e2e": "search_video-item"})
-    
-    results = []
-    
+    # Strategy 0: Try embedded JSON first (fast, most accurate when available)
+    try:
+        json_items = _from_sigi_state(html_content)
+        if json_items:
+            return json_items
+    except Exception:
+        pass
+
+    # Strategy 0.25: Client-extracted search items injected by page_action
+    try:
+        m = re.search(r'<script[^>]+id=["\']EXTRACTED_SEARCH_ITEMS["\'][^>]*>(.*?)</script>', html_content or "", re.DOTALL | re.IGNORECASE)
+        if m:
+            payload = (m.group(1) or "").strip()
+            if payload:
+                data = json.loads(payload)
+                if isinstance(data, list) and data:
+                    # Normalize keys to our shape
+                    out: List[Dict[str, Any]] = []
+                    for it in data:
+                        try:
+                            out.append({
+                                "id": str(it.get("id") or ""),
+                                "caption": str(it.get("caption") or ""),
+                                "authorHandle": str(it.get("authorHandle") or it.get("author") or "").lstrip('@'),
+                                "likeCount": int(it.get("likeCount") or 0),
+                                "uploadTime": str(it.get("uploadTime") or ""),
+                                "webViewUrl": str(it.get("webViewUrl") or it.get("url") or ""),
+                            })
+                        except Exception:
+                            continue
+                    if out:
+                        return out
+    except Exception:
+        pass
+
+    soup = BeautifulSoup(html_content or "", 'html.parser')
+
+    # Strategy 0.5: Video detail meta fallback (canonical + og:description)
+    try:
+        canonical = soup.find('link', rel=lambda v: v and 'canonical' in str(v).lower())
+        href = canonical.get('href') if canonical else None
+        if href and '/video/' in href:
+            vid_m = re.search(r"/video/(\d+)", href)
+            vid = vid_m.group(1) if vid_m else ""
+            user_m = re.search(r"/@([^/]+)/", href)
+            author = user_m.group(1) if user_m else ""
+            cap_meta = soup.find('meta', attrs={'property': 'og:description'}) or soup.find('meta', attrs={'name': 'description'})
+            caption = cap_meta.get('content').strip() if cap_meta and cap_meta.get('content') else ""
+            if vid and href:
+                return [{
+                    "id": vid,
+                    "caption": caption,
+                    "authorHandle": author,
+                    "likeCount": 0,
+                    "uploadTime": "",
+                    "webViewUrl": href,
+                }]
+    except Exception:
+        pass
+
+    def _extract_id_from_url(href: str) -> str:
+        if not href:
+            return ""
+        # Absolute URL if needed
+        url = href
+        if url.startswith('/'):
+            url = f"https://www.tiktok.com{url}"
+        # Prefer regex /video/<digits>
+        m = re.search(r"/video/(\d+)", url)
+        if m:
+            return m.group(1)
+        # Fallback: last clean path segment without query/fragment
+        try:
+            clean = url.split('?', 1)[0].split('#', 1)[0]
+            parts = [p for p in clean.split('/') if p and not p.startswith('http')]
+            return parts[-1] if parts else ""
+        except Exception:
+            return ""
+
+    def _best_caption_from(item) -> str:
+        # Prefer explicit caption selectors
+        cap = item.find(attrs={"data-e2e": "search-card-video-caption"})
+        if cap and cap.get_text(strip=True):
+            return cap.get_text(strip=True)
+        cap = item.find(attrs={"data-e2e": "search-card-desc"})
+        if cap and cap.get_text(strip=True):
+            return cap.get_text(strip=True)
+        # Broader selectors adapted from demo with sanity checks
+        selectors = [
+            '.search-card-video-caption',
+            '[class*="caption"]',
+            '[class*="title"]',
+            '[class*="description"]',
+            '[class*="text"]',
+            '[class*="content"]',
+            '[class*="message"]',
+            '[class*="body"]',
+            'h3', 'h4', 'p', 'div[class*="caption"]', 'div[class*="title"]',
+        ]
+        for sel in selectors:
+            el = item.select_one(sel)
+            if not el:
+                continue
+            txt = el.get_text(strip=True) if el else ""
+            if not txt:
+                continue
+            if (
+                len(txt) > 10 and
+                not txt.startswith('@') and
+                not re.match(r'^[a-zA-Z0-9_\.]+$', txt) and
+                not re.match(r'^#[a-zA-Z0-9_\.]+$', txt)
+            ):
+                return txt
+        # Last resort: any non-handle, non-count, non-hashtag text (allow shorter captions)
+        for txt in item.stripped_strings:
+            if not txt:
+                continue
+            if len(txt) < 3:
+                continue
+            if txt.startswith('@'):
+                continue
+            if re.match(r'^#[a-zA-Z0-9_\.]+$', txt):
+                continue
+            if re.match(r'^\d+(?:\.\d+)?[KkMm]?$', txt):
+                continue
+            return txt
+        return ""
+
+    def _best_author_from(item, url: str) -> str:
+        link = item.find(attrs={"data-e2e": "search-card-user-link"})
+        if link and link.get('href') and str(link.get('href')).startswith('/@'):
+            return str(link.get('href'))[2:].split('/', 1)[0]
+        uid = item.find(attrs={"data-e2e": "search-card-user-unique-id"})
+        if uid and uid.get_text(strip=True):
+            t = uid.get_text(strip=True)
+            return t[1:] if t.startswith('@') else t
+        if url:
+            m = re.search(r'/@([^/]+)/', url)
+            if m:
+                return m.group(1)
+        return ""
+
+    def _best_like_from(item) -> int:
+        # Scan focused selectors first
+        like_selectors = [
+            '[class*="like"]', '[class*="heart"]', '[class*="favorite"]', '[class*="count"]',
+            '.css-1i43xsj', '.e1g2efjf9', '.e1g2efjf10', 'span'
+        ]
+        cand: List[str] = []
+        for sel in like_selectors:
+            for el in item.select(sel) or []:
+                t = el.get_text(strip=True) if el else ""
+                if not t:
+                    continue
+                if re.match(r'^\d+(?:\.\d+)?[KkMm]?$', t):
+                    cand.append(t)
+        # If nothing obvious, scan all short texts
+        if not cand:
+            for t in item.stripped_strings:
+                if re.match(r'^\d+(?:\.\d+)?[KkMm]?$', t):
+                    cand.append(t)
+        for t in cand:
+            v = parse_like_count(t)
+            if v > 0:
+                return v
+        return 0
+
+    def _best_time_from(item) -> str:
+        # Prefer <time> tag
+        for el in item.select('time, small, span, div') or []:
+            txt = el.get_text(strip=True) if el else ""
+            if not txt:
+                continue
+            # Full date
+            m = re.search(r'(\d{4}-\d{1,2}-\d{1,2}|\d{1,2}-\d{1,2}-\d{4})', txt)
+            if m:
+                return m.group(1)
+            # Partial date
+            m = re.search(r'(\d{1,2}-\d{1,2})', txt)
+            if m:
+                return m.group(1)
+            # Relative
+            m = re.search(r'(\d+\s*(?:days?|hours?|minutes?|weeks?|months?|years?)\s*ago)', txt, re.IGNORECASE)
+            if m:
+                return m.group(1)
+        return ""
+
+    results: List[Dict[str, Any]] = []
+
+    # Strategy 1: data-e2e search items (modern desktop)
+    # Support multiple known containers seen across builds/regions
+    container_selectors = [
+        "[data-e2e='search_video-item']",
+        "[data-e2e='search_top-item']",
+        "[data-e2e='search-card-desc']",
+    ]
+    video_items = []
+    _seen = set()
+    for sel in container_selectors:
+        for el in soup.select(sel) or []:
+            key = id(el)
+            if key in _seen:
+                continue
+            _seen.add(key)
+            video_items.append(el)
     for item in video_items:
-        video_data = {
-            "id": "",
-            "caption": "",
-            "authorHandle": "",
-            "likeCount": 0,
-            "uploadTime": "",
-            "webViewUrl": ""
-        }
-        
-        # Extract web view URL from links within the item
-        url_element = item.find('a', href=re.compile(r'/video/'))
-        if url_element and url_element.get('href'):
-            href = url_element.get('href')
-            # Convert relative URLs to absolute if needed
+        data: Dict[str, Any] = {"id": "", "caption": "", "authorHandle": "", "likeCount": 0, "uploadTime": "", "webViewUrl": ""}
+        a = item.find('a', href=re.compile(r'/video/'))
+        # If anchor not found within the selected node, try its nearest search container
+        if not a:
+            try:
+                container = item.find_parent(attrs={"data-e2e": "search_top-item"}) or item.find_parent(attrs={"data-e2e": "search_video-item"})
+                if container:
+                    a = container.find('a', href=re.compile(r'/video/'))
+            except Exception:
+                a = None
+        href = a.get('href') if a and a.get('href') else ""
+        if href:
             if href.startswith('/'):
                 href = f"https://www.tiktok.com{href}"
-            video_data["webViewUrl"] = href
-            
-            # Extract ID from webViewUrl
-            if href:
-                path_parts = href.split('/')
-                for i in range(len(path_parts) - 1, -1, -1):
-                    if path_parts[i] and not path_parts[i].startswith('http'):
-                        video_data["id"] = path_parts[i]
-                        break
-        
-        # Extract caption using data-e2e attribute
-        caption_element = item.find(attrs={"data-e2e": "search-card-video-caption"})
-        if caption_element and caption_element.get_text(strip=True):
-            video_data["caption"] = caption_element.get_text(strip=True)
-        
-        # Extract author handle from user link or unique ID
-        user_link_element = item.find(attrs={"data-e2e": "search-card-user-link"})
-        if user_link_element and user_link_element.get('href'):
-            href = user_link_element.get('href')
-            if href.startswith('/@'):
-                video_data["authorHandle"] = href[2:]  # Remove leading '/@'
-        
-        # Alternative: extract from user unique ID element
-        if not video_data["authorHandle"]:
-            user_id_element = item.find(attrs={"data-e2e": "search-card-user-unique-id"})
-            if user_id_element and user_id_element.get_text(strip=True):
-                text = user_id_element.get_text(strip=True)
-                if text.startswith('@'):
-                    video_data["authorHandle"] = text[1:]  # Remove leading '@'
-        
-        # Fallback: extract from webViewUrl
-        if not video_data["authorHandle"] and video_data["webViewUrl"]:
-            match = re.search(r'/@([^/]+)/', video_data["webViewUrl"])
-            if match:
-                video_data["authorHandle"] = match.group(1)
-        
-        # Extract like count - try to find elements containing numbers with K/M suffixes
-        like_selectors = [
-            '[class*="like"]',
-            '[class*="heart"]',
-            '[class*="favorite"]',
-            '[class*="count"]',
-            '.css-1i43xsj',
-            '.e1g2efjf9',
-            '.e1g2efjf10',
-            'span',
-            'div'
-        ]
-        
-        for selector in like_selectors:
-            like_elements = item.select(selector)
-            for like_element in like_elements:
-                if like_element and like_element.get_text(strip=True):
-                    like_text = like_element.get_text(strip=True)
-                    # Check if this looks like a like count (contains numbers + K/M)
-                    if re.search(r'\d+[KkMm]?', like_text):
-                        video_data["likeCount"] = parse_like_count(like_text)
-                        break
-            if video_data["likeCount"] > 0:
-                break
-                
-        # Extract upload time - look for date/time patterns
-        time_selectors = [
-            '[class*="time"]',
-            '[class*="date"]',
-            '[class*="upload"]',
-            'time',
-            'small',
-            'span'
-        ]
-        
-        for selector in time_selectors:
-            time_elements = item.select(selector)
-            for time_element in time_elements:
-                if time_element and time_element.get_text(strip=True):
-                    time_text = time_element.get_text(strip=True)
-                    # Look for date patterns (YYYY-MM-DD, MM-DD, etc.)
-                    date_match = re.search(r'(\d{4}-\d{1,2}-\d{1,2}|\d{1,2}-\d{1,2}-\d{4}|\d{1,2}-\d{1,2})', time_text)
-                    if date_match:
-                        video_data["uploadTime"] = date_match.group(1)
-                        break
-                    # Look for relative time patterns (X days ago, X hours ago)
-                    relative_match = re.search(r'(\d+\s*(?:days?|hours?|minutes?|weeks?|months?|years?)\s*ago)', time_text, re.IGNORECASE)
-                    if relative_match:
-                        video_data["uploadTime"] = relative_match.group(1)
-                        break
-            if video_data["uploadTime"]:
-                break
-        
-        # Only add to results if we have at least the essential data
-        if video_data["id"] and video_data["webViewUrl"]:
-            results.append(video_data)
-    
-    # Strategy 2: Demo HTML structure for testing (fallback)
+            data["webViewUrl"] = href
+            data["id"] = _extract_id_from_url(href)
+        # Caption/author from local container; if missing, try parent search item
+        data["caption"] = _best_caption_from(item)
+        data["authorHandle"] = _best_author_from(item, data["webViewUrl"]) if data["webViewUrl"] else _best_author_from(item, "")
+        if (not data["caption"]) or (not data["authorHandle"]):
+            parent = None
+            try:
+                if a:
+                    parent = a.find_parent(attrs={"data-e2e": "search_top-item"}) or a.find_parent(attrs={"data-e2e": "search_video-item"})
+            except Exception:
+                parent = None
+            ctx = parent or item
+            if not data["caption"]:
+                data["caption"] = _best_caption_from(ctx)
+            if not data["authorHandle"]:
+                data["authorHandle"] = _best_author_from(ctx, data["webViewUrl"]) if data["webViewUrl"] else _best_author_from(ctx, "")
+        data["likeCount"] = _best_like_from(item)
+        data["uploadTime"] = _best_time_from(item)
+        if data["id"] and data["webViewUrl"]:
+            results.append(data)
+
+    # Strategy 2: Demo/test HTML structure
     if not results:
-        video_containers = soup.find_all('div', id=re.compile(r'column-item-video-container-\d+'))
-        
-        for container in video_containers:
-            video_data = {
-                "id": "",
-                "caption": "",
-                "authorHandle": "",
-                "likeCount": 0,
-                "uploadTime": "",
-                "webViewUrl": ""
-            }
-            
-            # Extract web view URL first to get the ID from it
-            url_element = container.find('a', href=re.compile(r'/video/'))
-            if url_element and url_element.get('href'):
-                href = url_element.get('href')
-                # Convert relative URLs to absolute if needed
+        containers = soup.find_all('div', id=re.compile(r'column-item-video-container-\d+'))
+        for container in containers:
+            data: Dict[str, Any] = {"id": "", "caption": "", "authorHandle": "", "likeCount": 0, "uploadTime": "", "webViewUrl": ""}
+            a = container.find('a', href=re.compile(r'/video/')) or container.select_one('a[href*="/video/"]')
+            href = a.get('href') if a and a.get('href') else ""
+            if href:
                 if href.startswith('/'):
                     href = f"https://www.tiktok.com{href}"
-                video_data["webViewUrl"] = href
-                
-                # Extract ID from webViewUrl (last element of path)
-                if href:
-                    path_parts = href.split('/')
-                    for i in range(len(path_parts) - 1, -1, -1):
-                        if path_parts[i] and not path_parts[i].startswith('http'):
-                            candidate_id = path_parts[i]
-                            # Heuristic: if ID is composed of a single repeated digit, clip length conservatively
-                            # to avoid pathological HTML samples in tests.
-                            if candidate_id.isdigit() and len(set(candidate_id)) == 1:
-                                digit = int(candidate_id[0])
-                                max_len = digit + 4
-                                candidate_id = candidate_id[:max_len]
-                            video_data["id"] = candidate_id
-                            break
-            
-            # Extract caption - look for specific caption elements first
-            caption_element = container.select_one('.search-card-video-caption')
-            if caption_element and caption_element.get_text(strip=True):
-                video_data["caption"] = caption_element.get_text(strip=True)
-            
-            # Extract author handle from webViewUrl
-            if video_data["webViewUrl"]:
-                match = re.search(r'/@([^/]+)/', video_data["webViewUrl"])
-                if match:
-                    video_data["authorHandle"] = match.group(1)
-            
-            # Extract like count - look for specific TikTok classes first
-            like_element = container.select_one('.css-1i43xsj')
-            if like_element and like_element.get_text(strip=True):
-                like_text = like_element.get_text(strip=True)
-                video_data["likeCount"] = parse_like_count(like_text)
-            
-            # Only add to results if we have at least the essential data
-            if video_data["id"] and video_data["webViewUrl"]:
-                results.append(video_data)
-    
+                data["webViewUrl"] = href
+                data["id"] = _extract_id_from_url(href)
+            data["caption"] = _best_caption_from(container)
+            data["authorHandle"] = _best_author_from(container, data["webViewUrl"]) if data["webViewUrl"] else ""
+            data["likeCount"] = _best_like_from(container)
+            data["uploadTime"] = _best_time_from(container)
+            if data["id"] and data["webViewUrl"]:
+                results.append(data)
+
     return results

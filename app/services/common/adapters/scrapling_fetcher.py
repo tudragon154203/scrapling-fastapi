@@ -192,7 +192,7 @@ class FetchArgComposer:
         fetch_kwargs: Dict[str, Any] = dict(
             headless=options.get("headless", True),
             network_idle=options.get("network_idle", False),
-            wait=0,  # Fixed wait time, wait_ms removed from new schema
+            wait=int(options.get("wait_ms", 0) or 0),  # allow small stabilization delay after waits
         )
 
         # Timeout handling: allow effectively disabling in write mode by using a very large value

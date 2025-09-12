@@ -132,6 +132,8 @@ class TikTokSearchService:
                 self.logger.error(f"[TikTokSearchService] Exception processing query '{q}': {e}", exc_info=True)
                 continue
 
+        # Skip detail-page enrichment; rely solely on search-page HTML like demo
+
         if callable(user_data_cleanup):
             self.logger.debug(f"[TikTokSearchService] Calling user_data_cleanup function")
             try:
@@ -254,16 +256,27 @@ class TikTokSearchService:
         headless_opt = True if in_tests else False
         self.logger.debug(f"[TikTokSearchService] Headless mode set to: {headless_opt}")
         
+        # Wait for richer signals so parser can extract full info
+        # - Prefer script#SIGI_STATE (structured JSON)
+        # - Fallback to visible search items with links
         options = {
             "headless": headless_opt,
-            "network_idle": False,
-            "wait_for_selector": "a[href*='/video/']",
+            "network_idle": True,
+            # Focus on visible link targets on search page; script capture handled on detail pages
+            "wait_for_selector": (
+                "[data-e2e='search_video-item'] a[href*='/video/'], "
+                "[data-e2e='search_top-item'] a[href*='/video/'], "
+                "[data-e2e='search-card-video-caption'], "
+                "[data-e2e='search-card-desc']"
+            ),
             "wait_for_selector_state": "visible",
-            "timeout_seconds": 30,
+            "timeout_seconds": 45,
         }
         
         self.logger.debug(f"[TikTokSearchService] Fetch options: {options}")
         self.logger.debug(f"[TikTokSearchService] Extra headers: {extra_headers is not None}, User data cleanup: {user_data_cleanup is not None}")
 
         return fetcher, composer, caps, additional_args, extra_headers, user_data_cleanup, options
+
+    # No detail enrichment or page_action injection; operate like demo on search page only
 
