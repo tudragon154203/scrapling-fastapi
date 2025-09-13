@@ -1,33 +1,28 @@
-﻿from typing import Optional
+from typing import Optional
 import os
 from functools import lru_cache
 from pydantic import Field
+from pydantic import BaseModel
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 try:
     # Preferred: pydantic-settings for .env loading
-    from pydantic_settings import BaseSettings, SettingsConfigDict  # type: ignore
-
     class Settings(BaseSettings):
         """Application settings loaded from environment variables (.env).
-
         This keeps the first sprint simple while allowing future expansion
         (proxies, advanced stealth configs, metrics toggles, etc.).
         """
-
         # Server
         app_name: str = Field(default="Scrapling FastAPI Service")
         host: str = Field(default="0.0.0.0")
         port: int = Field(default=8000)
         reload: bool = Field(default=False)
-
         # Logging
         log_level: str = Field(default="INFO")
-
         # Scraping defaults
         default_headless: bool = Field(default=True)
         default_network_idle: bool = Field(default=False)
         default_timeout_ms: int = Field(default=20_000)
-
         # Retry and Proxy settings
         max_retries: int = Field(default=3)
         retry_backoff_base_ms: int = Field(default=500)
@@ -38,21 +33,16 @@ try:
         proxy_rotation_mode: str = Field(default="sequential")
         proxy_health_failure_threshold: int = Field(default=2)
         proxy_unhealthy_cooldown_minute: int = Field(default=30)
-
         # Content validation
         min_html_content_length: int = Field(default=500)
-        
-        
         # Camoufox user data directory (single profile dir)
         camoufox_user_data_dir: Optional[str] = Field(default=None)
-
         # Camoufox stealth extras (optional, no API changes)
         camoufox_locale: Optional[str] = Field(default=None)  # e.g., "en-US,en;q=0.9"
         camoufox_window: Optional[str] = Field(default="1280x720")  # e.g., "1366x768"
         camoufox_disable_coop: bool = Field(default=False)
         camoufox_geoip: bool = Field(default=True)
         camoufox_virtual_display: Optional[str] = Field(default=None)
-
         # AusPost humanization settings
         auspost_humanize_enabled: bool = Field(default=True, env="AUSPOST_HUMANIZE_ENABLED")
         auspost_humanize_scroll: bool = Field(default=True, env="AUSPOST_HUMANIZE_SCROLL")
@@ -72,26 +62,19 @@ try:
         auspost_scroll_cycles_max: int = Field(default=1, env="AUSPOST_SCROLL_CYCLES_MAX")
         auspost_scroll_dy_min: int = Field(default=80, env="AUSPOST_SCROLL_DY_MIN")
         auspost_scroll_dy_max: int = Field(default=180, env="AUSPOST_SCROLL_DY_MAX")
-
         # AusPost endpoint behavior
         auspost_use_proxy: bool = Field(default=False, env="AUSPOST_USE_PROXY")
-
         # TikTok session configuration
         tiktok_write_mode_enabled: bool = Field(default=False, env="TIKTOK_WRITE_MODE_ENABLED")
         tiktok_login_detection_timeout: int = Field(default=8, env="TIKTOK_LOGIN_DETECTION_TIMEOUT")
         tiktok_max_session_duration: int = Field(default=300, env="TIKTOK_MAX_SESSION_DURATION")
         tiktok_url: str = Field(default="https://www.tiktok.com/", env="TIKTOK_URL")
-
         model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="allow")
-
     @lru_cache()
     def get_settings() -> "Settings":
         return Settings()
-
 except Exception:
     # Fallback: light-weight env loader without pydantic-settings
-    from pydantic import BaseModel
-
     class Settings(BaseModel):
         app_name: str = "Scrapling FastAPI Service"
         host: str = "0.0.0.0"
@@ -101,7 +84,6 @@ except Exception:
         default_headless: bool = True
         default_network_idle: bool = False
         default_timeout_ms: int = 20_000
-        
         # Retry and Proxy settings
         max_retries: int = 3
         retry_backoff_base_ms: int = 500
@@ -112,7 +94,6 @@ except Exception:
         proxy_rotation_mode: str = "sequential"
         proxy_health_failure_threshold: int = 2
         proxy_unhealthy_cooldown_minute: int = 30
-
         # Camoufox user data directory (single profile dir)
         camoufox_user_data_dir: Optional[str] = None
         # Camoufox stealth extras
@@ -121,10 +102,8 @@ except Exception:
         camoufox_disable_coop: bool = False
         camoufox_geoip: bool = True
         camoufox_virtual_display: Optional[str] = None
-
         # Content validation
         min_html_content_length: int = 500
-
         # AusPost humanization settings
         auspost_humanize_enabled: bool = True
         auspost_humanize_scroll: bool = True
@@ -144,13 +123,11 @@ except Exception:
         auspost_scroll_dy_min: int = 80
         auspost_scroll_dy_max: int = 180
         auspost_use_proxy: bool = False
-
         # TikTok session configuration
         tiktok_write_mode_enabled: bool = False
         tiktok_login_detection_timeout: int = 8
         tiktok_max_session_duration: int = 300
         tiktok_url: str = "https://www.tiktok.com/"
-
     @lru_cache()
     def get_settings() -> "Settings":
         return Settings(
@@ -201,3 +178,4 @@ except Exception:
             tiktok_max_session_duration=int(os.getenv("TIKTOK_MAX_SESSION_DURATION", "300")),
             tiktok_url=os.getenv("TIKTOK_URL", "https://www.tiktok.com/"),
         )
+

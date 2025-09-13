@@ -13,6 +13,7 @@
 - ✅ Request/response schemas created and validated
 - ✅ Integration with existing TikTok service infrastructure completed
 - ✅ Comprehensive API and service-level tests added and passing
+- ✅ Import hoisting script implemented for codebase cleanup
 
 ### Sprint Goal
 Implement a dedicated `/tiktok/search` endpoint for searching TikTok content using the existing TikTok session infrastructure, with proper data extraction and structured response formatting.
@@ -49,6 +50,7 @@ Implement a dedicated `/tiktok/search` endpoint for searching TikTok content usi
 - **Removed `user_data_mode` field**: The `user_data_mode` field has been completely removed from the system architecture
 - **Standardized to `read_mode` behavior**: All user data operations now consistently use temporary, disposable user data sessions with timeouts enabled
 - **Simplified user data management**: The system exclusively uses temporary clones of the master profile directory, ensuring all sessions respect timeout constraints
+- **Import hoisting implemented**: Created a one-shot import hoisting script to clean up nested imports across the codebase
 
 ### Browse Endpoint Behavior Update
 - **Browse endpoint requires write mode behavior**: The `/browse` endpoint should use write mode to allow persistent user data population
@@ -96,3 +98,4 @@ Implement a dedicated `/tiktok/search` endpoint for searching TikTok content usi
 
 ### Decisions and Current Focus
 - **API Routes Refactoring**: The API routes in `app/api/routes.py` have been refactored for better organization and maintainability. Routes are now modularized into `health.py`, `crawl.py`, `browse.py`, and `tiktok.py`. The main `app/api/routes.py` now acts as an aggregator, importing and including the modularized routes for each functionality area.
+- **Import Hoisting Completed**: Successfully implemented the one-shot import hoisting script as specified in specs/022-one-shot-import. The script identifies safe nested imports and reorganizes them according to standard Python import conventions.

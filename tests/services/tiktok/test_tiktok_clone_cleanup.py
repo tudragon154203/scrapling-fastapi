@@ -74,24 +74,26 @@ class TestTikTokCloneCleanup:
                 '_user_data_cleanup': mock_cleanup
             }
             
-            with patch('app.services.common.browser.camoufox.CamoufoxArgsBuilder') as mock_builder:
-                mock_builder_instance = MagicMock()
-                mock_builder.return_value = mock_builder_instance
-                mock_builder_instance.build.return_value = (mock_additional_args, None)
+            # Create a mock CamoufoxArgsBuilder instance
+            mock_builder_instance = MagicMock()
+            mock_builder_instance.build.return_value = (mock_additional_args, None)
+            
+            # Inject the mock builder into the executor
+            executor.camoufox_builder = mock_builder_instance
                 
-                # Start session
-                import asyncio
-                result = asyncio.run(executor.start_session())
-                
-                # Manually call cleanup to simulate immediate cleanup
-                asyncio.run(executor.cleanup())
-                
-                # Verify cleanup function was called
-                assert cleanup_called, "Cleanup function should have been called after session"
-                
-                # Verify browser was created (before cleanup)
-                # After cleanup, browser should be None
-                assert executor.browser is None
+            # Start session
+            import asyncio
+            result = asyncio.run(executor.start_session())
+            
+            # Manually call cleanup to simulate immediate cleanup
+            asyncio.run(executor.cleanup())
+            
+            # Verify cleanup function was called
+            assert cleanup_called, "Cleanup function should have been called after session"
+            
+            # Verify browser was created (before cleanup)
+            # After cleanup, browser should be None
+            assert executor.browser is None
     
     def test_clone_directory_cleanup_on_error(self):
         """Test that clone directories are cleaned up even when session fails"""
@@ -146,18 +148,20 @@ class TestTikTokCloneCleanup:
                 '_user_data_cleanup': mock_cleanup
             }
             
-            with patch('app.services.common.browser.camoufox.CamoufoxArgsBuilder') as mock_builder:
-                mock_builder_instance = MagicMock()
-                mock_builder.return_value = mock_builder_instance
-                mock_builder_instance.build.return_value = (mock_additional_args, None)
+            # Create a mock CamoufoxArgsBuilder instance
+            mock_builder_instance = MagicMock()
+            mock_builder_instance.build.return_value = (mock_additional_args, None)
+            
+            # Inject the mock builder into the executor
+            executor.camoufox_builder = mock_builder_instance
                 
-                # Start session - should raise exception but still call cleanup
-                import asyncio
-                with pytest.raises(Exception):
-                    asyncio.run(executor.start_session())
-                
-                # Manually call cleanup to simulate cleanup on error
-                asyncio.run(executor.cleanup())
-                
-                # Verify cleanup function was called even on error
-                assert cleanup_called, "Cleanup function should have been called even on error"
+            # Start session - should raise exception but still call cleanup
+            import asyncio
+            with pytest.raises(Exception):
+                asyncio.run(executor.start_session())
+            
+            # Manually call cleanup to simulate cleanup on error
+            asyncio.run(executor.cleanup())
+            
+            # Verify cleanup function was called even on error
+            assert cleanup_called, "Cleanup function should have been called even on error"
