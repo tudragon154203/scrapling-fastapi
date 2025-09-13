@@ -14,17 +14,17 @@ class AuspostCrawlRequest(BaseModel):
     extracted automatically.
     """
     model_config = ConfigDict(extra='forbid')
-    
+
     tracking_code: str = Field(..., description="AusPost tracking code (required, non-empty)")
     force_user_data: Optional[bool] = Field(
-        default=False, 
+        default=False,
         description="Enable Camoufox persistent user data if configured"
     )
     force_headful: Optional[bool] = Field(
-        default=False, 
+        default=False,
         description="Forces headful mode on Windows; ignored on Linux/Docker"
     )
-    
+
     @field_validator('tracking_code')
     @classmethod
     def validate_tracking_code(cls, v):
@@ -64,7 +64,7 @@ class AuspostCrawlRequest(BaseModel):
 
 class AuspostCrawlResponse(BaseModel):
     """Response body for AusPost tracking crawling."""
-    
+
     status: str = Field(..., description="Either 'success' or 'failure'")
     tracking_code: str = Field(..., description="Echo of the input tracking code")
     html: Optional[str] = Field(default=None, description="HTML content when status is success")

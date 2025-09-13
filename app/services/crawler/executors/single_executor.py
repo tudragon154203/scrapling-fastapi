@@ -1,12 +1,11 @@
 import logging
 import sys
 import asyncio
-from typing import Any, Dict, Optional
+from typing import Optional
 
 import app.core.config as app_config
 from app.schemas.crawl import CrawlRequest, CrawlResponse
 from app.services.common.interfaces import IExecutor, PageAction
-from app.services.common.types import FetchCapabilities
 from app.services.common.adapters.scrapling_fetcher import ScraplingFetcherAdapter, FetchArgComposer
 from app.services.browser.options.resolver import OptionsResolver
 from app.services.common.browser.camoufox import CamoufoxArgsBuilder
@@ -16,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 class SingleAttemptExecutor(IExecutor):
     """Single-attempt crawl executor that performs one fetch operation."""
-    
+
     def __init__(self, fetch_client: Optional[ScraplingFetcherAdapter] = None,
                  options_resolver: Optional[OptionsResolver] = None,
                  arg_composer: Optional[FetchArgComposer] = None,
@@ -25,7 +24,7 @@ class SingleAttemptExecutor(IExecutor):
         self.options_resolver = options_resolver or OptionsResolver()
         self.arg_composer = arg_composer or FetchArgComposer()
         self.camoufox_builder = camoufox_builder or CamoufoxArgsBuilder()
-    
+
     def execute(self, request: CrawlRequest, page_action: Optional[PageAction] = None) -> CrawlResponse:
         """Execute a single crawl attempt."""
         settings = app_config.get_settings()
@@ -36,7 +35,7 @@ class SingleAttemptExecutor(IExecutor):
                 asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
             except Exception:
                 pass
-        
+
         # Resolve options and potential lightweight headers early so we can fallback if needed
         options = self.options_resolver.resolve(request, settings)
         additional_args, extra_headers = self.camoufox_builder.build(request, settings, caps={})
@@ -74,7 +73,7 @@ class SingleAttemptExecutor(IExecutor):
             )
 
             page = self.fetch_client.fetch(str(request.url), fetch_kwargs)
-            
+
             # Cleanup user data context after fetch if cleanup function was stored
             if user_data_cleanup:
                 try:
@@ -114,5 +113,3 @@ class SingleAttemptExecutor(IExecutor):
                 html=None,
                 message=f"Exception during crawl: {type(e).__name__}: {e}",
             )
-    
-

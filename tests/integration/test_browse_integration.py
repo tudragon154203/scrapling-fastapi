@@ -1,11 +1,6 @@
 import pytest
-import os
-import tempfile
-import shutil
-from pathlib import Path
-from unittest.mock import patch, MagicMock, call
+from unittest.mock import patch, MagicMock
 from fastapi.testclient import TestClient
-import time
 
 from app.main import app
 from app.core.config import Settings
@@ -51,8 +46,6 @@ class TestBrowseE2E:
         This test verifies that when a browse session starts with existing user data,
         the user data context is properly loaded and the directory is accessible.
         """
-        from app.schemas.browse import BrowseResponse
-        from app.services.browser.browse import BrowseCrawler
         
         captured_load_calls = []
         captured_directories = []
@@ -277,7 +270,6 @@ class TestBrowseE2E:
         This test verifies that the master.lock file is removed after the browse session
         completes, ensuring subsequent launches can proceed without conflicts.
         """
-        from app.services.common.browser.user_data import user_data_context
         
         lock_file = Path(temp_user_data_dir) / 'master.lock'
         
@@ -322,7 +314,8 @@ class TestBrowseE2E:
                 mock_context_instance.__enter__()
                 
                 # Manually call cleanup (simulating context exit)
-                cleanup_func = mock_context_instance.__exit__(None, None, None)
+                # cleanup_func = mock_context_instance.__exit__(None, None, None)
+                mock_context_instance.__exit__(None, None, None)
                 
                 # The actual user_data_context should clean up the lock file
                 # For our test, let's manually verify the cleanup behavior
@@ -429,7 +422,8 @@ class TestBrowseE2E:
                 assert lock_file.exists(), "Lock file should exist after first session"
                 
                 # Call cleanup manually to simulate context exit
-                cleanup_func = mock_context.__exit__(None, None, None)
+                # cleanup_func = mock_context.__exit__(None, None, None)
+                mock_context.__exit__(None, None, None)
                 actual_cleanup()  # This simulates the cleanup function being called
                 
                 # Verify lock file was removed

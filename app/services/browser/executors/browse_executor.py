@@ -1,12 +1,11 @@
 import logging
 import sys
 import asyncio
-from typing import Any, Dict, Optional
+from typing import Optional
 
 import app.core.config as app_config
 from app.schemas.crawl import CrawlRequest, CrawlResponse
 from app.services.common.interfaces import IExecutor, PageAction
-from app.services.common.types import FetchCapabilities
 from app.services.common.adapters.scrapling_fetcher import ScraplingFetcherAdapter, FetchArgComposer
 from app.services.browser.options.resolver import OptionsResolver
 from app.services.common.browser.camoufox import CamoufoxArgsBuilder
@@ -16,12 +15,12 @@ logger = logging.getLogger(__name__)
 
 class BrowseExecutor(IExecutor):
     """Browse-specific executor that respects user close actions and never retries.
-    
+
     This executor is designed for interactive browsing sessions where users
     manually close the browser. It never retries when the browser is closed
     by the user, avoiding the problematic relaunch behavior.
     """
-    
+
     def __init__(self, fetch_client: Optional[ScraplingFetcherAdapter] = None,
                  options_resolver: Optional[OptionsResolver] = None,
                  arg_composer: Optional[FetchArgComposer] = None,
@@ -30,7 +29,7 @@ class BrowseExecutor(IExecutor):
         self.options_resolver = options_resolver or OptionsResolver()
         self.arg_composer = arg_composer or FetchArgComposer()
         self.camoufox_builder = camoufox_builder or CamoufoxArgsBuilder()
-    
+
     def execute(self, request: CrawlRequest, page_action: Optional[PageAction] = None) -> CrawlResponse:
         """Execute a browse operation with special handling for user close actions."""
         settings = app_config.get_settings()
@@ -41,7 +40,7 @@ class BrowseExecutor(IExecutor):
                 asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
             except Exception:
                 pass
-        
+
         # Resolve options and potential lightweight headers early so we can fallback if needed
         options = self.options_resolver.resolve(request, settings)
         additional_args, extra_headers = self.camoufox_builder.build(request, settings, caps={})
@@ -90,10 +89,10 @@ class BrowseExecutor(IExecutor):
 
             logger.info(f"Starting browse session for URL: {request.url}")
             page = self.fetch_client.fetch(str(request.url), fetch_kwargs)
-            
+
             # The page_action (WaitForUserCloseAction) should have completed successfully
             # at this point since the fetch only returns after the user closes the browser
-            
+
             # Cleanup user data context after fetch if cleanup function was stored
             if user_data_cleanup:
                 try:
@@ -118,12 +117,12 @@ class BrowseExecutor(IExecutor):
                     html=None,
                     message="Browser session failed to initialize"
                 )
-                
+
         except Exception as e:
             # For browse operations, we should NOT retry on user close or similar errors
             # The user explicitly closed the browser, so we should respect that
             logger.info(f"Browse session ended normally: {type(e).__name__}: {e}")
-            
+
             if isinstance(e, ImportError):
                 return CrawlResponse(
                     status="failure",
@@ -131,7 +130,7 @@ class BrowseExecutor(IExecutor):
                     html=None,
                     message="Scrapling library not available",
                 )
-            
+
             # Convert common browser close errors to success responses
             # These are expected when users manually close the browser
             close_errors = [
@@ -142,10 +141,10 @@ class BrowseExecutor(IExecutor):
                 "ConnectionClosed",
                 "Target page, context or browser has been closed",
             ]
-            
+
             error_name = type(e).__name__
             error_str = str(e).lower()
-            
+
             if any(close_err.lower() in error_str or close_err in error_name for close_err in close_errors):
                 logger.info("Browser was closed by user - session completed successfully")
                 return CrawlResponse(
@@ -154,7 +153,7 @@ class BrowseExecutor(IExecutor):
                     html=None,
                     message="Browser session completed successfully (user closed)"
                 )
-            
+
             # For other exceptions, return failure but don't retry
             return CrawlResponse(
                 status="failure",
@@ -162,11 +161,11 @@ class BrowseExecutor(IExecutor):
                 html=None,
                 message=f"Browse session failed: {type(e).__name__}: {e}",
             )
-    
+
     def should_retry(self, request: CrawlResponse) -> bool:
         """Browse operations should never retry - respect user's close action."""
         return False
-    
+
     def get_retry_delay(self, request: CrawlResponse, attempt: int) -> float:
         """Browse operations should never retry."""
         return 0.0

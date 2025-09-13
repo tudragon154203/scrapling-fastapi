@@ -2,11 +2,9 @@
 Test that TikTok session clone directories are properly cleaned up
 """
 import pytest
-import os
 import tempfile
-import shutil
 from pathlib import Path
-from unittest.mock import patch, MagicMock, AsyncMock
+from unittest.mock import MagicMock
 
 from app.services.tiktok.tiktok_executor import TiktokExecutor
 from app.schemas.tiktok import TikTokSessionConfig
@@ -83,7 +81,8 @@ class TestTikTokCloneCleanup:
                 
             # Start session
             import asyncio
-            result = asyncio.run(executor.start_session())
+            # result = asyncio.run(executor.start_session())
+            asyncio.run(executor.start_session())
             
             # Manually call cleanup to simulate immediate cleanup
             asyncio.run(executor.cleanup())

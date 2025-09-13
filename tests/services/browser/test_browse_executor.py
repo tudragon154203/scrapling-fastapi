@@ -1,10 +1,7 @@
-import pytest
 from unittest.mock import MagicMock, patch
-import app.core.config as app_config
 
 from app.services.browser.browse import BrowseCrawler
 from app.services.browser.executors.browse_executor import BrowseExecutor
-from app.schemas.browse import BrowseRequest, BrowseResponse
 
 
 def test_browse_crawler_uses_browse_executor():
@@ -19,7 +16,7 @@ def test_browse_crawler_uses_browse_executor():
         mock_engine_class.return_value = mock_engine_instance
         
         # Create BrowseCrawler
-        crawler = BrowseCrawler()
+        # crawler = BrowseCrawler()
         
         # Verify BrowseExecutor was created
         mock_browse_executor.assert_called_once()
@@ -36,7 +33,6 @@ def test_browse_crawler_uses_browse_executor():
 def test_browse_executor_never_retries():
     """Test that BrowseExecutor respects user close actions and never retries."""
     from app.schemas.crawl import CrawlRequest
-    from app.services.common.interfaces import PageAction
     
     # Create browse executor
     executor = BrowseExecutor()

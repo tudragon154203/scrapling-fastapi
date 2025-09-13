@@ -2,8 +2,6 @@ import sys
 import types
 from unittest.mock import patch
 
-import pytest
-
 
 def _make_request():
     from app.schemas.crawl import CrawlRequest

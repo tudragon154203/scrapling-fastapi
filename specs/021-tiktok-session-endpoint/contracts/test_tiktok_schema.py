@@ -2,8 +2,7 @@
 Contract tests for TikTok Session API
 """
 import pytest
-import json
-from typing import Dict, Any
+
 
 # Test data for schema validation
 VALID_REQUEST_BODY = {}
@@ -103,7 +102,7 @@ class TestTikTokSessionResponseSchema:
         """Test invalid status values are rejected"""
         invalid_statuses = ["invalid", "", "success_error", 123]
         for status in invalid_statuses:
-            invalid_response = {"status": status, "message": "test"}
+            # invalid_response = {"status": status, "message": "test"}
             with pytest.raises(ValueError):
                 raise ValueError(f"Invalid status {status} should be rejected")
             # In real implementation:

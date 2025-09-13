@@ -1,6 +1,5 @@
-﻿import logging
+import logging
 
-import app.core.config as app_config
 from app.schemas.auspost import AuspostCrawlRequest, AuspostCrawlResponse
 from app.schemas.crawl import CrawlRequest, CrawlResponse
 
@@ -13,19 +12,19 @@ logger = logging.getLogger(__name__)
 
 class AuspostCrawler:
     """AusPost-specific crawler that uses the CrawlerEngine with page actions."""
-    
+
     def __init__(self, engine: CrawlerEngine = None):
         # For AusPost, use a single-attempt, no-proxy executor to improve stability with DataDome
         self.engine = engine or CrawlerEngine(executor=SingleAttemptNoProxy())
-    
+
     def run(self, request: AuspostCrawlRequest) -> AuspostCrawlResponse:
         """Run an AusPost crawl request."""
         # Convert AusPost request to generic crawl request
         crawl_request = self._convert_auspost_to_crawl_request(request)
-        
+
         # Create page action for AusPost automation
         page_action = AuspostTrackAction(request.tracking_code)
-        
+
         # Execute crawl with page action
         crawl_response = self.engine.run(crawl_request, page_action)
 
@@ -54,10 +53,10 @@ class AuspostCrawler:
             except Exception:
                 # Ignore fallback errors and return original failure below
                 pass
-        
+
         # Convert back to AusPost response
         return self._convert_crawl_to_auspost_response(crawl_response, request.tracking_code)
-    
+
     def _convert_auspost_to_crawl_request(self, auspost_request: AuspostCrawlRequest) -> CrawlRequest:
         """Convert AusPost request to generic crawl request."""
         return CrawlRequest(
@@ -69,10 +68,10 @@ class AuspostCrawler:
             force_user_data=auspost_request.force_user_data,
             timeout_seconds=30,  # Converted from 30_000ms to seconds
         )
-    
+
     def _convert_crawl_to_auspost_response(
-        self, 
-        crawl_response: CrawlResponse, 
+        self,
+        crawl_response: CrawlResponse,
         tracking_code: str
     ) -> AuspostCrawlResponse:
         """Convert generic crawl response to AusPost-specific response."""
@@ -82,4 +81,3 @@ class AuspostCrawler:
             html=crawl_response.html,
             message=crawl_response.message
         )
-

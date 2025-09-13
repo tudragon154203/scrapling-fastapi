@@ -1,5 +1,3 @@
-import pytest
-
 from app.schemas.browse import BrowseResponse
 
 
@@ -157,8 +155,8 @@ def test_browse_only_launches_once_without_retries(monkeypatch, client):
     run_call_count = 0
     
     # Mock BrowseCrawler class to track instantiation
-    original_init = BrowseCrawler.__init__
-    original_run = BrowseCrawler.run
+    # original_init = BrowseCrawler.__init__
+    # original_run = BrowseCrawler.run
     
     def mock_init(self, engine=None):
         nonlocal instantiation_count

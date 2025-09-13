@@ -1,12 +1,12 @@
+from typing import List, Dict, Any
 import random
-from typing import List, Dict, Any, Optional
 
 from app.services.common.interfaces import IAttemptPlanner
 
 
 class AttemptPlanner(IAttemptPlanner):
     """Planner for crawl attempts that builds execution plans with proxy rotation."""
-    
+
     def build_plan(self, settings, public_proxies: List[str]) -> List[Dict[str, Any]]:
         """Build the attempt plan for retry strategy."""
         plan: List[Dict[str, Any]] = []

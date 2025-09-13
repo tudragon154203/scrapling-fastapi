@@ -2,8 +2,6 @@ import sys
 import types
 from unittest.mock import patch
 
-import pytest
-
 
 def _install_fake_scrapling(monkeypatch, side_effects):
     """Install fake scrapling.fetchers with a StealthyFetcher.fetch sequence.

@@ -1,7 +1,6 @@
 """
 Unit tests for TikTok HTML Parser
 """
-import pytest
 from app.services.tiktok.parser.utils import parse_like_count
 from app.services.tiktok.parser.html_parser import extract_video_data_from_html
 

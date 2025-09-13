@@ -1,8 +1,7 @@
-﻿import logging
+import logging
 from typing import Any
 
 import app.core.config as app_config
-from app.schemas.auspost import AuspostCrawlRequest
 
 from app.services.browser.actions.base import BasePageAction
 from app.services.browser.actions.humanize import (
@@ -19,14 +18,14 @@ logger = logging.getLogger(__name__)
 
 class AuspostTrackAction(BasePageAction):
     """Page action for AusPost tracking automation."""
-    
+
     def __init__(self, tracking_code: str):
         self.tracking_code = tracking_code
-    
+
     def __call__(self, page: Any) -> Any:
         """Make the action directly callable."""
         return self._execute(page)
-    
+
     def _execute(self, page: Any) -> Any:
         """Playwright page_action for AusPost tracking automation.
 
@@ -51,7 +50,7 @@ class AuspostTrackAction(BasePageAction):
 
         # We'll attempt up to 3 submissions to handle flows where
         # the site returns to the search page after verification.
-        
+
         for attempt in range(3):
             try:
                 # If we already reached details URL, break early
@@ -130,7 +129,7 @@ class AuspostTrackAction(BasePageAction):
                 self._handle_verification(page)
 
                 # Wait for details URL; if not, try clicking generic Track/Search buttons
-                tried_generic = False
+                # tried_generic = False
                 try:
                     page.wait_for_url("**/mypost/track/details/**", timeout=15_000)
                     break
@@ -139,7 +138,7 @@ class AuspostTrackAction(BasePageAction):
                         btn = page.locator('button:has-text("Track"), button:has-text("Search")').first
                         btn.wait_for(state="visible", timeout=5_000)
                         btn.click()
-                        tried_generic = True
+                        # tried_generic = True
                         try:
                             page.wait_for_url("**/mypost/track/details/**", timeout=15_000)
                             break
@@ -157,7 +156,9 @@ class AuspostTrackAction(BasePageAction):
 
                 # If we are still on search page (common after verification), loop and retry
                 try:
-                    if "/mypost/track/search" in (page.url or "") and not page.locator("h3#trackingPanelHeading").first.is_visible():
+                    is_on_search = "/mypost/track/search" in (page.url or "")
+                    details_not_visible = not page.locator("h3#trackingPanelHeading").first.is_visible()
+                    if is_on_search and details_not_visible:
                         # small grace wait before next attempt to let any cookies settle
                         try:
                             page.wait_for_load_state("domcontentloaded", timeout=2_000)
@@ -185,7 +186,7 @@ class AuspostTrackAction(BasePageAction):
                 pass
 
         return page
-    
+
     def _close_global_search(self, page: Any) -> None:
         """Close the global search overlay if it's open."""
         try:
@@ -214,7 +215,7 @@ class AuspostTrackAction(BasePageAction):
                         pass
         except Exception:
             pass
-    
+
     def _handle_verification(self, page: Any) -> None:
         """Handle the verification interstitial if it appears."""
         try:
@@ -229,5 +230,3 @@ class AuspostTrackAction(BasePageAction):
                 pass
         except Exception:
             pass
-
-

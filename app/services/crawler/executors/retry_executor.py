@@ -1,13 +1,11 @@
 import asyncio
 import logging
-import random
 import sys
 import time
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 import app.core.config as app_config
 from app.schemas.crawl import CrawlRequest, CrawlResponse
 from app.services.common.interfaces import IExecutor, PageAction, IBackoffPolicy, IAttemptPlanner, IProxyHealthTracker
-from app.services.common.types import FetchCapabilities
 from app.services.common.adapters.scrapling_fetcher import ScraplingFetcherAdapter, FetchArgComposer
 from app.services.crawler.executors.backoff import BackoffPolicy
 from app.services.browser.options.resolver import OptionsResolver
@@ -17,9 +15,12 @@ from app.services.crawler.proxy.health import get_health_tracker
 from app.services.crawler.proxy.redact import redact_proxy
 
 logger = logging.getLogger(__name__)
+
+
 class RetryingExecutor(IExecutor):
     """Crawl executor that performs multiple attempts with retry logic."""
-    def __init__(self, 
+
+    def __init__(self,
                  fetch_client: Optional[ScraplingFetcherAdapter] = None,
                  options_resolver: Optional[OptionsResolver] = None,
                  arg_composer: Optional[FetchArgComposer] = None,
@@ -34,6 +35,7 @@ class RetryingExecutor(IExecutor):
         self.backoff_policy = backoff_policy or BackoffPolicy.from_settings(app_config.get_settings())
         self.attempt_planner = attempt_planner or AttemptPlanner()
         self.health_tracker = health_tracker or get_health_tracker()
+
     def execute(self, request: CrawlRequest, page_action: Optional[PageAction] = None) -> CrawlResponse:
         """Execute crawl with retry and proxy strategy."""
         # Windows event loop policy fix
@@ -73,7 +75,8 @@ class RetryingExecutor(IExecutor):
                         candidate_mode = attempt_config["mode"]
                         if candidate_proxy and self.health_tracker.is_unhealthy(candidate_proxy):
                             logger.info(
-                                f"Attempt {attempt_count+1} skipped - {candidate_mode} proxy {self._redact_proxy(candidate_proxy)} is unhealthy"
+                                f"Attempt {attempt_count+1} skipped - {candidate_mode} proxy "
+                                f"{self._redact_proxy(candidate_proxy)} is unhealthy"
                             )
                             attempt_count += 1
                             continue
@@ -92,7 +95,7 @@ class RetryingExecutor(IExecutor):
                     if healthy_public:
                         # Stable ordering by value to ensure deterministic behavior
                         healthy_public = sorted(healthy_public)[:2]
-                        base_order = healthy_public
+                        # base_order = healthy_public
                         if (attempt_count >= settings.max_retries - 1) and private:
                             selected_proxy = private
                             mode = "private"
@@ -168,7 +171,8 @@ class RetryingExecutor(IExecutor):
                             last_error = "HTML content is None or empty"
                         else:
                             last_error = (
-                                f"HTML not acceptable (len={html_len}, has_html_tag={html_has_doc}, status={status})"
+                                f"HTML not acceptable (len={html_len}, "
+                                f"has_html_tag={html_has_doc}, status={status})"
                             )
                         if selected_proxy:
                             self._mark_proxy_failure(selected_proxy, settings)
@@ -183,7 +187,12 @@ class RetryingExecutor(IExecutor):
                 if attempt_count < settings.max_retries:
                     delay = self.backoff_policy.delay_for_attempt(attempt_count - 1)
                     time.sleep(delay)
-            return CrawlResponse(status="failure", url=request.url, html=None, message=last_error or "exhausted retries")
+            return CrawlResponse(
+                status="failure",
+                url=request.url,
+                html=None,
+                message=last_error or "exhausted retries"
+            )
         except ImportError:
             return CrawlResponse(
                 status="failure",
@@ -198,6 +207,7 @@ class RetryingExecutor(IExecutor):
                     user_data_cleanup()
                 except Exception as e:
                     logger.warning(f"Failed to cleanup user data context: {e}")
+
     def _load_public_proxies(self, file_path: Optional[str]) -> List[str]:
         """Load public proxies from a file."""
         if not file_path:
@@ -215,12 +225,13 @@ class RetryingExecutor(IExecutor):
                 return proxies
         except Exception:
             return []
+
     def _mark_proxy_failure(self, proxy: str, settings) -> None:
         """Mark a proxy as failed and potentially mark it as unhealthy."""
         self.health_tracker.mark_failure(proxy)
         if self.health_tracker.get_failure_count(proxy) >= settings.proxy_health_failure_threshold:
             self.health_tracker.set_unhealthy(proxy, settings.proxy_unhealthy_cooldown_minute)
+
     def _redact_proxy(self, proxy: Optional[str]) -> str:
         """Redact proxy URL for logging."""
         return redact_proxy(proxy)
-

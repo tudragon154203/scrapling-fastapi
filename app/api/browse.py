@@ -1,12 +1,12 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter
 from types import SimpleNamespace, FunctionType
-from typing import Optional
 
 from app.schemas.browse import BrowseRequest, BrowseResponse
 from app.services.browser.browse import BrowseCrawler
 from fastapi.responses import JSONResponse
 
 router = APIRouter()
+
 
 def browse(request: BrowseRequest) -> BrowseResponse:
     """Browse handler used by the API route."""

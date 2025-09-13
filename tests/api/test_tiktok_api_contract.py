@@ -2,8 +2,6 @@
 Contract tests for TikTok Session API
 """
 import pytest
-import json
-from httpx import AsyncClient
 
 
 class TestTikTokSessionAPIContract:

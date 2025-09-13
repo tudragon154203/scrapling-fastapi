@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 from app.schemas.crawl import CrawlRequest
 
 
@@ -10,7 +10,7 @@ class CrawlOptions:
     network_idle: bool = True
     timeout: int = 30
     wait_for_selector: Optional[str] = None
-    
+
     @classmethod
     def from_request(cls, request: CrawlRequest) -> 'CrawlOptions':
         """Create options from crawl request."""
@@ -39,7 +39,7 @@ class Attempt:
     index: int
     proxy: Optional[str]
     mode: str  # 'direct', 'public', 'private'
-    
+
     def __post_init__(self):
         if self.mode not in ('direct', 'public', 'private'):
             raise ValueError(f"Invalid mode: {self.mode}")
@@ -60,7 +60,7 @@ class FetchCapabilities:
     supports_profile_path: bool = False
     supports_user_data: bool = False
     supports_custom_config: bool = False
-    
+
     def __bool__(self) -> bool:
         """Return True if any capabilities are supported."""
         return any([

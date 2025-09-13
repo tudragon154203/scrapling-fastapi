@@ -1,9 +1,8 @@
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock
 
 from app.services.crawler.dpd import DPDCrawler
 from app.schemas.dpd import DPDCrawlRequest
-from app.schemas.crawl import CrawlRequest
 
 
 @pytest.fixture

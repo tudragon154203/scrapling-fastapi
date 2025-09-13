@@ -70,6 +70,7 @@ try:
         tiktok_max_session_duration: int = Field(default=300, env="TIKTOK_MAX_SESSION_DURATION")
         tiktok_url: str = Field(default="https://www.tiktok.com/", env="TIKTOK_URL")
         model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="allow")
+
     @lru_cache()
     def get_settings() -> "Settings":
         return Settings()
@@ -128,6 +129,7 @@ except Exception:
         tiktok_login_detection_timeout: int = 8
         tiktok_max_session_duration: int = 300
         tiktok_url: str = "https://www.tiktok.com/"
+
     @lru_cache()
     def get_settings() -> "Settings":
         return Settings(
@@ -178,4 +180,3 @@ except Exception:
             tiktok_max_session_duration=int(os.getenv("TIKTOK_MAX_SESSION_DURATION", "300")),
             tiktok_url=os.getenv("TIKTOK_URL", "https://www.tiktok.com/"),
         )
-

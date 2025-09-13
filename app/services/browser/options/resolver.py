@@ -1,15 +1,12 @@
-import os
-from typing import Dict, Any, Optional
+from typing import Any
 
-import app.core.config as app_config
 from app.schemas.crawl import CrawlRequest
 from app.services.common.interfaces import IOptionsResolver
-from app.services.common.types import CrawlOptions
 
 
 class OptionsResolver(IOptionsResolver):
     """Resolver for crawl options with simplified field names."""
-    
+
     def resolve(self, request: CrawlRequest, settings) -> dict[str, Any]:
         """Resolve effective options from request and settings."""
         wait_selector = request.wait_for_selector

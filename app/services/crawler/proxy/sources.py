@@ -1,4 +1,3 @@
-import random
 from typing import List, Optional
 
 from app.services.common.interfaces import IProxyListSource
@@ -6,10 +5,10 @@ from app.services.common.interfaces import IProxyListSource
 
 class ProxyListFileSource(IProxyListSource):
     """Source for loading proxy lists from files."""
-    
+
     def __init__(self, file_path: Optional[str] = None):
         self.file_path = file_path
-    
+
     def load(self) -> List[str]:
         """Load proxy list from file as socks5:// URLs by default."""
         if not self.file_path:

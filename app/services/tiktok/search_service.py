@@ -15,11 +15,13 @@ from urllib.parse import quote_plus
 # Project-internal imports are intentionally lazy-loaded in methods to
 # avoid circular imports and heavy dependencies at module import time.
 
+
 class TikTokSearchService:
     def __init__(self, service: Any):
         self.service = service
         self.settings = service.settings
         self.logger = logging.getLogger(__name__)
+
     async def search(
         self,
         query: Union[str, List[str]],
@@ -27,7 +29,10 @@ class TikTokSearchService:
         sort_type: str = "RELEVANCE",
         recency_days: str = "ALL",
     ) -> Dict[str, Any]:
-        self.logger.debug(f"[TikTokSearchService] Starting search - query: {query}, num_videos: {num_videos}, sort_type: {sort_type}, recency_days: {recency_days}")
+        self.logger.debug(
+            f"[TikTokSearchService] Starting search - query: {query}, "
+            f"num_videos: {num_videos}, sort_type: {sort_type}, recency_days: {recency_days}"
+        )
         # 1) Enforce sort type (current API supports RELEVANCE only)
         self.logger.debug(f"[TikTokSearchService] Checking sort_type: {sort_type}")
         err = self._enforce_sort_type(sort_type)
@@ -46,7 +51,7 @@ class TikTokSearchService:
         in_tests = self._is_tests_env()
         self.logger.debug(f"[TikTokSearchService] Test environment: {in_tests}")
         # 4) Prepare fetch context (search operates independently of sessions)
-        self.logger.debug(f"[TikTokSearchService] Preparing fetch context for independent search")
+        self.logger.debug("[TikTokSearchService] Preparing fetch context for independent search")
         (
             fetcher,
             composer,
@@ -94,9 +99,15 @@ class TikTokSearchService:
                         self.logger.debug("[TikTokSearchService] Raw HTML exported to tiktok_search.html")
                     except Exception as e:
                         self.logger.warning(f"[TikTokSearchService] Failed to export raw HTML: {e}")
-                self.logger.debug(f"[TikTokSearchService] Fetch result - status_code: {status_code}, html_length: {len(html)}")
+                self.logger.debug(
+                    f"[TikTokSearchService] Fetch result - status_code: {status_code}, "
+                    f"html_length: {len(html)}"
+                )
                 if status_code < 200 or status_code >= 300 or not html:
-                    self.logger.warning(f"[TikTokSearchService] Invalid response for query '{q}': status={status_code}, html_length={len(html)}")
+                    self.logger.warning(
+                        f"[TikTokSearchService] Invalid response for query '{q}': "
+                        f"status={status_code}, html_length={len(html)}"
+                    )
                     continue
                 items = TikTokSearchParser().parse(html) or []
                 self.logger.debug(f"[TikTokSearchService] Extracted {len(items)} video items from HTML for query '{q}'")
@@ -120,39 +131,50 @@ class TikTokSearchService:
                     elif (not vid) and url and (url not in seen_urls):
                         seen_urls.add(url)
                         aggregated.append(item)
-                self.logger.debug(f"[TikTokSearchService] After processing query '{q}': {len(aggregated)} total videos, {len(seen_ids)} unique IDs, {len(seen_urls)} unique URLs")
+                self.logger.debug(
+                    f"[TikTokSearchService] After processing query '{q}': {len(aggregated)} total videos, "
+                    f"{len(seen_ids)} unique IDs, {len(seen_urls)} unique URLs"
+                )
                 if len(aggregated) >= int(num_videos):
-                    self.logger.debug(f"[TikTokSearchService] Reached target video count ({num_videos}), breaking from search loop")
+                    self.logger.debug(
+                        f"[TikTokSearchService] Reached target video count ({num_videos}), "
+                        f"breaking from search loop"
+                    )
                     break
             except Exception as e:
                 self.logger.error(f"[TikTokSearchService] Exception processing query '{q}': {e}", exc_info=True)
                 continue
         # Skip detail-page enrichment; rely solely on search-page HTML like demo
         if callable(user_data_cleanup):
-            self.logger.debug(f"[TikTokSearchService] Calling user_data_cleanup function")
+            self.logger.debug("[TikTokSearchService] Calling user_data_cleanup function")
             try:
                 # Add a small delay before cleanup to ensure parsing is complete
                 time.sleep(3)
                 user_data_cleanup()
-                self.logger.debug(f"[TikTokSearchService] User data cleanup completed successfully")
+                self.logger.debug("[TikTokSearchService] User data cleanup completed successfully")
             except Exception as e:
                 self.logger.error(f"[TikTokSearchService] User data cleanup failed: {e}", exc_info=True)
                 pass
         limit = max(0, min(int(num_videos), 50))
         final_results = aggregated[:limit]
         normalized_query = " ".join(queries)
-        self.logger.debug(f"[TikTokSearchService] Final results - total_aggregated: {len(aggregated)}, limit: {limit}, final_results: {len(final_results)}")
+        self.logger.debug(
+            f"[TikTokSearchService] Final results - total_aggregated: {len(aggregated)}, "
+            f"limit: {limit}, final_results: {len(final_results)}"
+        )
         self.logger.debug(f"[TikTokSearchService] Normalized query: '{normalized_query}'")
         result = {"results": final_results, "totalResults": len(final_results), "query": normalized_query}
         self.logger.debug(f"[TikTokSearchService] Returning search result with {len(final_results)} videos")
         return result
     # Helpers
+
     def _is_tests_env(self) -> bool:
         return bool(os.environ.get("PYTEST_CURRENT_TEST"))
+
     def _enforce_sort_type(self, sort_type: Optional[str]) -> Optional[Dict[str, Any]]:
         self.logger.debug(f"[TikTokSearchService] Enforcing sort_type: {sort_type}")
         if str(sort_type or "").upper() == "RELEVANCE":
-            self.logger.debug(f"[TikTokSearchService] Sort type validated: RELEVANCE")
+            self.logger.debug("[TikTokSearchService] Sort type validated: RELEVANCE")
             return None
         self.logger.warning(f"[TikTokSearchService] Sort type validation failed for: {sort_type}")
         return {
@@ -162,13 +184,14 @@ class TikTokSearchService:
                 "fields": {"sortType": "Must be 'RELEVANCE'"},
             }
         }
+
     def _normalize_queries(self, query: Union[str, List[str]]) -> Tuple[bool, Union[List[str], Dict[str, Any]]]:
         self.logger.debug(f"[TikTokSearchService] Normalizing query type: {type(query)}")
         if isinstance(query, list):
             queries = [str(x).strip() for x in query if str(x or "").strip()]
             self.logger.debug(f"[TikTokSearchService] Filtered query list from {len(query)} to {len(queries)} items")
             if not queries:
-                self.logger.warning(f"[TikTokSearchService] Empty query list after filtering")
+                self.logger.warning("[TikTokSearchService] Empty query list after filtering")
                 return False, {
                     "error": {
                         "code": "VALIDATION_ERROR",
@@ -189,15 +212,18 @@ class TikTokSearchService:
                 }
             }
         return True, [q]
+
     def _prepare_fetch_context(self, in_tests: bool):
         from app.services.common.adapters.scrapling_fetcher import ScraplingFetcherAdapter, FetchArgComposer
         from app.services.common.browser.camoufox import CamoufoxArgsBuilder
-        self.logger.debug(f"[TikTokSearchService] Preparing fetch context for independent search - in_tests: {in_tests}")
+        self.logger.debug(
+            f"[TikTokSearchService] Preparing fetch context for independent search - in_tests: {in_tests}")
         # Ensure proper event loop policy on Windows for Playwright/Scrapling
         if sys.platform == "win32":
             try:
                 asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
-                self.logger.debug(f"[TikTokSearchService] Set WindowsProactorEventLoopPolicy for Scrapling compatibility")
+                self.logger.debug(
+                    "[TikTokSearchService] Set WindowsProactorEventLoopPolicy for Scrapling compatibility")
             except Exception as e:
                 self.logger.warning(f"[TikTokSearchService] Failed to set Windows event loop policy: {e}")
         settings = self.settings
@@ -208,7 +234,7 @@ class TikTokSearchService:
         self.logger.debug(f"[TikTokSearchService] Detected capabilities: {caps}")
         try:
             _, extra_headers = camoufox_builder.build(type("Mock", (), {"force_user_data": False})(), settings, caps)
-            self.logger.debug(f"[TikTokSearchService] Built base headers for non-force_user_data")
+            self.logger.debug("[TikTokSearchService] Built base headers for non-force_user_data")
         except Exception as e:
             self.logger.warning(f"[TikTokSearchService] Failed to build base headers: {e}")
             extra_headers = None
@@ -217,13 +243,14 @@ class TikTokSearchService:
         try:
             payload = type("Mock", (), {"force_user_data": True})()
             additional_args, extra_headers2 = camoufox_builder.build(payload, settings, caps)
-            self.logger.debug(f"[TikTokSearchService] Built additional args for forced user data: {len(additional_args)} args")
+            self.logger.debug(
+                f"[TikTokSearchService] Built additional args for forced user data: {len(additional_args)} args")
             if extra_headers is None and extra_headers2 is not None:
                 extra_headers = extra_headers2
-                self.logger.debug(f"[TikTokSearchService] Updated extra headers from camoufox build")
+                self.logger.debug("[TikTokSearchService] Updated extra headers from camoufox build")
             user_data_cleanup = additional_args.get("_user_data_cleanup")
             if user_data_cleanup:
-                self.logger.debug(f"[TikTokSearchService] Set up user_data_cleanup function")
+                self.logger.debug("[TikTokSearchService] Set up user_data_cleanup function")
         except Exception as e:
             self.logger.error(f"[TikTokSearchService] Failed to build additional args: {e}", exc_info=True)
             additional_args = {}
@@ -247,7 +274,9 @@ class TikTokSearchService:
             "timeout_seconds": 45,
         }
         self.logger.debug(f"[TikTokSearchService] Fetch options: {options}")
-        self.logger.debug(f"[TikTokSearchService] Extra headers: {extra_headers is not None}, User data cleanup: {user_data_cleanup is not None}")
+        self.logger.debug(
+            f"[TikTokSearchService] Extra headers: {extra_headers is not None}, "
+            f"User data cleanup: {user_data_cleanup is not None}"
+        )
         return fetcher, composer, caps, additional_args, extra_headers, user_data_cleanup, options
     # No detail enrichment or page_action injection; operate like demo on search page only
-

@@ -1,7 +1,7 @@
 """
 Common utilities and helpers for TikTok parsing
 """
-import re
+
 
 def parse_like_count(like_text: str) -> int:
     """
@@ -9,10 +9,10 @@ def parse_like_count(like_text: str) -> int:
     """
     if not like_text or like_text.strip() == "":
         return 0
-    
+
     try:
         like_text = like_text.strip().lower()
-        
+
         # Handle numbers with K (thousands) or M (millions)
         if 'k' in like_text:
             # Remove 'k' and convert to float, then multiply by 1000

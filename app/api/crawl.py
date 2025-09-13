@@ -1,6 +1,5 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter
 from types import SimpleNamespace, FunctionType
-from typing import Optional
 
 from app.schemas.crawl import CrawlRequest, CrawlResponse
 from app.schemas.dpd import DPDCrawlRequest, DPDCrawlResponse
@@ -12,6 +11,7 @@ from fastapi.responses import JSONResponse
 
 router = APIRouter()
 
+
 def crawl(request: CrawlRequest) -> CrawlResponse:
     """Generic crawl handler (callable) used by the API route.
 
@@ -20,6 +20,7 @@ def crawl(request: CrawlRequest) -> CrawlResponse:
     """
     crawler = GenericCrawler()
     return crawler.run(request)
+
 
 @router.post("/crawl", response_model=CrawlResponse, tags=["crawl"])
 def crawl_endpoint(payload: CrawlRequest):
@@ -59,7 +60,7 @@ def crawl_dpd(request: DPDCrawlRequest) -> DPDCrawlResponse:
 @router.post("/crawl/dpd", response_model=DPDCrawlResponse, tags=["crawl"])
 def crawl_dpd_endpoint(payload: DPDCrawlRequest):
     """DPD tracking endpoint using Scrapling.
-    
+
     Accepts a tracking code and returns the DPD tracking page HTML. Delegates to `crawl_dpd`.
     """
     if not isinstance(crawl_dpd, FunctionType):
@@ -89,7 +90,7 @@ def crawl_auspost(request: AuspostCrawlRequest) -> AuspostCrawlResponse:
 @router.post("/crawl/auspost", response_model=AuspostCrawlResponse, tags=["crawl"])
 def crawl_auspost_endpoint(payload: AuspostCrawlRequest):
     """AusPost tracking endpoint using Scrapling.
-    
+
     Accepts a tracking code or a full details URL
     (https://auspost.com.au/mypost/track/details/<CODE>) and returns the
     AusPost tracking page HTML. Delegates to `crawl_auspost`.

@@ -2,8 +2,6 @@ import inspect
 import logging
 import threading
 from typing import Any, Dict, Optional
-from urllib import request as urllib_request
-from urllib.error import URLError, HTTPError
 from app.services.common.interfaces import IFetchClient
 from app.services.common.types import FetchCapabilities
 from app.services.crawler.proxy.redact import redact_proxy as _redact_proxy
@@ -15,23 +13,27 @@ import types
 from scrapling.fetchers import StealthyFetcher
 
 logger = logging.getLogger(__name__)
+
+
 class ScraplingFetcherAdapter(IFetchClient):
     """Adapter for Scrapling's StealthyFetcher that bridges to OOP interfaces."""
+
     def __init__(self):
         self._capabilities: Optional[FetchCapabilities] = None
         self._user_data_cleanup = None
+
     def detect_capabilities(self) -> FetchCapabilities:
         """Detect fetch capabilities by introspecting StealthyFetcher.fetch signature."""
         if self._capabilities is not None:
             return self._capabilities
         try:
-            from scrapling.fetchers import StealthyFetcher
             _sig = inspect.signature(StealthyFetcher.fetch)
             _fetch_params = set(_sig.parameters.keys())
             _has_varkw = any(p.kind == inspect.Parameter.VAR_KEYWORD for p in _sig.parameters.values())
         except Exception:
             _fetch_params = set()
             _has_varkw = False
+
         def _ok(name: str) -> bool:
             return (name in _fetch_params) or _has_varkw
         self._capabilities = FetchCapabilities(
@@ -49,11 +51,12 @@ class ScraplingFetcherAdapter(IFetchClient):
             supports_custom_config=_ok("custom_config"),
         )
         return self._capabilities
+
     def fetch(self, url: str, args: Dict[str, Any]) -> Any:
         """Fetch the given URL using StealthyFetcher with thread safety."""
         logger.info(f"Launching browser for URL: {url}")
         try:
-            from scrapling.fetchers import StealthyFetcher
+            pass  # Already imported at the top
         except ImportError:
             raise ImportError("Scrapling library not available")
         StealthyFetcher.adaptive = True
@@ -61,6 +64,7 @@ class ScraplingFetcherAdapter(IFetchClient):
         if self._has_running_loop():
             return self._fetch_in_thread(url, args)
         return self._fetch_with_geoip_fallback(url, args)
+
     def _has_running_loop(self) -> bool:
         """Check if there's a running asyncio event loop in the current thread."""
         try:
@@ -68,10 +72,12 @@ class ScraplingFetcherAdapter(IFetchClient):
             return True
         except Exception:
             return False
+
     def _fetch_in_thread(self, url: str, args: Dict[str, Any]) -> Any:
         """Execute fetch in a dedicated thread if event loop is running."""
         logger.info(f"Launching browser in thread for URL: {url}")
         holder: Dict[str, Any] = {}
+
         def _runner():
             try:
                 import asyncio
@@ -81,7 +87,6 @@ class ScraplingFetcherAdapter(IFetchClient):
                         asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
                     except Exception:
                         pass
-                from scrapling.fetchers import StealthyFetcher
                 result = StealthyFetcher.fetch(url, **args)
                 holder["result"] = result
             except Exception as e:
@@ -92,17 +97,17 @@ class ScraplingFetcherAdapter(IFetchClient):
         if "exc" in holder:
             raise holder["exc"]
         return holder.get("result")
+
     def _fetch_with_geoip_fallback(self, url: str, args: Dict[str, Any]) -> Any:
         """Fetch with GeoIP fallback: try with geoip, retry without if DB error."""
         try:
-            from scrapling.fetchers import StealthyFetcher
             return StealthyFetcher.fetch(url, **args)
         except Exception as e:
             # Check for known GeoIP database errors
             error_str = str(e)
             error_type = str(type(e))
             if ("InvalidDatabaseError" in error_type or
-                "GeoLite2-City.mmdb" in error_str):
+                    "GeoLite2-City.mmdb" in error_str):
                 logger.warning(f"GeoIP database error: {e}. Retrying without geoip.")
                 # Remove geoip from args and retry
                 retry_args = args.copy()
@@ -119,6 +124,7 @@ class ScraplingFetcherAdapter(IFetchClient):
                         pass
                 # Re-raise if not handled
                 raise
+
     def _http_fallback(self, url: str) -> Any:
         """Simple HTTP fallback returning a minimal response-like object.
         Used as a best-effort escape hatch when Playwright navigation waits fail,
@@ -131,7 +137,7 @@ class ScraplingFetcherAdapter(IFetchClient):
                 url,
                 headers={
                     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-                                   "(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+                    "(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
                 },
             )
             with urlopen(req, timeout=30) as resp:
@@ -144,20 +150,24 @@ class ScraplingFetcherAdapter(IFetchClient):
         except Exception as e:
             logger.info(f"HTTP fallback failed: {type(e).__name__}: {e}")
             raise
+
     def get_user_data_cleanup(self) -> Optional[callable]:
         """Get the user data cleanup function for cleanup after fetch."""
         cleanup_func = self._user_data_cleanup
         # Reset the cleanup function after getting it
         self._user_data_cleanup = None
         return cleanup_func
+
+
 class FetchArgComposer:
     """Composer for fetch arguments that handles capabilities safely."""
     @staticmethod
-    def compose(options: Dict[str, Any], caps: FetchCapabilities, selected_proxy: Optional[str], 
-                additional_args: Dict[str, Any], extra_headers: Optional[Dict[str, str]], 
+    def compose(options: Dict[str, Any], caps: FetchCapabilities, selected_proxy: Optional[str],
+                additional_args: Dict[str, Any], extra_headers: Optional[Dict[str, str]],
                 settings: Any, page_action: Optional[Any] = None) -> Dict[str, Any]:
         """Compose fetch arguments from components in a capability-safe way."""
         proxy = selected_proxy  # Alias for compatibility
+
         def _ok(name: str) -> bool:
             # For capabilities not in FetchCapabilities, we check directly
             return getattr(caps, f"supports_{name}", False)
@@ -212,7 +222,10 @@ class FetchArgComposer:
                         safe_additional_args[k] = v
                     elif k == "profile_path" and (_ok("profile_path") or _ok("user_data_dir") or _ok("profile_dir") or _ok("user_data")):
                         safe_additional_args[k] = v
-                    elif k == "user_data" and (_ok("user_data") or _ok("user_data_dir") or _ok("profile_dir") or _ok("profile_path")):
+                    elif k == "user_data" and (_ok("user_data") or
+                                               _ok("user_data_dir") or
+                                               _ok("profile_dir") or
+                                               _ok("profile_path")):
                         safe_additional_args[k] = v
             except Exception:
                 safe_additional_args = additional_args or {}
@@ -237,4 +250,3 @@ class FetchArgComposer:
         # if caps.supports_solve_cloudflare:
         #     fetch_kwargs["solve_cloudflare"] = True
         return fetch_kwargs
-

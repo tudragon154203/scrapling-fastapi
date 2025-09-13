@@ -53,7 +53,8 @@ def test_crawl_with_retry_settings(monkeypatch):
     # Mock the settings to enable retries
     with patch('app.core.config.get_settings') as mock_get_settings:
         # Create a mock settings object with retry enabled
-        mock_settings = lambda: None
+        def mock_settings(): 
+            pass
         mock_settings.max_retries = 2
         mock_settings.retry_backoff_base_ms = 100
         mock_settings.retry_backoff_max_ms = 1000

@@ -1,10 +1,10 @@
 """
 BeautifulSoup DOM parsing for TikTok
 """
-import re
 import logging
 import json
-from typing import List, Dict, Any, Optional
+import re
+from typing import List, Dict, Any
 from bs4 import BeautifulSoup
 
 from app.services.tiktok.parser.json_parser import _from_sigi_state
@@ -32,7 +32,8 @@ def extract_video_data_from_html(html_content: str) -> List[Dict[str, Any]]:
 
     # Strategy 0.25: Client-extracted search items injected by page_action
     try:
-        m = re.search(r'<script[^>]+id=["\']EXTRACTED_SEARCH_ITEMS["\'][^>]*>(.*?)</script>', html_content or "", re.DOTALL | re.IGNORECASE)
+        m = re.search(r'<script[^>]+id=["\']EXTRACTED_SEARCH_ITEMS["\'][^>]*>(.*?)</script>',
+                      html_content or "", re.DOTALL | re.IGNORECASE)
         if m:
             payload = (m.group(1) or "").strip()
             if payload:
@@ -69,7 +70,8 @@ def extract_video_data_from_html(html_content: str) -> List[Dict[str, Any]]:
             vid = vid_m.group(1) if vid_m else ""
             user_m = re.search(r"/@([^/]+)/", href)
             author = user_m.group(1) if user_m else ""
-            cap_meta = soup.find('meta', attrs={'property': 'og:description'}) or soup.find('meta', attrs={'name': 'description'})
+            cap_meta = soup.find('meta', attrs={'property': 'og:description'}
+                                 ) or soup.find('meta', attrs={'name': 'description'})
             caption = cap_meta.get('content').strip() if cap_meta and cap_meta.get('content') else ""
             if vid and href:
                 return [{
@@ -240,8 +242,9 @@ def extract_video_data_from_html(html_content: str) -> List[Dict[str, Any]]:
     # Strategy 1: Use `column-item-video-container-X` as the primary video item container
     video_containers = soup.find_all('div', id=re.compile(r'column-item-video-container-\d+'))
     for container in video_containers:
-        data: Dict[str, Any] = {"id": "", "caption": "", "authorHandle": "", "likeCount": 0, "uploadTime": "", "webViewUrl": ""}
-        
+        data: Dict[str, Any] = {"id": "", "caption": "", "authorHandle": "",
+                                "likeCount": 0, "uploadTime": "", "webViewUrl": ""}
+
         # Extract URL and ID
         a = container.find('a', href=re.compile(r'/video/'))
         href = a.get('href') if a and a.get('href') else ""
@@ -258,7 +261,11 @@ def extract_video_data_from_html(html_content: str) -> List[Dict[str, Any]]:
         data["uploadTime"] = _best_time_from(container)
 
         if data["id"] and data["webViewUrl"]:
-            logger.debug(f"Extracted video data: ID={data['id']}, Caption='{data['caption']}', Author='{data['authorHandle']}', Likes={data['likeCount']}, UploadTime='{data['uploadTime']}', URL='{data['webViewUrl']}'")
+            logger.debug(
+                f"Extracted video data: ID={data['id']}, Caption='{data['caption']}', "
+                f"Author='{data['authorHandle']}', Likes={data['likeCount']}, "
+                f"UploadTime='{data['uploadTime']}', URL='{data['webViewUrl']}'"
+            )
             results.append(data)
 
     logger.debug(f"Finished parsing HTML. Found {len(results)} videos.")

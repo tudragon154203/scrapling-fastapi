@@ -1,11 +1,7 @@
 """
 E2E tests for TikTok Session endpoint
 """
-import pytest
-import json
-from unittest.mock import patch, AsyncMock, MagicMock
-from fastapi.testclient import TestClient
-from app.services.tiktok.service import TiktokService
+from unittest.mock import patch, AsyncMock
 from app.schemas.tiktok import TikTokSessionResponse
 
 

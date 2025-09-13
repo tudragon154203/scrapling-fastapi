@@ -1,18 +1,20 @@
 import logging
 import app.core.config as app_config
-from app.schemas.crawl import CrawlRequest, CrawlResponse
+from app.schemas.crawl import CrawlRequest
 from app.schemas.dpd import DPDCrawlRequest, DPDCrawlResponse
 from app.services.common.engine import CrawlerEngine
 from urllib.parse import quote
 
-from app.schemas.crawl import CrawlRequest
-
 logger = logging.getLogger(__name__)
 DPD_BASE = "https://tracking.dpd.de/status/en_US/parcel"
+
+
 class DPDCrawler:
     """DPD-specific crawler that uses the CrawlerEngine without page actions."""
+
     def __init__(self, engine: CrawlerEngine = None):
         self.engine = engine or CrawlerEngine.from_settings(app_config.get_settings())
+
     def run(self, request: DPDCrawlRequest) -> DPDCrawlResponse:
         """Run a DPD crawl request."""
         # Convert DPDCrawlRequest to CrawlRequest
@@ -25,6 +27,7 @@ class DPDCrawler:
             html=crawl_response.html,
             message=crawl_response.message,
         )
+
     def _convert_dpd_to_crawl_request(self, dpd_request: DPDCrawlRequest) -> CrawlRequest:
         """Convert DPD request to generic crawl request."""
         # Normalize tracking code: strip whitespace, remove spaces and hyphens, URL-encode if needed
@@ -41,4 +44,3 @@ class DPDCrawler:
             force_user_data=dpd_request.force_user_data,
             timeout_seconds=30,  # Converted from 30_000ms to seconds
         )
-

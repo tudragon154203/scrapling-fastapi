@@ -1,8 +1,5 @@
 import random
-import time
 from unittest.mock import MagicMock, patch
-
-import pytest
 
 from app.services.browser.actions.humanize import (
     human_pause,

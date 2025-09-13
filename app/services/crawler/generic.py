@@ -2,17 +2,14 @@ from typing import Optional
 from app.schemas.crawl import CrawlRequest, CrawlResponse
 from app.services.common.engine import CrawlerEngine
 from app.services.common.interfaces import PageAction
-from app.services.crawler.executors.retry_executor import RetryingExecutor
-from app.services.browser.actions.wait_for_close import WaitForUserCloseAction
-import app.core.config as app_config
 
 
 class GenericCrawler:
     """Generic crawler that uses the CrawlerEngine."""
-    
+
     def __init__(self, engine: CrawlerEngine = None):
         self.engine = engine or CrawlerEngine.from_settings(None)
-    
+
     def run(self, request: CrawlRequest, page_action: Optional[PageAction] = None) -> CrawlResponse:
         """Run a generic crawl request.
 

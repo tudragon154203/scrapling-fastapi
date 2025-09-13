@@ -61,4 +61,3 @@ class ScrollDownAction(BasePageAction):
         except Exception:
             pass
         return False
-

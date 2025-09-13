@@ -2,7 +2,6 @@
 Contract tests for TikTok login detection behavior
 """
 import pytest
-import asyncio
 
 
 class TestTikTokLoginDetectionContract:

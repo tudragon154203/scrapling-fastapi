@@ -1,7 +1,3 @@
-import json
-from typing import Optional
-
-import pytest
 
 
 def test_crawl_success_with_stub(monkeypatch, client):

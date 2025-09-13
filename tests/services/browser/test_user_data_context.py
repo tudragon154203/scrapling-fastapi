@@ -2,9 +2,7 @@ import os
 import sys
 import tempfile
 import pytest
-import shutil
 from unittest.mock import Mock, patch
-from pathlib import Path
 
 from app.services.common.browser.user_data import user_data_context
 from app.schemas.crawl import CrawlRequest

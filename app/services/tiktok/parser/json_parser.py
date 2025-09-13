@@ -8,6 +8,8 @@ from typing import List, Dict, Any, Optional
 import datetime as _dt
 
 logger = logging.getLogger(__name__)
+
+
 def _from_sigi_state(html: str) -> List[Dict[str, Any]]:
     """Try to extract videos from TikTok's SIGI_STATE JSON if present."""
     results: List[Dict[str, Any]] = []
@@ -33,6 +35,7 @@ def _from_sigi_state(html: str) -> List[Dict[str, Any]]:
         item_module = (data or {}).get("ItemModule") or {}
         user_module = (data or {}).get("UserModule") or {}
         users = (user_module.get("users") if isinstance(user_module, dict) else None) or {}
+
         def _author_from_item(it: Dict[str, Any]) -> str:
             # Try direct author field
             a = str(it.get("author") or it.get("authorName") or "").strip()

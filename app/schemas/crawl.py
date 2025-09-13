@@ -1,11 +1,11 @@
 from typing import Optional
-from pydantic import BaseModel, AnyUrl, Field, field_validator
+from pydantic import BaseModel, AnyUrl, Field
 from pydantic.config import ConfigDict
 
 
 class CrawlRequest(BaseModel):
     """Request body for generic crawling.
-    
+
     Simplified request model with explicit field names and no legacy compatibility.
     """
     model_config = ConfigDict(extra='forbid')  # Reject extra fields to ensure legacy fields are rejected
@@ -30,4 +30,3 @@ class CrawlResponse(BaseModel):
     url: AnyUrl
     html: Optional[str] = None
     message: Optional[str] = None
-

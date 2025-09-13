@@ -17,6 +17,8 @@ from fastapi.responses import JSONResponse
 from app.api import router as api_router
 from app.core.config import get_settings
 from app.core.logging import setup_logger
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Initialize logging
@@ -24,6 +26,8 @@ async def lifespan(app: FastAPI):
     # Startup tasks (future: warm-ups, health checks, etc.)
     yield
     # Shutdown tasks (future: cleanup, metrics flush, etc.)
+
+
 def create_app() -> FastAPI:
     settings = get_settings()
     app = FastAPI(title=settings.app_name, lifespan=lifespan)
@@ -36,6 +40,7 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
     app.include_router(api_router)
+
     @app.exception_handler(RequestValidationError)
     async def custom_validation_exception_handler(request: Request, exc: RequestValidationError):
         raw_details = exc.errors()
@@ -46,11 +51,13 @@ def create_app() -> FastAPI:
             if "ctx" in err:
                 ctx = err["ctx"]
                 if isinstance(ctx, dict):
-                    err["ctx"] = {k: (str(v) if not isinstance(v, (str, int, float, bool, type(None))) else v) for k, v in ctx.items()}
+                    err["ctx"] = {k: (str(v) if not isinstance(v, (str, int, float, bool, type(None))) else v)
+                                  for k, v in ctx.items()}
                 else:
                     err["ctx"] = str(ctx)
             details.append(err)
         return JSONResponse(status_code=422, content={"detail": details})
     return app
-app = create_app()
 
+
+app = create_app()

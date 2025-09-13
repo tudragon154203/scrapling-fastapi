@@ -29,8 +29,12 @@ async def create_tiktok_session_endpoint(request: Request):
         # Return 422 when extra fields provided
         msg = str(e)
         if "extra_forbidden" in msg or "Extra inputs are not permitted" in msg:
-            return JSONResponse(content={"detail": [{"type": "extra_forbidden", "msg": "Extra inputs are not permitted"}]},
-                                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY)
+            return JSONResponse(
+                content={"detail": [{
+                    "type": "extra_forbidden",
+                    "msg": "Extra inputs are not permitted"
+                }]},
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY)
         # Fallback: treat as empty request
         req_obj = TikTokSessionRequest()
 
@@ -73,7 +77,7 @@ async def tiktok_search_endpoint(payload: TikTokSearchRequest):
             elif "validation" in err.lower():
                 code = "VALIDATION_ERROR"
             err = {"code": code, "message": err}
-        
+
         code = (err.get("code") or "").upper()
         status_map = {
             "NOT_LOGGED_IN": status.HTTP_409_CONFLICT,

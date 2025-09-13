@@ -8,6 +8,7 @@ data/
 .env
 .env.local
 .env.*.local
+.stignore
 
 # Python
 __pycache__/

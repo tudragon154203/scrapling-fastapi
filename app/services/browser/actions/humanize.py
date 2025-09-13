@@ -1,4 +1,3 @@
-import logging
 import random
 import time
 
@@ -7,10 +6,12 @@ from app.core.config import get_settings
 
 logger = get_logger(__name__)
 
+
 def human_pause(min_s: float, max_s: float):
     delay = random.uniform(min_s, max_s)
     logger.debug(f"Human pause: chosen delay {delay:.2f}s")
     time.sleep(delay)
+
 
 def move_mouse_to_locator(page, locator, steps_range=None, pre_hover=True):
     """Move the mouse toward the center of a locator with human-like steps.
@@ -51,6 +52,7 @@ def move_mouse_to_locator(page, locator, steps_range=None, pre_hover=True):
         page.mouse.move(cx, cy, steps=steps)
     except Exception as e:
         logger.debug(f"Mouse move: page.mouse.move not available ({type(e).__name__}); skipping")
+
 
 def jitter_mouse(page, locator=None, radius_px=None, steps=None):
     """Small mouse wiggle near a locator center using settings defaults.
@@ -95,6 +97,7 @@ def jitter_mouse(page, locator=None, radius_px=None, steps=None):
     except Exception as e:
         logger.debug(f"Jitter mouse: move not available ({type(e).__name__}); skipping")
 
+
 def click_like_human(locator, hover_first=True):
     logger.debug(f"Human click: hover_first={hover_first}")
     if hover_first:
@@ -104,6 +107,7 @@ def click_like_human(locator, hover_first=True):
     locator.click()
     # Short pause after click to allow page to respond
     human_pause(0.2, 0.4)
+
 
 def type_like_human(locator, text, delay_ms_range=None):
     """Type text with a per-char delay from settings unless overridden."""
@@ -117,7 +121,8 @@ def type_like_human(locator, text, delay_ms_range=None):
     locator.fill("")
     locator.type(text, delay=delay)
 
-def scroll_noise(page, cycles_range=(1,3), dy_range=(120,480)):
+
+def scroll_noise(page, cycles_range=(1, 3), dy_range=(120, 480)):
     s = get_settings()
     # Master scroll toggle
     if not getattr(s, "auspost_humanize_scroll", True):

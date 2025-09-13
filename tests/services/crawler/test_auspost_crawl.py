@@ -1,8 +1,6 @@
 import sys
 import types
 
-import pytest
-
 from app.schemas.auspost import AuspostCrawlRequest
 from app.services.crawler.auspost import AuspostCrawler
 

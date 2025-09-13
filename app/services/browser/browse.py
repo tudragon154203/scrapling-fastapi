@@ -1,5 +1,4 @@
 import logging
-from typing import Optional
 
 import app.core.config as app_config
 from app.schemas.crawl import CrawlRequest
@@ -55,7 +54,7 @@ class BrowseCrawler:
                     page_action = WaitForUserCloseAction()
 
                     # Execute browse session
-                    crawl_response = self.engine.run(crawl_request, page_action)
+                    self.engine.run(crawl_request, page_action)
 
                     # Return success response
                     return BrowseResponse(

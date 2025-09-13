@@ -33,7 +33,7 @@ class TikTokSessionResponse(BaseModel):
         elif self.status == 'error' and self.error_details is None:
             raise ValueError('error_details is required when status is error')
         return self
-    
+
     model_config = {
         "json_schema_extra": {
             "examples": [
@@ -68,18 +68,20 @@ class TikTokSessionConfig(BaseModel):
     login_detection_timeout: int = Field(default=8, description="Login detection timeout in seconds")
     login_detection_retries: int = Field(default=1, description="Number of login detection retries")
     login_detection_refresh: bool = Field(default=True, description="Enable refresh on uncertain state")
-    
+
     # User data directory configuration
-    user_data_master_dir: str = Field(default="./user_data", description="User data directory (uses CAMOUFOX_USER_DATA_DIR)")
-    user_data_clones_dir: str = Field(default="./user_data", description="User data directory clones (uses CAMOUFOX_USER_DATA_DIR)")
+    user_data_master_dir: str = Field(
+        default="./user_data", description="User data directory (uses CAMOUFOX_USER_DATA_DIR)")
+    user_data_clones_dir: str = Field(
+        default="./user_data", description="User data directory clones (uses CAMOUFOX_USER_DATA_DIR)")
     write_mode_enabled: bool = Field(default=False, description="Enable write mode for user data directory")
     acquire_lock_timeout: int = Field(default=30, description="Lock acquisition timeout in seconds")
-    
+
     # Browser configuration
     tiktok_url: str = Field(default="https://www.tiktok.com/", description="TikTok base URL")
     max_session_duration: int = Field(default=300, description="Maximum session duration in seconds")
     headless: bool = Field(default=False, description="Run browser in headless mode")
-    
+
     # Selectors for login detection
     selectors: Dict[str, str] = Field(
         default_factory=lambda: {
@@ -89,7 +91,7 @@ class TikTokSessionConfig(BaseModel):
         },
         description="CSS selectors for login detection"
     )
-    
+
     # API endpoints for login detection
     api_endpoints: list = Field(
         default_factory=lambda: ["/user/info", "/api/user/info"],

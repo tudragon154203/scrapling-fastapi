@@ -1,6 +1,3 @@
-import json
-
-import pytest
 
 
 def test_dpd_crawl_success_with_stub(monkeypatch, client):

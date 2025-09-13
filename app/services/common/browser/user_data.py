@@ -1,12 +1,11 @@
 import os
 import shutil
-import tempfile
 import uuid
 import logging
 import time
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Callable, ContextManager, Tuple, Optional
+from typing import Callable, ContextManager, Tuple
 
 # fcntl is not available on Windows, so we need to handle this gracefully
 try:
@@ -15,6 +14,8 @@ try:
 except ImportError:
     FCNTL_AVAILABLE = False
 logger = logging.getLogger(__name__)
+
+
 @contextmanager
 def user_data_context(base_dir: str, mode: str) -> ContextManager[Tuple[str, Callable[[], None]]]:
     """Context manager for managing user data directories with exclusive locking.
@@ -39,6 +40,8 @@ def user_data_context(base_dir: str, mode: str) -> ContextManager[Tuple[str, Cal
     except Exception as e:
         logger.error(f"Error in user_data_context mode={mode}: {e}")
         raise
+
+
 def _write_mode_context(base_path: Path) -> Tuple[str, Callable[[], None]]:
     """Write mode context: uses master directory with exclusive lock."""
     master_dir = base_path / 'master'
@@ -70,10 +73,11 @@ def _write_mode_context(base_path: Path) -> Tuple[str, Callable[[], None]]:
             if lock_fd is not None:
                 try:
                     os.close(lock_fd)
-                except:
+                except Exception:
                     pass
             raise RuntimeError(f"Failed to acquire lock for write mode: {e}")
     # Cleanup function: release lock and cleanup lock file
+
     def cleanup():
         try:
             if FCNTL_AVAILABLE and lock_fd is not None:
@@ -94,6 +98,8 @@ def _write_mode_context(base_path: Path) -> Tuple[str, Callable[[], None]]:
         except Exception as e:
             logger.warning(f"Failed to cleanup lock: {e}")
     return str(master_dir), cleanup
+
+
 def _read_mode_context(base_path: Path) -> Tuple[str, Callable[[], None]]:
     """Read mode context: clones master directory to temporary location."""
     master_dir = base_path / 'master'
@@ -102,6 +108,7 @@ def _read_mode_context(base_path: Path) -> Tuple[str, Callable[[], None]]:
     if not master_dir.exists():
         clone_dir.mkdir(parents=True, exist_ok=True)
         logger.debug(f"Created empty clone directory: {clone_dir}")
+
         def cleanup():
             try:
                 if clone_dir.exists():
@@ -116,6 +123,7 @@ def _read_mode_context(base_path: Path) -> Tuple[str, Callable[[], None]]:
         _copytree_recursive(master_dir, clone_dir)
         logger.debug(f"Created clone directory: {clone_dir}")
         # Cleanup function: remove clone directory
+
         def cleanup():
             try:
                 if clone_dir.exists():
@@ -129,9 +137,11 @@ def _read_mode_context(base_path: Path) -> Tuple[str, Callable[[], None]]:
         if clone_dir.exists():
             try:
                 shutil.rmtree(clone_dir)
-            except:
+            except Exception:
                 pass
         raise RuntimeError(f"Failed to create clone from {master_dir}: {e}")
+
+
 def _copytree_recursive(src: Path, dst: Path) -> None:
     """Recursively copy directory tree, preserving metadata."""
     # Create destination
@@ -143,4 +153,3 @@ def _copytree_recursive(src: Path, dst: Path) -> None:
             _copytree_recursive(item, dest_item)
         else:
             shutil.copy2(item, dest_item)
-
