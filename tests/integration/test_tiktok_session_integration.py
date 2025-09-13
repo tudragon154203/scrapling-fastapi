@@ -17,17 +17,17 @@ def test_tiktok_session_real_login(client):
     """Test POST to /tiktok/session with real browser and verify user login"""
     # Make actual POST request to TikTok session endpoint
     resp = client.post("/tiktok/session", json={})
-    
+
     print(f"Response status: {resp.status_code}")
     print(f"Response content: {resp.text}")
-    
+
     # Should return success if user is logged in, or specific error if not
     assert resp.status_code in [200, 409, 500]
-    
+
     data = resp.json()
     assert "status" in data
     assert "message" in data
-    
+
     # If successful, verify user is logged in
     if resp.status_code == 200:
         assert data["status"] == "success"

@@ -1,4 +1,4 @@
-﻿import pytest
+import pytest
 from app.core.config import get_settings
 
 pytestmark = pytest.mark.integration
@@ -14,6 +14,7 @@ def _disable_proxies_and_reduce_retries(monkeypatch):
     def _wrapped():
         s = real_get_settings()
         # Create a shallow proxy to override selected fields without mutating cached settings
+
         class S:
             pass
 
@@ -137,4 +138,3 @@ def test_crawl_laposte(client):
     html = data.get("html") or ""
     assert "<html" in html.lower()
     assert len(html) >= _min_len()
-

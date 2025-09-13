@@ -16,16 +16,16 @@ class TestUserDataAPI:
             "url": "https://example.com",
             "force_user_data": True
         }
-        
+
         with patch('app.api.crawl.crawl') as mock_crawl:
             mock_crawl.return_value = Mock(
                 status_code=200,
                 json={"status": "success", "url": "https://example.com", "html": "<html></html>"}
             )
-            
+
             response = self.client.post("/crawl", json=payload)
             assert response.status_code == 200
-            
+
             # Verify the request was processed correctly
             mock_crawl.assert_called_once()
             call_args = mock_crawl.call_args[1]['request']
@@ -39,7 +39,7 @@ class TestUserDataAPI:
             "force_user_data": True,
             "user_data_mode": "write"
         }
-        
+
         response = self.client.post("/crawl", json=payload)
         assert response.status_code == 422
         # Pydantic validation error structure
@@ -52,16 +52,16 @@ class TestUserDataAPI:
             "url": "https://example.com",
             "force_user_data": False
         }
-        
+
         with patch('app.api.crawl.crawl') as mock_crawl:
             mock_crawl.return_value = Mock(
                 status_code=200,
                 json={"status": "success", "url": "https://example.com", "html": "<html></html>"}
             )
-            
+
             response = self.client.post("/crawl", json=payload)
             assert response.status_code == 200
-            
+
             # Verify the request was processed correctly
             mock_crawl.assert_called_once()
             call_args = mock_crawl.call_args[1]['request']
@@ -75,7 +75,7 @@ class TestUserDataAPI:
             "force_user_data": True,
             "extra_field": "should_be_rejected"
         }
-        
+
         response = self.client.post("/crawl", json=payload)
         assert response.status_code == 422  # Validation error
 
@@ -85,16 +85,16 @@ class TestUserDataAPI:
             "tracking_number": "1234567890",
             "force_user_data": True
         }
-        
+
         with patch('app.api.crawl.crawl_dpd') as mock_crawl_dpd:
             mock_crawl_dpd.return_value = Mock(
                 status_code=200,
                 json={"status": "success", "url": "https://example.com", "html": "<html></html>"}
             )
-            
+
             response = self.client.post("/crawl/dpd", json=payload)
             assert response.status_code == 200
-            
+
             # Verify the request was processed correctly
             mock_crawl_dpd.assert_called_once()
             call_args = mock_crawl_dpd.call_args[1]['request']

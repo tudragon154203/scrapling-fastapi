@@ -23,7 +23,7 @@ def test_dpd_crawl_success_with_stub(monkeypatch, client):
         "tracking_code": "12345678901234"
     }
     resp = client.post("/crawl/dpd", json=body)
-    
+
     assert resp.status_code == 200
     data = resp.json()
     assert data["status"] == "success"
@@ -61,7 +61,7 @@ def test_dpd_crawl_with_all_flags(monkeypatch, client):
         "force_headful": True
     }
     resp = client.post("/crawl/dpd", json=body)
-    
+
     assert resp.status_code == 200
     data = resp.json()
     assert data["status"] == "success"
@@ -92,7 +92,7 @@ def test_dpd_crawl_failure_with_stub(monkeypatch, client):
         "tracking_code": "12345678901234"
     }
     resp = client.post("/crawl/dpd", json=body)
-    
+
     assert resp.status_code == 200
     data = resp.json()
     assert data["status"] == "failure"
@@ -105,7 +105,7 @@ def test_dpd_crawl_requires_tracking_code(client):
     """Test that tracking_code is required."""
     resp = client.post("/crawl/dpd", json={})
     assert resp.status_code == 422
-    
+
     error_detail = resp.json()
     assert "detail" in error_detail
     # Check that the error mentions tracking_code
@@ -120,7 +120,7 @@ def test_dpd_crawl_empty_tracking_code(client):
     }
     resp = client.post("/crawl/dpd", json=body)
     assert resp.status_code == 422
-    
+
     error_detail = resp.json()
     error_str = str(error_detail["detail"])
     assert "tracking_code must be a non-empty string" in error_str
@@ -133,7 +133,7 @@ def test_dpd_crawl_whitespace_tracking_code(client):
     }
     resp = client.post("/crawl/dpd", json=body)
     assert resp.status_code == 422
-    
+
     error_detail = resp.json()
     error_str = str(error_detail["detail"])
     assert "tracking_code must be a non-empty string" in error_str
@@ -160,11 +160,11 @@ def test_dpd_crawl_trimmed_tracking_code(monkeypatch, client):
         "tracking_code": "  12345678901234  "
     }
     resp = client.post("/crawl/dpd", json=body)
-    
+
     assert resp.status_code == 200
     data = resp.json()
     assert data["tracking_code"] == "12345678901234"
-    
+
     # Check that the service received the trimmed code
     p = captured_payload["payload"]
     assert p.tracking_code == "12345678901234"
@@ -191,9 +191,9 @@ def test_dpd_crawl_default_values(monkeypatch, client):
         "tracking_code": "12345678901234"
     }
     resp = client.post("/crawl/dpd", json=body)
-    
+
     assert resp.status_code == 200
-    
+
     # Check defaults
     p = captured_payload["payload"]
     assert p.force_user_data is False
@@ -223,9 +223,9 @@ def test_dpd_crawl_explicit_false_values(monkeypatch, client):
         "force_headful": False
     }
     resp = client.post("/crawl/dpd", json=body)
-    
+
     assert resp.status_code == 200
-    
+
     # Check explicit False values
     p = captured_payload["payload"]
     assert p.force_user_data is False
@@ -235,7 +235,7 @@ def test_dpd_crawl_explicit_false_values(monkeypatch, client):
 def test_dpd_crawl_invalid_json(client):
     """Test that invalid JSON is handled properly."""
     resp = client.post(
-        "/crawl/dpd", 
+        "/crawl/dpd",
         data="invalid json",
         headers={"Content-Type": "application/json"}
     )

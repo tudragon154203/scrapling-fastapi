@@ -7,7 +7,7 @@ from pydantic import ValidationError
 
 class TestTikTokSessionResponseSchema:
     """Test TikTokSessionResponse schema validation"""
-    
+
     def test_success_response_valid(self):
         """Test that success response body is valid"""
         from app.schemas.tiktok import TikTokSessionResponse
@@ -15,7 +15,7 @@ class TestTikTokSessionResponseSchema:
         assert response.status == "success"
         assert isinstance(response.message, str)
         assert len(response.message) > 0
-    
+
     def test_error_response_valid(self):
         """Test that error response body is valid"""
         from app.schemas.tiktok import TikTokSessionResponse
@@ -28,16 +28,16 @@ class TestTikTokSessionResponseSchema:
         assert isinstance(response.message, str)
         assert response.error_details is not None
         assert "code" in response.error_details
-    
+
     def test_success_response_variations_valid(self):
         """Test various valid success response variations"""
         from app.schemas.tiktok import TikTokSessionResponse
-        
+
         success_variations = [
             {"status": "success", "message": "Session created"},
             {"status": "success", "message": "TikTok session established successfully", "session_id": "abc123"},
         ]
-        
+
         # Test that all variations are valid
         for variation in success_variations:
             response = TikTokSessionResponse(**variation)
@@ -45,7 +45,7 @@ class TestTikTokSessionResponseSchema:
             assert isinstance(response.message, str)
             assert len(response.message) > 0
             # session_id is optional in success responses
-    
+
     def test_error_response_variations_valid(self):
         """Test various valid error response variations"""
         from app.schemas.tiktok import TikTokSessionResponse
@@ -67,7 +67,7 @@ class TestTikTokSessionResponseSchema:
         invalid_error_variation = {"status": "error", "message": "Error occurred"}
         with pytest.raises(ValidationError):
             TikTokSessionResponse(**invalid_error_variation)
-    
+
     def test_invalid_status_rejected(self):
         """Test invalid status values are rejected"""
         from app.schemas.tiktok import TikTokSessionResponse

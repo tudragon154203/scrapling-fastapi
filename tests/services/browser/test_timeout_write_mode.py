@@ -1,14 +1,13 @@
+from app.services.common.types import FetchCapabilities
+from app.services.common.adapters.scrapling_fetcher import FetchArgComposer
+from app.services.browser.options.resolver import OptionsResolver
+from app.schemas.crawl import CrawlRequest
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
-
-from app.schemas.crawl import CrawlRequest
-from app.services.browser.options.resolver import OptionsResolver
-from app.services.common.adapters.scrapling_fetcher import FetchArgComposer
-from app.services.common.types import FetchCapabilities
 
 
 class DummySettings:

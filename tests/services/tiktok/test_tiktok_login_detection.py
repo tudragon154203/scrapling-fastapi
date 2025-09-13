@@ -6,7 +6,7 @@ import pytest
 
 class TestTikTokLoginDetectionContract:
     """Test TikTok login detection contract"""
-    
+
     @pytest.mark.asyncio
     async def test_login_detection_timeout(self):
         """Test login detection timeout behavior"""
@@ -24,7 +24,7 @@ class TestTikTokLoginDetectionContract:
         # Test that timeout is respected (should return UNCERTAIN due to mock)
         result = await detector.detect_login_state(timeout=1)
         assert result in [TikTokLoginState.LOGGED_IN, TikTokLoginState.LOGGED_OUT, TikTokLoginState.UNCERTAIN]
-    
+
     @pytest.mark.asyncio
     async def test_login_detection_methods(self):
         """Test multiple login detection methods"""
@@ -51,7 +51,7 @@ class TestTikTokLoginDetectionContract:
 
         fallback_result = await detector._try_fallback_refresh(1)
         assert fallback_result in [TikTokLoginState.LOGGED_IN, TikTokLoginState.LOGGED_OUT, TikTokLoginState.UNCERTAIN]
-    
+
     @pytest.mark.asyncio
     async def test_dom_detection_method(self):
         """Test DOM element detection method"""
@@ -86,7 +86,7 @@ class TestTikTokLoginDetectionContract:
         # Test logged-out detection
         result = await detector_logged_out._detect_dom_elements(2)
         assert result == TikTokLoginState.LOGGED_OUT
-    
+
     @pytest.mark.asyncio
     async def test_api_detection_method(self):
         """Test API request detection method"""
@@ -104,7 +104,7 @@ class TestTikTokLoginDetectionContract:
         # Test that API detection returns UNCERTAIN (not available)
         result = await detector._detect_api_requests(2)
         assert result == TikTokLoginState.UNCERTAIN
-    
+
     @pytest.mark.asyncio
     async def test_fallback_refresh_method(self):
         """Test fallback refresh mechanism"""
@@ -122,7 +122,7 @@ class TestTikTokLoginDetectionContract:
         # Test that fallback refresh method exists and returns proper type
         result = await detector._try_fallback_refresh(2)
         assert result in [TikTokLoginState.LOGGED_IN, TikTokLoginState.LOGGED_OUT, TikTokLoginState.UNCERTAIN]
-    
+
     def test_login_state_transitions(self):
         """Test login state transitions"""
         from app.schemas.tiktok import TikTokLoginState
@@ -141,7 +141,7 @@ class TestTikTokLoginDetectionContract:
         expected_values = {"logged_in", "logged_out", "uncertain"}
         actual_values = {TikTokLoginState.LOGGED_IN, TikTokLoginState.LOGGED_OUT, TikTokLoginState.UNCERTAIN}
         assert actual_values == expected_values
-    
+
     def test_selectors_configuration(self):
         """Test login detection selectors configuration"""
         from app.services.tiktok.utils.login_detection import LoginDetector

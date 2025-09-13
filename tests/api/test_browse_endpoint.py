@@ -143,21 +143,21 @@ def test_browse_lock_conflict_returns_409(monkeypatch, client):
 
 def test_browse_only_launches_once_without_retries(monkeypatch, client):
     """Test that /browse endpoint only launches once without retries.
-    
+
     This test verifies that the browse crawler is instantiated and run exactly once,
     ensuring no retries occur even if the browser session fails.
     """
     from app.services.browser.browse import BrowseCrawler
     from app.schemas.browse import BrowseResponse
-    
+
     # Track class instantiation and method calls
     instantiation_count = 0
     run_call_count = 0
-    
+
     # Mock BrowseCrawler class to track instantiation
     # original_init = BrowseCrawler.__init__
     # original_run = BrowseCrawler.run
-    
+
     def mock_init(self, engine=None):
         nonlocal instantiation_count
         instantiation_count += 1
@@ -168,38 +168,38 @@ def test_browse_only_launches_once_without_retries(monkeypatch, client):
             # Create a minimal mock engine
             from unittest.mock import MagicMock
             self.engine = MagicMock()
-    
+
     def mock_run(self, request):
         nonlocal run_call_count
         run_call_count += 1
-        
+
         # Return success response on first call
         return BrowseResponse(
             status="success",
             message="Browser session completed successfully"
         )
-    
+
     # Apply mocks
     monkeypatch.setattr(BrowseCrawler, "__init__", mock_init)
     monkeypatch.setattr(BrowseCrawler, "run", mock_run)
-    
+
     # Test the browse endpoint
     body = {
         "url": "https://example.com"
     }
     resp = client.post("/browse", json=body)
-    
+
     # Verify response
     assert resp.status_code == 200
     data = resp.json()
     assert data["status"] == "success"
     assert data["message"] == "Browser session completed successfully"
-    
+
     # Verify BrowseCrawler was instantiated exactly once
     assert instantiation_count == 1, f"Expected 1 instantiation, got {instantiation_count}"
-    
+
     # Verify run method was called exactly once
     assert run_call_count == 1, f"Expected 1 run call, got {run_call_count}"
-    
+
     # Verify that BrowseCrawler.run was called with the correct payload
     # (this is implicitly tested by the run_call_count tracking above)

@@ -1,11 +1,9 @@
 
 
-
 def test_auspost_crawl_success_with_stub(monkeypatch, client):
     from app.services.crawler.auspost import AuspostCrawler
     from app.schemas.auspost import AuspostCrawlResponse
     import threading
-    import time
 
     captured_payload = {}
 
@@ -20,33 +18,33 @@ def test_auspost_crawl_success_with_stub(monkeypatch, client):
     monkeypatch.setattr(AuspostCrawler, "run", _fake_crawl_run)
 
     body = {"tracking_code": "36LB4503170001000930309"}
-    
+
     def test_with_timeout():
         return client.post("/crawl/auspost", json=body)
-    
+
     # Add timeout wrapper to prevent hanging
     def run_with_timeout(func, timeout=45):
         result = [None]
         exception = [None]
-        
+
         def target():
             try:
                 result[0] = func()
             except Exception as e:
                 exception[0] = e
-        
+
         thread = threading.Thread(target=target)
         thread.start()
         thread.join(timeout)
-        
+
         if thread.is_alive():
             raise TimeoutError(f"Test timed out after {timeout} seconds")
-        
+
         if exception[0]:
             raise exception[0]
-        
+
         return result[0]
-    
+
     resp = run_with_timeout(test_with_timeout)
 
     assert resp.status_code == 200
@@ -84,33 +82,33 @@ def test_auspost_crawl_with_all_flags(monkeypatch, client):
         "force_user_data": True,
         "force_headful": False,
     }
-    
+
     def test_with_timeout():
         return client.post("/crawl/auspost", json=body)
-    
+
     # Add timeout wrapper to prevent hanging
     def run_with_timeout(func, timeout=45):
         result = [None]
         exception = [None]
-        
+
         def target():
             try:
                 result[0] = func()
             except Exception as e:
                 exception[0] = e
-        
+
         thread = threading.Thread(target=target)
         thread.start()
         thread.join(timeout)
-        
+
         if thread.is_alive():
             raise TimeoutError(f"Test timed out after {timeout} seconds")
-        
+
         if exception[0]:
             raise exception[0]
-        
+
         return result[0]
-    
+
     resp = run_with_timeout(test_with_timeout)
 
     assert resp.status_code == 200
@@ -155,33 +153,33 @@ def test_auspost_crawl_accepts_full_details_url(monkeypatch, client):
     monkeypatch.setattr(AuspostCrawler, "run", _fake_crawl_run)
 
     url = "https://auspost.com.au/mypost/track/details/36LB45032230"
-    
+
     def test_with_timeout():
         return client.post("/crawl/auspost", json={"tracking_code": url})
-    
+
     # Add timeout wrapper to prevent hanging
     def run_with_timeout(func, timeout=45):
         result = [None]
         exception = [None]
-        
+
         def target():
             try:
                 result[0] = func()
             except Exception as e:
                 exception[0] = e
-        
+
         thread = threading.Thread(target=target)
         thread.start()
         thread.join(timeout)
-        
+
         if thread.is_alive():
             raise TimeoutError(f"Test timed out after {timeout} seconds")
-        
+
         if exception[0]:
             raise exception[0]
-        
+
         return result[0]
-    
+
     resp = run_with_timeout(test_with_timeout)
 
     assert resp.status_code == 200
