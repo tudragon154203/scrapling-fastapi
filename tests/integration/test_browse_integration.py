@@ -8,6 +8,8 @@ from app.services.common.browser.user_data import FCNTL_AVAILABLE
 import logging
 logger = logging.getLogger(__name__)
 
+pytestmark = pytest.mark.integration
+
 
 @pytest.fixture()
 def client() -> TestClient:
@@ -40,7 +42,6 @@ def existing_user_data_dir(temp_user_data_dir):
 class TestBrowseE2E:
     """End-to-end tests for browse endpoint with user data directory loading and saving."""
 
-    @pytest.mark.integration
     def test_browse_with_existing_user_data_loading(self, monkeypatch, client, existing_user_data_dir):
         """Test that user data directory is loaded successfully on browser open.
         
@@ -108,7 +109,6 @@ class TestBrowseE2E:
                 assert crawl_req.force_user_data is True
                 # Note: user_data_mode is not set on CrawlRequest - it's handled by user_data_context
 
-    @pytest.mark.integration
     def test_browse_user_data_directory_creation(self, monkeypatch, client, temp_user_data_dir):
         """Test that user data directory is properly created if it doesn't exist.
         
@@ -166,7 +166,6 @@ class TestBrowseE2E:
                 assert master_dir.exists()
                 assert master_dir.is_dir()
 
-    @pytest.mark.integration
     def test_browse_user_data_cleanup_on_close(self, monkeypatch, client, temp_user_data_dir):
         """Test that user data cleanup is properly executed after browser close.
         
@@ -211,7 +210,6 @@ class TestBrowseE2E:
                 assert len(cleanup_calls) == 1
                 assert cleanup_calls[0] == "cleanup_called"
 
-    @pytest.mark.integration
     def test_browse_user_data_write_mode_enforcement(self, monkeypatch, client, existing_user_data_dir):
         """Test that browse endpoint always enforces write mode for user data.
         
@@ -268,7 +266,6 @@ class TestBrowseE2E:
                         assert request.force_user_data is True
                         # Note: user_data_mode is not set on CrawlRequest - it's handled by user_data_context
 
-    @pytest.mark.integration
     def test_browse_lock_file_cleanup(self, client, temp_user_data_dir):
         """Test that lock file is properly cleaned up after browse session.
         
@@ -339,7 +336,6 @@ class TestBrowseE2E:
                 resp2 = client.post("/browse", json=body)
                 assert resp2.status_code == 200
 
-    @pytest.mark.integration
     def test_browse_master_lock_cleanup_actual_behavior(self, monkeypatch, client, temp_user_data_dir):
         """Test the actual lock cleanup behavior to prevent relaunching.
         
@@ -448,7 +444,6 @@ class TestBrowseE2E:
                 # Note: it should have been cleaned up again by now
                 assert not lock_file.exists(), "Lock file should be cleaned up after second session"
 
-    @pytest.mark.integration
     def test_browse_user_data_persistence_to_master(self, monkeypatch, client, temp_user_data_dir):
         """Test that user data is actually persisted to the master directory during browse.
         

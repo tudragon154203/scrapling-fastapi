@@ -24,7 +24,6 @@ except Exception as exc:  # pragma: no cover
     pytest.fail(f"scrapling is required for integration tests: {exc}")
 
 
-@pytest.mark.integration
 def test_auspost_real_flow_status_and_shape_with_humanization():
     """Real end-to-end test hitting /crawl/auspost with humanization enabled.
 
@@ -77,7 +76,6 @@ def test_auspost_real_flow_status_and_shape_with_humanization():
             os.environ.pop("AUSPOST_HUMANIZE_ENABLED", None)
 
 
-@pytest.mark.integration
 def test_auspost_real_flow_status_and_shape_without_humanization():
     """Real end-to-end test hitting /crawl/auspost with humanization disabled.
 

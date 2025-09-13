@@ -8,6 +8,8 @@ from app.services.common.browser.user_data import user_data_context
 from app.schemas.crawl import CrawlRequest
 from app.services.common.browser.camoufox import CamoufoxArgsBuilder
 
+pytestmark = pytest.mark.integration
+
 
 class TestUserDataContext:
     """Test suite for user_data_context functionality."""
