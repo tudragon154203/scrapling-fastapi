@@ -3,6 +3,7 @@ Unit tests for TikTok HTML Parser
 """
 from app.services.tiktok.parser.utils import parse_like_count
 from app.services.tiktok.parser.html_parser import extract_video_data_from_html
+from pathlib import Path
 
 
 class TestTikTokParser:
@@ -117,8 +118,9 @@ class TestTikTokParser:
         assert len(results) == 0
 
     def test_extract_video_data_from_demo_html(self):
-        """Test extracting video data from the full demo HTML file"""
-        with open("demo/browsing_tiktok_search.html", "r", encoding="utf-8") as f:
+        """Test extracting video data from a mock demo HTML file"""
+        mock_path = Path(__file__).parent / "mock_browsing_tiktok_search.html"
+        with open(mock_path, "r", encoding="utf-8") as f:
             html_content = f.read()
         
         results = extract_video_data_from_html(html_content)
@@ -127,12 +129,12 @@ class TestTikTokParser:
         assert len(results) > 0
         
         # Find a specific video by ID and check its uploadTime
-        # Using a video from the provided HTML: 7474929793650216214 (first one in the HTML)
+        # Using a video from the mock HTML: 7474929793650216214 (first one in the HTML)
         found_video = next((video for video in results if video["id"] == "7474929793650216214"), None)
         assert found_video is not None, "Video with ID 7474929793650216214 not found"
-        assert found_video["uploadTime"] == "2-24" # Expected upload time from the HTML
+        assert found_video["uploadTime"] == "2-24"  # Expected upload time from the mock HTML
         
-        # Another video: 7343616838871338260 (second one in the HTML)
+        # Another video: 7343616838871338260 (second one in the mock HTML)
         found_video = next((video for video in results if video["id"] == "7343616838871338260"), None)
         assert found_video is not None, "Video with ID 7343616838871338260 not found"
-        assert found_video["uploadTime"] == "2024-3-7" # Expected upload time from the HTML
+        assert found_video["uploadTime"] == "2024-3-7"  # Expected upload time from the mock HTML

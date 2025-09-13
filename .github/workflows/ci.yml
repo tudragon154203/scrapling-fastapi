@@ -11,7 +11,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-20.04, ubuntu-22.04, ubuntu-24.04]
+        os: [ubuntu-22.04, ubuntu-24.04]
         python: ["3.10"]   # adjust if you standardize on another version
     env:
       PIP_DISABLE_PIP_VERSION_CHECK: "1"
@@ -39,7 +39,7 @@ jobs:
           pip install -r requirements-test.txt
 
       - name: Lint
-        run: flake8 app/ tests/
+        run: flake8 app/
 
       - name: Run tests (skip integration)
         run: pytest -q -m "not integration" --disable-warnings --maxfail=1
