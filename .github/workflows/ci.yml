@@ -12,7 +12,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-22.04, ubuntu-24.04]
-        python: ["3.10"]   # adjust if you standardize on another version
+        python: ["3.10", "3.11", "3.12", "3.13"]   # adjust if you standardize on another version
     env:
       PIP_DISABLE_PIP_VERSION_CHECK: "1"
       PIP_CACHE_DIR: ~/.cache/pip
