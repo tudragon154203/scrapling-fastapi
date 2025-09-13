@@ -240,7 +240,9 @@ class TiktokService:
         Returns:
             Dict with action result
         """
-        self.logger.debug(f"[TiktokService] Performing action '{action}' on session '{session_id}' with args: {kwargs}")
+        self.logger.debug(
+            f"[TiktokService] Performing action '{action}' on session '{session_id}' with args: {kwargs}"
+        )
         try:
             if session_id not in self.active_sessions:
                 self.logger.warning(f"[TiktokService] Session {session_id} not found for action '{action}'")

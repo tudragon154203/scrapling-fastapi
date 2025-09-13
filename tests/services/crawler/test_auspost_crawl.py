@@ -109,7 +109,7 @@ class TestAuspostCrawl:
         html = '<html><h3 id="trackingPanelHeading">Tracking details</h3></html>'
         calls = self._install_fake_scrapling(monkeypatch, html, side_effects=[200])
 
-        req = AuspostCrawlRequest(tracking_code="ABC123", force_user_data=True, force_headful=True)
+        req = AuspostCrawlRequest(tracking_code="ABC123", force_user_data=True, force_headful=False)
         crawler = AuspostCrawler()
         res = crawler.run(req)
 

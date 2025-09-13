@@ -1,3 +1,4 @@
+import random
 import sys
 import types
 import tempfile

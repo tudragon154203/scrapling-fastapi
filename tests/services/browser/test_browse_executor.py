@@ -15,8 +15,8 @@ def test_browse_crawler_uses_browse_executor():
         mock_engine_instance = MagicMock()
         mock_engine_class.return_value = mock_engine_instance
         
-        # Create BrowseCrawler
-        # crawler = BrowseCrawler()
+        # Create BrowseCrawler to trigger constructor wiring
+        _ = BrowseCrawler()
         
         # Verify BrowseExecutor was created
         mock_browse_executor.assert_called_once()

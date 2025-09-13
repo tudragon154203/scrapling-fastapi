@@ -10,7 +10,7 @@ import sys
 from urllib.request import Request, urlopen
 
 import types
-from scrapling.fetchers import StealthyFetcher
+import importlib
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +27,7 @@ class ScraplingFetcherAdapter(IFetchClient):
         if self._capabilities is not None:
             return self._capabilities
         try:
+            StealthyFetcher = self._get_stealthy_fetcher()
             _sig = inspect.signature(StealthyFetcher.fetch)
             _fetch_params = set(_sig.parameters.keys())
             _has_varkw = any(p.kind == inspect.Parameter.VAR_KEYWORD for p in _sig.parameters.values())
@@ -55,10 +56,7 @@ class ScraplingFetcherAdapter(IFetchClient):
     def fetch(self, url: str, args: Dict[str, Any]) -> Any:
         """Fetch the given URL using StealthyFetcher with thread safety."""
         logger.info(f"Launching browser for URL: {url}")
-        try:
-            pass  # Already imported at the top
-        except ImportError:
-            raise ImportError("Scrapling library not available")
+        StealthyFetcher = self._get_stealthy_fetcher()
         StealthyFetcher.adaptive = True
         # Handle asyncio event loop conflicts
         if self._has_running_loop():
@@ -87,6 +85,7 @@ class ScraplingFetcherAdapter(IFetchClient):
                         asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
                     except Exception:
                         pass
+                StealthyFetcher = self._get_stealthy_fetcher()
                 result = StealthyFetcher.fetch(url, **args)
                 holder["result"] = result
             except Exception as e:
@@ -101,6 +100,7 @@ class ScraplingFetcherAdapter(IFetchClient):
     def _fetch_with_geoip_fallback(self, url: str, args: Dict[str, Any]) -> Any:
         """Fetch with GeoIP fallback: try with geoip, retry without if DB error."""
         try:
+            StealthyFetcher = self._get_stealthy_fetcher()
             return StealthyFetcher.fetch(url, **args)
         except Exception as e:
             # Check for known GeoIP database errors
@@ -112,6 +112,7 @@ class ScraplingFetcherAdapter(IFetchClient):
                 # Remove geoip from args and retry
                 retry_args = args.copy()
                 retry_args.pop("geoip", None)
+                StealthyFetcher = self._get_stealthy_fetcher()
                 return StealthyFetcher.fetch(url, **retry_args)
             else:
                 # Consider light-weight HTTP fallback for navigation timeouts on JS-heavy pages
@@ -157,6 +158,30 @@ class ScraplingFetcherAdapter(IFetchClient):
         # Reset the cleanup function after getting it
         self._user_data_cleanup = None
         return cleanup_func
+
+    def _get_stealthy_fetcher(self):
+        """Resolve and return the current StealthyFetcher class.
+
+        This method supports tests that monkeypatch `sys.modules` with fake
+        `scrapling` or `scrapling.fetchers` modules by checking those entries
+        first before attempting a real import. Raises ImportError if not found.
+        """
+        # Prefer explicitly injected module in sys.modules (common in tests)
+        fetchers_mod = sys.modules.get("scrapling.fetchers")
+        if fetchers_mod is not None and hasattr(fetchers_mod, "StealthyFetcher"):
+            return getattr(fetchers_mod, "StealthyFetcher")
+        scrapling_mod = sys.modules.get("scrapling")
+        if scrapling_mod is not None:
+            fetchers = getattr(scrapling_mod, "fetchers", None)
+            if fetchers is not None and hasattr(fetchers, "StealthyFetcher"):
+                return getattr(fetchers, "StealthyFetcher")
+        # Fallback to dynamic import
+        try:
+            scrapling_mod = importlib.import_module("scrapling")
+            fetchers_mod = getattr(scrapling_mod, "fetchers", None) or importlib.import_module("scrapling.fetchers")
+            return getattr(fetchers_mod, "StealthyFetcher")
+        except Exception as e:
+            raise ImportError("Scrapling library not available") from e
 
 
 class FetchArgComposer:
