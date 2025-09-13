@@ -1,3 +1,4 @@
+from app.main import app
 import sys
 from pathlib import Path
 from unittest.mock import patch
@@ -11,7 +12,6 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 # Integration tests use the real endpoint and fetcher
-from app.main import app
 
 pytestmark = pytest.mark.integration
 
@@ -49,11 +49,11 @@ def test_crawl_real_sites(url, selector, expect_text):
 def test_crawl_with_retry_settings(monkeypatch):
     """Test that crawl works with retry settings enabled."""
     client = TestClient(app)
-    
+
     # Mock the settings to enable retries
     with patch('app.core.config.get_settings') as mock_get_settings:
         # Create a mock settings object with retry enabled
-        def mock_settings(): 
+        def mock_settings():
             pass
         mock_settings.max_retries = 2
         mock_settings.retry_backoff_base_ms = 100
@@ -64,9 +64,9 @@ def test_crawl_with_retry_settings(monkeypatch):
         mock_settings.default_headless = True
         mock_settings.default_network_idle = False
         mock_settings.default_timeout_ms = 20000
-        
+
         mock_get_settings.return_value = mock_settings
-        
+
         body = {
             "url": "https://example.com",
             "wait_for_selector": "h1",
@@ -74,7 +74,7 @@ def test_crawl_with_retry_settings(monkeypatch):
             "timeout_seconds": 30,
             "network_idle": True,
         }
-        
+
         # This test just verifies that the endpoint works with retry settings
         # The actual retry logic is tested in unit tests
         resp = client.post("/crawl", json=body)

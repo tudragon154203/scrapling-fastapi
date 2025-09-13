@@ -73,7 +73,7 @@ class TestUserDataContext:
         """Test that read mode creates empty clone when no master exists."""
         effective_dir = None
         cleanup_func = None
-        
+
         with user_data_context(temp_base_dir, "read") as (dir_path, cleanup):
             effective_dir = dir_path
             cleanup_func = cleanup
@@ -95,7 +95,7 @@ class TestUserDataContext:
 
         effective_dir = None
         cleanup_func = None
-        
+
         with user_data_context(temp_base_dir, "read") as (dir_path, cleanup):
             effective_dir = dir_path
             cleanup_func = cleanup
@@ -117,10 +117,10 @@ class TestUserDataContext:
         """Test that write mode handles lock acquisition timeout."""
         # Mock open to succeed
         mock_open.return_value = 1
-        
+
         # Mock fcntl.flock to raise BlockingIOError
         mock_fcntl.side_effect = BlockingIOError("Resource temporarily unavailable")
-        
+
         with pytest.raises(RuntimeError, match="Timeout waiting for exclusive user-data lock"):
             with user_data_context(temp_base_dir, "write"):
                 pass
@@ -130,16 +130,16 @@ class TestUserDataContext:
     ):
         """Test CamoufoxArgsBuilder integration with force_user_data=True."""
         mock_settings.camoufox_user_data_dir = temp_base_dir
-        
+
         request = CrawlRequest(
             url="https://example.com",
             force_user_data=True,
         )
-        
+
         additional_args, extra_headers = CamoufoxArgsBuilder.build(
             request, mock_settings, mock_caps_with_user_data
         )
-        
+
         # Should contain user_data_dir parameter
         assert "user_data_dir" in additional_args
         # In read mode, should use a clone directory
@@ -154,11 +154,11 @@ class TestUserDataContext:
             url="https://example.com",
             force_user_data=False,
         )
-        
+
         additional_args, extra_headers = CamoufoxArgsBuilder.build(
             request, mock_settings, mock_caps_with_user_data
         )
-        
+
         # Should not contain user data parameters
         assert "user_data_dir" not in additional_args
 
@@ -192,16 +192,16 @@ class TestUserDataContext:
         mock_settings.camoufox_disable_coop = False
         mock_settings.camoufox_locale = None
         mock_settings.camoufox_virtual_display = None
-        
+
         request = CrawlRequest(
             url="https://example.com",
             force_user_data=True,
         )
-        
+
         additional_args, extra_headers = CamoufoxArgsBuilder.build(
             request, mock_settings, mock_caps_with_user_data
         )
-        
+
         # Should not contain user data parameters when settings not configured
         assert "user_data_dir" not in additional_args
 

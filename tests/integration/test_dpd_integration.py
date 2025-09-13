@@ -1,3 +1,4 @@
+from app.main import app
 import sys
 from pathlib import Path
 
@@ -9,8 +10,6 @@ from fastapi.testclient import TestClient
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
-
-from app.main import app
 
 
 pytestmark = pytest.mark.integration
@@ -47,6 +46,7 @@ def test_dpd_real_tracking_number():
     if data.get("status") == "success":
         html = data.get("html") or ""
         # HTML should meet the same minimum length threshold as the service
+
         def _min_len():
             from app.core.config import get_settings
             try:

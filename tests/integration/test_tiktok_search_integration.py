@@ -23,7 +23,7 @@ class TestTikTokSearchIntegration:
             session_data = session_response.json()
             assert session_data["status"] == "success"
             assert "TikTok session established successfully" in session_data.get("message", "")
-        
+
         # Prepare the request payload
         payload = {
             "query": "gái xinh",

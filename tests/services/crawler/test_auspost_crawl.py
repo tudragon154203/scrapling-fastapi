@@ -116,4 +116,3 @@ class TestAuspostCrawl:
         assert res.status == "success"
         assert res.tracking_code == "ABC123"
         assert calls["count"] >= 1
-
