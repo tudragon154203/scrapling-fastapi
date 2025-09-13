@@ -42,4 +42,4 @@ jobs:
         run: flake8 app/
 
       - name: Run tests (skip integration)
-        run: pytest -q -m "not integration" --disable-warnings --maxfail=1
+        run: python -m pytest -q -m "not integration" --disable-warnings --maxfail=1
