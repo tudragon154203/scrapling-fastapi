@@ -1,6 +1,9 @@
 import pytest
 from unittest.mock import patch, MagicMock
 from fastapi.testclient import TestClient
+import tempfile
+import shutil
+from pathlib import Path
 
 from app.main import app
 from app.core.config import Settings
