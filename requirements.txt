@@ -15,4 +15,4 @@ pydantic-settings==2.5.2  # tương thích với pydantic 2.9
 
 # HTML parsing
 beautifulsoup4==4.12.2
-lxml==4.9.3
+lxml==6.0.1
