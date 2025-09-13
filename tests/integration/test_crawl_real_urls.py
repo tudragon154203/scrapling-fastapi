@@ -1,6 +1,8 @@
 ﻿import pytest
 from app.core.config import get_settings
 
+pytestmark = pytest.mark.integration
+
 
 # Disable proxies and keep retries minimal within this module to reduce flakiness/hangs
 @pytest.fixture(autouse=True)
@@ -54,7 +56,6 @@ def _min_len() -> int:
         return 500
 
 
-@pytest.mark.integration
 def test_crawl_17track(client):
     body = _make_body("https://t.17track.net/en#nums=1ZXH95910326694965")
     resp = client.post("/crawl", json=body)
@@ -66,7 +67,6 @@ def test_crawl_17track(client):
     assert len(html) >= _min_len()
 
 
-@pytest.mark.integration
 def test_crawl_ups(client):
     body = _make_body(
         "https://www.ups.com/track?tracknum=1ZXH95910305309465&loc=vi_VN&requester=QUIC/trackdetails"
@@ -80,7 +80,6 @@ def test_crawl_ups(client):
     assert len(html) >= _min_len()
 
 
-@pytest.mark.integration
 def test_crawl_fedex(client):
     body = _make_body(
         "https://www.fedex.com/fedextrack/?trknbr=883561067070&trkqual=2460902000~883561067070~FX"
@@ -94,7 +93,6 @@ def test_crawl_fedex(client):
     assert len(html) >= _min_len()
 
 
-@pytest.mark.integration
 def test_crawl_usps(client):
     body = _make_body(
         "https://tools.usps.com/go/TrackConfirmAction?tRef=fullpage&tLc=2&text28777=&tLabels=9200190381836321489085%2C&tABt=false"
@@ -108,7 +106,6 @@ def test_crawl_usps(client):
     assert len(html) >= _min_len()
 
 
-@pytest.mark.integration
 def test_crawl_dpex(client):
     body = _make_body("https://dpexonline.com/trace-and-track/index?id=226006280426")
     resp = client.post("/crawl", json=body)
@@ -120,7 +117,6 @@ def test_crawl_dpex(client):
     assert len(html) >= _min_len()
 
 
-@pytest.mark.integration
 def test_crawl_parcelsapp(client):
     body = _make_body("https://parcelsapp.com/en/tracking/9200190381599918197427")
     resp = client.post("/crawl", json=body)
@@ -132,7 +128,6 @@ def test_crawl_parcelsapp(client):
     assert len(html) >= _min_len()
 
 
-@pytest.mark.integration
 def test_crawl_laposte(client):
     body = _make_body("https://www.laposte.fr/outils/suivre-vos-envois?code=LA866151484GB")
     resp = client.post("/crawl", json=body)

@@ -69,3 +69,8 @@ Option B — one‑liner
 ## Tests
 
 - `python -m pytest -q`
+- Unit tests only: y
+
+```shell
+python -m pytest -m "not integration"
+```
