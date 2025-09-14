@@ -10,7 +10,7 @@ jobs:
   opencode:
     if: |
       contains(github.event.comment.body, '@opencode') 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     permissions:
       id-token: write
       contents: write
@@ -31,4 +31,4 @@ jobs:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         with:
           model: tngtech/deepseek-r1t2-chimera:free
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+        #github_token: ${{ secrets.GITHUB_TOKEN }}
