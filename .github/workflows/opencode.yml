@@ -1,0 +1,34 @@
+name: opencode
+
+on:
+  issue_comment:
+    types: [created, edited]
+  pull_request_review_comment:
+    types: [created, edited]
+
+jobs:
+  opencode:
+    if: |
+      contains(github.event.comment.body, '@opencode') 
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: write
+      pull-requests: write
+      issues: write
+    concurrency:
+      group: opencode-${{ github.workflow }}-${{ github.event_name }}-${{ github.event.issue.number || github.event.pull_request.number || github.run_id }}
+      cancel-in-progress: true
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Run opencode
+        uses: sst/opencode/github@latest
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        with:
+          model: tngtech/deepseek-r1t2-chimera:free
+          github_token: ${{ secrets.GITHUB_TOKEN }}
