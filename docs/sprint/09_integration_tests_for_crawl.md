@@ -37,8 +37,8 @@
 
 **How To Run**
 
-- Run all tests (default): `pytest -v`
-- Only integration tests: `pytest -m integration -v`
+- Run all tests (default): `python -m pytest -v`
+- Only integration tests: `python -m pytest -m integration -v`
 
 **Risks & Mitigations**
 

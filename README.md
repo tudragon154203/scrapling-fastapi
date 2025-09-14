@@ -2,6 +2,10 @@
 
 A scalable FastAPI project template with a layered architecture, Docker support, and testing framework.
 
+## Project Overview
+
+This project provides a robust and extensible FastAPI service designed for advanced web scraping. It leverages Scrapling/Camoufox for stealthy browser automation, offering specialized endpoints for various crawling needs, including DPD and AusPost tracking, and TikTok session management and content search. The service is built with a layered architecture, emphasizing modularity, testability, and maintainability, and includes features like proxy rotation, humanized browsing actions, and persistent user data handling to effectively bypass bot detection mechanisms.
+
 ## Project Structure
 
 ```
@@ -9,14 +13,19 @@ project-template/
 ├── app/                    # Main application package
 │   ├── __init__.py         # Package initializer
 │   ├── main.py             # FastAPI application entry point
-│   ├── api/                # API layer - HTTP endpoints and routing
+│   ├── api/                # API layer - HTTP endpoints and routing (health, crawl, browse, tiktok)
 │   ├── core/               # Core layer - Configuration and application setup
 │   ├── middleware/         # Middleware layer - Custom middleware components
 │   ├── schemas/            # Schemas layer - Pydantic models for data validation
 │   └── services/           # Services layer - Business logic
+│       ├── browser/        # Browser automation and interactive flows
+│       ├── common/         # Shared utilities, interfaces, and base components
+│       ├── crawler/        # Web crawling logic, retry, proxy, and specific verticals
+│       └── tiktok/         # TikTok specific services (session, search)
 ├── tests/                  # Test suite
 │   ├── api/                # API layer tests
 │   ├── core/               # Core layer tests
+│   ├── integration/        # End-to-end integration tests
 │   ├── middleware/         # Middleware tests
 │   ├── schemas/            # Schema tests
 │   └── services/           # Service tests
@@ -37,6 +46,11 @@ project-template/
 - **Environment Configuration**: Configuration management through environment variables.
 - **Testing Framework**: Pytest integration for comprehensive testing.
 - **Health Checks**: Built-in health check endpoint for monitoring.
+- **Advanced Web Scraping**: Utilizes Scrapling/Camoufox for stealthy browser automation.
+- **Specialized Crawlers**: Includes dedicated endpoints for DPD and AusPost tracking.
+- **TikTok Integration**: Provides endpoints for TikTok session management and content search.
+- **User Data Persistence**: Supports persistent user profiles for maintaining sessions across requests.
+- **Humanized Actions**: Implements realistic user behavior (mouse movements, typing delays) to avoid bot detection.
 
 ## Prerequisites
 
@@ -87,7 +101,7 @@ For detailed instructions on running the application, see [RUN.md](RUN.md).
 
 ## Testing
 
-Run the test suite using pytest:
+Run the test suite using python -m pytest:
 
 ```bash
 python -m pytest
@@ -129,7 +143,11 @@ Contains Pydantic models for data validation.
 
 ### Services Layer (`app/services/`)
 
-Contains business logic and service implementations.
+Contains business logic and service implementations, further organized into:
+- **Browser Layer (`app/services/browser/`)**: Handles browser automation and interactive flows.
+- **Common Layer (`app/services/common/`)**: Provides shared utilities, interfaces, and base components.
+- **Crawler Layer (`app/services/crawler/`)**: Manages web crawling logic, including retry mechanisms, proxy handling, and specific vertical implementations.
+- **TikTok Layer (`app/services/tiktok/`)**: Contains services specific to TikTok, such as session management and search functionalities.
 
 ## Docker Configuration
 
