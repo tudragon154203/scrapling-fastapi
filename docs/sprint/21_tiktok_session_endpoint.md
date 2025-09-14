@@ -222,16 +222,16 @@ TikTokSessionConfig(
 Tests can be run using:
 ```bash
 # Run all TikTok-related tests
-pytest tests/ -k tiktok -v
+python -m pytest tests/ -k tiktok -v
 
 # Run API tests specifically
-pytest tests/api/test_tiktok_session_endpoint.py -v
+python -m pytest tests/api/test_tiktok_session_endpoint.py -v
 
 # Run integration tests
-pytest tests/integration/test_tiktok_session_integration.py -v
+python -m pytest tests/integration/test_tiktok_session_integration.py -v
 
 # Run login detection tests
-pytest tests/services/tiktok/test_tiktok_login_detection.py -v
+python -m pytest tests/services/tiktok/test_tiktok_login_detection.py -v
 ```
 
 ### Test Configuration

@@ -23,4 +23,4 @@ Scrapling FastAPI Service is a web scraping API built with FastAPI that provides
 - FastAPI for API framework
 - Camoufox/Scrapling for browser automation
 - Pydantic for data validation
-- Comprehensive test suite with pytest
+- Comprehensive test suite with python -m pytest

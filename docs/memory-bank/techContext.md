@@ -16,7 +16,7 @@
 - `scrapling`: Browser automation with stealth features
 - `fastapi`: Web framework
 - `pydantic`: Data validation
-- `pytest`: Testing framework
+- `python -m pytest`: Testing framework
 
 ## Configuration
 Environment variables control:
