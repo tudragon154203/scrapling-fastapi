@@ -95,3 +95,7 @@ scripts/
 memory/
 templates/
 tiktok_search.html
+
+# Github Actions
+.gemini/
+gha-creds-*.json
