@@ -1,6 +1,7 @@
 import os
 import sys
 import tempfile
+from pathlib import Path
 import pytest
 from unittest.mock import Mock, patch
 
@@ -144,7 +145,11 @@ class TestUserDataContext:
         assert "user_data_dir" in additional_args
         # In read mode, should use a clone directory
         assert "clones" in additional_args["user_data_dir"]
-        assert additional_args["user_data_dir"].startswith(temp_base_dir)
+        # On Windows, TemporaryDirectory may yield a short (8.3) path while
+        # Path.resolve() returns the long form. Compare using resolved paths.
+        assert Path(additional_args["user_data_dir"]).resolve().is_relative_to(
+            Path(temp_base_dir).resolve()
+        )
 
     def test_camoufox_builder_integration_with_force_user_data_false(
         self, mock_settings, mock_caps_with_user_data
@@ -182,7 +187,9 @@ class TestUserDataContext:
         assert "user_data_dir" in additional_args
         # In read mode, should use a clone directory
         assert "clones" in additional_args["user_data_dir"]
-        assert additional_args["user_data_dir"].startswith(temp_base_dir)
+        assert Path(additional_args["user_data_dir"]).resolve().is_relative_to(
+            Path(temp_base_dir).resolve()
+        )
 
     def test_camoufox_builder_integration_no_settings(self, mock_caps_with_user_data):
         """Test CamoufoxArgsBuilder integration without user data settings."""
