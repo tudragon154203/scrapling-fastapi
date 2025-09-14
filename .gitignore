@@ -80,6 +80,7 @@ temp/
 # Docs
 AGENTS.md
 CLAUDE.md
+claudedocs/
 .kiro*
 .qwen*
 .roo*
