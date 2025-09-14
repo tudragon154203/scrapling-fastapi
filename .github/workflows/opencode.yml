@@ -9,7 +9,8 @@ on:
 jobs:
   opencode:
     if: |
-      contains(github.event.comment.body, '@opencode') 
+      contains(github.event.comment.body, 'Opencode') || 
+      contains(github.event.comment.body, '/opencode') 
     runs-on: ubuntu-22.04
     permissions:
       id-token: write
