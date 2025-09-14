@@ -138,4 +138,3 @@ class TestTikTokParser:
         found_video = next((video for video in results if video["id"] == "7343616838871338260"), None)
         assert found_video is not None, "Video with ID 7343616838871338260 not found"
         assert found_video["uploadTime"] == "2024-3-7"   # Expected upload time from the mock HTML
-
