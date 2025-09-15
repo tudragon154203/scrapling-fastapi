@@ -1,45 +1,15 @@
-name: CI
+name: CI - Pull request (Unit + Integration)
 
 on:
-  push:          # any branch
   pull_request:
 
 jobs:
   unit_api:
-    name: Unit/Contract • ${{ matrix.os }} • Py ${{ matrix.python }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-22.04, ubuntu-24.04, windows-2022]
-        python: ["3.10", "3.11", "3.12", "3.13"]
+    uses: ./.github/workflows/ci-push.yml
+    secrets: inherit
 
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Python ${{ matrix.python }}
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python }}
-          cache: 'pip'
-          cache-dependency-path: |
-            requirements.txt
-            requirements-test.txt
-            **/requirements*.txt
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt -r requirements-test.txt
-
-      - name: Lint
-        run: flake8 app/ tests/
-
-      - name: Run tests (skip integration)
-        run: python -m pytest -q -m "not integration" --disable-warnings --maxfail=1
-        
   integration_api:
-    name: Integration • ${{ matrix.os }} • Py ${{ matrix.python }}
+    name: Integration | ${{ matrix.os }} | Py ${{ matrix.python }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -97,3 +67,4 @@ jobs:
 
       - name: Run integration tests
         run: python -m pytest -q -m "integration" --disable-warnings --maxfail=1
+
