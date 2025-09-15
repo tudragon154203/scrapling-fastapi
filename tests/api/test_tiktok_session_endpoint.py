@@ -2,7 +2,7 @@
 E2E tests for TikTok Session endpoint
 """
 from unittest.mock import patch, AsyncMock
-from app.schemas.tiktok import TikTokSessionResponse
+from app.schemas.tiktok.session import TikTokSessionResponse
 
 
 class TestTikTokSessionEndpoint:
@@ -203,7 +203,7 @@ class TestTikTokSessionEndpoint:
     @patch('app.api.tiktok.tiktok_service', new_callable=AsyncMock)
     def test_response_consistency_with_schema(self, mock_tiktok_service, client):
         """Test that response is consistent with TikTokSessionResponse schema"""
-        from app.schemas.tiktok import TikTokSessionResponse
+        from app.schemas.tiktok.session import TikTokSessionResponse
 
         mock_tiktok_service.create_session = AsyncMock(return_value=TikTokSessionResponse(
             status="success",
