@@ -1,6 +1,8 @@
 name: Claude Code
 
 on:
+  pull_request:
+    types: [opened, synchronize, reopened]
   issue_comment:
     types: [created, edited]
   pull_request_review_comment:
@@ -13,6 +15,9 @@ on:
 jobs:
   claude:
     if: |
+      (
+        github.event_name == 'pull_request'
+      ) ||
       (
         github.event_name == 'issue_comment' &&
         contains(fromJSON('["OWNER","COLLABORATOR","AUTHOR"]'), github.event.comment.author_association) &&
