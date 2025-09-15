@@ -14,23 +14,27 @@ jobs:
   claude:
     if: |
       (github.event_name == 'issue_comment' && (
-        contains(github.event.comment.body, '@claude') ||
-        contains(github.event.comment.body, 'CLAUDE') ||
-        contains(github.event.comment.body, '/claude')
+        startsWith(github.event.comment.body, '@claude') ||
+        startsWith(github.event.comment.body, 'CLAUDE') ||
+        startsWith(github.event.comment.body, '/claude')
       )) ||
       (github.event_name == 'pull_request_review_comment' && (
-        contains(github.event.comment.body, '@claude') ||
-        contains(github.event.comment.body, 'CLAUDE') ||
-        contains(github.event.comment.body, '/claude')
+        startsWith(github.event.comment.body, '@claude') ||
+        startsWith(github.event.comment.body, 'CLAUDE') ||
+        startsWith(github.event.comment.body, '/claude')
       )) ||
       (github.event_name == 'pull_request_review' && (
-        contains(github.event.review.body, '@claude') ||
-        contains(github.event.review.body, 'CLAUDE') ||
-        contains(github.event.review.body, '/claude')
+        startsWith(github.event.review.body, '@claude') ||
+        startsWith(github.event.review.body, 'CLAUDE') ||
+        startsWith(github.event.review.body, '/claude')
       )) ||
       (github.event_name == 'issues' && (
         contains(github.event.issue.body, '@claude') ||
-        contains(github.event.issue.title, '@claude')
+        contains(github.event.issue.body, 'CLAUDE') ||
+        contains(github.event.issue.body, '/claude') ||
+        contains(github.event.issue.title, '@claude') ||
+        contains(github.event.issue.title, 'CLAUDE') ||
+        contains(github.event.issue.title, '/claude')
       ))
     runs-on: ubuntu-22.04
     environment: 'Agents/Bots'
