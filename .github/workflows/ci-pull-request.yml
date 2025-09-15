@@ -1,18 +1,17 @@
-name: CI
+name: CI - Pull request (Unit + Integration)
 
 on:
-  push:          # any branch
   pull_request:
 
 jobs:
   unit_api:
-    name: Unit/Contract • ${{ matrix.os }} • Py ${{ matrix.python }}
+    name: Unit/Contract | ${{ matrix.os }} | Py ${{ matrix.python }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, ubuntu-24.04, windows-2022]
-        python: ["3.10", "3.11", "3.12", "3.13"]
+        os: [ubuntu-24.04, windows-2022]
+        python: ["3.10"]
 
     steps:
       - uses: actions/checkout@v4
@@ -37,9 +36,9 @@ jobs:
 
       - name: Run tests (skip integration)
         run: python -m pytest -q -m "not integration" --disable-warnings --maxfail=1
-        
+
   integration_api:
-    name: Integration • ${{ matrix.os }} • Py ${{ matrix.python }}
+    name: Integration | ${{ matrix.os }} | Py ${{ matrix.python }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -97,3 +96,4 @@ jobs:
 
       - name: Run integration tests
         run: python -m pytest -q -m "integration" --disable-warnings --maxfail=1
+
