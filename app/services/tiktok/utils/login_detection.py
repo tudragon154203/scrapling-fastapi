@@ -5,7 +5,7 @@ import re
 from typing import Dict, Any
 from enum import Enum
 
-from app.schemas.tiktok import TikTokLoginState, TikTokSessionConfig
+from app.schemas.tiktok.session import TikTokLoginState, TikTokSessionConfig
 
 
 class LoginDetectionMethod(str, Enum):
