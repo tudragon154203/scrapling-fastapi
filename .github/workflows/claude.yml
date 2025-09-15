@@ -31,10 +31,10 @@ jobs:
         with:
           fetch-depth: 1
 
-      # - name: Setup Bun runtime
-      #   uses: oven-sh/setup-bun@v2
-      #   with:
-      #     bun-version: latest
+      - name: Setup Bun runtime
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
 
       - name: Start Claude Code Router
         env:
