@@ -1,7 +1,6 @@
-import logging
-import sys
 import asyncio
 import logging
+import sys
 from typing import Optional
 
 import app.core.config as app_config
