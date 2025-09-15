@@ -1,7 +1,8 @@
 {
     "action": "created",
     "comment": {
-        "body": "@opencode"
+        "body": "@opencode",
+        "author_association": "OWNER"
     },
     "issue": {
         "number": 1
