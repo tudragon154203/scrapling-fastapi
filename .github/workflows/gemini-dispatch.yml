@@ -45,7 +45,7 @@ jobs:
   dispatch:
     # For PRs: only if not from a fork
     # For comments: only if message starts with an accepted token
-    #   (Gemini, GEMINI, @gemini-cli, /gemini) and author is OWNER/MEMBER/COLLABORATOR
+    #   (@gemini, @gemini-cli, /gemini, GEMINI) and author is OWNER/MEMBER/COLLABORATOR
     # For issues: only on open/reopen
     if: |-
       (
@@ -55,9 +55,9 @@ jobs:
         github.event.sender.type == 'User' &&
         (
           startsWith(github.event.comment.body || github.event.review.body || github.event.issue.body, '@gemini-cli') ||
-          startsWith(github.event.comment.body || github.event.review.body || github.event.issue.body, 'Gemini') ||
-          startsWith(github.event.comment.body || github.event.review.body || github.event.issue.body, 'GEMINI') ||
-          startsWith(github.event.comment.body || github.event.review.body || github.event.issue.body, '/gemini')
+          startsWith(github.event.comment.body || github.event.review.body || github.event.issue.body, '@gemini') ||
+          startsWith(github.event.comment.body || github.event.review.body || github.event.issue.body, '/gemini') ||
+          startsWith(github.event.comment.body || github.event.review.body || github.event.issue.body, 'GEMINI')
         ) &&
         contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association || github.event.review.author_association || github.event.issue.author_association)
       ) || (
@@ -105,9 +105,9 @@ jobs:
               core.setOutput('additional_context', additionalContext);
             } else if (request.startsWith("@gemini-cli /triage")) {
               core.setOutput('command', 'triage');
-            } else if (request.startsWith("@gemini-cli") || request.startsWith("Gemini") || request.startsWith("GEMINI") || request.startsWith("/gemini")) {
+            } else if (request.startsWith("@gemini-cli") || request.startsWith("@gemini") || request.startsWith("/gemini") || request.startsWith("GEMINI")) {
               core.setOutput('command', 'invoke');
-              const tokens = ["@gemini-cli", "Gemini", "GEMINI", "/gemini"];
+              const tokens = ["@gemini-cli", "@gemini", "/gemini", "GEMINI"];
               const matched = tokens.find((t) => request.startsWith(t));
               const additionalContext = (matched ? request.slice(matched.length) : request).trim();
               core.setOutput('additional_context', additionalContext);
