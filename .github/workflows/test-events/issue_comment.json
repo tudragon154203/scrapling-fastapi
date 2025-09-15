@@ -1,0 +1,17 @@
+{
+  "action": "created",
+  "comment": {
+    "body": "@claude Please take a look at this issue."
+  },
+  "issue": {
+    "number": 42,
+    "title": "Sample issue",
+    "body": "A description for testing @claude."
+  },
+  "repository": {
+    "full_name": "local/test-repo",
+    "name": "test-repo",
+    "owner": { "login": "local" }
+  },
+  "sender": { "login": "tester" }
+}
