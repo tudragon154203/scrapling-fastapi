@@ -5,7 +5,7 @@ import sys
 import asyncio
 from typing import Optional, Dict, Any
 from app.services.common.executor import AbstractBrowsingExecutor
-from app.schemas.tiktok import TikTokSessionConfig
+from app.schemas.tiktok.session import TikTokSessionConfig
 from app.services.common.adapters.scrapling_fetcher import ScraplingFetcherAdapter, FetchArgComposer
 from app.core.config import get_settings
 from app.services.common.browser.camoufox import CamoufoxArgsBuilder
