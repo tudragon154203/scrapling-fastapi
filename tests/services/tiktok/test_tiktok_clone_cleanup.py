@@ -7,7 +7,7 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 from app.services.tiktok.tiktok_executor import TiktokExecutor
-from app.schemas.tiktok import TikTokSessionConfig
+from app.schemas.tiktok.session import TikTokSessionConfig
 
 
 class TestTikTokCloneCleanup:
