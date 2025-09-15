@@ -1,4 +1,4 @@
-name: opencode
+name: '🔓 Opencode'
 
 on:
   issue_comment:
