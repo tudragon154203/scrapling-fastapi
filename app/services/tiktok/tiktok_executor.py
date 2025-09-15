@@ -6,7 +6,8 @@ import asyncio
 from typing import Optional, Dict, Any
 from app.services.common.executor import AbstractBrowsingExecutor
 from app.schemas.tiktok import TikTokSessionConfig
-from app.services.common.adapters.scrapling_fetcher import ScraplingFetcherAdapter, FetchArgComposer
+from app.services.common.adapters.arg_composer import FetchArgComposer
+from app.services.common.adapters.fetch_adapter import ScraplingFetcherAdapter
 from app.core.config import get_settings
 from app.services.common.browser.camoufox import CamoufoxArgsBuilder
 from app.services.tiktok.utils.login_detection import LoginDetector

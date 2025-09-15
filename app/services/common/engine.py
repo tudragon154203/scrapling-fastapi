@@ -3,7 +3,7 @@ from typing import Any, Optional
 import app.core.config as app_config
 from app.schemas.crawl import CrawlRequest, CrawlResponse
 from app.services.common.interfaces import ICrawlerEngine, IExecutor, PageAction
-from app.services.common.adapters.scrapling_fetcher import ScraplingFetcherAdapter
+from app.services.common.adapters.fetch_adapter import ScraplingFetcherAdapter
 from app.services.browser.options.resolver import OptionsResolver
 from app.services.common.browser.camoufox import CamoufoxArgsBuilder
 from app.services.crawler.executors.single_executor import SingleAttemptExecutor

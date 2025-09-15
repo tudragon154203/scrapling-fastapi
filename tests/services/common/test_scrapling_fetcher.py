@@ -4,7 +4,8 @@ import inspect
 import pytest
 from unittest.mock import MagicMock
 
-from app.services.common.adapters.scrapling_fetcher import FetchArgComposer, ScraplingFetcherAdapter
+from app.services.common.adapters.arg_composer import FetchArgComposer
+from app.services.common.adapters.fetch_adapter import ScraplingFetcherAdapter
 from app.services.common.types import FetchCapabilities
 
 
@@ -113,7 +114,7 @@ def test_compose_geoip_independent_of_settings():
     assert result_false.get("geoip") is True
 
 
-def test_geoip_fallback_on_database_error(monkeypatch):
+def test_fetch_with_geoip_fallback_on_database_error(monkeypatch):
     """Test that fetch retries without geoip when database error occurs."""
     calls = {"count": 0, "kwargs": []}
 
@@ -148,7 +149,9 @@ def test_geoip_fallback_on_database_error(monkeypatch):
     monkeypatch.setitem(sys.modules, "scrapling.fetchers", fake_fetchers)
 
     adapter = ScraplingFetcherAdapter()
-    result = adapter.fetch("https://example.com", {"geoip": True, "headless": True})
+    result = adapter._fetch_with_geoip_fallback(
+        "https://example.com", {"geoip": True, "headless": True}
+    )
 
     assert calls["count"] == 2
     assert calls["kwargs"][0]["geoip"] is True  # First attempt with geoip
@@ -156,7 +159,7 @@ def test_geoip_fallback_on_database_error(monkeypatch):
     assert result.status == 200
 
 
-def test_geoip_fallback_on_geolite_error(monkeypatch):
+def test_fetch_with_geoip_fallback_on_geolite_error(monkeypatch):
     """Test that fetch retries without geoip when GeoLite2 error occurs."""
     calls = {"count": 0, "kwargs": []}
 
@@ -191,12 +194,39 @@ def test_geoip_fallback_on_geolite_error(monkeypatch):
     monkeypatch.setitem(sys.modules, "scrapling.fetchers", fake_fetchers)
 
     adapter = ScraplingFetcherAdapter()
-    result = adapter.fetch("https://example.com", {"geoip": True, "headless": True})
+    result = adapter._fetch_with_geoip_fallback(
+        "https://example.com", {"geoip": True, "headless": True}
+    )
 
     assert calls["count"] == 2
     assert calls["kwargs"][0]["geoip"] is True  # First attempt with geoip
     assert "geoip" not in calls["kwargs"][1]  # Second attempt without geoip
     assert result.status == 200
+
+
+def test_fetch_with_geoip_fallback_http_timeout_triggers_http_fallback(monkeypatch):
+    """Timeout errors with selector should trigger HTTP fallback."""
+
+    class FakeStealthyFetcher:
+        adaptive = False
+
+        @staticmethod
+        def fetch(url, **kwargs):
+            raise Exception("TimeoutError: Page.goto timeout")
+
+    adapter = ScraplingFetcherAdapter()
+    monkeypatch.setattr(adapter, "_get_stealthy_fetcher", lambda: FakeStealthyFetcher)
+
+    fallback_result = types.SimpleNamespace(status=200, html_content="fallback")
+    fallback_mock = MagicMock(return_value=fallback_result)
+    monkeypatch.setattr(adapter, "_http_fallback", fallback_mock)
+
+    args = {"wait_selector": "#app", "network_idle": False}
+
+    result = adapter._fetch_with_geoip_fallback("https://example.com", args)
+
+    fallback_mock.assert_called_once_with("https://example.com")
+    assert result is fallback_result
 
 
 def test_geoip_no_fallback_on_other_errors(monkeypatch):
@@ -230,3 +260,45 @@ def test_geoip_no_fallback_on_other_errors(monkeypatch):
         adapter.fetch("https://example.com", {"geoip": True, "headless": True})
 
     assert calls["count"] == 1  # Only one attempt, no retry
+
+
+def test_fetch_sets_adaptive_and_uses_geoip_flow_when_no_loop(monkeypatch):
+    """Fetch should set adaptive flag and delegate to geoip fallback when loop idle."""
+
+    adapter = ScraplingFetcherAdapter()
+    sentinel_result = object()
+    fallback_mock = MagicMock(return_value=sentinel_result)
+    monkeypatch.setattr(adapter, "_fetch_with_geoip_fallback", fallback_mock)
+    monkeypatch.setattr(adapter, "_has_running_loop", lambda: False)
+
+    dummy_fetcher = types.SimpleNamespace(adaptive=False)
+    monkeypatch.setattr(adapter, "_get_stealthy_fetcher", lambda: dummy_fetcher)
+
+    args = {"geoip": True, "headless": True}
+
+    result = adapter.fetch("https://example.com", args)
+
+    assert result is sentinel_result
+    assert dummy_fetcher.adaptive is True
+    fallback_mock.assert_called_once_with("https://example.com", args)
+
+
+def test_fetch_uses_thread_when_event_loop_present(monkeypatch):
+    """Fetch should hand off to thread path when an event loop is running."""
+
+    adapter = ScraplingFetcherAdapter()
+    sentinel_result = object()
+    thread_mock = MagicMock(return_value=sentinel_result)
+    monkeypatch.setattr(adapter, "_fetch_in_thread", thread_mock)
+    monkeypatch.setattr(adapter, "_has_running_loop", lambda: True)
+
+    dummy_fetcher = types.SimpleNamespace(adaptive=False)
+    monkeypatch.setattr(adapter, "_get_stealthy_fetcher", lambda: dummy_fetcher)
+
+    args = {"geoip": True, "headless": True}
+
+    result = adapter.fetch("https://example.com", args)
+
+    assert result is sentinel_result
+    assert dummy_fetcher.adaptive is True
+    thread_mock.assert_called_once_with("https://example.com", args)

@@ -214,7 +214,8 @@ class TikTokSearchService:
         return True, [q]
 
     def _prepare_fetch_context(self, in_tests: bool):
-        from app.services.common.adapters.scrapling_fetcher import ScraplingFetcherAdapter, FetchArgComposer
+        from app.services.common.adapters.arg_composer import FetchArgComposer
+        from app.services.common.adapters.fetch_adapter import ScraplingFetcherAdapter
         from app.services.common.browser.camoufox import CamoufoxArgsBuilder
         self.logger.debug(
             f"[TikTokSearchService] Preparing fetch context for independent search - in_tests: {in_tests}")
