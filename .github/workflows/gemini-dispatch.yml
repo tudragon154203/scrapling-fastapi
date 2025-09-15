@@ -44,8 +44,7 @@ jobs:
 
   dispatch:
     # For PRs: only if not from a fork
-    # For comments: only if message starts with an accepted token
-    #   (@gemini, @gemini-cli, /gemini, GEMINI) and author is OWNER/MEMBER/COLLABORATOR
+    # For comments: only if author is OWNER/MEMBER/COLLABORATOR (command parsing happens later)
     # For issues: only on open/reopen
     if: |-
       (
@@ -53,13 +52,8 @@ jobs:
         github.event.pull_request.head.repo.fork == false
       ) || (
         github.event.sender.type == 'User' &&
-        (
-          startsWith(github.event.comment.body || github.event.review.body || github.event.issue.body, '@gemini-cli') ||
-          startsWith(github.event.comment.body || github.event.review.body || github.event.issue.body, '@gemini') ||
-          startsWith(github.event.comment.body || github.event.review.body || github.event.issue.body, '/gemini') ||
-          startsWith(github.event.comment.body || github.event.review.body || github.event.issue.body, 'GEMINI')
-        ) &&
-        contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association || github.event.review.author_association || github.event.issue.author_association)
+        contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association || github.event.review.author_association || github.event.issue.author_association) &&
+        contains(fromJSON('["issue_comment", "pull_request_review", "pull_request_review_comment"]'), github.event_name)
       ) || (
         github.event_name == 'issues' &&
         contains(fromJSON('["opened", "reopened"]'), github.event.action)
@@ -95,31 +89,65 @@ jobs:
           REQUEST: '${{ github.event.comment.body || github.event.review.body || github.event.issue.body }}'
         with:
           script: |
-            const request = process.env.REQUEST;
-            const eventType = process.env.EVENT_TYPE
+            const rawRequest = process.env.REQUEST ?? '';
+            const eventType = process.env.EVENT_TYPE ?? '';
+            const request = rawRequest.trimStart();
+
             core.setOutput('request', request);
 
-            if (request.startsWith("@gemini-cli /review")) {
-              core.setOutput('command', 'review');
-              const additionalContext = request.replace(/^@gemini-cli \/review/, '').trim();
-              core.setOutput('additional_context', additionalContext);
-            } else if (request.startsWith("@gemini-cli /triage")) {
-              core.setOutput('command', 'triage');
-            } else if (request.startsWith("@gemini-cli") || request.startsWith("@gemini") || request.startsWith("/gemini") || request.startsWith("GEMINI")) {
-              core.setOutput('command', 'invoke');
-              const tokens = ["@gemini-cli", "@gemini", "/gemini", "GEMINI"];
-              const matched = tokens.find((t) => request.startsWith(t));
-              const additionalContext = (matched ? request.slice(matched.length) : request).trim();
-              core.setOutput('additional_context', additionalContext);
-            } else if (eventType === 'pull_request.opened') {
-              core.setOutput('command', 'review');
-            } else if (['issues.opened', 'issues.reopened'].includes(eventType)) {
-              core.setOutput('command', 'triage');
-            } else {
-              core.setOutput('command', 'fallthrough');
+            const additional = (value) => core.setOutput('additional_context', value ?? '');
+            const setCommand = (command, context = '') => {
+              core.setOutput('command', command);
+              additional(context);
+            };
+
+            if (eventType === 'pull_request.opened') {
+              setCommand('review');
+              return;
             }
 
+            if ([
+              'issues.opened',
+              'issues.reopened',
+            ].includes(eventType)) {
+              setCommand('triage');
+              return;
+            }
+
+            if (!request) {
+              setCommand('ignored');
+              return;
+            }
+
+            const loweredRequest = request.toLowerCase();
+            const aliases = ['@gemini-cli', '@gemini', '/gemini', 'gemini'];
+            const matchedAlias = aliases.find((alias) => loweredRequest.startsWith(alias));
+
+            if (!matchedAlias) {
+              setCommand('ignored');
+              return;
+            }
+
+            const remainder = request.slice(matchedAlias.length);
+            const trimmedRemainder = remainder.trimStart().replace(/^[,;:.-]+/, '').trimStart();
+            const loweredRemainder = trimmedRemainder.toLowerCase();
+
+            if (loweredRemainder.startsWith('/review')) {
+              const context = trimmedRemainder.slice('/review'.length).trimStart();
+              setCommand('review', context);
+              return;
+            }
+
+            if (loweredRemainder.startsWith('/triage')) {
+              const context = trimmedRemainder.slice('/triage'.length).trimStart();
+              setCommand('triage', context);
+              return;
+            }
+
+            setCommand('invoke', trimmedRemainder);
+
       - name: 'Acknowledge request'
+        if: ${{ contains(fromJSON('["review", "triage", "invoke"]'), steps.extract_command.outputs.command) }}
         env:
           GITHUB_TOKEN: '${{ steps.mint_identity_token.outputs.token || secrets.GITHUB_TOKEN || github.token }}'
           ISSUE_NUMBER: '${{ github.event.pull_request.number || github.event.issue.number }}'
