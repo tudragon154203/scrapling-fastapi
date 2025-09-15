@@ -10,7 +10,7 @@ class TestTikTokSessionResponseSchema:
 
     def test_success_response_valid(self):
         """Test that success response body is valid"""
-        from app.schemas.tiktok import TikTokSessionResponse
+        from app.schemas.tiktok.session import TikTokSessionResponse
         response = TikTokSessionResponse(status="success", message="TikTok session established successfully")
         assert response.status == "success"
         assert isinstance(response.message, str)
@@ -18,7 +18,7 @@ class TestTikTokSessionResponseSchema:
 
     def test_error_response_valid(self):
         """Test that error response body is valid"""
-        from app.schemas.tiktok import TikTokSessionResponse
+        from app.schemas.tiktok.session import TikTokSessionResponse
         response = TikTokSessionResponse(
             status="error",
             message="Not logged in to TikTok",
@@ -31,7 +31,7 @@ class TestTikTokSessionResponseSchema:
 
     def test_success_response_variations_valid(self):
         """Test various valid success response variations"""
-        from app.schemas.tiktok import TikTokSessionResponse
+        from app.schemas.tiktok.session import TikTokSessionResponse
 
         success_variations = [
             {"status": "success", "message": "Session created"},
@@ -48,7 +48,7 @@ class TestTikTokSessionResponseSchema:
 
     def test_error_response_variations_valid(self):
         """Test various valid error response variations"""
-        from app.schemas.tiktok import TikTokSessionResponse
+        from app.schemas.tiktok.session import TikTokSessionResponse
 
         # Valid error variations (with error_details)
         valid_error_variations = [
@@ -70,7 +70,7 @@ class TestTikTokSessionResponseSchema:
 
     def test_invalid_status_rejected(self):
         """Test invalid status values are rejected"""
-        from app.schemas.tiktok import TikTokSessionResponse
+        from app.schemas.tiktok.session import TikTokSessionResponse
 
         invalid_statuses = ["invalid", "", "success_error", 123]
 

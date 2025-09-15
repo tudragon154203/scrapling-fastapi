@@ -19,7 +19,7 @@ class TestTikTokSessionRequestSchema:
         # This test should fail initially until implementation rejects unknown fields
         with pytest.raises(ValidationError):
             # This will be implemented in the actual schema
-            from app.schemas.tiktok import TikTokSessionRequest
+            from app.schemas.tiktok.session import TikTokSessionRequest
 
             # Test with extra fields
             TikTokSessionRequest(extra_field="should_be_rejected")
@@ -37,5 +37,5 @@ class TestTikTokSessionRequestSchema:
         # This will be implemented in the actual schema
         for invalid_body in invalid_bodies:
             with pytest.raises(ValidationError):
-                from app.schemas.tiktok import TikTokSessionRequest
+                from app.schemas.tiktok.session import TikTokSessionRequest
                 TikTokSessionRequest(**invalid_body)

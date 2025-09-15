@@ -11,7 +11,7 @@ class TestTikTokLoginDetectionContract:
     async def test_login_detection_timeout(self):
         """Test login detection timeout behavior"""
         from app.services.tiktok.utils.login_detection import LoginDetector
-        from app.schemas.tiktok import TikTokSessionConfig, TikTokLoginState
+        from app.schemas.tiktok.session import TikTokSessionConfig, TikTokLoginState
 
         # Create a mock browser
         mock_browser = type('MockBrowser', (), {})()
@@ -29,7 +29,7 @@ class TestTikTokLoginDetectionContract:
     async def test_login_detection_methods(self):
         """Test multiple login detection methods"""
         from app.services.tiktok.utils.login_detection import LoginDetector
-        from app.schemas.tiktok import TikTokSessionConfig, TikTokLoginState
+        from app.schemas.tiktok.session import TikTokSessionConfig, TikTokLoginState
 
         # Create a mock browser
         mock_browser = type('MockBrowser', (), {})()
@@ -56,7 +56,7 @@ class TestTikTokLoginDetectionContract:
     async def test_dom_detection_method(self):
         """Test DOM element detection method"""
         from app.services.tiktok.utils.login_detection import LoginDetector
-        from app.schemas.tiktok import TikTokSessionConfig, TikTokLoginState
+        from app.schemas.tiktok.session import TikTokSessionConfig, TikTokLoginState
 
         # Create mock browser with HTML content for logged-in scenario
         class MockBrowserLoggedIn:
@@ -91,7 +91,7 @@ class TestTikTokLoginDetectionContract:
     async def test_api_detection_method(self):
         """Test API request detection method"""
         from app.services.tiktok.utils.login_detection import LoginDetector
-        from app.schemas.tiktok import TikTokSessionConfig, TikTokLoginState
+        from app.schemas.tiktok.session import TikTokSessionConfig, TikTokLoginState
 
         # API detection is not available with StealthyFetcher approach
         # Create mock browser
@@ -109,7 +109,7 @@ class TestTikTokLoginDetectionContract:
     async def test_fallback_refresh_method(self):
         """Test fallback refresh mechanism"""
         from app.services.tiktok.utils.login_detection import LoginDetector
-        from app.schemas.tiktok import TikTokSessionConfig, TikTokLoginState
+        from app.schemas.tiktok.session import TikTokSessionConfig, TikTokLoginState
 
         # Create mock browser that supports reload
         class MockBrowser:
@@ -125,7 +125,7 @@ class TestTikTokLoginDetectionContract:
 
     def test_login_state_transitions(self):
         """Test login state transitions"""
-        from app.schemas.tiktok import TikTokLoginState
+        from app.schemas.tiktok.session import TikTokLoginState
 
         # Test that all login states exist and are properly defined
         assert TikTokLoginState.LOGGED_IN == "logged_in"
@@ -145,7 +145,7 @@ class TestTikTokLoginDetectionContract:
     def test_selectors_configuration(self):
         """Test login detection selectors configuration"""
         from app.services.tiktok.utils.login_detection import LoginDetector
-        from app.schemas.tiktok import TikTokSessionConfig
+        from app.schemas.tiktok.session import TikTokSessionConfig
 
         # Create mock browser
         mock_browser = type('MockBrowser', (), {})()
