@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from typing import Any, Dict, Optional
 from app.schemas.crawl import CrawlRequest
 
@@ -63,12 +63,4 @@ class FetchCapabilities:
 
     def __bool__(self) -> bool:
         """Return True if any capabilities are supported."""
-        return any([
-            self.supports_proxy,
-            self.supports_network_idle,
-            self.supports_timeout,
-            self.supports_additional_args,
-            self.supports_page_action,
-            self.supports_geoip,
-            self.supports_extra_headers,
-        ])
+        return any(getattr(self, field.name) for field in fields(self))
