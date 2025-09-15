@@ -198,7 +198,7 @@ jobs:
               REPO: ${{ github.repository }}
               EVENT: ${{ github.event_name }}
               PR NUMBER: ${{ github.event.pull_request && github.event.pull_request.number || '' }}
-              ISSUE NUMBER: ${{ github.event.issue.number || '' }}
+              ISSUE NUMBER: ${{ github.event.issue && github.event.issue.number || '' }}
 
               Act as a helpful GitHub assistant for the current event.
               - For pull requests: review the changes for quality, bugs, security, and performance.
