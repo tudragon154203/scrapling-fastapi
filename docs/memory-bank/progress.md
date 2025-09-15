@@ -18,7 +18,7 @@ Run unit tests first, integration tests later and ensure all pass. Fix identifie
    - Ran unit tests with `python -m pytest -m "not integration"`
    - Initial run: 21 failures out of 174 selected tests
    - Fixed [`NameError`](tests/services/proxy/test_proxy_rotation_random.py:1) by adding missing `import random`
-   - Fixed [`NameError`](tests/api/test_tiktok_search_endpoint.py:250) by adding missing `from app.schemas.tiktok import TikTokSearchResponse`
+   - Fixed [`NameError`](tests/api/test_tiktok_search_endpoint.py:250) by adding missing `from app.schemas.tiktok.search import TikTokSearchResponse`
 
 3. **Integration Test Execution**
    - Ran integration tests with `python -m pytest -m integration`
@@ -49,7 +49,7 @@ Run unit tests first, integration tests later and ensure all pass. Fix identifie
 
 ### Files Modified
 - [`tests/services/proxy/test_proxy_rotation_random.py`](tests/services/proxy/test_proxy_rotation_random.py:1) - Added `import random`
-- [`tests/api/test_tiktok_search_endpoint.py`](tests/api/test_tiktok_search_endpoint.py:5) - Added `from app.schemas.tiktok import TikTokSearchResponse`
+- [`tests/api/test_tiktok_search_endpoint.py`](tests/api/test_tiktok_search_endpoint.py:5) - Added `from app.schemas.tiktok.search import TikTokSearchResponse`
 
 ### Next Steps
 - Fix remaining unit test assertion failures

@@ -156,7 +156,7 @@ TikTokSessionConfig(
 
 **Base Infrastructure:**
 - ✅ `AbstractBrowsingExecutor` in `app/services/common/executor.py`
-- ✅ `TikTokSessionConfig` in `app/schemas/tiktok.py`
+- ✅ `TikTokSessionConfig` in `app/schemas/tiktok/session.py`
 - ✅ `TikTokSessionRequest/Response` schemas with validation
 - ✅ API endpoint in `app/api/routes.py` with proper HTTP status codes
 
