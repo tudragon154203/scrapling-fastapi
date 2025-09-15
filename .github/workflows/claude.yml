@@ -1,4 +1,4 @@
-name: Claude Code
+name: '🤖 Claude'
 
 on:
   pull_request:

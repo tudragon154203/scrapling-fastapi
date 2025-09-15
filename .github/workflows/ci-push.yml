@@ -1,4 +1,4 @@
-name: CI - Push (Unit)
+name: '🧪 CI - Push (Unit)'
 
 on:
   push:

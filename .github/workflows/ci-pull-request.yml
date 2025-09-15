@@ -1,4 +1,4 @@
-name: CI - Pull request (Unit + Integration)
+name: '🧪 CI - Pull Request (Unit + Integration)'
 
 on:
   pull_request:

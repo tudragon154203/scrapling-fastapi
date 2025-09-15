@@ -1,4 +1,4 @@
-name: '🔀 Gemini Dispatch'
+name: '🪐 Gemini - Dispatch'
 
 on:
   pull_request_review_comment:

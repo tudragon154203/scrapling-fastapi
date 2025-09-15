@@ -1,4 +1,4 @@
-name: '▶️ Gemini Invoke'
+name: '🪐 Gemini - Invoke'
 
 on:
   workflow_call:
