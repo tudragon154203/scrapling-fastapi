@@ -65,6 +65,13 @@ jobs:
       - name: Fetch Camoufox resources
         run: camoufox fetch
 
+      - name: Update root certificates
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          certutil -generateSSTFromWU roots.sst
+          Import-Certificate -FilePath roots.sst -CertStoreLocation Cert:\LocalMachine\Root
+
       - name: Run integration tests
         run: python -m pytest -q -m "integration" --disable-warnings --maxfail=1
 
