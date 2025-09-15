@@ -150,6 +150,7 @@ jobs:
         uses: anthropics/claude-code-action@v1
         env:
           ANTHROPIC_BASE_URL: http://localhost:3456
+          ANTHROPIC_API_KEY: "dummy"
         with:
           anthropic_api_key: "dummy"
 
