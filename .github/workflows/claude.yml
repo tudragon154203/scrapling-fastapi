@@ -194,10 +194,22 @@ jobs:
           ANTHROPIC_API_KEY: "dummy"
         with:
           anthropic_api_key: "dummy"
+          prompt: |
+              REPO: ${{ github.repository }}
+              EVENT: ${{ github.event_name }}
+              PR NUMBER: ${{ github.event.pull_request && github.event.pull_request.number || '' }}
+              ISSUE NUMBER: ${{ github.event.issue.number || '' }}
 
-          # Optional: Configure Claude's behavior with CLI arguments
-          # claude_args: |
-          #   --model claude-opus-4-1-20250805
-          #   --max-turns 10
-          #   --allowedTools "Bash(npm install),Bash(npm run build),Bash(npm run test:*),Bash(npm run lint:*)"
-          #   --system-prompt "Follow our coding standards. Ensure all new code has tests. Use TypeScript for new files."
+              Act as a helpful GitHub assistant for the current event.
+              - For pull requests: review the changes for quality, bugs, security, and performance.
+              - For issues: help triage or answer questions.
+              - For comments or reviews: address the user's request and provide any necessary analysis.
+
+              The repository is already checked out in the working directory.
+
+              Use `gh pr comment` for pull request feedback or `gh issue comment` for issue discussions.
+              Use `mcp__github_inline_comment__create_inline_comment` to make inline comments on pull request diffs.
+              Only interact through GitHub comments.
+
+          claude_args: |
+            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh issue comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh issue view:*)"
