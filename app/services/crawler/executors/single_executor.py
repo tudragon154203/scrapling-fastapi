@@ -1,7 +1,7 @@
 import logging
 import sys
 import asyncio
-from typing import Optional
+from typing import Callable, Optional, Any, Mapping
 
 import app.core.config as app_config
 from app.schemas.crawl import CrawlRequest, CrawlResponse
@@ -29,39 +29,18 @@ class SingleAttemptExecutor(IExecutor):
         """Execute a single crawl attempt."""
         settings = app_config.get_settings()
 
-        # Ensure proper event loop policy on Windows for Playwright
-        if sys.platform == "win32":
-            try:
-                asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
-            except Exception:
-                pass
+        self._ensure_windows_event_loop_policy()
 
-        # Resolve options and potential lightweight headers early so we can fallback if needed
         options = self.options_resolver.resolve(request, settings)
         additional_args, extra_headers = self.camoufox_builder.build(request, settings, caps={})
-        # Capture optional user-data cleanup callback early
-        user_data_cleanup = None
-        try:
-            user_data_cleanup = additional_args.get('_user_data_cleanup') if additional_args else None
-        except Exception:
-            user_data_cleanup = None
+        user_data_cleanup = self._extract_cleanup_callback(additional_args)
 
         try:
             caps = self.fetch_client.detect_capabilities()
             additional_args, extra_headers = self.camoufox_builder.build(request, settings, caps)
-            # Refresh cleanup callback in case caps-dependent build altered args
-            try:
-                user_data_cleanup = additional_args.get('_user_data_cleanup') if additional_args else user_data_cleanup
-            except Exception:
-                pass
+            user_data_cleanup = self._extract_cleanup_callback(additional_args, user_data_cleanup)
 
-            if not caps.supports_proxy:
-                logger.warning(
-                    "StealthyFetcher.fetch does not support proxy parameter, continuing without proxy"
-                )
-
-            selected_proxy = getattr(settings, "private_proxy_url", None) or None
-
+            selected_proxy = self._select_proxy(settings, caps)
             fetch_kwargs = self.arg_composer.compose(
                 options=options,
                 caps=caps,
@@ -71,45 +50,81 @@ class SingleAttemptExecutor(IExecutor):
                 settings=settings,
                 page_action=page_action,
             )
-
-            page = self.fetch_client.fetch(str(request.url), fetch_kwargs)
-
-            # Cleanup user data context after fetch if cleanup function was stored
-            if user_data_cleanup:
-                try:
-                    user_data_cleanup()
-                except Exception as e:
-                    logger.warning(f"Failed to cleanup user data context: {e}")
-
-            status_code = getattr(page, "status", None)
-            html = getattr(page, "html_content", None)
-            min_len = int(getattr(settings, "min_html_content_length", 500) or 0)
-
-            # Treat any 2xx status as potentially successful
-            if isinstance(status_code, int) and 200 <= status_code < 300:
-                if html and len(html) >= min_len:
-                    return CrawlResponse(status="success", url=request.url, html=html)
-                msg = f"HTML too short (<{min_len} chars); suspected bot detection"
-                return CrawlResponse(status="failure", url=request.url, html=None, message=msg)
-
-            # Non-2xx status: return failure
+            return self._attempt_fetch(request, fetch_kwargs, settings)
+        except ImportError:
             return CrawlResponse(
                 status="failure",
                 url=request.url,
                 html=None,
-                message=f"HTTP status: {status_code if status_code is not None else 'unknown'}",
+                message="Scrapling library not available",
             )
         except Exception as e:
-            if isinstance(e, ImportError):
-                return CrawlResponse(
-                    status="failure",
-                    url=request.url,
-                    html=None,
-                    message="Scrapling library not available",
-                )
             return CrawlResponse(
                 status="failure",
                 url=request.url,
                 html=None,
                 message=f"Exception during crawl: {type(e).__name__}: {e}",
             )
+        finally:
+            self._finalize_attempt(user_data_cleanup)
+
+    def _ensure_windows_event_loop_policy(self) -> None:
+        """Apply Windows-specific event loop policy when necessary."""
+        if sys.platform != "win32":
+            return
+        try:
+            asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+        except Exception:
+            # Best-effort setup; failures shouldn't abort the crawl attempt
+            logger.debug("Failed to set Windows event loop policy", exc_info=True)
+
+    def _extract_cleanup_callback(
+        self,
+        additional_args: Optional[Mapping[str, Any]],
+        fallback: Optional[Callable[[], None]] = None,
+    ) -> Optional[Callable[[], None]]:
+        """Retrieve the cleanup callback from builder-provided arguments."""
+        if not additional_args:
+            return fallback
+        try:
+            cleanup = additional_args.get("_user_data_cleanup")
+        except Exception:
+            return fallback
+        return cleanup or fallback
+
+    def _select_proxy(self, settings, caps) -> Optional[str]:
+        proxy_url = getattr(settings, "private_proxy_url", None)
+        if not caps.supports_proxy:
+            if proxy_url:
+                logger.warning(
+                    "StealthyFetcher.fetch does not support proxy parameter, continuing without proxy"
+                )
+            return None
+        return proxy_url or None
+
+    def _attempt_fetch(self, request: CrawlRequest, fetch_kwargs: dict, settings) -> CrawlResponse:
+        page = self.fetch_client.fetch(str(request.url), fetch_kwargs)
+        status_code = getattr(page, "status", None)
+        html = getattr(page, "html_content", None)
+        min_len = int(getattr(settings, "min_html_content_length", 500) or 0)
+
+        if isinstance(status_code, int) and 200 <= status_code < 300:
+            if html and len(html) >= min_len:
+                return CrawlResponse(status="success", url=request.url, html=html)
+            msg = f"HTML too short (<{min_len} chars); suspected bot detection"
+            return CrawlResponse(status="failure", url=request.url, html=None, message=msg)
+
+        return CrawlResponse(
+            status="failure",
+            url=request.url,
+            html=None,
+            message=f"HTTP status: {status_code if status_code is not None else 'unknown'}",
+        )
+
+    def _finalize_attempt(self, user_data_cleanup: Optional[Callable[[], None]]) -> None:
+        if not user_data_cleanup:
+            return
+        try:
+            user_data_cleanup()
+        except Exception as e:
+            logger.warning(f"Failed to cleanup user data context: {e}")
