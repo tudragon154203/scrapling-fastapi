@@ -157,12 +157,8 @@ jobs:
           }
           EOF
           nohup ~/.bun/bin/bunx @musistudio/claude-code-router@latest start &
-          for i in {1..10}; do
-            if curl -sSf http://127.0.0.1:3456/health > /dev/null; then
-              break
-            fi
-            sleep 1
-          done
+          # Temporary fixed delay until healthcheck is reintroduced
+          sleep 5
         shell: bash
 
       - name: Run Claude Code
