@@ -33,5 +33,4 @@ jobs:
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         with:
-          model: tngtech/deepseek-r1t2-chimera:free
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          model: openrouter/tngtech/deepseek-r1t2-chimera:free

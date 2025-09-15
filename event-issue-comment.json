@@ -1,0 +1,15 @@
+{
+    "action": "created",
+    "comment": {
+        "body": "@opencode"
+    },
+    "issue": {
+        "number": 1
+    },
+    "repository": {
+        "full_name": "owner/repo"
+    },
+    "sender": {
+        "login": "you"
+    }
+}
