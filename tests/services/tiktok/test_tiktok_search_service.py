@@ -3,6 +3,9 @@ Unit tests for TikTok Search Service
 """
 import pytest
 from unittest.mock import AsyncMock, Mock, patch
+
+from app.schemas.tiktok import TikTokLoginState
+from app.services.tiktok.session_manager import TikTokSessionMetadata
 from app.services.tiktok.service import TiktokService
 from app.services.tiktok.tiktok_executor import TiktokExecutor
 
@@ -27,13 +30,11 @@ class TestTikTokSearchService:
         """Test TikTok search with active session"""
         # Set up mock session
         tiktok_service.active_sessions["test_session"] = mock_executor
-        tiktok_service.session_metadata["test_session"] = {
-            "created_at": Mock(),
-            "last_activity": Mock(),
-            "user_data_dir": "/tmp/test",
-            "config": Mock(),
-            "login_state": "logged_in"
-        }
+        tiktok_service.session_metadata["test_session"] = TikTokSessionMetadata(
+            user_data_dir="/tmp/test",
+            config=Mock(),
+            login_state=TikTokLoginState.LOGGED_IN,
+        )
 
         # Mock the search_tiktok method to return test data
         with patch.object(tiktok_service, 'get_active_session', new=AsyncMock(return_value=mock_executor)):
@@ -50,13 +51,11 @@ class TestTikTokSearchService:
         """Test TikTok search with multiple queries"""
         # Set up mock session
         tiktok_service.active_sessions["test_session"] = mock_executor
-        tiktok_service.session_metadata["test_session"] = {
-            "created_at": Mock(),
-            "last_activity": Mock(),
-            "user_data_dir": "/tmp/test",
-            "config": Mock(),
-            "login_state": "logged_in"
-        }
+        tiktok_service.session_metadata["test_session"] = TikTokSessionMetadata(
+            user_data_dir="/tmp/test",
+            config=Mock(),
+            login_state=TikTokLoginState.LOGGED_IN,
+        )
 
         # Mock the search_tiktok method to return test data
         with patch.object(tiktok_service, 'get_active_session', new=AsyncMock(return_value=mock_executor)):
