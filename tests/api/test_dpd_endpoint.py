@@ -306,3 +306,23 @@ def test_crawl_dpd_endpoint_patch_fallback(monkeypatch):
     assert isinstance(req_obj, SimpleNamespace)
     assert req_obj.tracking_number == "ZXCVBN"
     assert req_obj.force_user_data is False
+
+
+def test_dpd_endpoint_mock_without_json_payload(monkeypatch, client):
+    """Ensure API fallback returns empty JSON when patched crawl_dpd lacks `.json`."""
+    from app.api import crawl as crawl_module
+
+    fallback_result = MagicMock(spec_set=["status_code"], status_code=511)
+    patched = MagicMock(return_value=fallback_result)
+    monkeypatch.setattr(crawl_module, "crawl_dpd", patched)
+
+    resp = client.post("/crawl/dpd", json={"tracking_code": "12345678901234"})
+
+    assert resp.status_code == 511
+    assert resp.json() == {}
+
+    patched.assert_called_once()
+    req_obj = patched.call_args.kwargs["request"]
+    assert isinstance(req_obj, SimpleNamespace)
+    assert req_obj.tracking_number == "12345678901234"
+    assert req_obj.force_user_data is False

@@ -1,4 +1,5 @@
 from types import SimpleNamespace
+from unittest.mock import MagicMock
 
 from app.schemas.browse import BrowseResponse
 
@@ -239,3 +240,21 @@ def test_browse_endpoint_handles_fallback_response_object(monkeypatch, client):
 
     assert resp.status_code == 207
     assert resp.json() == {"status": "mocked"}
+
+
+def test_browse_endpoint_mock_without_json_payload(monkeypatch, client):
+    """Patch browse callable to return a mock missing `.json` so fallback returns empty JSON."""
+    from app.api import browse as browse_module
+
+    fallback_result = MagicMock(spec_set=["status_code"], status_code=503)
+    patched = MagicMock(return_value=fallback_result)
+    monkeypatch.setattr(browse_module, "browse", patched)
+
+    resp = client.post("/browse", json={"url": "https://fallback.example"})
+
+    assert resp.status_code == 503
+    assert resp.json() == {}
+
+    patched.assert_called_once()
+    request_obj = patched.call_args.kwargs["request"]
+    assert isinstance(request_obj, SimpleNamespace)

@@ -247,3 +247,30 @@ def test_crawl_auspost_endpoint_patch_fallback(monkeypatch):
     assert hasattr(req_obj, "details_url")
     assert req_obj.details_url is None
     assert req_obj.force_user_data is False
+
+
+def test_auspost_endpoint_mock_without_json_payload(monkeypatch):
+    """Ensure crawl_auspost patched with mock lacking `.json` triggers empty JSON fallback."""
+    from app.api import crawl as crawl_module
+    from app.schemas.auspost import AuspostCrawlRequest
+
+    payload = AuspostCrawlRequest(tracking_code="AUS123456789", force_user_data=False)
+    object.__setattr__(payload, "details_url", None)
+
+    fallback_result = MagicMock(spec_set=["status_code"], status_code=512)
+    patched = MagicMock(return_value=fallback_result)
+    monkeypatch.setattr(crawl_module, "crawl_auspost", patched)
+
+    response = crawl_module.crawl_auspost_endpoint(payload)
+
+    assert isinstance(response, JSONResponse)
+    assert response.status_code == 512
+    assert json.loads(response.body) == {}
+
+    patched.assert_called_once()
+    req_obj = patched.call_args.kwargs["request"]
+    assert isinstance(req_obj, SimpleNamespace)
+    assert req_obj.tracking_code == "AUS123456789"
+    assert hasattr(req_obj, "details_url")
+    assert req_obj.details_url is None
+    assert req_obj.force_user_data is False
