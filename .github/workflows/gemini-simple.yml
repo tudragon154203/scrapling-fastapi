@@ -50,6 +50,8 @@ jobs:
       )
     runs-on: ubuntu-latest
     environment: 'Agents/Bots'
+    env:
+      GEMINI_MODEL: ${{ vars.GEMINI_MODEL != '' && vars.GEMINI_MODEL || 'gemini-2.5-flash' }}
     permissions:
       id-token: write
       contents: write
@@ -99,6 +101,7 @@ jobs:
         with:
           gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
           gemini_debug: 'false'
+          gemini_model: ${{ env.GEMINI_MODEL }}
           prompt: ${{ steps.prepare-prompt.outputs.prompt }}
 
       - name: Post Gemini response as comment
