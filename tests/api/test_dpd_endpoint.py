@@ -1,4 +1,10 @@
 
+import json
+from types import SimpleNamespace
+from unittest.mock import MagicMock
+
+from fastapi.responses import JSONResponse
+
 
 def test_dpd_crawl_success_with_stub(monkeypatch, client):
     """Test successful DPD crawl via API endpoint."""
@@ -256,3 +262,47 @@ def test_dpd_crawl_additional_fields_rejected(client):
     assert "detail" in error_detail
     error_str = str(error_detail["detail"])
     assert "extra" in error_str.lower() or "forbid" in error_str.lower()
+
+
+def test_crawl_dpd_endpoint_patch_passthrough(monkeypatch):
+    from app.api import crawl as crawl_module
+    from app.schemas.dpd import DPDCrawlRequest, DPDCrawlResponse
+
+    payload = DPDCrawlRequest(tracking_code=" 1234567890 ", force_user_data=True)
+    patched = MagicMock(return_value=DPDCrawlResponse(
+        status="success",
+        tracking_code="1234567890",
+        html="<html>patched</html>",
+    ))
+    monkeypatch.setattr(crawl_module, "crawl_dpd", patched)
+
+    response = crawl_module.crawl_dpd_endpoint(payload)
+
+    patched.assert_called_once()
+    req_obj = patched.call_args.kwargs["request"]
+    assert isinstance(req_obj, SimpleNamespace)
+    assert req_obj.tracking_number == "1234567890"
+    assert req_obj.force_user_data is True
+    assert response is patched.return_value
+
+
+def test_crawl_dpd_endpoint_patch_fallback(monkeypatch):
+    from app.api import crawl as crawl_module
+    from app.schemas.dpd import DPDCrawlRequest
+
+    payload = DPDCrawlRequest(tracking_code="ZXCVBN", force_user_data=False)
+    fallback_result = SimpleNamespace(status_code="418", json={"error": "teapot"})
+    patched = MagicMock(return_value=fallback_result)
+    monkeypatch.setattr(crawl_module, "crawl_dpd", patched)
+
+    response = crawl_module.crawl_dpd_endpoint(payload)
+
+    assert isinstance(response, JSONResponse)
+    assert response.status_code == 418
+    assert json.loads(response.body) == {"error": "teapot"}
+
+    patched.assert_called_once()
+    req_obj = patched.call_args.kwargs["request"]
+    assert isinstance(req_obj, SimpleNamespace)
+    assert req_obj.tracking_number == "ZXCVBN"
+    assert req_obj.force_user_data is False

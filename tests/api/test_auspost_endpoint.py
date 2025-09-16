@@ -1,4 +1,10 @@
 
+import json
+from types import SimpleNamespace
+from unittest.mock import MagicMock
+
+from fastapi.responses import JSONResponse
+
 
 def test_auspost_crawl_success_with_stub(monkeypatch, client):
     from app.services.crawler.auspost import AuspostCrawler
@@ -190,3 +196,54 @@ def test_auspost_crawl_accepts_full_details_url(monkeypatch, client):
     # Payload passed to crawler should be normalized as well
     p = captured_payload["payload"]
     assert p.tracking_code == "36LB45032230"
+
+
+def test_crawl_auspost_endpoint_patch_passthrough(monkeypatch):
+    from app.api import crawl as crawl_module
+    from app.schemas.auspost import AuspostCrawlRequest, AuspostCrawlResponse
+
+    payload = AuspostCrawlRequest(tracking_code="AUS123", force_user_data=True)
+    object.__setattr__(payload, "details_url", "https://auspost.com.au/mypost/track/details/AUS123")
+
+    patched = MagicMock(return_value=AuspostCrawlResponse(
+        status="success",
+        tracking_code="AUS123",
+        html="<html>patched</html>",
+    ))
+    monkeypatch.setattr(crawl_module, "crawl_auspost", patched)
+
+    response = crawl_module.crawl_auspost_endpoint(payload)
+
+    patched.assert_called_once()
+    req_obj = patched.call_args.kwargs["request"]
+    assert isinstance(req_obj, SimpleNamespace)
+    assert req_obj.tracking_code == "AUS123"
+    assert req_obj.details_url == "https://auspost.com.au/mypost/track/details/AUS123"
+    assert req_obj.force_user_data is True
+    assert response is patched.return_value
+
+
+def test_crawl_auspost_endpoint_patch_fallback(monkeypatch):
+    from app.api import crawl as crawl_module
+    from app.schemas.auspost import AuspostCrawlRequest
+
+    payload = AuspostCrawlRequest(tracking_code="ZXCVBN")
+    object.__setattr__(payload, "details_url", None)
+
+    fallback_result = SimpleNamespace(status_code=503)
+    patched = MagicMock(return_value=fallback_result)
+    monkeypatch.setattr(crawl_module, "crawl_auspost", patched)
+
+    response = crawl_module.crawl_auspost_endpoint(payload)
+
+    assert isinstance(response, JSONResponse)
+    assert response.status_code == 503
+    assert json.loads(response.body) == {}
+
+    patched.assert_called_once()
+    req_obj = patched.call_args.kwargs["request"]
+    assert isinstance(req_obj, SimpleNamespace)
+    assert req_obj.tracking_code == "ZXCVBN"
+    assert hasattr(req_obj, "details_url")
+    assert req_obj.details_url is None
+    assert req_obj.force_user_data is False
