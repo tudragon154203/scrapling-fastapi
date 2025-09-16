@@ -191,6 +191,56 @@ jobs:
           sleep 5
         shell: bash
 
+      - name: Determine edit permissions
+        id: edit_permissions
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          COMMENT_ASSOC: ${{ github.event.comment.author_association || '' }}
+          REVIEW_ASSOC: ${{ github.event.review.author_association || '' }}
+          ISSUE_IS_PR: ${{ github.event.issue && github.event.issue.pull_request && 'true' || '' }}
+        run: |
+          set -euo pipefail
+
+          can_push=false
+          case "$EVENT_NAME" in
+            issue_comment)
+              if [ "$ISSUE_IS_PR" = "true" ]; then
+                if [ "$COMMENT_ASSOC" = "OWNER" ] || [ "$COMMENT_ASSOC" = "MEMBER" ]; then
+                  can_push=true
+                fi
+              fi
+              ;;
+            pull_request_review_comment)
+              if [ "$COMMENT_ASSOC" = "OWNER" ] || [ "$COMMENT_ASSOC" = "MEMBER" ]; then
+                can_push=true
+              fi
+              ;;
+            pull_request_review)
+              if [ "$REVIEW_ASSOC" = "OWNER" ] || [ "$REVIEW_ASSOC" = "MEMBER" ]; then
+                can_push=true
+              fi
+              ;;
+          esac
+
+          echo "can_push=$can_push" >> "$GITHUB_OUTPUT"
+          if [ "$can_push" = "true" ]; then
+            {
+              echo "extra_tools<<'EOF'"
+              echo '--allowedTools "Bash(gh pr checkout:*)"'
+              echo '--allowedTools "Bash(git add:*)"'
+              echo '--allowedTools "Bash(git restore:*)"'
+              echo '--allowedTools "Bash(git checkout:*)"'
+              echo '--allowedTools "Bash(git switch:*)"'
+              echo '--allowedTools "Bash(git mv:*)"'
+              echo '--allowedTools "Bash(git rm:*)"'
+              echo '--allowedTools "Bash(git commit:*)"'
+              echo '--allowedTools "Bash(git push:*)"'
+              echo 'EOF'
+            } >> "$GITHUB_OUTPUT"
+          else
+            echo "extra_tools=" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Run Claude Code
         id: claude
         uses: anthropics/claude-code-action@v1
@@ -199,6 +249,7 @@ jobs:
           ANTHROPIC_API_KEY: "dummy"
           GH_TOKEN: ${{ github.token }}
           GITHUB_TOKEN: ${{ github.token }}
+          CLAUDE_CAN_PUSH: ${{ steps.edit_permissions.outputs.can_push }}
         with:
           anthropic_api_key: "dummy"
           prompt: |
@@ -213,6 +264,7 @@ jobs:
               REVIEW BODY: ${{ github.event.review && github.event.review.body || '' }}
               ISSUE TITLE: ${{ github.event.issue && github.event.issue.title || '' }}
               ISSUE BODY: ${{ github.event.issue && github.event.issue.body || '' }}
+              CLAUDE CAN PUSH: ${{ steps.edit_permissions.outputs.can_push }}
 
               Act as a helpful GitHub assistant for the current event.
               - For pull requests: review the changes for quality, bugs, security, and performance.
@@ -232,6 +284,8 @@ jobs:
 
               If you are unable to push changes (for example, the pull request comes from a fork without write access as indicated by `PR HEAD IS FORK`), explain the limitation in a GitHub comment instead of failing silently.
 
+              You must not attempt to run `git push`, create commits, or modify the repository when `CLAUDE CAN PUSH` is not `true`.
+
               Use `gh pr comment` for pull request feedback or `gh issue comment` for issue discussions.
               Use `mcp__github_inline_comment__create_inline_comment` to make inline comments on pull request diffs.
 
@@ -244,17 +298,8 @@ jobs:
             --allowedTools "Bash(gh pr list:*)"
             --allowedTools "Bash(gh issue view:*)"
             --allowedTools "Bash(gh issue list:*)"
-            --allowedTools "Bash(gh pr checkout:*)"
             --allowedTools "Bash(git status:*)"
             --allowedTools "Bash(git diff:*)"
-            --allowedTools "Bash(git add:*)"
-            --allowedTools "Bash(git restore:*)"
-            --allowedTools "Bash(git checkout:*)"
-            --allowedTools "Bash(git switch:*)"
-            --allowedTools "Bash(git mv:*)"
-            --allowedTools "Bash(git rm:*)"
-            --allowedTools "Bash(git commit:*)"
-            --allowedTools "Bash(git push:*)"
             --allowedTools "Bash(git fetch:*)"
             --allowedTools "Bash(git pull:*)"
             --allowedTools "Bash(git config:*)"
@@ -269,3 +314,4 @@ jobs:
             --allowedTools "Bash(yarn:*)"
             --allowedTools "Bash(pnpm:*)"
             --allowedTools "Bash(bun:*)"
+            ${{ steps.edit_permissions.outputs.extra_tools }}
