@@ -8,18 +8,34 @@ on:
   pull_request_review_comment:
     types: [created, edited]
 
-env:
-  GEMINI_API_KEY_AVAILABLE: ${{ secrets.GEMINI_API_KEY != '' }}
-  IS_INTERNAL_PULL_REQUEST: ${{ github.event_name == 'pull_request' }}
-  IS_ISSUE_COMMENT_TRIGGER: ${{ github.event_name == 'issue_comment' && github.event.comment != null && contains(fromJSON('["OWNER","COLLABORATOR","MEMBER"]'), github.event.comment.author_association) && (startsWith(format('{0}', github.event.comment.body), 'Gemini') || startsWith(format('{0}', github.event.comment.body), 'GEMINI') || startsWith(format('{0}', github.event.comment.body), '@gemini') || startsWith(format('{0}', github.event.comment.body), '@gemini-cli') || startsWith(format('{0}', github.event.comment.body), '/gemini')) }}
-  IS_REVIEW_COMMENT_TRIGGER: ${{ github.event_name == 'pull_request_review_comment' && github.event.comment != null && contains(fromJSON('["OWNER","COLLABORATOR","MEMBER"]'), github.event.comment.author_association) && (startsWith(format('{0}', github.event.comment.body), 'Gemini') || startsWith(format('{0}', github.event.comment.body), 'GEMINI') || startsWith(format('{0}', github.event.comment.body), '@gemini') || startsWith(format('{0}', github.event.comment.body), '@gemini-cli') || startsWith(format('{0}', github.event.comment.body), '/gemini')) }}
-
 jobs:
   gemini:
-    if: >-
-      fromJSON(env.IS_INTERNAL_PULL_REQUEST) ||
-      fromJSON(env.IS_ISSUE_COMMENT_TRIGGER) ||
-      fromJSON(env.IS_REVIEW_COMMENT_TRIGGER)
+    if: |
+      (
+        github.event_name == 'pull_request'
+      ) ||
+      (
+        github.event_name == 'issue_comment' &&
+        contains(fromJSON('["OWNER","COLLABORATOR","MEMBER"]'), github.event.comment.author_association) &&
+        (
+          startsWith(github.event.comment.body, 'Gemini') ||
+          startsWith(github.event.comment.body, 'GEMINI') ||
+          startsWith(github.event.comment.body, '@gemini') ||
+          startsWith(github.event.comment.body, '@gemini-cli') ||
+          startsWith(github.event.comment.body, '/gemini')
+        )
+      ) ||
+      (
+        github.event_name == 'pull_request_review_comment' &&
+        contains(fromJSON('["OWNER","COLLABORATOR","MEMBER"]'), github.event.comment.author_association) &&
+        (
+          startsWith(github.event.comment.body, 'Gemini') ||
+          startsWith(github.event.comment.body, 'GEMINI') ||
+          startsWith(github.event.comment.body, '@gemini') ||
+          startsWith(github.event.comment.body, '@gemini-cli') ||
+          startsWith(github.event.comment.body, '/gemini')
+        )
+      )
     runs-on: ubuntu-latest
     environment: 'Agents/Bots'
     env:
@@ -31,19 +47,13 @@ jobs:
       issues: write
 
     steps:
-      - name: Skip when Gemini API key is unavailable
-        if: ${{ env.GEMINI_API_KEY_AVAILABLE != 'true' }}
-        run: echo 'GEMINI_API_KEY is not configured. Skipping Gemini workflow.'
-
       - name: Use Node.js 20
-        if: ${{ env.GEMINI_API_KEY_AVAILABLE == 'true' }}
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           check-latest: true
 
       - name: Prepare prompt
-        if: ${{ env.GEMINI_API_KEY_AVAILABLE == 'true' }}
         id: prepare-prompt
         uses: actions/github-script@v7
         with:
@@ -75,22 +85,19 @@ jobs:
             core.setOutput('prompt', prompt);
 
       - uses: google-github-actions/run-gemini-cli@v0
-        if: ${{ env.GEMINI_API_KEY_AVAILABLE == 'true' }}
         id: gemini
-        continue-on-error: true
         with:
           gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
-          gemini_debug: 'false'
           gemini_model: ${{ env.GEMINI_MODEL }}
+          gemini_debug: 'false'
           prompt: ${{ steps.prepare-prompt.outputs.prompt }}
 
       - name: Post Gemini response as comment
-        if: ${{ always() && env.GEMINI_API_KEY_AVAILABLE == 'true' }}
+        if: ${{ steps.gemini.outcome == 'success' }}
         uses: actions/github-script@v7
         env:
           GEMINI_SUMMARY: ${{ steps.gemini.outputs.summary }}
           GEMINI_ERROR: ${{ steps.gemini.outputs.error }}
-          GEMINI_STATUS: ${{ steps.gemini.outcome }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -99,16 +106,13 @@ jobs:
               core.warning('No issue or PR number found to post comment.');
               return;
             }
-            const status = process.env.GEMINI_STATUS ?? 'unknown';
             const parts = [];
+            if (process.env.GEMINI_ERROR) {
+              core.warning('Gemini returned an error; skipping comment output.');
+              return;
+            }
             if (process.env.GEMINI_SUMMARY) {
               parts.push('### Gemini Response\n\n' + process.env.GEMINI_SUMMARY);
-            }
-            if (process.env.GEMINI_ERROR) {
-              parts.push('### Gemini Error\n\n```\n' + process.env.GEMINI_ERROR + '\n```');
-            }
-            if (status !== 'success') {
-              parts.push(`_Gemini CLI step ended with status: **${status}**._`);
             }
             const body = parts.join('\n\n').trim();
             if (!body) {
@@ -122,8 +126,3 @@ jobs:
               body,
             });
 
-      - name: Fail workflow if Gemini step failed
-        if: ${{ env.GEMINI_API_KEY_AVAILABLE == 'true' && steps.gemini.outcome == 'failure' }}
-        run: |
-          echo "Gemini CLI step failed"
-          exit 1
