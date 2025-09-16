@@ -7,7 +7,8 @@ import logging
 import os
 import sys
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional, Tuple, Union
+from types import SimpleNamespace
+from typing import Any, Dict, List, Optional, Tuple, Union, cast
 
 from app.services.tiktok.interfaces import TikTokSearchInterface
 from app.services.tiktok.protocols import CleanupCallable, SearchContext
@@ -97,9 +98,9 @@ class AbstractTikTokSearchService(ABC, TikTokSearchInterface):
         if not ok:
             self.logger.warning(f"[TikTokSearchService] Query normalization failed: {queries_or_err}")
             return queries_or_err
-        queries = queries_or_err  # already List[str] thanks to ok branch
+        queries = cast(List[str], queries_or_err)
         self.logger.debug(f"[TikTokSearchService] Normalized queries: {queries}")
-        return queries  # type: ignore[return-value]
+        return queries
 
     # Context helpers ----------------------------------------------------
     def _prepare_context(self, *, in_tests: bool) -> SearchContext:
@@ -126,7 +127,8 @@ class AbstractTikTokSearchService(ABC, TikTokSearchInterface):
         caps = fetcher.detect_capabilities()
         self.logger.debug(f"[TikTokSearchService] Detected capabilities: {caps}")
         try:
-            _, extra_headers = camoufox_builder.build(type("Mock", (), {"force_user_data": False})(), settings, caps)
+            base_payload = SimpleNamespace(force_user_data=False)
+            _, extra_headers = camoufox_builder.build(base_payload, settings, caps)
             self.logger.debug("[TikTokSearchService] Built base headers for non-force_user_data")
         except Exception as e:
             self.logger.warning(f"[TikTokSearchService] Failed to build base headers: {e}")
@@ -134,8 +136,8 @@ class AbstractTikTokSearchService(ABC, TikTokSearchInterface):
         user_data_cleanup: Optional[CleanupCallable] = None
         additional_args: Dict[str, Any] = {}
         try:
-            payload = type("Mock", (), {"force_user_data": True})()
-            additional_args, extra_headers2 = camoufox_builder.build(payload, settings, caps)
+            forced_payload = SimpleNamespace(force_user_data=True)
+            additional_args, extra_headers2 = camoufox_builder.build(forced_payload, settings, caps)
             self.logger.debug(
                 f"[TikTokSearchService] Built additional args for forced user data: {len(additional_args)} args"
             )
@@ -144,7 +146,7 @@ class AbstractTikTokSearchService(ABC, TikTokSearchInterface):
                 self.logger.debug("[TikTokSearchService] Updated extra headers from camoufox build")
             cleanup_candidate = additional_args.get("_user_data_cleanup")
             if callable(cleanup_candidate):
-                user_data_cleanup = cleanup_candidate  # type: ignore[assignment]
+                user_data_cleanup = cast(CleanupCallable, cleanup_candidate)
                 self.logger.debug("[TikTokSearchService] Set up user_data_cleanup function")
         except Exception as e:
             self.logger.error(

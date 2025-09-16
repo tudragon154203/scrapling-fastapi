@@ -1,11 +1,12 @@
 """Unit tests for TikTok Search Service."""
 
 import logging
-from typing import Any, Dict, List, Set
+from typing import Any, Dict, List, Set, cast
 
 import pytest
 from unittest.mock import AsyncMock, Mock, patch
 
+from app.services.tiktok.protocols import SearchContext
 from app.services.tiktok.search_service import TikTokSearchService
 from app.services.tiktok.service import TiktokService
 from app.services.tiktok.tiktok_executor import TiktokExecutor
@@ -159,6 +160,18 @@ class TestTikTokSearchService:
             "_fetch_html",
             new=AsyncMock(return_value=(200, "<html></html>")),
         ) as fetch_mock:
+            context = cast(
+                SearchContext,
+                {
+                    "fetcher": Mock(),
+                    "composer": Mock(),
+                    "caps": {},
+                    "additional_args": {},
+                    "extra_headers": None,
+                    "user_data_cleanup": None,
+                    "options": {},
+                },
+            )
             should_stop = await search_service._process_query(
                 query="cats",
                 index=0,
@@ -168,10 +181,10 @@ class TestTikTokSearchService:
                 seen_ids=seen_ids,
                 seen_urls=seen_urls,
                 target_count=2,
-                context={"options": {}}  # type: ignore[arg-type]
+                context=context,
             )
 
-        fetch_mock.assert_awaited_once_with("cats", context={"options": {}})
+        fetch_mock.assert_awaited_once_with("cats", context=context)
         assert should_stop is True
         assert aggregated == [
             {"id": "1", "webViewUrl": "https://example.com/1"},
@@ -199,6 +212,18 @@ class TestTikTokSearchService:
             "_fetch_html",
             new=AsyncMock(return_value=(500, "")),
         ):
+            context = cast(
+                SearchContext,
+                {
+                    "fetcher": Mock(),
+                    "composer": Mock(),
+                    "caps": {},
+                    "additional_args": {},
+                    "extra_headers": None,
+                    "user_data_cleanup": None,
+                    "options": {},
+                },
+            )
             should_stop = await search_service._process_query(
                 query="dogs",
                 index=0,
@@ -208,7 +233,7 @@ class TestTikTokSearchService:
                 seen_ids=seen_ids,
                 seen_urls=seen_urls,
                 target_count=5,
-                context={"options": {}}  # type: ignore[arg-type]
+                context=context,
             )
 
         assert should_stop is None
