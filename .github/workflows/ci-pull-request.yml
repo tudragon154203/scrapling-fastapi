@@ -63,7 +63,24 @@ jobs:
         run: playwright install
 
       - name: Fetch Camoufox resources
-        run: camoufox fetch
+        shell: pwsh
+        run: |
+          $maxAttempts = 3
+          for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
+            camoufox fetch
+            if ($LASTEXITCODE -eq 0) {
+              Write-Host "camoufox fetch succeeded on attempt $attempt."
+              break
+            }
+
+            if ($attempt -eq $maxAttempts) {
+              Write-Error "camoufox fetch failed after $maxAttempts attempts."
+              exit $LASTEXITCODE
+            }
+
+            Write-Warning "camoufox fetch failed on attempt $attempt. Retrying in 10 seconds..."
+            Start-Sleep -Seconds 10
+          }
 
       - name: Update root certificates
         if: runner.os == 'Windows'
