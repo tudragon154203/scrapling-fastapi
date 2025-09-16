@@ -155,7 +155,21 @@ jobs:
               '';
 
             const sections = [
-              'Gemini, please review the following pull request and provide a concise summary of the proposed changes. Highlight potential risks, call out missing tests, and note any follow-up actions.',
+              'You are a meticulous senior engineer reviewing the following pull request. Provide a thorough analysis of the changes, highlighting intent, quality, and potential issues.',
+              'Follow the Markdown response template exactly. Use concise bullet points under each heading, and write `- None noted.` when a section does not apply. Prioritize actionable feedback, missing tests, and blockers.',
+              '',
+              'Response template:',
+              '📝 **Summary**',
+              '✅ **Tests & Coverage**',
+              '⚠️ **Risks & Regressions**',
+              '💡 **Suggestions & Improvements**',
+              '📌 **Follow-ups**',
+              '🚫 **Blocking Issues**',
+              '',
+              'Guidelines:',
+              '- Reference specific files, commits, or behaviors when possible.',
+              '- Explicitly call out missing or insufficient tests.',
+              '- Separate blocking issues (must fix before merge) from optional suggestions.',
               '',
               `Repository: ${repoOwner}/${repoName}`,
               `Pull Request: #${pr?.number ?? prNumber ?? 'unknown'}`,
@@ -216,13 +230,13 @@ jobs:
             const status = process.env.GEMINI_STATUS ?? 'unknown';
             const parts = [];
             if (process.env.GEMINI_SUMMARY) {
-              parts.push('### Gemini Response\n\n' + process.env.GEMINI_SUMMARY);
+              parts.push('## 🤖 Gemini Review\n\n' + process.env.GEMINI_SUMMARY);
             }
             if (process.env.GEMINI_ERROR) {
-              parts.push('### Gemini Error\n\n```\n' + process.env.GEMINI_ERROR + '\n```');
+              parts.push('## ❗ Gemini Error\n\n```\n' + process.env.GEMINI_ERROR + '\n```');
             }
             if (status !== 'success') {
-              parts.push(`_Gemini CLI step ended with status: **${status}**._`);
+              parts.push(`⚠️ _Gemini CLI step ended with status: **${status}**._`);
             }
             const body = parts.join('\n\n').trim();
             if (!body) {
