@@ -275,6 +275,8 @@ jobs:
 
               Before making any repository changes, carefully read the triggering text above. Only modify code or push commits when a project maintainer explicitly asks you to do so (for example, comments like "@claude fix …", "@claude update …", or similar clear change requests). If the request is purely for a review or summary (for example, "@claude review"), provide feedback without editing the repository.
 
+              After completing your analysis of a pull request, you must always leave a top-level comment summarizing your findings by running `gh pr comment --body "<summary>"`. Do this even when you have no blocking issues—share a brief approval note instead of staying silent.
+
               When a valid change request is made:
               1. Check out the pull request head branch (for example with `gh pr checkout <number>`) so that any commits are applied to the contributor's branch.
               2. Implement the minimal changes needed to satisfy the request and keep commits focused.
