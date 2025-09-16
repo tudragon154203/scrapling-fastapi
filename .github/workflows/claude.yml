@@ -286,7 +286,7 @@ jobs:
 
               You must not attempt to run `git push`, create commits, or modify the repository when `CLAUDE CAN PUSH` is not `true`.
 
-              Use `gh pr comment` for incremental pull request feedback or `gh issue comment` for issue discussions.
+              Always leave a top-level comment on the pull request after every analysis so the author receives your feedback. Use `gh pr comment` to post this summary (in addition to any reviews or inline comments) or `gh issue comment` for issue discussions.
               When you are ready to submit your final overall review on a pull request, call `gh pr review --body "$REVIEW"` (filling `$REVIEW` with your markdown feedback).
               Use `mcp__github_inline_comment__create_inline_comment` to make inline comments on pull request diffs.
 
