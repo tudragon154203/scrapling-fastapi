@@ -213,10 +213,10 @@ jobs:
 
           claude_args: |
             --allowedTools mcp__github_inline_comment__create_inline_comment
-            --allowedTools Bash(gh pr comment:*)
-            --allowedTools Bash(gh issue comment:*)
-            --allowedTools Bash(gh pr diff:*)
-            --allowedTools Bash(gh pr view:*)
-            --allowedTools Bash(gh pr list:*)
-            --allowedTools Bash(gh issue view:*)
-            --allowedTools Bash(gh issue list:*)
+            --allowedTools "Bash(gh pr comment:*)"
+            --allowedTools "Bash(gh issue comment:*)"
+            --allowedTools "Bash(gh pr diff:*)"
+            --allowedTools "Bash(gh pr view:*)"
+            --allowedTools "Bash(gh pr list:*)"
+            --allowedTools "Bash(gh issue view:*)"
+            --allowedTools "Bash(gh issue list:*)"
