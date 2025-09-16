@@ -91,7 +91,6 @@ claudedocs/
 .playwright-mcp
 .codex*
 GEMINI.md
-scripts/
 memory/
 templates/
 tiktok_search.html
@@ -101,3 +100,4 @@ tiktok_search.html
 gha-creds-*.json
 # Disable opencode agent for now
 .github/workflows/opencode.yml
+
