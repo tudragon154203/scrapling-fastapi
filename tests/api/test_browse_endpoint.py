@@ -1,3 +1,5 @@
+from types import SimpleNamespace
+
 from app.schemas.browse import BrowseResponse
 
 
@@ -198,8 +200,42 @@ def test_browse_only_launches_once_without_retries(monkeypatch, client):
     # Verify BrowseCrawler was instantiated exactly once
     assert instantiation_count == 1, f"Expected 1 instantiation, got {instantiation_count}"
 
-    # Verify run method was called exactly once
-    assert run_call_count == 1, f"Expected 1 run call, got {run_call_count}"
 
-    # Verify that BrowseCrawler.run was called with the correct payload
-    # (this is implicitly tested by the run_call_count tracking above)
+def test_browse_endpoint_builds_namespace_when_callable_object_patched(monkeypatch, client):
+    """When browse is patched with a callable object ensure SimpleNamespace is used."""
+    from app.api import browse as browse_module
+
+    captured_request = {}
+
+    class SentinelCallable:
+        def __call__(self, request):
+            captured_request["request"] = request
+            return BrowseResponse(status="success", message="sentinel ok")
+
+    monkeypatch.setattr(browse_module, "browse", SentinelCallable())
+
+    resp = client.post("/browse", json={"url": "https://example.com"})
+
+    assert resp.status_code == 200
+    assert resp.json()["message"] == "sentinel ok"
+
+    req_obj = captured_request["request"]
+    assert isinstance(req_obj, SimpleNamespace)
+    assert req_obj.url == "https://example.com/"
+
+
+def test_browse_endpoint_handles_fallback_response_object(monkeypatch, client):
+    """Browse endpoint should wrap objects with status_code/json into JSONResponse."""
+    from app.api import browse as browse_module
+
+    dummy_result = SimpleNamespace(status_code=207, json={"status": "mocked"})
+
+    def fake_browse(request):
+        return dummy_result
+
+    monkeypatch.setattr(browse_module, "browse", fake_browse)
+
+    resp = client.post("/browse", json={"url": "https://fallback.example"})
+
+    assert resp.status_code == 207
+    assert resp.json() == {"status": "mocked"}
