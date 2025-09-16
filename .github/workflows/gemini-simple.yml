@@ -11,29 +11,33 @@ on:
 jobs:
   gemini:
     if: |
+      secrets.GEMINI_API_KEY != '' &&
       (
-        github.event_name == 'pull_request'
-      ) ||
-      (
-        github.event_name == 'issue_comment' &&
-        contains(fromJSON('["OWNER","COLLABORATOR","MEMBER"]'), github.event.comment.author_association) &&
         (
-          startsWith(github.event.comment.body, 'Gemini') ||
-          startsWith(github.event.comment.body, 'GEMINI') ||
-          startsWith(github.event.comment.body, '@gemini') ||
-          startsWith(github.event.comment.body, '@gemini-cli') ||
-          startsWith(github.event.comment.body, '/gemini')
-        )
-      ) ||
-      (
-        github.event_name == 'pull_request_review_comment' &&
-        contains(fromJSON('["OWNER","COLLABORATOR","MEMBER"]'), github.event.comment.author_association) &&
+          github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name == github.repository
+        ) ||
         (
-          startsWith(github.event.comment.body, 'Gemini') ||
-          startsWith(github.event.comment.body, 'GEMINI') ||
-          startsWith(github.event.comment.body, '@gemini') ||
-          startsWith(github.event.comment.body, '@gemini-cli') ||
-          startsWith(github.event.comment.body, '/gemini')
+          github.event_name == 'issue_comment' &&
+          contains(fromJSON('["OWNER","COLLABORATOR","MEMBER"]'), github.event.comment.author_association) &&
+          (
+            startsWith(github.event.comment.body, 'Gemini') ||
+            startsWith(github.event.comment.body, 'GEMINI') ||
+            startsWith(github.event.comment.body, '@gemini') ||
+            startsWith(github.event.comment.body, '@gemini-cli') ||
+            startsWith(github.event.comment.body, '/gemini')
+          )
+        ) ||
+        (
+          github.event_name == 'pull_request_review_comment' &&
+          contains(fromJSON('["OWNER","COLLABORATOR","MEMBER"]'), github.event.comment.author_association) &&
+          (
+            startsWith(github.event.comment.body, 'Gemini') ||
+            startsWith(github.event.comment.body, 'GEMINI') ||
+            startsWith(github.event.comment.body, '@gemini') ||
+            startsWith(github.event.comment.body, '@gemini-cli') ||
+            startsWith(github.event.comment.body, '/gemini')
+          )
         )
       )
     runs-on: ubuntu-latest
