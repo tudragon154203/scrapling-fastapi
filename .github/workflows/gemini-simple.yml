@@ -1,0 +1,69 @@
+name: '🪐 Gemini - Simple'
+
+on:
+  issue_comment:
+    types: [created, edited]
+  pull_request_review_comment:
+    types: [created, edited]
+
+jobs:
+  gemini:
+    if: |
+      contains(github.event.comment.body, 'Gemini') || 
+      contains(github.event.comment.body, 'GEMINI') ||
+      contains(github.event.comment.body, '@gemini-cli') ||
+      contains(github.event.comment.body, '/gemini') 
+    runs-on: ubuntu-latest
+    environment: 'Agents/Bots'
+    permissions:
+      id-token: write
+      contents: write
+      pull-requests: write
+      issues: write
+
+    steps:
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          check-latest: true
+
+      - uses: google-github-actions/run-gemini-cli@v0
+        id: gemini
+        with:
+          gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
+          gemini_debug: 'false'
+          prompt: ${{ github.event.comment.body }}
+
+      - name: Post Gemini response as comment
+        if: always()
+        uses: actions/github-script@v7
+        env:
+          GEMINI_SUMMARY: ${{ steps.gemini.outputs.summary }}
+          GEMINI_ERROR: ${{ steps.gemini.outputs.error }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const issue_number = context.payload.issue?.number ?? context.payload.pull_request?.number;
+            if (!issue_number) {
+              core.warning('No issue or PR number found to post comment.');
+              return;
+            }
+            const parts = [];
+            if (process.env.GEMINI_SUMMARY) {
+              parts.push('### Gemini Response\n\n' + process.env.GEMINI_SUMMARY);
+            }
+            if (process.env.GEMINI_ERROR) {
+              parts.push('> Error\n\n```\n' + process.env.GEMINI_ERROR + '\n```');
+            }
+            const body = parts.join('\n\n').trim();
+            if (!body) {
+              core.warning('Gemini produced no output to post.');
+              return;
+            }
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number,
+              body,
+            });
