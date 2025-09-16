@@ -1,8 +1,12 @@
 """Unit tests for TikTok Search Service."""
 
+import logging
+from typing import Any, Dict, List, Set, cast
+
 import pytest
 from unittest.mock import AsyncMock, Mock, patch
 
+from app.services.tiktok.protocols import SearchContext
 from app.services.tiktok.search_service import TikTokSearchService
 from app.services.tiktok.service import TiktokService
 from app.services.tiktok.tiktok_executor import TiktokExecutor
@@ -131,6 +135,112 @@ class TestTikTokSearchService:
         assert result["totalResults"] == 0
         assert result["query"] == "first second"
 
+    async def test_process_query_aggregates_unique_items_and_respects_target(self):
+        """_process_query should aggregate unique IDs/URLs and stop at the target count."""
+
+        service = Mock()
+        service.settings = Mock()
+        service.settings.tiktok_url = "https://www.tiktok.com/"
+
+        search_service = TikTokSearchService(service)
+        parser = Mock()
+        parser.parse.return_value = [
+            {"id": "1", "webViewUrl": "https://example.com/1"},
+            {"id": "1", "webViewUrl": "https://example.com/1"},  # duplicate id
+            {"id": "", "webViewUrl": "https://example.com/2"},
+            {"id": "", "webViewUrl": "https://example.com/2"},  # duplicate url
+        ]
+
+        aggregated: List[Dict[str, Any]] = []
+        seen_ids: Set[str] = set()
+        seen_urls: Set[str] = set()
+
+        with patch.object(
+            TikTokSearchService,
+            "_fetch_html",
+            new=AsyncMock(return_value=(200, "<html></html>")),
+        ) as fetch_mock:
+            context = cast(
+                SearchContext,
+                {
+                    "fetcher": Mock(),
+                    "composer": Mock(),
+                    "caps": {},
+                    "additional_args": {},
+                    "extra_headers": None,
+                    "user_data_cleanup": None,
+                    "options": {},
+                },
+            )
+            should_stop = await search_service._process_query(
+                query="cats",
+                index=0,
+                total_queries=1,
+                parser=parser,
+                aggregated=aggregated,
+                seen_ids=seen_ids,
+                seen_urls=seen_urls,
+                target_count=2,
+                context=context,
+            )
+
+        fetch_mock.assert_awaited_once_with("cats", context=context)
+        assert should_stop is True
+        assert aggregated == [
+            {"id": "1", "webViewUrl": "https://example.com/1"},
+            {"id": "", "webViewUrl": "https://example.com/2"},
+        ]
+        assert seen_ids == {"1"}
+        assert seen_urls == {"https://example.com/1", "https://example.com/2"}
+
+    async def test_process_query_returns_none_for_invalid_response(self):
+        """_process_query should not aggregate results when the fetch response is invalid."""
+
+        service = Mock()
+        service.settings = Mock()
+        service.settings.tiktok_url = "https://www.tiktok.com/"
+
+        search_service = TikTokSearchService(service)
+        parser = Mock()
+        parser.parse.return_value = [{"id": "1", "webViewUrl": "https://example.com/1"}]
+        aggregated: List[Dict[str, Any]] = []
+        seen_ids: Set[str] = set()
+        seen_urls: Set[str] = set()
+
+        with patch.object(
+            TikTokSearchService,
+            "_fetch_html",
+            new=AsyncMock(return_value=(500, "")),
+        ):
+            context = cast(
+                SearchContext,
+                {
+                    "fetcher": Mock(),
+                    "composer": Mock(),
+                    "caps": {},
+                    "additional_args": {},
+                    "extra_headers": None,
+                    "user_data_cleanup": None,
+                    "options": {},
+                },
+            )
+            should_stop = await search_service._process_query(
+                query="dogs",
+                index=0,
+                total_queries=1,
+                parser=parser,
+                aggregated=aggregated,
+                seen_ids=seen_ids,
+                seen_urls=seen_urls,
+                target_count=5,
+                context=context,
+            )
+
+        assert should_stop is None
+        assert aggregated == []
+        assert seen_ids == set()
+        assert seen_urls == set()
+
     async def test_validate_request_success(self):
         """_validate_request returns normalized queries when input is valid."""
 
@@ -203,12 +313,55 @@ class TestTikTokSearchService:
         cleanup_callable = Mock()
 
         with patch(
-            "app.services.tiktok.search_service.asyncio.sleep", new=AsyncMock()
+            "app.services.tiktok.abstract_search_service.asyncio.sleep", new=AsyncMock()
         ) as sleep_mock:
             await search_service._cleanup_user_data(cleanup_callable)
 
         sleep_mock.assert_awaited_once_with(3)
         cleanup_callable.assert_called_once_with()
+
+    async def test_fetch_html_uses_context_components(self, tmp_path):
+        """_fetch_html should compose fetch arguments and return the response payload."""
+
+        service = Mock()
+        service.settings = Mock()
+        service.settings.tiktok_url = "https://www.tiktok.com/"
+        service.settings.private_proxy_url = "http://proxy.example"
+
+        search_service = TikTokSearchService(service)
+        search_service.logger.setLevel(logging.INFO)
+
+        fetcher = Mock()
+        page = Mock(status=201, html_content="<html>payload</html>")
+        fetcher.fetch.return_value = page
+        composer = Mock()
+        composer.compose.return_value = {"composed": True}
+
+        context = {
+            "fetcher": fetcher,
+            "composer": composer,
+            "caps": {"cap": True},
+            "additional_args": {"arg": 1},
+            "extra_headers": {"X-Test": "value"},
+            "user_data_cleanup": None,
+            "options": {"headless": False},
+        }
+
+        with patch("os.getcwd", return_value=str(tmp_path)):
+            status, html = await search_service._fetch_html("test query", context=context)
+
+        composer.compose.assert_called_once_with(
+            options={"headless": False},
+            caps={"cap": True},
+            selected_proxy="http://proxy.example",
+            additional_args={"arg": 1},
+            extra_headers={"X-Test": "value"},
+            settings=service.settings,
+            page_action=None,
+        )
+        fetcher.fetch.assert_called_once()
+        assert status == 201
+        assert html == "<html>payload</html>"
 
     async def test_cleanup_user_data_ignores_missing_callable(self):
         """_cleanup_user_data should not attempt cleanup when callable is missing."""
@@ -218,11 +371,26 @@ class TestTikTokSearchService:
         search_service = TikTokSearchService(service)
 
         with patch(
-            "app.services.tiktok.search_service.asyncio.sleep", new=AsyncMock()
+            "app.services.tiktok.abstract_search_service.asyncio.sleep", new=AsyncMock()
         ) as sleep_mock:
             await search_service._cleanup_user_data(None)
 
         sleep_mock.assert_not_called()
+
+    async def test_handle_cleanup_invokes_registered_functions(self):
+        """_handle_cleanup should synchronously call each provided cleanup callback."""
+
+        service = Mock()
+        service.settings = Mock()
+        search_service = TikTokSearchService(service)
+
+        cleanup_one = Mock()
+        cleanup_two = Mock()
+
+        search_service._handle_cleanup([cleanup_one, cleanup_two])
+
+        cleanup_one.assert_called_once_with()
+        cleanup_two.assert_called_once_with()
 
     async def test_search_tiktok_without_active_session(self, tiktok_service):
         """Test TikTok search without active session returns error"""
