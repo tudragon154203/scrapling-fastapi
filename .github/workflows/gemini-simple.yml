@@ -17,31 +17,9 @@ env:
 jobs:
   gemini:
     if: >-
-      github.event_name == 'pull_request' ||
-      (
-        github.event_name == 'issue_comment' &&
-        github.event.comment != null &&
-        contains(fromJSON('["OWNER","COLLABORATOR","MEMBER"]'), github.event.comment.author_association) &&
-        (
-          startsWith(format('{0}', github.event.comment.body), 'Gemini') ||
-          startsWith(format('{0}', github.event.comment.body), 'GEMINI') ||
-          startsWith(format('{0}', github.event.comment.body), '@gemini') ||
-          startsWith(format('{0}', github.event.comment.body), '@gemini-cli') ||
-          startsWith(format('{0}', github.event.comment.body), '/gemini')
-        )
-      ) ||
-      (
-        github.event_name == 'pull_request_review_comment' &&
-        github.event.comment != null &&
-        contains(fromJSON('["OWNER","COLLABORATOR","MEMBER"]'), github.event.comment.author_association) &&
-        (
-          startsWith(format('{0}', github.event.comment.body), 'Gemini') ||
-          startsWith(format('{0}', github.event.comment.body), 'GEMINI') ||
-          startsWith(format('{0}', github.event.comment.body), '@gemini') ||
-          startsWith(format('{0}', github.event.comment.body), '@gemini-cli') ||
-          startsWith(format('{0}', github.event.comment.body), '/gemini')
-        )
-      )
+      fromJSON(env.IS_INTERNAL_PULL_REQUEST) ||
+      fromJSON(env.IS_ISSUE_COMMENT_TRIGGER) ||
+      fromJSON(env.IS_REVIEW_COMMENT_TRIGGER)
     runs-on: ubuntu-latest
     environment: 'Agents/Bots'
     env:
