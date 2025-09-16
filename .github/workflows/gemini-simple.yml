@@ -24,6 +24,8 @@ jobs:
       contents: write
       pull-requests: write
       issues: write
+    env:
+      GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-2.5-flash' }}
 
     steps:
       - name: Use Node.js 20
@@ -37,6 +39,7 @@ jobs:
         with:
           gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
           gemini_debug: 'false'
+          gemini_model: ${{ env.GEMINI_MODEL }}
           prompt: ${{ github.event.comment.body }}
 
       - name: Post Gemini response as comment
