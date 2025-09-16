@@ -1,0 +1,222 @@
+name: '🤖 Claude'
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  issue_comment:
+    types: [created, edited]
+  pull_request_review_comment:
+    types: [created, edited]
+  issues:
+    types: [opened, assigned, reopened]
+  pull_request_review:
+    types: [submitted, edited]
+
+jobs:
+  claude:
+    if: |
+      (
+        github.event_name == 'pull_request'
+      ) ||
+      (
+        github.event_name == 'issue_comment' &&
+        contains(fromJSON('["OWNER","COLLABORATOR","MEMBER"]'), github.event.comment.author_association) &&
+        (
+          startsWith(github.event.comment.body, '@claude') ||
+          startsWith(github.event.comment.body, 'CLAUDE') ||
+          startsWith(github.event.comment.body, '/claude')
+        )
+      ) ||
+      (
+        github.event_name == 'pull_request_review_comment' &&
+        contains(fromJSON('["OWNER","COLLABORATOR","MEMBER"]'), github.event.comment.author_association) &&
+        (
+          startsWith(github.event.comment.body, '@claude') ||
+          startsWith(github.event.comment.body, 'CLAUDE') ||
+          startsWith(github.event.comment.body, '/claude')
+        )
+      ) ||
+      (
+        github.event_name == 'pull_request_review' &&
+        contains(fromJSON('["OWNER","COLLABORATOR","MEMBER"]'), github.event.review.author_association) &&
+        (
+          startsWith(github.event.review.body, '@claude') ||
+          startsWith(github.event.review.body, 'CLAUDE') ||
+          startsWith(github.event.review.body, '/claude')
+        )
+      ) ||
+      (
+        github.event_name == 'issues' &&
+        contains(fromJSON('["OWNER","COLLABORATOR","MEMBER"]'), github.event.issue.author_association) &&
+        (
+          contains(github.event.issue.body, '@claude') ||
+          contains(github.event.issue.body, 'CLAUDE') ||
+          contains(github.event.issue.body, '/claude') ||
+          contains(github.event.issue.title, '@claude') ||
+          contains(github.event.issue.title, 'CLAUDE') ||
+          contains(github.event.issue.title, '/claude')
+        )
+      )
+    runs-on: ubuntu-22.04
+    environment: 'Agents/Bots'
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+      actions: read # Required for Claude to read CI results on PRs
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup Bun runtime
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Start Claude Code Router
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.claude-code-router
+          cat > ~/.claude-code-router/config.json <<EOF
+          {
+            "LOG": false,
+            "LOG_LEVEL": "info",
+            "CLAUDE_PATH": "",
+            "HOST": "127.0.0.1",
+            "PORT": 3456,
+            "APIKEY": "",
+            "API_TIMEOUT_MS": "60000",
+            "PROXY_URL": "",
+            "transformers": [],
+            "Providers": [
+              {
+                "name": "openrouter",
+                "api_base_url": "https://openrouter.ai/api/v1/chat/completions",
+                "api_key": "${OPENROUTER_API_KEY}",
+                "models": [
+                  "qwen/qwen3-coder:free",
+                  "z-ai/glm-4.5-air:free",
+                  "moonshotai/kimi-k2:free",
+                  "deepseek/deepseek-chat-v3.1:free"
+                ],
+                "transformer": {
+                  "use": [
+                    "openrouter"
+                  ],
+                  "tngtech/deepseek-r1t2-chimera:free": {
+                    "use": [
+                      "deepseek"
+                    ]
+                  },
+                  "deepseek/deepseek-chat-v3-0324:free": {
+                    "use": [
+                      "deepseek"
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "gemini",
+                "api_base_url": "https://generativelanguage.googleapis.com/v1beta/models/",
+                "api_key": "${GEMINI_API_KEY}",
+                "models": [
+                  "gemini-2.5-flash"
+                ],
+                "transformer": {
+                  "use": [
+                    "gemini"
+                  ]
+                }
+              }
+            ],
+            "StatusLine": {
+              "enabled": true,
+              "currentStyle": "default",
+              "default": {
+                "modules": [
+                  {
+                    "type": "workDir",
+                    "icon": "",
+                    "text": "{{workDirName}}",
+                    "color": "bright_blue"
+                  },
+                  {
+                    "type": "model",
+                    "icon": "",
+                    "text": "{{model}}",
+                    "color": "bright_yellow"
+                  },
+                  {
+                    "type": "usage",
+                    "icon": "",
+                    "text": "{{inputTokens}} / {{outputTokens}}",
+                    "color": "bright_magenta"
+                  },
+                  {
+                    "type": "script",
+                    "icon": "",
+                    "text": "Script Module",
+                    "color": "bright_cyan",
+                    "scriptPath": ""
+                  }
+                ]
+              },
+              "powerline": {
+                "modules": []
+              }
+            },
+            "Router": {
+              "default": "openrouter,z-ai/glm-4.5-air:free",
+              "background": "openrouter,moonshotai/kimi-k2:free",
+              "think": "openrouter,deepseek/deepseek-chat-v3.1:free",
+              "longContext": "gemini,gemini-2.5-flash",
+              "longContextThreshold": 100000,
+              "webSearch": "openrouter,moonshotai/kimi-k2:free"
+            }
+          }
+          EOF
+          nohup ~/.bun/bin/bunx @musistudio/claude-code-router@latest start &
+          # Temporary fixed delay until healthcheck is reintroduced
+          sleep 5
+        shell: bash
+
+      - name: Run Claude Code
+        id: claude
+        uses: anthropics/claude-code-action@v1
+        env:
+          ANTHROPIC_BASE_URL: http://localhost:3456
+          ANTHROPIC_API_KEY: "dummy"
+        with:
+          anthropic_api_key: "dummy"
+          prompt: |
+              REPO: ${{ github.repository }}
+              EVENT: ${{ github.event_name }}
+              PR NUMBER: ${{ github.event.pull_request && github.event.pull_request.number || '' }}
+              ISSUE NUMBER: ${{ github.event.issue && github.event.issue.number || '' }}
+
+              Act as a helpful GitHub assistant for the current event.
+              - For pull requests: review the changes for quality, bugs, security, and performance.
+              - For issues: help triage or answer questions.
+              - For comments or reviews: address the user's request and provide any necessary analysis.
+
+              The repository is already checked out in the working directory.
+
+              Use `gh pr comment` for pull request feedback or `gh issue comment` for issue discussions.
+              Use `mcp__github_inline_comment__create_inline_comment` to make inline comments on pull request diffs.
+              Only interact through GitHub comments.
+
+          claude_args: |
+            --allowedTools "mcp__github_inline_comment__create_inline_comment"
+            --allowedTools "Bash(gh pr comment:*)"
+            --allowedTools "Bash(gh issue comment:*)"
+            --allowedTools "Bash(gh pr diff:*)"
+            --allowedTools "Bash(gh pr view:*)"
+            --allowedTools "Bash(gh pr list:*)"
+            --allowedTools "Bash(gh issue view:*)"
+            --allowedTools "Bash(gh issue list:*)"
