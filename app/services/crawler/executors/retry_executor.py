@@ -2,6 +2,7 @@ import asyncio
 import logging
 import sys
 import time
+from dataclasses import dataclass
 from typing import List, Optional
 import app.core.config as app_config
 from app.schemas.crawl import CrawlRequest, CrawlResponse
@@ -15,6 +16,24 @@ from app.services.crawler.proxy.health import get_health_tracker
 from app.services.crawler.proxy.redact import redact_proxy
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class ProxySelection:
+    """Represents the proxy to use for a given attempt."""
+
+    proxy: Optional[str]
+    mode: str
+    attempt_index: int
+    aborted: bool = False
+
+
+@dataclass
+class AttemptResult:
+    """Return payload from a single fetch attempt."""
+
+    response: Optional[CrawlResponse]
+    error: Optional[str]
 
 
 class RetryingExecutor(IExecutor):
@@ -43,9 +62,6 @@ class RetryingExecutor(IExecutor):
             asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
         settings = app_config.get_settings()
         public_proxies = self._load_public_proxies(settings.proxy_list_file_path)
-        candidates = public_proxies.copy()
-        if getattr(settings, "private_proxy_url", None):
-            candidates.append(settings.private_proxy_url)
         last_error = None
         user_data_cleanup = None
         try:
@@ -65,128 +81,35 @@ class RetryingExecutor(IExecutor):
             last_used_proxy: Optional[str] = None
             attempt_plan = self.attempt_planner.build_plan(settings, public_proxies)
             while attempt_count < settings.max_retries:
-                selected_proxy: Optional[str] = None
-                mode = "direct"
-                if getattr(settings, "proxy_rotation_mode", "sequential") != "random" or not candidates:
-                    found_healthy_attempt = False
-                    while attempt_count < settings.max_retries:
-                        attempt_config = attempt_plan[attempt_count]
-                        candidate_proxy = attempt_config["proxy"]
-                        candidate_mode = attempt_config["mode"]
-                        if candidate_proxy and self.health_tracker.is_unhealthy(candidate_proxy):
-                            logger.info(
-                                f"Attempt {attempt_count+1} skipped - {candidate_mode} proxy "
-                                f"{self._redact_proxy(candidate_proxy)} is unhealthy"
-                            )
-                            attempt_count += 1
-                            continue
-                        selected_proxy = candidate_proxy
-                        mode = candidate_mode
-                        found_healthy_attempt = True
-                        break
-                    if not found_healthy_attempt:
-                        break
-                else:
-                    # Random rotation: prefer public proxies; reserve private for the last attempt
-                    private = getattr(settings, "private_proxy_url", None)
-                    healthy_public = [
-                        p for p in public_proxies if not self.health_tracker.is_unhealthy(p)
-                    ]
-                    if healthy_public:
-                        # Stable ordering by value to ensure deterministic behavior
-                        healthy_public = sorted(healthy_public)[:2]
-                        # base_order = healthy_public
-                        if (attempt_count >= settings.max_retries - 1) and private:
-                            selected_proxy = private
-                            mode = "private"
-                        elif attempt_count == 0:
-                            # First attempt: first healthy public
-                            selected_proxy = (healthy_public[0] if healthy_public else (private if private else None))
-                            mode = "public"
-                        elif attempt_count == 1:
-                            # Second attempt: next healthy public different from last
-                            choice_list = [p for p in healthy_public if p != last_used_proxy] or healthy_public
-                            selected_proxy = (choice_list[0] if choice_list else (private if private else None))
-                            mode = "public"
-                        elif attempt_count == 2:
-                            # Third attempt: cycle back to first healthy
-                            selected_proxy = (healthy_public[0] if healthy_public else (private if private else None))
-                            mode = "public"
-                        elif attempt_count == 3 and private:
-                            selected_proxy = private
-                            mode = "private"
-                        else:
-                            # Fallback: first healthy or private if none
-                            if healthy_public:
-                                selected_proxy = healthy_public[0]
-                                mode = "public"
-                            elif private and not self.health_tracker.is_unhealthy(private):
-                                selected_proxy = private
-                                mode = "private"
-                    else:
-                        if private and not self.health_tracker.is_unhealthy(private):
-                            selected_proxy = private
-                            mode = "private"
-                        else:
-                            selected_proxy = None
-                            mode = "direct"
-                redacted_proxy = self._redact_proxy(selected_proxy)
-                logger.debug(f"Attempt {attempt_count+1} using {mode} connection, proxy: {redacted_proxy}")
-                try:
-                    fetch_kwargs = self.arg_composer.compose(
-                        options=options,
-                        caps=caps,
-                        selected_proxy=selected_proxy,
-                        additional_args=additional_args,
-                        extra_headers=extra_headers,
-                        settings=settings,
-                        page_action=page_action,
-                    )
-                    logger.info(f"Attempt {attempt_count+1} - calling fetch")
-                    page = self.fetch_client.fetch(str(request.url), fetch_kwargs)
-                    status = getattr(page, "status", None)
-                    html = getattr(page, "html_content", None)
-                    html_len = len(html or "")
-                    logger.info(
-                        f"Attempt {attempt_count+1} - page status: {status}, html length: {html_len}"
-                    )
-                    # Success only when HTTP 200 AND sufficiently complete HTML (length-based)
-                    min_len = int(getattr(settings, "min_html_content_length", 500) or 0)
-                    html_has_doc = bool(html and "<html" in (html.lower() if isinstance(html, str) else ""))
-                    if status == 200 and html and html_len >= min_len:
-                        if selected_proxy:
-                            self.health_tracker.mark_success(selected_proxy)
-                            logger.debug(f"Proxy {redacted_proxy} recovered")
-                        logger.info(f"Attempt {attempt_count+1} outcome: success (html-ok)")
-                        return CrawlResponse(status="success", url=request.url, html=html)
-                    # Non-200 status is a failure and should retry; otherwise, HTML too short is failure
-                    if status != 200:
-                        last_error = f"Non-200 status: {status}"
-                        if selected_proxy:
-                            self._mark_proxy_failure(selected_proxy, settings)
-                        logger.info(f"Attempt {attempt_count+1} outcome: failure - {last_error}")
-                    else:
-                        # Failure path (status 200 but unacceptable HTML)
-                        if not html:
-                            last_error = "HTML content is None or empty"
-                        else:
-                            last_error = (
-                                f"HTML not acceptable (len={html_len}, "
-                                f"has_html_tag={html_has_doc}, status={status})"
-                            )
-                        if selected_proxy:
-                            self._mark_proxy_failure(selected_proxy, settings)
-                        logger.info(f"Attempt {attempt_count+1} outcome: failure - {last_error}")
-                except Exception as e:
-                    last_error = f"{type(e).__name__}: {e}"
-                    if selected_proxy:
-                        self._mark_proxy_failure(selected_proxy, settings)
-                    logger.info(f"Attempt {attempt_count+1} outcome: failure - {last_error}")
-                attempt_count += 1
-                last_used_proxy = selected_proxy
-                if attempt_count < settings.max_retries:
-                    delay = self.backoff_policy.delay_for_attempt(attempt_count - 1)
-                    time.sleep(delay)
+                selection = self._select_proxy(
+                    attempt_index=attempt_count,
+                    settings=settings,
+                    attempt_plan=attempt_plan,
+                    public_proxies=public_proxies,
+                    last_used_proxy=last_used_proxy,
+                )
+                if selection.aborted:
+                    break
+                attempt_number = selection.attempt_index + 1
+                result = self._run_attempt(
+                    attempt_number=attempt_number,
+                    request=request,
+                    page_action=page_action,
+                    selection=selection,
+                    caps=caps,
+                    options=options,
+                    additional_args=additional_args,
+                    extra_headers=extra_headers,
+                    settings=settings,
+                )
+                self._record_outcome(selection, result, settings)
+                if result.response:
+                    return result.response
+                last_error = result.error
+                attempt_count = selection.attempt_index + 1
+                last_used_proxy = selection.proxy
+                if not self._should_continue(attempt_count, settings):
+                    break
             return CrawlResponse(
                 status="failure",
                 url=request.url,
@@ -207,6 +130,143 @@ class RetryingExecutor(IExecutor):
                     user_data_cleanup()
                 except Exception as e:
                     logger.warning(f"Failed to cleanup user data context: {e}")
+
+    def _select_proxy(self,
+                      attempt_index: int,
+                      settings,
+                      attempt_plan: List[dict],
+                      public_proxies: List[str],
+                      last_used_proxy: Optional[str]) -> ProxySelection:
+        rotation_mode = getattr(settings, "proxy_rotation_mode", "sequential")
+        private_proxy = getattr(settings, "private_proxy_url", None)
+        has_candidates = bool(public_proxies or private_proxy)
+        if rotation_mode != "random" or not has_candidates:
+            index = attempt_index
+            while index < settings.max_retries:
+                attempt_config = attempt_plan[index]
+                candidate_proxy = attempt_config["proxy"]
+                candidate_mode = attempt_config["mode"]
+                if candidate_proxy and self.health_tracker.is_unhealthy(candidate_proxy):
+                    logger.info(
+                        f"Attempt {index+1} skipped - {candidate_mode} proxy "
+                        f"{self._redact_proxy(candidate_proxy)} is unhealthy"
+                    )
+                    index += 1
+                    continue
+                return ProxySelection(candidate_proxy, candidate_mode, index)
+            return ProxySelection(None, "direct", index, aborted=True)
+
+        selected_proxy: Optional[str] = None
+        mode = "direct"
+        healthy_public = [
+            proxy for proxy in public_proxies if not self.health_tracker.is_unhealthy(proxy)
+        ]
+        if healthy_public:
+            healthy_public = sorted(healthy_public)[:2]
+            if (attempt_index >= settings.max_retries - 1) and private_proxy:
+                selected_proxy = private_proxy
+                mode = "private"
+            elif attempt_index == 0:
+                selected_proxy = healthy_public[0] if healthy_public else (private_proxy if private_proxy else None)
+                mode = "public"
+            elif attempt_index == 1:
+                choice_list = [p for p in healthy_public if p != last_used_proxy] or healthy_public
+                selected_proxy = choice_list[0] if choice_list else (private_proxy if private_proxy else None)
+                mode = "public"
+            elif attempt_index == 2:
+                selected_proxy = healthy_public[0] if healthy_public else (private_proxy if private_proxy else None)
+                mode = "public"
+            elif attempt_index == 3 and private_proxy:
+                selected_proxy = private_proxy
+                mode = "private"
+            else:
+                if healthy_public:
+                    selected_proxy = healthy_public[0]
+                    mode = "public"
+                elif private_proxy and not self.health_tracker.is_unhealthy(private_proxy):
+                    selected_proxy = private_proxy
+                    mode = "private"
+        else:
+            if private_proxy and not self.health_tracker.is_unhealthy(private_proxy):
+                selected_proxy = private_proxy
+                mode = "private"
+            else:
+                selected_proxy = None
+                mode = "direct"
+        return ProxySelection(selected_proxy, mode, attempt_index)
+
+    def _run_attempt(self,
+                     attempt_number: int,
+                     request: CrawlRequest,
+                     page_action: Optional[PageAction],
+                     selection: ProxySelection,
+                     caps,
+                     options,
+                     additional_args,
+                     extra_headers,
+                     settings) -> AttemptResult:
+        selected_proxy = selection.proxy
+        redacted_proxy = self._redact_proxy(selected_proxy)
+        logger.debug(
+            f"Attempt {attempt_number} using {selection.mode} connection, proxy: {redacted_proxy}"
+        )
+        try:
+            fetch_kwargs = self.arg_composer.compose(
+                options=options,
+                caps=caps,
+                selected_proxy=selected_proxy,
+                additional_args=additional_args,
+                extra_headers=extra_headers,
+                settings=settings,
+                page_action=page_action,
+            )
+            logger.info(f"Attempt {attempt_number} - calling fetch")
+            page = self.fetch_client.fetch(str(request.url), fetch_kwargs)
+            status = getattr(page, "status", None)
+            html = getattr(page, "html_content", None)
+            html_len = len(html or "")
+            logger.info(
+                f"Attempt {attempt_number} - page status: {status}, html length: {html_len}"
+            )
+            min_len = int(getattr(settings, "min_html_content_length", 500) or 0)
+            html_has_doc = bool(html and "<html" in (html.lower() if isinstance(html, str) else ""))
+            if status == 200 and html and html_len >= min_len:
+                logger.info(f"Attempt {attempt_number} outcome: success (html-ok)")
+                return AttemptResult(CrawlResponse(status="success", url=request.url, html=html), None)
+            if status != 200:
+                last_error = f"Non-200 status: {status}"
+            else:
+                if not html:
+                    last_error = "HTML content is None or empty"
+                else:
+                    last_error = (
+                        f"HTML not acceptable (len={html_len}, "
+                        f"has_html_tag={html_has_doc}, status={status})"
+                    )
+            logger.info(f"Attempt {attempt_number} outcome: failure - {last_error}")
+            return AttemptResult(None, last_error)
+        except Exception as e:
+            last_error = f"{type(e).__name__}: {e}"
+            logger.info(f"Attempt {attempt_number} outcome: failure - {last_error}")
+            return AttemptResult(None, last_error)
+
+    def _record_outcome(self, selection: ProxySelection, result: AttemptResult, settings) -> None:
+        if not selection.proxy:
+            return
+        selected_proxy = selection.proxy
+        if result.response:
+            redacted_proxy = self._redact_proxy(selected_proxy)
+            self.health_tracker.mark_success(selected_proxy)
+            logger.debug(f"Proxy {redacted_proxy} recovered")
+        else:
+            self._mark_proxy_failure(selected_proxy, settings)
+
+    def _should_continue(self, attempt_count: int, settings) -> bool:
+        if attempt_count >= settings.max_retries:
+            return False
+        delay = self.backoff_policy.delay_for_attempt(attempt_count - 1)
+        time.sleep(delay)
+        return True
 
     def _load_public_proxies(self, file_path: Optional[str]) -> List[str]:
         """Load public proxies from a file."""
