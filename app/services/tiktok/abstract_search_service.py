@@ -34,9 +34,11 @@ class AbstractTikTokSearchService(ABC, TikTokSearchStrategy):
 
     # Validation helpers -------------------------------------------------
     def _is_tests_env(self) -> bool:
+        """Return whether the current execution is happening under pytest."""
         return bool(os.environ.get("PYTEST_CURRENT_TEST"))
 
     def _enforce_sort_type(self, sort_type: Optional[str]) -> Optional[Dict[str, Any]]:
+        """Validate the requested sort type, returning an error payload when invalid."""
         self.logger.debug(f"[TikTokSearchService] Enforcing sort_type: {sort_type}")
         if str(sort_type or "").upper() == "RELEVANCE":
             self.logger.debug("[TikTokSearchService] Sort type validated: RELEVANCE")
@@ -51,6 +53,7 @@ class AbstractTikTokSearchService(ABC, TikTokSearchStrategy):
         }
 
     def _normalize_queries(self, query: Union[str, List[str]]) -> Tuple[bool, Union[List[str], Dict[str, Any]]]:
+        """Normalize user-provided queries into a filtered list of search strings."""
         self.logger.debug(f"[TikTokSearchService] Normalizing query type: {type(query)}")
         if isinstance(query, list):
             queries = [str(x).strip() for x in query if str(x or "").strip()]
@@ -83,6 +86,7 @@ class AbstractTikTokSearchService(ABC, TikTokSearchStrategy):
         query: Union[str, List[str]],
         sort_type: Optional[str],
     ) -> Union[List[str], Dict[str, Any]]:
+        """Validate sort type and normalize the incoming query payload."""
         self.logger.debug(f"[TikTokSearchService] Checking sort_type: {sort_type}")
         err = self._enforce_sort_type(sort_type)
         if err is not None:
@@ -99,6 +103,7 @@ class AbstractTikTokSearchService(ABC, TikTokSearchStrategy):
 
     # Context helpers ----------------------------------------------------
     def _prepare_context(self, *, in_tests: bool) -> SearchContext:
+        """Compose fetch dependencies needed to perform an independent search."""
         from app.services.common.adapters.scrapling_fetcher import ScraplingFetcherAdapter, FetchArgComposer
         from app.services.common.browser.camoufox import CamoufoxArgsBuilder
 
@@ -182,23 +187,13 @@ class AbstractTikTokSearchService(ABC, TikTokSearchStrategy):
         }
 
     async def _cleanup_user_data(self, cleanup_callable: Optional[CleanupCallable]) -> None:
+        """Pause briefly and trigger any cleanup callback returned from Scrapling."""
         if not callable(cleanup_callable):
             return
         self.logger.debug("[TikTokSearchService] Calling user_data_cleanup function")
         try:
-            sleep_func = asyncio.sleep
-            # Tests patch asyncio.sleep on the concrete service module. Reuse that
-            # patched version when available so existing expectations remain valid
-            # after refactoring shared helpers into this abstract base.
-            search_module = sys.modules.get("app.services.tiktok.search_service")
-            if search_module is not None:
-                maybe_asyncio = getattr(search_module, "asyncio", None)
-                maybe_sleep = getattr(maybe_asyncio, "sleep", None)
-                if callable(maybe_sleep):  # pragma: no branch - defensive branch
-                    sleep_func = maybe_sleep  # type: ignore[assignment]
-
-            await sleep_func(3)
-            cleanup_callable()
+            await asyncio.sleep(3)
+            self._handle_cleanup([cleanup_callable])
             self.logger.debug("[TikTokSearchService] User data cleanup completed successfully")
         except Exception as e:  # pragma: no cover - defensive logging
             self.logger.error(
@@ -210,3 +205,19 @@ class AbstractTikTokSearchService(ABC, TikTokSearchStrategy):
     @abstractmethod
     async def _fetch_html(self, query: str, *, context: SearchContext) -> Tuple[int, str]:
         """Fetch the raw HTML for the provided query."""
+
+    def _handle_cleanup(self, cleanup_functions: Optional[List[CleanupCallable]]) -> None:
+        """Invoke each provided cleanup callback, logging failures but continuing."""
+        if not cleanup_functions:
+            return
+
+        for cleanup in cleanup_functions:
+            if not callable(cleanup):
+                continue
+            try:
+                cleanup()
+            except Exception as exc:  # pragma: no cover - defensive logging
+                self.logger.error(
+                    f"[TikTokSearchService] Cleanup callback raised an exception: {exc}",
+                    exc_info=True,
+                )

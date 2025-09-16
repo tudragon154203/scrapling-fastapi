@@ -288,7 +288,7 @@ class TestTikTokSearchService:
         cleanup_callable = Mock()
 
         with patch(
-            "app.services.tiktok.search_service.asyncio.sleep", new=AsyncMock()
+            "app.services.tiktok.abstract_search_service.asyncio.sleep", new=AsyncMock()
         ) as sleep_mock:
             await search_service._cleanup_user_data(cleanup_callable)
 
@@ -346,11 +346,26 @@ class TestTikTokSearchService:
         search_service = TikTokSearchService(service)
 
         with patch(
-            "app.services.tiktok.search_service.asyncio.sleep", new=AsyncMock()
+            "app.services.tiktok.abstract_search_service.asyncio.sleep", new=AsyncMock()
         ) as sleep_mock:
             await search_service._cleanup_user_data(None)
 
         sleep_mock.assert_not_called()
+
+    async def test_handle_cleanup_invokes_registered_functions(self):
+        """_handle_cleanup should synchronously call each provided cleanup callback."""
+
+        service = Mock()
+        service.settings = Mock()
+        search_service = TikTokSearchService(service)
+
+        cleanup_one = Mock()
+        cleanup_two = Mock()
+
+        search_service._handle_cleanup([cleanup_one, cleanup_two])
+
+        cleanup_one.assert_called_once_with()
+        cleanup_two.assert_called_once_with()
 
     async def test_search_tiktok_without_active_session(self, tiktok_service):
         """Test TikTok search without active session returns error"""

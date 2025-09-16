@@ -6,7 +6,6 @@ The 'service' parameter is the TiktokService instance providing settings and ses
 
 from __future__ import annotations
 
-import asyncio  # noqa: F401 - re-exported for test patches
 import inspect
 import logging
 import os
