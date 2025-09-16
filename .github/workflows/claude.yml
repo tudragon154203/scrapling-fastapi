@@ -220,4 +220,5 @@ jobs:
             --allowedTools "Bash(gh pr list:*)"
             --allowedTools "Bash(gh issue view:*)"
             --allowedTools "Bash(gh issue list:*)"
-            --allowedTools "Bash(gh api:*)"
+            --allowedTools "Bash(gh api -X GET repos/:*)"
+            --allowedTools "Bash(gh api --method GET repos/:*)"
