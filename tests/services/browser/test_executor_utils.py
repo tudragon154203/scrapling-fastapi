@@ -1,4 +1,6 @@
 import asyncio
+import shutil
+from pathlib import Path
 from typing import Any, Dict
 
 import pytest
@@ -17,6 +19,72 @@ class DummyBrowsingExecutor(AbstractBrowsingExecutor):
 
     async def cleanup(self) -> None:
         self.browser = None
+
+
+class FailingCleanupExecutor(DummyBrowsingExecutor):
+    """Executor whose browser attribute raises when reassigned after init."""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        self._allow_browser_assignment = True
+        super().__init__(*args, **kwargs)
+        self._allow_browser_assignment = False
+        self._browser = object()
+
+    @property
+    def browser(self) -> Any:
+        return self._browser
+
+    @browser.setter
+    def browser(self, value: Any) -> None:
+        if getattr(self, "_allow_browser_assignment", False):
+            self._browser = value
+        else:
+            raise RuntimeError("Unable to reassign browser instance")
+
+
+class StubLogger:
+    def __init__(self) -> None:
+        self.error_messages: list[str] = []
+
+    async def error(self, message: str) -> None:
+        self.error_messages.append(message)
+
+
+@pytest.mark.asyncio
+async def test_prepare_user_data_dir_without_initial_dir():
+    executor = DummyBrowsingExecutor()
+
+    temp_dir = await executor._prepare_user_data_dir()
+
+    temp_path = Path(temp_dir)
+    assert temp_path.exists()
+    assert temp_path.name.startswith("scrapling_")
+
+    shutil.rmtree(temp_path)
+
+
+@pytest.mark.asyncio
+async def test_prepare_user_data_dir_clones_from_master(tmp_path: Path):
+    master_dir = tmp_path / "master"
+    master_dir.mkdir()
+    (master_dir / "config.json").write_text("configuration")
+
+    clone_dir = tmp_path / "clones" / "profile1"
+    executor = DummyBrowsingExecutor(user_data_dir=str(clone_dir))
+    executor.settings.camoufox_user_data_dir = str(master_dir)
+
+    prepared_dir = await executor._prepare_user_data_dir()
+
+    assert prepared_dir == str(clone_dir)
+    assert (clone_dir / "config.json").read_text() == "configuration"
+
+
+@pytest.mark.asyncio
+async def test_clone_user_data_dir_missing_master_raises(tmp_path: Path):
+    executor = DummyBrowsingExecutor(user_data_dir=str(tmp_path / "target"))
+
+    with pytest.raises(FileNotFoundError):
+        await executor._clone_user_data_dir(tmp_path / "missing", str(tmp_path / "clone"))
 
 
 @pytest.mark.asyncio
@@ -40,15 +108,40 @@ async def test_check_session_timeout_exceeded():
 
 
 @pytest.mark.asyncio
-async def test_validate_user_data_dir_existing(tmp_path):
+async def test_validate_user_data_dir_existing(tmp_path: Path):
     executor = DummyBrowsingExecutor(user_data_dir=str(tmp_path))
 
     assert await executor.validate_user_data_dir() is True
 
 
 @pytest.mark.asyncio
-async def test_validate_user_data_dir_missing(tmp_path):
+async def test_validate_user_data_dir_missing(tmp_path: Path):
     missing_dir = tmp_path / "missing"
     executor = DummyBrowsingExecutor(user_data_dir=str(missing_dir))
 
     assert await executor.validate_user_data_dir() is False
+
+
+@pytest.mark.asyncio
+async def test_cleanup_on_error_clears_state():
+    executor = DummyBrowsingExecutor()
+    executor.browser = object()
+    executor.user_data_dir = "some-dir"
+
+    await executor._cleanup_on_error()
+
+    assert executor.browser is None
+    assert executor.user_data_dir is None
+
+
+@pytest.mark.asyncio
+async def test_cleanup_on_error_logs_when_assignment_fails():
+    executor = FailingCleanupExecutor()
+    executor.user_data_dir = "persistent"
+    stub_logger = StubLogger()
+    executor.logger = stub_logger
+
+    await executor._cleanup_on_error()
+
+    assert stub_logger.error_messages
+    assert "Error during cleanup" in stub_logger.error_messages[0]
