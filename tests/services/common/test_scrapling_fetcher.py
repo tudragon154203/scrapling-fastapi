@@ -296,6 +296,7 @@ def test_fetch_runs_in_background_thread_when_loop_running(monkeypatch):
     assert thread_names[0] != threading.main_thread().name
 
 
+@pytest.mark.integration
 def test_fetch_uses_http_fallback_on_timeout(monkeypatch):
     """Timeout errors should fall back to the lightweight HTTP fetch."""
 
@@ -331,6 +332,7 @@ def test_fetch_uses_http_fallback_on_timeout(monkeypatch):
     assert attempts["fallback"] == 1
 
 
+@pytest.mark.integration
 def test_fetch_http_fallback_failure_reraises_timeout(monkeypatch):
     """If HTTP fallback also fails, the original timeout error should surface."""
 
@@ -365,6 +367,7 @@ def test_fetch_http_fallback_failure_reraises_timeout(monkeypatch):
     assert attempts["fallback"] == 1
 
 
+@pytest.mark.integration
 def test_http_fallback_returns_response_like_object(monkeypatch):
     """The raw HTTP fallback should produce a simple namespace result."""
 
@@ -393,6 +396,7 @@ def test_http_fallback_returns_response_like_object(monkeypatch):
     assert result.html_content == "<html>ok</html>"
 
 
+@pytest.mark.integration
 def test_http_fallback_failure_bubbles_exception(monkeypatch):
     """Errors from the HTTP fallback should be propagated."""
 
