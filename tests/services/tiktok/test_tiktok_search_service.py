@@ -1,11 +1,14 @@
-"""
-Unit tests for TikTok Search Service
-"""
+"""Unit tests for TikTok Search Service."""
+
 import pytest
 from unittest.mock import AsyncMock, Mock, patch
+
 from app.services.tiktok.search_service import TikTokSearchService
 from app.services.tiktok.service import TiktokService
 from app.services.tiktok.tiktok_executor import TiktokExecutor
+
+
+pytestmark = pytest.mark.asyncio
 
 
 class TestTikTokSearchService:
@@ -23,7 +26,6 @@ class TestTikTokSearchService:
         executor.browser = Mock()
         return executor
 
-    @pytest.mark.asyncio
     async def test_search_tiktok_with_active_session(self, tiktok_service, mock_executor):
         """Test TikTok search with active session"""
         # Set up mock session
@@ -58,7 +60,6 @@ class TestTikTokSearchService:
             assert "query" in result
             assert result["query"] == "test query"
 
-    @pytest.mark.asyncio
     async def test_search_tiktok_with_multiple_queries(self, tiktok_service, mock_executor):
         """Test TikTok search with multiple queries"""
         # Set up mock session
@@ -96,7 +97,6 @@ class TestTikTokSearchService:
             assert "query" in result
             assert result["query"] == "test query"
 
-    @pytest.mark.asyncio
     async def test_search_service_continues_after_query_error(self):
         """TikTokSearchService should continue processing queries on recoverable errors."""
 
@@ -131,7 +131,6 @@ class TestTikTokSearchService:
         assert result["totalResults"] == 0
         assert result["query"] == "first second"
 
-    @pytest.mark.asyncio
     async def test_search_tiktok_without_active_session(self, tiktok_service):
         """Test TikTok search without active session returns error"""
         result = await tiktok_service.search_tiktok("test query")
@@ -141,7 +140,6 @@ class TestTikTokSearchService:
         assert result["error"]["code"] == "NOT_LOGGED_IN"
         assert result["error"]["message"] == "TikTok session is not logged in"
 
-    @pytest.mark.asyncio
     async def test_search_tiktok_with_empty_session(self, tiktok_service):
         """Test TikTok search with empty session returns error"""
         # Set up empty session state
@@ -154,7 +152,6 @@ class TestTikTokSearchService:
         assert result["error"]["code"] == "NOT_LOGGED_IN"
         assert result["error"]["message"] == "TikTok session is not logged in"
 
-    @pytest.mark.asyncio
     async def test_has_active_session_with_sessions(self, tiktok_service, mock_executor):
         """Test has_active_session returns True when sessions exist"""
         tiktok_service.active_sessions["test_session"] = mock_executor
@@ -162,7 +159,6 @@ class TestTikTokSearchService:
         result = await tiktok_service.has_active_session()
         assert result is True
 
-    @pytest.mark.asyncio
     async def test_has_active_session_without_sessions(self, tiktok_service):
         """Test has_active_session returns False when no sessions exist"""
         tiktok_service.active_sessions = {}
@@ -170,7 +166,6 @@ class TestTikTokSearchService:
         result = await tiktok_service.has_active_session()
         assert result is False
 
-    @pytest.mark.asyncio
     async def test_get_active_session_with_sessions(self, tiktok_service, mock_executor):
         """Test get_active_session returns session when sessions exist"""
         tiktok_service.active_sessions["test_session"] = mock_executor
@@ -178,7 +173,6 @@ class TestTikTokSearchService:
         result = await tiktok_service.get_active_session()
         assert result == mock_executor
 
-    @pytest.mark.asyncio
     async def test_get_active_session_without_sessions(self, tiktok_service):
         """Test get_active_session returns None when no sessions exist"""
         tiktok_service.active_sessions = {}
