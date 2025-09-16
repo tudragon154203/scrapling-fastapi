@@ -9,11 +9,11 @@ import sys
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-from app.services.tiktok.interfaces import TikTokSearchStrategy
+from app.services.tiktok.interfaces import TikTokSearchInterface
 from app.services.tiktok.protocols import CleanupCallable, SearchContext
 
 
-class AbstractTikTokSearchService(ABC, TikTokSearchStrategy):
+class AbstractTikTokSearchService(ABC, TikTokSearchInterface):
     """Base class containing reusable helpers for TikTok search services."""
 
     def __init__(self, service: Any) -> None:
