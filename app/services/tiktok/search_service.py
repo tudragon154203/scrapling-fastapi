@@ -6,7 +6,19 @@ The 'service' parameter is the TiktokService instance providing settings and ses
 from __future__ import annotations
 import os
 import logging
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union, cast, TypedDict
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    List,
+    Optional,
+    Protocol,
+    Tuple,
+    Union,
+    cast,
+    TypedDict,
+)
 import asyncio
 import sys
 from urllib.parse import quote_plus
@@ -15,13 +27,50 @@ from urllib.parse import quote_plus
 # avoid circular imports and heavy dependencies at module import time.
 
 
+if TYPE_CHECKING:  # pragma: no cover
+    from app.services.common.adapters.scrapling_fetcher import (
+        FetchArgComposer,
+        ScraplingFetcherAdapter,
+    )
+
+
+class FetcherProtocol(Protocol):
+    """Minimal protocol for objects used to fetch TikTok search pages."""
+
+    def detect_capabilities(self) -> Any:  # pragma: no cover - interface declaration
+        ...
+
+    def fetch(self, url: str, options: Dict[str, Any]) -> Any:  # pragma: no cover - interface declaration
+        ...
+
+
+class ComposerProtocol(Protocol):
+    """Protocol describing the compose behaviour required by the service."""
+
+    def compose(
+        self,
+        *,
+        options: Dict[str, Any],
+        caps: Any,
+        selected_proxy: Optional[str],
+        additional_args: Dict[str, Any],
+        extra_headers: Optional[Dict[str, Any]],
+        settings: Any,
+        page_action: Optional[Any],
+    ) -> Dict[str, Any]:  # pragma: no cover - interface declaration
+        ...
+
+
+CleanupCallable = Callable[[], None]
+
+
 class SearchContext(TypedDict):
-    fetcher: Any
-    composer: Any
+    fetcher: Union["ScraplingFetcherAdapter", FetcherProtocol]
+    composer: Union["FetchArgComposer", ComposerProtocol]
     caps: Any
     additional_args: Dict[str, Any]
     extra_headers: Optional[Dict[str, Any]]
-    user_data_cleanup: Optional[Callable[[], None]]
+    user_data_cleanup: Optional[CleanupCallable]
     options: Dict[str, Any]
 
 
@@ -50,6 +99,13 @@ class TikTokSearchService:
         in_tests = self._is_tests_env()
         self.logger.debug(f"[TikTokSearchService] Test environment: {in_tests}")
         context = self._prepare_context(in_tests=in_tests)
+        fetcher = context["fetcher"]
+        composer = context["composer"]
+        caps = context["caps"]
+        additional_args = context["additional_args"]
+        extra_headers = context["extra_headers"]
+        options = context["options"]
+        user_data_cleanup = context["user_data_cleanup"]
 
         # Defer parser import to avoid circular imports at module load
         from app.services.tiktok.parser.orchestrator import TikTokSearchParser  # no-hoist
@@ -73,13 +129,18 @@ class TikTokSearchService:
                 seen_ids=seen_ids,
                 seen_urls=seen_urls,
                 target_count=target_count,
-                context=context,
+                fetcher=fetcher,
+                composer=composer,
+                caps=caps,
+                additional_args=additional_args,
+                extra_headers=extra_headers,
+                options=options,
             )
             if should_stop is True:
                 break
 
         # Skip detail-page enrichment; rely solely on search-page HTML like demo
-        await self._cleanup_user_data(context.get("user_data_cleanup"))
+        await self._cleanup_user_data(user_data_cleanup)
         limit = max(0, min(int(num_videos), 50))
         final_results = aggregated[:limit]
         normalized_query = " ".join(queries)
@@ -182,7 +243,7 @@ class TikTokSearchService:
         except Exception as e:
             self.logger.warning(f"[TikTokSearchService] Failed to build base headers: {e}")
             extra_headers = None
-        user_data_cleanup = None
+        user_data_cleanup: Optional[CleanupCallable] = None
         additional_args = {}
         try:
             payload = type("Mock", (), {"force_user_data": True})()
@@ -192,8 +253,9 @@ class TikTokSearchService:
             if extra_headers is None and extra_headers2 is not None:
                 extra_headers = extra_headers2
                 self.logger.debug("[TikTokSearchService] Updated extra headers from camoufox build")
-            user_data_cleanup = additional_args.get("_user_data_cleanup")
-            if user_data_cleanup:
+            cleanup_candidate = additional_args.get("_user_data_cleanup")
+            if callable(cleanup_candidate):
+                user_data_cleanup = cast(CleanupCallable, cleanup_candidate)
                 self.logger.debug("[TikTokSearchService] Set up user_data_cleanup function")
         except Exception as e:
             self.logger.error(f"[TikTokSearchService] Failed to build additional args: {e}", exc_info=True)
@@ -244,23 +306,17 @@ class TikTokSearchService:
         seen_ids: set,
         seen_urls: set,
         target_count: int,
-        context: SearchContext,
+        fetcher: FetcherProtocol,
+        composer: ComposerProtocol,
+        caps: Any,
+        additional_args: Dict[str, Any],
+        extra_headers: Optional[Dict[str, Any]],
+        options: Dict[str, Any],
     ) -> Optional[bool]:
         self.logger.debug(
             f"[TikTokSearchService] Processing query {index + 1}/{total_queries}: '{query}'"
         )
         try:
-            fetcher = context.get("fetcher")
-            composer = context.get("composer")
-            caps = context.get("caps")
-            additional_args = context.get("additional_args", {})
-            extra_headers = context.get("extra_headers")
-            options = context.get("options")
-            if fetcher is None or composer is None or options is None:
-                self.logger.error(
-                    "[TikTokSearchService] Missing fetch context components; skipping query"
-                )
-                return None
             search_url = f"{base_url}/search/video?q={quote_plus(query)}"
             self.logger.debug(f"[TikTokSearchService] Search URL: {search_url}")
             fetch_kwargs = composer.compose(
@@ -337,7 +393,7 @@ class TikTokSearchService:
             )
             return None
 
-    async def _cleanup_user_data(self, cleanup_callable: Optional[Callable[[], None]]) -> None:
+    async def _cleanup_user_data(self, cleanup_callable: Optional[CleanupCallable]) -> None:
         if not callable(cleanup_callable):
             return
         self.logger.debug("[TikTokSearchService] Calling user_data_cleanup function")

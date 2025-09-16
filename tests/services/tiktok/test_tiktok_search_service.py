@@ -131,6 +131,99 @@ class TestTikTokSearchService:
         assert result["totalResults"] == 0
         assert result["query"] == "first second"
 
+    async def test_validate_request_success(self):
+        """_validate_request returns normalized queries when input is valid."""
+
+        service = Mock()
+        service.settings = Mock()
+        search_service = TikTokSearchService(service)
+
+        result = search_service._validate_request(["  foo  ", "bar"], sort_type="RELEVANCE")
+
+        assert result == ["foo", "bar"]
+
+    async def test_validate_request_rejects_invalid_sort(self):
+        """_validate_request returns a validation error for unsupported sort types."""
+
+        service = Mock()
+        service.settings = Mock()
+        search_service = TikTokSearchService(service)
+
+        result = search_service._validate_request("query", sort_type="TRENDING")
+
+        assert isinstance(result, dict)
+        assert result["error"]["code"] == "VALIDATION_ERROR"
+
+    async def test_prepare_context_builds_expected_components(self):
+        """_prepare_context should assemble the fetch context without invoking real network calls."""
+
+        service = Mock()
+        service.settings = Mock()
+        cleanup_callable = Mock()
+        fetcher = Mock()
+        fetcher.detect_capabilities.return_value = {"supports": True}
+        composer = Mock()
+        camoufox = Mock()
+        camoufox.build.side_effect = [
+            ({}, {"X-Test": "base"}),
+            ({"_user_data_cleanup": cleanup_callable, "other": "value"}, {"X-Test": "forced"}),
+        ]
+
+        with patch(
+            "app.services.common.adapters.scrapling_fetcher.ScraplingFetcherAdapter",
+            return_value=fetcher,
+        ) as mock_fetcher_cls, patch(
+            "app.services.common.adapters.scrapling_fetcher.FetchArgComposer",
+            return_value=composer,
+        ) as mock_composer_cls, patch(
+            "app.services.common.browser.camoufox.CamoufoxArgsBuilder",
+            return_value=camoufox,
+        ) as mock_builder_cls:
+            search_service = TikTokSearchService(service)
+            context = search_service._prepare_context(in_tests=True)
+
+        mock_fetcher_cls.assert_called_once_with()
+        mock_composer_cls.assert_called_once_with()
+        mock_builder_cls.assert_called_once_with()
+        fetcher.detect_capabilities.assert_called_once_with()
+        assert context["fetcher"] is fetcher
+        assert context["composer"] is composer
+        assert context["caps"] == {"supports": True}
+        assert context["additional_args"] == {"_user_data_cleanup": cleanup_callable, "other": "value"}
+        assert context["extra_headers"] == {"X-Test": "base"}
+        assert context["user_data_cleanup"] is cleanup_callable
+        assert context["options"]["headless"] is True
+
+    async def test_cleanup_user_data_invokes_callable(self):
+        """_cleanup_user_data waits before calling a provided cleanup function."""
+
+        service = Mock()
+        service.settings = Mock()
+        search_service = TikTokSearchService(service)
+        cleanup_callable = Mock()
+
+        with patch(
+            "app.services.tiktok.search_service.asyncio.sleep", new=AsyncMock()
+        ) as sleep_mock:
+            await search_service._cleanup_user_data(cleanup_callable)
+
+        sleep_mock.assert_awaited_once_with(3)
+        cleanup_callable.assert_called_once_with()
+
+    async def test_cleanup_user_data_ignores_missing_callable(self):
+        """_cleanup_user_data should not attempt cleanup when callable is missing."""
+
+        service = Mock()
+        service.settings = Mock()
+        search_service = TikTokSearchService(service)
+
+        with patch(
+            "app.services.tiktok.search_service.asyncio.sleep", new=AsyncMock()
+        ) as sleep_mock:
+            await search_service._cleanup_user_data(None)
+
+        sleep_mock.assert_not_called()
+
     async def test_search_tiktok_without_active_session(self, tiktok_service):
         """Test TikTok search without active session returns error"""
         result = await tiktok_service.search_tiktok("test query")
