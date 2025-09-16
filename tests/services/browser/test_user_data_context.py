@@ -1,10 +1,13 @@
 import os
+import shutil
 import sys
 import tempfile
 from pathlib import Path
+
 import pytest
 from unittest.mock import Mock, patch
 
+from app.services.common.browser import user_data as user_data_module
 from app.services.common.browser.user_data import user_data_context
 from app.schemas.crawl import CrawlRequest
 from app.services.common.browser.camoufox import CamoufoxArgsBuilder
@@ -70,44 +73,114 @@ class TestUserDataContext:
         # Cleanup should clean up resources
         assert os.path.exists(os.path.join(temp_base_dir, "master.lock"))
 
-    def test_read_mode_with_no_master(self, temp_base_dir):
+    def test_write_mode_windows_fallback(self, temp_base_dir, monkeypatch, caplog):
+        """Simulate Windows fallback when fcntl is unavailable."""
+        monkeypatch.setattr(user_data_module, "FCNTL_AVAILABLE", False)
+        lock_file = Path(temp_base_dir) / "master.lock"
+        cleanup_fn = None
+
+        caplog.clear()
+        with caplog.at_level("WARNING"):
+            with user_data_context(temp_base_dir, "write") as (effective_dir, cleanup):
+                cleanup_fn = cleanup
+                assert Path(effective_dir) == Path(temp_base_dir) / "master"
+                assert lock_file.exists()
+
+        assert cleanup_fn is not None
+        cleanup_fn()
+        assert not lock_file.exists()
+        assert "fcntl not available on this platform, using exclusive fallback" in caplog.text
+
+    def test_read_mode_with_no_master(self, temp_base_dir, caplog):
         """Test that read mode creates empty clone when no master exists."""
-        effective_dir = None
-        cleanup_func = None
+        clone_path = None
 
-        with user_data_context(temp_base_dir, "read") as (dir_path, cleanup):
-            effective_dir = dir_path
-            cleanup_func = cleanup
-            assert os.path.exists(effective_dir)
-            assert "clones" in effective_dir
+        caplog.clear()
+        with caplog.at_level("DEBUG"):
+            with user_data_context(temp_base_dir, "read") as (dir_path, cleanup):
+                clone_path = Path(dir_path)
+                assert clone_path.exists()
+                assert "clones" in dir_path
+                cleanup()
 
-        # After cleanup, clone directory should be removed
-        assert cleanup_func is not None
-        cleanup_func()  # Manually call cleanup
-        assert not os.path.exists(effective_dir)
+        assert clone_path is not None
+        assert not clone_path.exists()
+        assert f"Created empty clone directory: {clone_path}" in caplog.text
+        assert f"Cleaned up clone directory: {clone_path}" in caplog.text
 
-    def test_read_mode_with_master(self, temp_base_dir):
+    def test_read_mode_with_master(self, temp_base_dir, caplog):
         """Test that read mode clones from existing master."""
-        # Create master with some content
-        master_dir = os.path.join(temp_base_dir, "master")
-        os.makedirs(master_dir)
-        with open(os.path.join(master_dir, "test_file.txt"), "w") as f:
-            f.write("test content")
+        master_dir = Path(temp_base_dir) / "master"
+        master_dir.mkdir(parents=True, exist_ok=True)
+        (master_dir / "test_file.txt").write_text("test content")
 
-        effective_dir = None
-        cleanup_func = None
+        clone_path = None
 
-        with user_data_context(temp_base_dir, "read") as (dir_path, cleanup):
-            effective_dir = dir_path
-            cleanup_func = cleanup
-            assert os.path.exists(effective_dir)
-            assert "clones" in effective_dir
-            assert os.path.exists(os.path.join(effective_dir, "test_file.txt"))
+        caplog.clear()
+        with caplog.at_level("DEBUG"):
+            with user_data_context(temp_base_dir, "read") as (dir_path, cleanup):
+                clone_path = Path(dir_path)
+                assert clone_path.exists()
+                assert "clones" in dir_path
+                assert (clone_path / "test_file.txt").exists()
+                cleanup()
 
-        # After cleanup, clone directory should be removed
-        assert cleanup_func is not None
-        cleanup_func()  # Manually call cleanup
-        assert not os.path.exists(effective_dir)
+        assert clone_path is not None
+        assert not clone_path.exists()
+        assert f"Created clone directory: {clone_path}" in caplog.text
+        assert f"Cleaned up clone directory: {clone_path}" in caplog.text
+
+    def test_read_mode_clone_failure_logs_and_raises(self, temp_base_dir, monkeypatch, caplog):
+        """Ensure clone failures are logged and raised to the caller."""
+        master_dir = Path(temp_base_dir) / "master"
+        master_dir.mkdir(parents=True, exist_ok=True)
+        (master_dir / "data.txt").write_text("payload")
+
+        monkeypatch.setattr(
+            user_data_module,
+            "_copytree_recursive",
+            Mock(side_effect=RuntimeError("copy explosion")),
+        )
+
+        caplog.clear()
+        with caplog.at_level("ERROR"):
+            with pytest.raises(RuntimeError, match="Failed to create clone"):
+                with user_data_context(temp_base_dir, "read"):
+                    pass
+
+        assert "Error in user_data_context mode=read: Failed to create clone" in caplog.text
+        clones_root = Path(temp_base_dir) / "clones"
+        if clones_root.exists():
+            assert not any(clones_root.iterdir())
+
+    def test_cleanup_logs_warning_preserves_errors(
+        self, temp_base_dir, monkeypatch, caplog
+    ):
+        """Cleanup warnings should not mask the original exception."""
+        original_rmtree = shutil.rmtree
+        monkeypatch.setattr(
+            user_data_module.shutil,
+            "rmtree",
+            Mock(side_effect=OSError("cannot remove")),
+        )
+
+        clone_holder = {}
+
+        caplog.clear()
+        with caplog.at_level("WARNING"):
+            with pytest.raises(RuntimeError, match="boom"):
+                with user_data_context(temp_base_dir, "read") as (dir_path, cleanup):
+                    clone_holder["path"] = Path(dir_path)
+                    try:
+                        raise RuntimeError("boom")
+                    finally:
+                        cleanup()
+
+        assert "Failed to cleanup clone directory" in caplog.text
+        clone_path = clone_holder["path"]
+        assert clone_path.exists()
+        monkeypatch.setattr(user_data_module.shutil, "rmtree", original_rmtree)
+        shutil.rmtree(clone_path, ignore_errors=True)
 
     # Removed schema-level user_data_mode validation in new model
 
