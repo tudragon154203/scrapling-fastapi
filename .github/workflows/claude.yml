@@ -84,10 +84,18 @@ jobs:
       - name: Start Claude Code Router
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          OPENROUTER_API_KEY_2: ${{ secrets.OPENROUTER_API_KEY_2 }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           set -euo pipefail
           mkdir -p ~/.claude-code-router
+          selected_openrouter_api_key="${OPENROUTER_API_KEY:-}"
+          if [ -n "${OPENROUTER_API_KEY_2:-}" ]; then
+            run_number="${GITHUB_RUN_NUMBER:-0}"
+            if [ $((run_number % 2)) -eq 0 ]; then
+              selected_openrouter_api_key="${OPENROUTER_API_KEY_2}"
+            fi
+          fi
           cat > ~/.claude-code-router/config.json <<EOF
           {
             "LOG": false,
@@ -103,7 +111,7 @@ jobs:
               {
                 "name": "openrouter",
                 "api_base_url": "https://openrouter.ai/api/v1/chat/completions",
-                "api_key": "${OPENROUTER_API_KEY}",
+                "api_key": "${selected_openrouter_api_key}",
                 "models": [
                   "qwen/qwen3-coder:free",
                   "z-ai/glm-4.5-air:free",
