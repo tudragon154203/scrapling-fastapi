@@ -27,6 +27,21 @@ class ProxySelection:
     attempt_index: int
     aborted: bool = False
 
+    def __post_init__(self) -> None:
+        valid_modes = {"public", "private", "direct"}
+        if self.mode not in valid_modes:
+            raise ValueError(f"Invalid proxy mode '{self.mode}'. Expected one of {valid_modes}.")
+        if self.attempt_index < 0:
+            raise ValueError("attempt_index must be non-negative")
+        if self.mode == "direct":
+            if self.proxy:
+                raise ValueError("Direct mode selections must not include a proxy URL")
+        else:
+            if not self.proxy:
+                raise ValueError(f"Proxy URL required when mode is '{self.mode}'")
+        if self.aborted and self.mode != "direct":
+            raise ValueError("Aborted selections must use direct mode")
+
 
 @dataclass
 class AttemptResult:
@@ -34,6 +49,10 @@ class AttemptResult:
 
     response: Optional[CrawlResponse]
     error: Optional[str]
+
+    def __post_init__(self) -> None:
+        if (self.response is None) == (self.error is None):
+            raise ValueError("AttemptResult requires exactly one of response or error")
 
 
 class RetryingExecutor(IExecutor):
@@ -156,44 +175,22 @@ class RetryingExecutor(IExecutor):
                 return ProxySelection(candidate_proxy, candidate_mode, index)
             return ProxySelection(None, "direct", index, aborted=True)
 
-        selected_proxy: Optional[str] = None
-        mode = "direct"
         healthy_public = [
             proxy for proxy in public_proxies if not self.health_tracker.is_unhealthy(proxy)
         ]
         if healthy_public:
             healthy_public = sorted(healthy_public)[:2]
-            if (attempt_index >= settings.max_retries - 1) and private_proxy:
-                selected_proxy = private_proxy
-                mode = "private"
-            elif attempt_index == 0:
-                selected_proxy = healthy_public[0] if healthy_public else (private_proxy if private_proxy else None)
-                mode = "public"
-            elif attempt_index == 1:
+            if private_proxy and (
+                attempt_index >= settings.max_retries - 1 or attempt_index == 3
+            ):
+                return ProxySelection(private_proxy, "private", attempt_index)
+            if attempt_index == 1:
                 choice_list = [p for p in healthy_public if p != last_used_proxy] or healthy_public
-                selected_proxy = choice_list[0] if choice_list else (private_proxy if private_proxy else None)
-                mode = "public"
-            elif attempt_index == 2:
-                selected_proxy = healthy_public[0] if healthy_public else (private_proxy if private_proxy else None)
-                mode = "public"
-            elif attempt_index == 3 and private_proxy:
-                selected_proxy = private_proxy
-                mode = "private"
-            else:
-                if healthy_public:
-                    selected_proxy = healthy_public[0]
-                    mode = "public"
-                elif private_proxy and not self.health_tracker.is_unhealthy(private_proxy):
-                    selected_proxy = private_proxy
-                    mode = "private"
-        else:
-            if private_proxy and not self.health_tracker.is_unhealthy(private_proxy):
-                selected_proxy = private_proxy
-                mode = "private"
-            else:
-                selected_proxy = None
-                mode = "direct"
-        return ProxySelection(selected_proxy, mode, attempt_index)
+                return ProxySelection(choice_list[0], "public", attempt_index)
+            return ProxySelection(healthy_public[0], "public", attempt_index)
+        if private_proxy and not self.health_tracker.is_unhealthy(private_proxy):
+            return ProxySelection(private_proxy, "private", attempt_index)
+        return ProxySelection(None, "direct", attempt_index)
 
     def _run_attempt(self,
                      attempt_number: int,
