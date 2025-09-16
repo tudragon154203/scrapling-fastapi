@@ -295,7 +295,6 @@ def test_from_sigi_state_handles_json_missing_required_fields() -> None:
     assert video["likeCount"] == 0
 
 
-
 def test_from_sigi_state_handles_multiple_sigi_state_tags() -> None:
     """Only the first SIGI_STATE script tag is parsed when duplicates exist."""
     first = {"ItemModule": {"first": {"id": "first", "author": "a", "stats": {}}}}
