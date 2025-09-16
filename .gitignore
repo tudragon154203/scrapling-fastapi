@@ -99,3 +99,5 @@ tiktok_search.html
 # Github Actions
 .gemini/
 gha-creds-*.json
+# Disable opencode agent for now
+.github/workflows/opencode.yml

@@ -1,7 +1,9 @@
 import inspect
 import logging
 import threading
-from typing import Any, Dict, Optional
+from collections.abc import MutableMapping
+from dataclasses import dataclass, field
+from typing import Any, Dict, Iterable, Iterator, Optional, Union
 from app.services.common.interfaces import IFetchClient
 from app.services.common.types import FetchCapabilities
 from app.services.crawler.proxy.redact import redact_proxy as _redact_proxy
@@ -13,6 +15,87 @@ import types
 import importlib
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class FetchParams(MutableMapping[str, Any]):
+    """Stateful mapping of Scrapling fetch keyword arguments."""
+
+    _values: Dict[str, Any] = field(default_factory=dict)
+    geoip_enabled: bool = field(init=False)
+    wait_selector: Optional[str] = field(init=False)
+    network_idle_enabled: bool = field(init=False)
+
+    def __post_init__(self) -> None:
+        # Always copy user-provided mappings so mutations stay local.
+        self._values = dict(self._values or {})
+        self._refresh_state()
+
+    # -- MutableMapping protocol -------------------------------------------------
+    def __getitem__(self, key: str) -> Any:
+        return self._values[key]
+
+    def __setitem__(self, key: str, value: Any) -> None:
+        self._values[key] = value
+        self._refresh_state()
+
+    def __delitem__(self, key: str) -> None:
+        del self._values[key]
+        self._refresh_state()
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self._values)
+
+    def __len__(self) -> int:
+        return len(self._values)
+
+    # -- Convenience helpers -----------------------------------------------------
+    def _refresh_state(self) -> None:
+        self.geoip_enabled = bool(self._values.get("geoip"))
+        self.wait_selector = self._values.get("wait_selector")
+        self.network_idle_enabled = bool(self._values.get("network_idle", False))
+
+    def as_kwargs(self) -> Dict[str, Any]:
+        """Return a shallow copy suitable for **kwargs expansion."""
+        return dict(self._values)
+
+    def copy(self) -> "FetchParams":
+        """Clone the current parameters for safe mutation."""
+        return FetchParams(self._values)
+
+    def without_geoip(self) -> "FetchParams":
+        """Produce a copy with geoip removed."""
+        if "geoip" not in self._values:
+            return self.copy()
+        clone = dict(self._values)
+        clone.pop("geoip", None)
+        return FetchParams(clone)
+
+    def get(self, key: str, default: Any = None) -> Any:  # type: ignore[override]
+        return self._values.get(key, default)
+
+    def setdefault(self, key: str, default: Any = None) -> Any:
+        result = self._values.setdefault(key, default)
+        self._refresh_state()
+        return result
+
+    def update(self, mapping: Optional[Dict[str, Any]] = None, **kwargs: Any) -> None:
+        if mapping:
+            self._values.update(mapping)
+        if kwargs:
+            self._values.update(kwargs)
+        self._refresh_state()
+
+    def items(self):
+        return self._values.items()
+
+    def __contains__(self, item: object) -> bool:
+        return item in self._values
+
+    @property
+    def allows_http_fallback(self) -> bool:
+        """Return True when HTTP fallback is viable for timeout errors."""
+        return self.wait_selector is not None and not self.network_idle_enabled
 
 
 class ScraplingFetcherAdapter(IFetchClient):
@@ -53,15 +136,19 @@ class ScraplingFetcherAdapter(IFetchClient):
         )
         return self._capabilities
 
-    def fetch(self, url: str, args: Dict[str, Any]) -> Any:
+    def fetch(self, url: str, args: Union[FetchParams, Dict[str, Any], None]) -> Any:
         """Fetch the given URL using StealthyFetcher with thread safety."""
         logger.info(f"Launching browser for URL: {url}")
         StealthyFetcher = self._get_stealthy_fetcher()
         StealthyFetcher.adaptive = True
-        # Handle asyncio event loop conflicts
+        params = args if isinstance(args, FetchParams) else FetchParams(args or {})
+        return self._run_with_event_loop(url, params)
+
+    def _run_with_event_loop(self, url: str, params: FetchParams) -> Any:
+        """Execute fetch directly or delegate to a background thread when needed."""
         if self._has_running_loop():
-            return self._fetch_in_thread(url, args)
-        return self._fetch_with_geoip_fallback(url, args)
+            return self._fetch_in_thread(url, params)
+        return self._fetch_with_retry(url, params)
 
     def _has_running_loop(self) -> bool:
         """Check if there's a running asyncio event loop in the current thread."""
@@ -71,7 +158,7 @@ class ScraplingFetcherAdapter(IFetchClient):
         except Exception:
             return False
 
-    def _fetch_in_thread(self, url: str, args: Dict[str, Any]) -> Any:
+    def _fetch_in_thread(self, url: str, params: FetchParams) -> Any:
         """Execute fetch in a dedicated thread if event loop is running."""
         logger.info(f"Launching browser in thread for URL: {url}")
         holder: Dict[str, Any] = {}
@@ -85,9 +172,7 @@ class ScraplingFetcherAdapter(IFetchClient):
                         asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
                     except Exception:
                         pass
-                StealthyFetcher = self._get_stealthy_fetcher()
-                result = StealthyFetcher.fetch(url, **args)
-                holder["result"] = result
+                holder["result"] = self._fetch_with_retry(url, params)
             except Exception as e:
                 holder["exc"] = e
         t = threading.Thread(target=_runner, daemon=True)
@@ -97,34 +182,43 @@ class ScraplingFetcherAdapter(IFetchClient):
             raise holder["exc"]
         return holder.get("result")
 
-    def _fetch_with_geoip_fallback(self, url: str, args: Dict[str, Any]) -> Any:
-        """Fetch with GeoIP fallback: try with geoip, retry without if DB error."""
+    def _fetch_with_retry(self, url: str, params: FetchParams) -> Any:
+        """Attempt fetch, retrying without GeoIP or via HTTP fallback when needed."""
         try:
-            StealthyFetcher = self._get_stealthy_fetcher()
-            return StealthyFetcher.fetch(url, **args)
-        except Exception as e:
-            # Check for known GeoIP database errors
-            error_str = str(e)
-            error_type = str(type(e))
-            if ("InvalidDatabaseError" in error_type or
-                    "GeoLite2-City.mmdb" in error_str):
-                logger.warning(f"GeoIP database error: {e}. Retrying without geoip.")
-                # Remove geoip from args and retry
-                retry_args = args.copy()
-                retry_args.pop("geoip", None)
-                StealthyFetcher = self._get_stealthy_fetcher()
-                return StealthyFetcher.fetch(url, **retry_args)
-            else:
-                # Consider light-weight HTTP fallback for navigation timeouts on JS-heavy pages
-                if ("Timeout" in error_type or "Timeout" in error_str or "Page.goto" in error_str) \
-                   and (args.get("wait_selector") is not None) \
-                   and (not bool(args.get("network_idle", False))):
-                    try:
-                        return self._http_fallback(url)
-                    except Exception:
-                        pass
-                # Re-raise if not handled
-                raise
+            return self._execute_fetch(url, params)
+        except Exception as exc:
+            if params.geoip_enabled and self._is_geoip_error(exc):
+                logger.warning(f"GeoIP database error: {exc}. Retrying without geoip.")
+                return self._execute_fetch(url, params.without_geoip())
+            if self._should_http_fallback(exc, params):
+                try:
+                    return self._http_fallback(url)
+                except Exception:
+                    pass
+            raise
+
+    def _execute_fetch(self, url: str, params: FetchParams) -> Any:
+        StealthyFetcher = self._get_stealthy_fetcher()
+        return StealthyFetcher.fetch(url, **params.as_kwargs())
+
+    @staticmethod
+    def _is_geoip_error(exc: Exception) -> bool:
+        error_str = str(exc)
+        error_type = type(exc).__name__
+        return "InvalidDatabaseError" in error_type or "GeoLite2-City.mmdb" in error_str
+
+    @staticmethod
+    def _should_http_fallback(exc: Exception, params: FetchParams) -> bool:
+        error_str = str(exc)
+        error_type = type(exc).__name__
+        timeout_error = (
+            "Timeout" in error_type
+            or "Timeout" in error_str
+            or "Page.goto" in error_str
+        )
+        if not timeout_error:
+            return False
+        return params.allows_http_fallback
 
     def _http_fallback(self, url: str) -> Any:
         """Simple HTTP fallback returning a minimal response-like object.
@@ -186,92 +280,118 @@ class ScraplingFetcherAdapter(IFetchClient):
 
 class FetchArgComposer:
     """Composer for fetch arguments that handles capabilities safely."""
-    @staticmethod
-    def compose(options: Dict[str, Any], caps: FetchCapabilities, selected_proxy: Optional[str],
-                additional_args: Dict[str, Any], extra_headers: Optional[Dict[str, str]],
-                settings: Any, page_action: Optional[Any] = None) -> Dict[str, Any]:
+
+    _USER_DATA_KEYS: tuple[str, ...] = (
+        "user_data_dir",
+        "profile_dir",
+        "profile_path",
+        "user_data",
+    )
+
+    @classmethod
+    def compose(
+        cls,
+        options: Dict[str, Any],
+        caps: FetchCapabilities,
+        selected_proxy: Optional[str],
+        additional_args: Dict[str, Any],
+        extra_headers: Optional[Dict[str, str]],
+        settings: Any,
+        page_action: Optional[Any] = None,
+    ) -> FetchParams:
         """Compose fetch arguments from components in a capability-safe way."""
         proxy = selected_proxy  # Alias for compatibility
-
-        def _ok(name: str) -> bool:
-            # For capabilities not in FetchCapabilities, we check directly
-            return getattr(caps, f"supports_{name}", False)
-        fetch_kwargs: Dict[str, Any] = dict(
-            headless=options.get("headless", True),
-            network_idle=options.get("network_idle", False),
-            wait=int(options.get("wait_ms", 0) or 0),  # allow small stabilization delay after waits
+        fetch_kwargs = FetchParams(
+            {
+                "headless": options.get("headless", True),
+                "network_idle": options.get("network_idle", False),
+                "wait": int(options.get("wait_ms", 0) or 0),
+            }
         )
-        # Timeout handling: allow effectively disabling in write mode by using a very large value
-        if options.get("disable_timeout") is True:
-            # Use a very large timeout (defaults to 24h) to emulate no-timeout without passing null
-            large_timeout_ms = getattr(settings, "write_mode_timeout_ms", 86_400_000)
-            fetch_kwargs["timeout"] = large_timeout_ms
-        else:
-            fetch_kwargs["timeout"] = (
-                (options.get("timeout_seconds") * 1000)
-                if options.get("timeout_seconds")
-                else options.get("timeout_ms", 20000)
-            )  # Use converted seconds or default ms
-        # Only add selector-related args if selector is provided
+        cls._apply_timeouts(fetch_kwargs, options, settings)
+
         if options.get("wait_for_selector"):
             fetch_kwargs["wait_selector"] = options["wait_for_selector"]
             fetch_kwargs["wait_selector_state"] = options.get("wait_for_selector_state", "visible")
-        if caps.supports_proxy and proxy:
+
+        if getattr(caps, "supports_proxy", False) and proxy:
             fetch_kwargs["proxy"] = proxy
             redacted_proxy = _redact_proxy(proxy)
             logger.debug(f"Using proxy: {redacted_proxy}")
         else:
             logger.debug("No proxy used for this request")
-        # Note: geoip, extra_headers, and page_action support need to be handled differently
-        # since they're not in the basic FetchCapabilities class
-        if caps.supports_geoip:
+
+        if getattr(caps, "supports_geoip", False):
             fetch_kwargs["geoip"] = True
-        if caps.supports_additional_args and additional_args:
-            # Filter out any private/sentinel keys (e.g., cleanup callbacks) so they are NOT
-            # forwarded into browser launch kwargs (e.g., Playwright), which would error.
-            # Also filter out keys that are not supported by the fetcher
-            try:
-                safe_additional_args = {}
-                for k, v in (additional_args or {}).items():
-                    # Skip private/sentinel keys
-                    if str(k).startswith("_"):
-                        continue
-                    # Check if the key is supported by the fetcher
-                    if _ok(k):
-                        safe_additional_args[k] = v
-                    # Special case: user_data_dir, profile_dir, profile_path, user_data are all related to user data
-                    # If any of these are supported, we can pass user_data_dir
-                    elif k == "user_data_dir" and (_ok("user_data_dir") or _ok("profile_dir") or _ok("profile_path") or _ok("user_data")):
-                        safe_additional_args[k] = v
-                    elif k == "profile_dir" and (_ok("profile_dir") or _ok("user_data_dir") or _ok("profile_path") or _ok("user_data")):
-                        safe_additional_args[k] = v
-                    elif k == "profile_path" and (_ok("profile_path") or _ok("user_data_dir") or _ok("profile_dir") or _ok("user_data")):
-                        safe_additional_args[k] = v
-                    elif k == "user_data" and (_ok("user_data") or
-                                               _ok("user_data_dir") or
-                                               _ok("profile_dir") or
-                                               _ok("profile_path")):
-                        safe_additional_args[k] = v
-            except Exception:
-                safe_additional_args = additional_args or {}
-            if safe_additional_args:
-                fetch_kwargs["additional_args"] = safe_additional_args
-        if _ok("extra_headers") and extra_headers:
-            fetch_kwargs["extra_headers"] = extra_headers
-        if _ok("page_action") and page_action is not None:
+
+        cls._apply_user_data(fetch_kwargs, caps, additional_args or {})
+        cls._apply_headers(fetch_kwargs, caps, extra_headers)
+
+        if cls._supports(caps, "page_action") and page_action is not None:
             fetch_kwargs["page_action"] = page_action
-        # Avoid strict 'load' navigation wait for selector-driven flows
-        # When a selector is provided and network_idle is False, prefer a lighter wait
-        # by hinting the engine via custom_config. This relies on Scrapling/Camoufox
-        # honoring 'wait_until' for navigation.
-        if options.get("prefer_domcontentloaded") and _ok("custom_config"):
-            # Initialize or extend custom_config
+
+        if options.get("prefer_domcontentloaded") and cls._supports(caps, "custom_config"):
             cfg = fetch_kwargs.get("custom_config") or {}
-            # Use commonly recognized keys
             cfg.setdefault("wait_until", "domcontentloaded")
             cfg.setdefault("goto_wait_until", "domcontentloaded")
             fetch_kwargs["custom_config"] = cfg
-        # Enable Cloudflare solving when supported by StealthyFetcher
-        # if caps.supports_solve_cloudflare:
-        #     fetch_kwargs["solve_cloudflare"] = True
+
         return fetch_kwargs
+
+    @staticmethod
+    def _apply_timeouts(fetch_kwargs: FetchParams, options: Dict[str, Any], settings: Any) -> None:
+        """Apply timeout configuration based on options/settings."""
+        if options.get("disable_timeout") is True:
+            large_timeout_ms = getattr(settings, "write_mode_timeout_ms", 86_400_000)
+            fetch_kwargs["timeout"] = large_timeout_ms
+            return
+        timeout_ms = (
+            (options.get("timeout_seconds") * 1000)
+            if options.get("timeout_seconds")
+            else options.get("timeout_ms", 20000)
+        )
+        fetch_kwargs["timeout"] = timeout_ms
+
+    @classmethod
+    def _apply_user_data(
+        cls,
+        fetch_kwargs: FetchParams,
+        caps: FetchCapabilities,
+        additional_args: Dict[str, Any],
+    ) -> None:
+        """Filter and attach additional args with user-data awareness."""
+        if not additional_args or not cls._supports(caps, "additional_args"):
+            return
+        try:
+            safe_additional_args: Dict[str, Any] = {}
+            for key, value in additional_args.items():
+                if str(key).startswith("_"):
+                    continue
+                if cls._supports(caps, key):
+                    safe_additional_args[key] = value
+                    continue
+                if key in cls._USER_DATA_KEYS and cls._supports_any(caps, cls._USER_DATA_KEYS):
+                    safe_additional_args[key] = value
+            if safe_additional_args:
+                fetch_kwargs["additional_args"] = safe_additional_args
+        except Exception:
+            fetch_kwargs["additional_args"] = dict(additional_args)
+
+    @classmethod
+    def _apply_headers(
+        cls,
+        fetch_kwargs: FetchParams,
+        caps: FetchCapabilities,
+        extra_headers: Optional[Dict[str, str]],
+    ) -> None:
+        """Attach extra headers when supported by the fetcher."""
+        if extra_headers and cls._supports(caps, "extra_headers"):
+            fetch_kwargs["extra_headers"] = extra_headers
+
+    @staticmethod
+    def _supports(caps: FetchCapabilities, name: str) -> bool:
+        return getattr(caps, f"supports_{name}", False)
+
+    @classmethod
+    def _supports_any(cls, caps: FetchCapabilities, names: Iterable[str]) -> bool:
+        return any(cls._supports(caps, name) for name in names)
