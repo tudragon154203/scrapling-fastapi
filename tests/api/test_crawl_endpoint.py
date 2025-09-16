@@ -98,3 +98,25 @@ def test_crawl_endpoint_patch_fallback_json_response(monkeypatch):
     assert isinstance(req_obj, SimpleNamespace)
     assert req_obj.url == "https://fallback.example.com"
     assert req_obj.force_user_data is False
+
+
+def test_crawl_endpoint_mock_without_json_payload(monkeypatch):
+    from app.api import crawl as crawl_module
+    from app.schemas.crawl import CrawlRequest
+
+    payload = CrawlRequest(url="https://fallback.example.com/", force_user_data=True)
+    fallback_result = MagicMock(spec_set=["status_code"], status_code=555)
+    patched = MagicMock(return_value=fallback_result)
+    monkeypatch.setattr(crawl_module, "crawl", patched)
+
+    response = crawl_module.crawl_endpoint(payload)
+
+    assert isinstance(response, JSONResponse)
+    assert response.status_code == 555
+    assert json.loads(response.body) == {}
+
+    patched.assert_called_once()
+    req_obj = patched.call_args.kwargs["request"]
+    assert isinstance(req_obj, SimpleNamespace)
+    assert req_obj.url == "https://fallback.example.com"
+    assert req_obj.force_user_data is True
