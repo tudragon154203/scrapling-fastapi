@@ -1,7 +1,6 @@
 const events = require('node:events');
 
-const DEFAULT_LIMIT = Number.parseInt(process.env.GEMINI_ABORT_LISTENER_LIMIT ?? '', 10);
-const limit = Number.isFinite(DEFAULT_LIMIT) && DEFAULT_LIMIT > 0 ? DEFAULT_LIMIT : 25;
+const limit = 30;
 
 try {
   // Increase the default listener ceiling for EventEmitters/EventTargets used by the Gemini CLI.
