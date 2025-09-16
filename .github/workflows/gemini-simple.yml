@@ -9,10 +9,11 @@ on:
 jobs:
   gemini:
     if: |
-      contains(github.event.comment.body, 'Gemini') || 
+      contains(github.event.comment.body, 'Gemini') ||
       contains(github.event.comment.body, 'GEMINI') ||
+      contains(github.event.comment.body, '@gemini') ||
       contains(github.event.comment.body, '@gemini-cli') ||
-      contains(github.event.comment.body, '/gemini') 
+      contains(github.event.comment.body, '/gemini')
     runs-on: ubuntu-latest
     environment: 'Agents/Bots'
     permissions:
