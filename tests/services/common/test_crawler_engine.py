@@ -1,5 +1,3 @@
-import pytest
-
 from app.core.config import Settings
 from app.schemas.crawl import CrawlRequest, CrawlResponse
 from app.services.common import engine as engine_module
