@@ -6,10 +6,9 @@ The 'service' parameter is the TiktokService instance providing settings and ses
 from __future__ import annotations
 import os
 import logging
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union, cast
 import asyncio
 import sys
-import time
 from urllib.parse import quote_plus
 
 # Project-internal imports are intentionally lazy-loaded in methods to
@@ -33,128 +32,44 @@ class TikTokSearchService:
             f"[TikTokSearchService] Starting search - query: {query}, "
             f"num_videos: {num_videos}, sort_type: {sort_type}, recency_days: {recency_days}"
         )
-        # 1) Enforce sort type (current API supports RELEVANCE only)
-        self.logger.debug(f"[TikTokSearchService] Checking sort_type: {sort_type}")
-        err = self._enforce_sort_type(sort_type)
-        if err is not None:
-            self.logger.warning(f"[TikTokSearchService] Sort type validation failed: {err}")
-            return err
-        # 2) Normalize queries
-        self.logger.debug(f"[TikTokSearchService] Normalizing query: {query}")
-        ok, queries_or_err = self._normalize_queries(query)
-        if not ok:
-            self.logger.warning(f"[TikTokSearchService] Query normalization failed: {queries_or_err}")
-            return queries_or_err  # error dict
-        queries: List[str] = queries_or_err  # type: ignore
-        self.logger.debug(f"[TikTokSearchService] Normalized queries: {queries}")
-        # 3) Check test environment
+        queries_or_error = self._validate_request(query=query, sort_type=sort_type)
+        if isinstance(queries_or_error, dict):
+            return queries_or_error
+        queries: List[str] = queries_or_error
+
         in_tests = self._is_tests_env()
         self.logger.debug(f"[TikTokSearchService] Test environment: {in_tests}")
-        # 4) Prepare fetch context (search operates independently of sessions)
-        self.logger.debug("[TikTokSearchService] Preparing fetch context for independent search")
-        (
-            fetcher,
-            composer,
-            caps,
-            additional_args,
-            extra_headers,
-            user_data_cleanup,
-            options,
-        ) = self._prepare_fetch_context(in_tests=in_tests)
+        context = self._prepare_context(in_tests=in_tests)
+
         # Defer parser import to avoid circular imports at module load
         from app.services.tiktok.parser.orchestrator import TikTokSearchParser  # no-hoist
 
-        # 5) Fetch and aggregate results across queries
+        parser = TikTokSearchParser()
         aggregated: List[Dict[str, Any]] = []
         seen_ids: set = set()
         seen_urls: set = set()
         base_url = str(self.settings.tiktok_url or "https://www.tiktok.com/").rstrip("/")
         self.logger.debug(f"[TikTokSearchService] Base URL: {base_url}")
         self.logger.debug(f"[TikTokSearchService] Starting fetch loop for {len(queries)} queries")
-        for i, q in enumerate(queries):
-            self.logger.debug(f"[TikTokSearchService] Processing query {i+1}/{len(queries)}: '{q}'")
-            try:
-                search_url = f"{base_url}/search/video?q={quote_plus(q)}"
-                self.logger.debug(f"[TikTokSearchService] Search URL: {search_url}")
-                fetch_kwargs = composer.compose(
-                    options=options,
-                    caps=caps,
-                    selected_proxy=getattr(self.settings, "private_proxy_url", None) or None,
-                    additional_args=additional_args,
-                    extra_headers=extra_headers,
-                    settings=self.settings,
-                    page_action=None,
-                )
-                self.logger.debug(f"[TikTokSearchService] Fetch kwargs prepared with options: {options}")
-                page = fetcher.fetch(search_url, fetch_kwargs)
-                status_code = int(getattr(page, "status", 0) or 0)
-                html = getattr(page, "html_content", "") or ""
-                # Check if logging level is DEBUG and export raw HTML to file
-                if self.logger.level <= logging.DEBUG:
-                    try:
-                        self.logger.debug("[TikTokSearchService] Exporting HTML to tiktok_search.html")
-                        file_path = os.path.join(os.getcwd(), 'tiktok_search.html')
-                        with open(file_path, "w", encoding="utf-8") as f:
-                            f.write(html)
-                        self.logger.debug("[TikTokSearchService] Raw HTML exported to tiktok_search.html")
-                    except Exception as e:
-                        self.logger.warning(f"[TikTokSearchService] Failed to export raw HTML: {e}")
-                self.logger.debug(
-                    f"[TikTokSearchService] Fetch result - status_code: {status_code}, "
-                    f"html_length: {len(html)}"
-                )
-                if status_code < 200 or status_code >= 300 or not html:
-                    self.logger.warning(
-                        f"[TikTokSearchService] Invalid response for query '{q}': "
-                        f"status={status_code}, html_length={len(html)}"
-                    )
-                    continue
-                items = TikTokSearchParser().parse(html) or []
-                self.logger.debug(f"[TikTokSearchService] Extracted {len(items)} video items from HTML for query '{q}'")
-                if items:
-                    self.logger.debug(f"[TikTokSearchService] First item sample: {items[0]}")
-                else:
-                    self.logger.debug(f"[TikTokSearchService] No items extracted from HTML, HTML length: {len(html)}")
-                    # Log a small sample of the HTML to understand the structure
-                    if len(html) > 1000:
-                        self.logger.debug(f"[TikTokSearchService] HTML sample: {html[:1000]}...")
-                    else:
-                        self.logger.debug(f"[TikTokSearchService] HTML content: {html}")
-                for item in items:
-                    vid = str(item.get("id", "") or "")
-                    url = str(item.get("webViewUrl", "") or "")
-                    if vid and vid not in seen_ids:
-                        seen_ids.add(vid)
-                        if url:
-                            seen_urls.add(url)
-                        aggregated.append(item)
-                    elif (not vid) and url and (url not in seen_urls):
-                        seen_urls.add(url)
-                        aggregated.append(item)
-                self.logger.debug(
-                    f"[TikTokSearchService] After processing query '{q}': {len(aggregated)} total videos, "
-                    f"{len(seen_ids)} unique IDs, {len(seen_urls)} unique URLs"
-                )
-                if len(aggregated) >= int(num_videos):
-                    self.logger.debug(
-                        f"[TikTokSearchService] Reached target video count ({num_videos}), "
-                        f"breaking from search loop"
-                    )
-                    break
-            except Exception as e:
-                self.logger.error(f"[TikTokSearchService] Exception processing query '{q}': {e}", exc_info=True)
-                continue
+        target_count = int(num_videos)
+        for index, normalized_query in enumerate(queries):
+            should_stop = self._process_query(
+                query=normalized_query,
+                index=index,
+                total_queries=len(queries),
+                base_url=base_url,
+                parser=parser,
+                aggregated=aggregated,
+                seen_ids=seen_ids,
+                seen_urls=seen_urls,
+                target_count=target_count,
+                context=context,
+            )
+            if should_stop:
+                break
+
         # Skip detail-page enrichment; rely solely on search-page HTML like demo
-        if callable(user_data_cleanup):
-            self.logger.debug("[TikTokSearchService] Calling user_data_cleanup function")
-            try:
-                # Add a small delay before cleanup to ensure parsing is complete
-                time.sleep(3)
-                user_data_cleanup()
-                self.logger.debug("[TikTokSearchService] User data cleanup completed successfully")
-            except Exception as e:
-                self.logger.error(f"[TikTokSearchService] User data cleanup failed: {e}", exc_info=True)
-                pass
+        await self._cleanup_user_data(context.get("user_data_cleanup"))
         limit = max(0, min(int(num_videos), 50))
         final_results = aggregated[:limit]
         normalized_query = " ".join(queries)
@@ -213,7 +128,26 @@ class TikTokSearchService:
             }
         return True, [q]
 
-    def _prepare_fetch_context(self, in_tests: bool):
+    def _validate_request(
+        self,
+        query: Union[str, List[str]],
+        sort_type: Optional[str],
+    ) -> Union[List[str], Dict[str, Any]]:
+        self.logger.debug(f"[TikTokSearchService] Checking sort_type: {sort_type}")
+        err = self._enforce_sort_type(sort_type)
+        if err is not None:
+            self.logger.warning(f"[TikTokSearchService] Sort type validation failed: {err}")
+            return err
+        self.logger.debug(f"[TikTokSearchService] Normalizing query: {query}")
+        ok, queries_or_err = self._normalize_queries(query)
+        if not ok:
+            self.logger.warning(f"[TikTokSearchService] Query normalization failed: {queries_or_err}")
+            return queries_or_err
+        queries = cast(List[str], queries_or_err)
+        self.logger.debug(f"[TikTokSearchService] Normalized queries: {queries}")
+        return queries
+
+    def _prepare_context(self, in_tests: bool) -> Dict[str, Any]:
         from app.services.common.adapters.scrapling_fetcher import ScraplingFetcherAdapter, FetchArgComposer
         from app.services.common.browser.camoufox import CamoufoxArgsBuilder
         self.logger.debug(
@@ -278,5 +212,127 @@ class TikTokSearchService:
             f"[TikTokSearchService] Extra headers: {extra_headers is not None}, "
             f"User data cleanup: {user_data_cleanup is not None}"
         )
-        return fetcher, composer, caps, additional_args, extra_headers, user_data_cleanup, options
+        return {
+            "fetcher": fetcher,
+            "composer": composer,
+            "caps": caps,
+            "additional_args": additional_args,
+            "extra_headers": extra_headers,
+            "user_data_cleanup": user_data_cleanup,
+            "options": options,
+        }
+
+    def _process_query(
+        self,
+        *,
+        query: str,
+        index: int,
+        total_queries: int,
+        base_url: str,
+        parser: Any,
+        aggregated: List[Dict[str, Any]],
+        seen_ids: set,
+        seen_urls: set,
+        target_count: int,
+        context: Dict[str, Any],
+    ) -> bool:
+        self.logger.debug(
+            f"[TikTokSearchService] Processing query {index + 1}/{total_queries}: '{query}'"
+        )
+        try:
+            fetcher = context["fetcher"]
+            composer = context["composer"]
+            caps = context["caps"]
+            additional_args = context["additional_args"]
+            extra_headers = context["extra_headers"]
+            options = context["options"]
+            search_url = f"{base_url}/search/video?q={quote_plus(query)}"
+            self.logger.debug(f"[TikTokSearchService] Search URL: {search_url}")
+            fetch_kwargs = composer.compose(
+                options=options,
+                caps=caps,
+                selected_proxy=getattr(self.settings, "private_proxy_url", None) or None,
+                additional_args=additional_args,
+                extra_headers=extra_headers,
+                settings=self.settings,
+                page_action=None,
+            )
+            self.logger.debug(f"[TikTokSearchService] Fetch kwargs prepared with options: {options}")
+            page = fetcher.fetch(search_url, fetch_kwargs)
+            status_code = int(getattr(page, "status", 0) or 0)
+            html = getattr(page, "html_content", "") or ""
+            if self.logger.level <= logging.DEBUG:
+                try:
+                    self.logger.debug("[TikTokSearchService] Exporting HTML to tiktok_search.html")
+                    file_path = os.path.join(os.getcwd(), "tiktok_search.html")
+                    with open(file_path, "w", encoding="utf-8") as f:
+                        f.write(html)
+                    self.logger.debug("[TikTokSearchService] Raw HTML exported to tiktok_search.html")
+                except Exception as e:
+                    self.logger.warning(f"[TikTokSearchService] Failed to export raw HTML: {e}")
+            self.logger.debug(
+                f"[TikTokSearchService] Fetch result - status_code: {status_code}, "
+                f"html_length: {len(html)}"
+            )
+            if status_code < 200 or status_code >= 300 or not html:
+                self.logger.warning(
+                    f"[TikTokSearchService] Invalid response for query '{query}': "
+                    f"status={status_code}, html_length={len(html)}"
+                )
+                return False
+            items = parser.parse(html) or []
+            self.logger.debug(
+                f"[TikTokSearchService] Extracted {len(items)} video items from HTML for query '{query}'"
+            )
+            if items:
+                self.logger.debug(f"[TikTokSearchService] First item sample: {items[0]}")
+            else:
+                self.logger.debug(
+                    f"[TikTokSearchService] No items extracted from HTML, HTML length: {len(html)}"
+                )
+                if len(html) > 1000:
+                    self.logger.debug(f"[TikTokSearchService] HTML sample: {html[:1000]}...")
+                else:
+                    self.logger.debug(f"[TikTokSearchService] HTML content: {html}")
+            for item in items:
+                vid = str(item.get("id", "") or "")
+                url = str(item.get("webViewUrl", "") or "")
+                if vid and vid not in seen_ids:
+                    seen_ids.add(vid)
+                    if url:
+                        seen_urls.add(url)
+                    aggregated.append(item)
+                elif (not vid) and url and (url not in seen_urls):
+                    seen_urls.add(url)
+                    aggregated.append(item)
+            self.logger.debug(
+                f"[TikTokSearchService] After processing query '{query}': {len(aggregated)} total videos, "
+                f"{len(seen_ids)} unique IDs, {len(seen_urls)} unique URLs"
+            )
+            should_stop = len(aggregated) >= target_count
+            if should_stop:
+                self.logger.debug(
+                    f"[TikTokSearchService] Reached target video count ({target_count}), breaking from search loop"
+                )
+            return should_stop
+        except Exception as e:
+            self.logger.error(
+                f"[TikTokSearchService] Exception processing query '{query}': {e}",
+                exc_info=True,
+            )
+            return False
+
+    async def _cleanup_user_data(self, cleanup_callable: Optional[Callable[[], None]]) -> None:
+        if not callable(cleanup_callable):
+            return
+        self.logger.debug("[TikTokSearchService] Calling user_data_cleanup function")
+        try:
+            await asyncio.sleep(3)
+            cleanup_callable()
+            self.logger.debug("[TikTokSearchService] User data cleanup completed successfully")
+        except Exception as e:
+            self.logger.error(
+                f"[TikTokSearchService] User data cleanup failed: {e}",
+                exc_info=True,
+            )
     # No detail enrichment or page_action injection; operate like demo on search page only
