@@ -15,7 +15,7 @@ from app.schemas.tiktok.session import (
     TikTokSessionConfig,
 )
 from app.core.config import get_settings
-from app.services.tiktok.search_service import TikTokSearchService
+from app.services.tiktok.url_param_search_service import TikTokURLParamSearchService
 
 
 class TiktokService:
@@ -145,8 +145,10 @@ class TiktokService:
 
         try:
             # Execute search (search operates independently of sessions)
-            self.logger.debug("[TiktokService] Creating TikTokSearchService and executing independent search")
-            search_service = TikTokSearchService(self)
+            self.logger.debug(
+                "[TiktokService] Creating TikTokURLParamSearchService and executing independent search"
+            )
+            search_service = TikTokURLParamSearchService(self)
             result = await search_service.search(
                 query, num_videos=num_videos, sort_type=sort_type, recency_days=recency_days
             )
@@ -158,7 +160,7 @@ class TiktokService:
         except Exception as e:
             self.logger.error(f"[TiktokService] Exception in search_tiktok: {e}", exc_info=True)
             return {"error": f"Search failed: {str(e)}"}
-    # Search helpers moved to app.services.tiktok.search_service
+    # Search helpers moved to app.services.tiktok.url_param_search_service
 
     async def close_session(self, session_id: str) -> bool:
         """
