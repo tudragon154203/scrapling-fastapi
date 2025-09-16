@@ -3,6 +3,7 @@ Unit tests for TikTok Search Service
 """
 import pytest
 from unittest.mock import AsyncMock, Mock, patch
+from app.services.tiktok.search_service import TikTokSearchService
 from app.services.tiktok.service import TiktokService
 from app.services.tiktok.tiktok_executor import TiktokExecutor
 
@@ -35,9 +36,21 @@ class TestTikTokSearchService:
             "login_state": "logged_in"
         }
 
-        # Mock the search_tiktok method to return test data
-        with patch.object(tiktok_service, 'get_active_session', new=AsyncMock(return_value=mock_executor)):
+        # Mock the independent search service to avoid network calls
+        with patch.object(
+            tiktok_service, 'get_active_session', new=AsyncMock(return_value=mock_executor)
+        ), patch("app.services.tiktok.service.TikTokSearchService") as mock_search_service:
+            mock_instance = mock_search_service.return_value
+            mock_instance.search = AsyncMock(
+                return_value={"results": [{"id": "123"}], "totalResults": 1, "query": "test query"}
+            )
+
             result = await tiktok_service.search_tiktok("test query")
+
+            mock_search_service.assert_called_once_with(tiktok_service)
+            mock_instance.search.assert_awaited_once_with(
+                "test query", num_videos=50, sort_type="RELEVANCE", recency_days="ALL"
+            )
 
             # Verify the result structure
             assert "results" in result
@@ -58,15 +71,65 @@ class TestTikTokSearchService:
             "login_state": "logged_in"
         }
 
-        # Mock the search_tiktok method to return test data
-        with patch.object(tiktok_service, 'get_active_session', new=AsyncMock(return_value=mock_executor)):
+        # Mock the independent search service to avoid network calls
+        with patch.object(
+            tiktok_service, 'get_active_session', new=AsyncMock(return_value=mock_executor)
+        ), patch("app.services.tiktok.service.TikTokSearchService") as mock_search_service:
+            mock_instance = mock_search_service.return_value
+            mock_instance.search = AsyncMock(
+                return_value={"results": [{"id": "456"}], "totalResults": 1, "query": "test query"}
+            )
+
             result = await tiktok_service.search_tiktok(["test", "query"])
+
+            mock_search_service.assert_called_once_with(tiktok_service)
+            mock_instance.search.assert_awaited_once_with(
+                ["test", "query"],
+                num_videos=50,
+                sort_type="RELEVANCE",
+                recency_days="ALL",
+            )
 
             # Verify the result structure
             assert "results" in result
             assert "totalResults" in result
             assert "query" in result
             assert result["query"] == "test query"
+
+    @pytest.mark.asyncio
+    async def test_search_service_continues_after_query_error(self):
+        """TikTokSearchService should continue processing queries on recoverable errors."""
+
+        service = Mock()
+        service.settings = Mock()
+        service.settings.tiktok_url = "https://www.tiktok.com/"
+        service.settings.private_proxy_url = None
+
+        search_service = TikTokSearchService(service)
+
+        with patch.object(
+            TikTokSearchService, "_prepare_context", return_value={
+                "fetcher": Mock(),
+                "composer": Mock(),
+                "caps": {},
+                "additional_args": {},
+                "extra_headers": None,
+                "user_data_cleanup": None,
+                "options": {},
+            }
+        ), patch("app.services.tiktok.parser.orchestrator.TikTokSearchParser") as mock_parser_cls, patch.object(
+            TikTokSearchService, "_process_query", side_effect=[None, True]
+        ) as mock_process_query, patch.object(
+            TikTokSearchService, "_cleanup_user_data", new=AsyncMock()
+        ) as mock_cleanup:
+            mock_parser_cls.return_value.parse.return_value = []
+
+            result = await search_service.search(["first", "second"], num_videos=5)
+
+        assert mock_process_query.call_count == 2
+        mock_cleanup.assert_awaited_once()
+        assert result["totalResults"] == 0
+        assert result["query"] == "first second"
 
     @pytest.mark.asyncio
     async def test_search_tiktok_without_active_session(self, tiktok_service):

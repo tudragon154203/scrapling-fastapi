@@ -6,13 +6,23 @@ The 'service' parameter is the TiktokService instance providing settings and ses
 from __future__ import annotations
 import os
 import logging
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union, cast
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union, cast, TypedDict
 import asyncio
 import sys
 from urllib.parse import quote_plus
 
 # Project-internal imports are intentionally lazy-loaded in methods to
 # avoid circular imports and heavy dependencies at module import time.
+
+
+class SearchContext(TypedDict):
+    fetcher: Any
+    composer: Any
+    caps: Any
+    additional_args: Dict[str, Any]
+    extra_headers: Optional[Dict[str, Any]]
+    user_data_cleanup: Optional[Callable[[], None]]
+    options: Dict[str, Any]
 
 
 class TikTokSearchService:
@@ -65,7 +75,7 @@ class TikTokSearchService:
                 target_count=target_count,
                 context=context,
             )
-            if should_stop:
+            if should_stop is True:
                 break
 
         # Skip detail-page enrichment; rely solely on search-page HTML like demo
@@ -147,7 +157,7 @@ class TikTokSearchService:
         self.logger.debug(f"[TikTokSearchService] Normalized queries: {queries}")
         return queries
 
-    def _prepare_context(self, in_tests: bool) -> Dict[str, Any]:
+    def _prepare_context(self, in_tests: bool) -> SearchContext:
         from app.services.common.adapters.scrapling_fetcher import ScraplingFetcherAdapter, FetchArgComposer
         from app.services.common.browser.camoufox import CamoufoxArgsBuilder
         self.logger.debug(
@@ -234,18 +244,23 @@ class TikTokSearchService:
         seen_ids: set,
         seen_urls: set,
         target_count: int,
-        context: Dict[str, Any],
-    ) -> bool:
+        context: SearchContext,
+    ) -> Optional[bool]:
         self.logger.debug(
             f"[TikTokSearchService] Processing query {index + 1}/{total_queries}: '{query}'"
         )
         try:
-            fetcher = context["fetcher"]
-            composer = context["composer"]
-            caps = context["caps"]
-            additional_args = context["additional_args"]
-            extra_headers = context["extra_headers"]
-            options = context["options"]
+            fetcher = context.get("fetcher")
+            composer = context.get("composer")
+            caps = context.get("caps")
+            additional_args = context.get("additional_args", {})
+            extra_headers = context.get("extra_headers")
+            options = context.get("options")
+            if fetcher is None or composer is None or options is None:
+                self.logger.error(
+                    "[TikTokSearchService] Missing fetch context components; skipping query"
+                )
+                return None
             search_url = f"{base_url}/search/video?q={quote_plus(query)}"
             self.logger.debug(f"[TikTokSearchService] Search URL: {search_url}")
             fetch_kwargs = composer.compose(
@@ -279,7 +294,7 @@ class TikTokSearchService:
                     f"[TikTokSearchService] Invalid response for query '{query}': "
                     f"status={status_code}, html_length={len(html)}"
                 )
-                return False
+                return None
             items = parser.parse(html) or []
             self.logger.debug(
                 f"[TikTokSearchService] Extracted {len(items)} video items from HTML for query '{query}'"
@@ -314,13 +329,13 @@ class TikTokSearchService:
                 self.logger.debug(
                     f"[TikTokSearchService] Reached target video count ({target_count}), breaking from search loop"
                 )
-            return should_stop
+            return True if should_stop else None
         except Exception as e:
             self.logger.error(
                 f"[TikTokSearchService] Exception processing query '{query}': {e}",
                 exc_info=True,
             )
-            return False
+            return None
 
     async def _cleanup_user_data(self, cleanup_callable: Optional[Callable[[], None]]) -> None:
         if not callable(cleanup_callable):
