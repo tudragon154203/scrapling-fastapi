@@ -9,7 +9,7 @@ on:
 jobs:
   gemini:
     if: |
-      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR","CONTRIBUTOR","FIRST_TIMER","FIRST_TIME_CONTRIBUTOR"]'), github.event.comment.author_association) &&
+      contains(fromJSON('["OWNER","COLLABORATOR","MEMBER"]'), github.event.comment.author_association) &&
       (
         startsWith(github.event.comment.body, 'Gemini') ||
         startsWith(github.event.comment.body, 'GEMINI') ||
