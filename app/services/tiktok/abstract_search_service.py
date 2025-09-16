@@ -210,4 +210,3 @@ class AbstractTikTokSearchService(ABC, TikTokSearchStrategy):
     @abstractmethod
     async def _fetch_html(self, query: str, *, context: SearchContext) -> Tuple[int, str]:
         """Fetch the raw HTML for the provided query."""
-

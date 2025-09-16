@@ -185,4 +185,3 @@ class TikTokSearchService(AbstractTikTokSearchService):
             f"html_length: {len(html)}"
         )
         return status_code, html
-
