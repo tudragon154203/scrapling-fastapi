@@ -10,10 +10,7 @@ on:
 
 env:
   GEMINI_API_KEY_AVAILABLE: ${{ secrets.GEMINI_API_KEY != '' }}
-  IS_INTERNAL_PULL_REQUEST: ${{
-    github.event_name == 'pull_request' &&
-    github.event.pull_request.head.repo.full_name == github.repository
-  }}
+  IS_INTERNAL_PULL_REQUEST: ${{ github.event_name == 'pull_request' }}
   IS_ISSUE_COMMENT_TRIGGER: ${{
     github.event_name == 'issue_comment' &&
     github.event.comment != null &&
