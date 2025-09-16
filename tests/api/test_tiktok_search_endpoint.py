@@ -111,6 +111,31 @@ class TestTikTokSearchEndpoint:
         assert response_data["error"]["message"] == "Failed to connect to TikTok"
 
     @patch('app.api.tiktok.tiktok_service', new_callable=AsyncMock)
+    def test_string_error_normalization(self, mock_tiktok_service, client):
+        """Plain string errors should be normalized and mapped to correct HTTP status."""
+        mock_tiktok_service.search_tiktok = AsyncMock(return_value={
+            "error": "session not logged in"
+        })
+
+        search_request = {
+            "query": "test",
+            "numVideos": 10,
+            "sortType": "RELEVANCE",
+            "recencyDays": "ALL"
+        }
+
+        resp = client.post("/tiktok/search", json=search_request)
+        assert resp.status_code == 409  # HTTP 409 Conflict for login-related errors
+
+        response_data = resp.json()
+        assert response_data == {
+            "error": {
+                "code": "NOT_LOGGED_IN",
+                "message": "session not logged in"
+            }
+        }
+
+    @patch('app.api.tiktok.tiktok_service', new_callable=AsyncMock)
     def test_validation_error_response(self, mock_tiktok_service, client):
         """Test response for validation errors"""
         # Mock the service to return a validation error
