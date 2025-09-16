@@ -64,8 +64,13 @@ jobs:
 
       - name: Fetch Camoufox resources
         shell: pwsh
+        env:
+          CAMOUFOX_MAX_RETRIES: 3
+          CAMOUFOX_RETRY_DELAY: 10
         run: |
-          $maxAttempts = 3
+          # Retry Camoufox fetch to mitigate rate-limit or transient network issues.
+          $maxAttempts = [int]$env:CAMOUFOX_MAX_RETRIES
+          $baseDelaySeconds = [int]$env:CAMOUFOX_RETRY_DELAY
           for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
             camoufox fetch
             if ($LASTEXITCODE -eq 0) {
@@ -78,8 +83,10 @@ jobs:
               exit $LASTEXITCODE
             }
 
-            Write-Warning "camoufox fetch failed on attempt $attempt. Retrying in 10 seconds..."
-            Start-Sleep -Seconds 10
+            $jitter = Get-Random -Minimum 0 -Maximum 5
+            $retryDelay = $baseDelaySeconds + $jitter
+            Write-Warning "camoufox fetch failed on attempt $attempt. Retrying in $retryDelay seconds..."
+            Start-Sleep -Seconds $retryDelay
           }
 
       - name: Update root certificates
