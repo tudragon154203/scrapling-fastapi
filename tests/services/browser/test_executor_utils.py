@@ -71,12 +71,18 @@ async def test_prepare_user_data_dir_clones_from_master(tmp_path: Path):
 
     clone_dir = tmp_path / "clones" / "profile1"
     executor = DummyBrowsingExecutor(user_data_dir=str(clone_dir))
-    executor.settings.camoufox_user_data_dir = str(master_dir)
+    settings = executor.settings
+    original_dir = settings.camoufox_user_data_dir
 
-    prepared_dir = await executor._prepare_user_data_dir()
+    try:
+        settings.camoufox_user_data_dir = str(master_dir)
 
-    assert prepared_dir == str(clone_dir)
-    assert (clone_dir / "config.json").read_text() == "configuration"
+        prepared_dir = await executor._prepare_user_data_dir()
+
+        assert prepared_dir == str(clone_dir)
+        assert (clone_dir / "config.json").read_text() == "configuration"
+    finally:
+        settings.camoufox_user_data_dir = original_dir
 
 
 @pytest.mark.asyncio
