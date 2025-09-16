@@ -71,102 +71,14 @@ class AuspostTrackAction(BasePageAction):
                 # If the global header/site search is open, close it so it doesn't steal focus
                 self._close_global_search(page)
 
-                # Re-query fresh locators each attempt to avoid stale references and prefer
-                # the main page tracking form (avoid the global site search overlay)
-                input_locator = self._first_visible(page, [
-                    'input[placeholder="Enter tracking number(s)"]',
-                    'main input[placeholder="Enter tracking number(s)"]',
-                    'main input[data-testid="SearchBarInput"]:not([placeholder="Search our site"])',
-                    'input[data-testid="SearchBarInput"]:not([placeholder="Search our site"])',
-                    'main input[placeholder*="tracking number"]',
-                    'main input[placeholder*="Tracking number"]',
-                    'input[placeholder*="tracking number"]',
-                    'input[placeholder*="Tracking number"]',
-                    'input[aria-label*="tracking"]',
-                    'input[aria-label*="Tracking"]',
-                ], timeout=10_000)
-                if humanize:
-                    logger.debug("Using humanized input interaction: mouse move, jitter, click, type")
-                    try:
-                        move_mouse_to_locator(page, input_locator)
-                        jitter_mouse(page, input_locator)
-                    except Exception:
-                        pass
-                    input_locator.click()
-                    try:
-                        type_like_human(input_locator, self.tracking_code)
-                    except Exception:
-                        input_locator.fill(self.tracking_code)
-                else:
-                    input_locator.click()
-                    try:
-                        input_locator.fill("")
-                    except Exception:
-                        pass
-                    input_locator.fill(self.tracking_code)
-
-                # Prefer clicking the Track/Search button using its data-testid
-                try:
-                    track_btn = self._first_visible(page, [
-                        'button:has-text("Track")',
-                        'main button[data-testid="SearchButton"]',
-                        'button[data-testid="SearchButton"]',
-                    ], timeout=5_000)
-                    if humanize:
-                        logger.debug("Using humanized click for track button")
-                        try:
-                            jitter_mouse(page, track_btn)
-                            click_like_human(track_btn)
-                        except Exception:
-                            track_btn.click()
-                    else:
-                        track_btn.click()
-                except Exception:
-                    # Fallback: press Enter
-                    page.keyboard.press("Enter")
+                self._fill_tracking_code(page, humanize)
+                self._submit_form(page, humanize)
 
                 # Handle AusPost "Verifying the device..." interstitial if it appears
                 self._handle_verification(page)
 
-                # Wait for details URL; if not, try clicking generic Track/Search buttons
-                # tried_generic = False
-                try:
-                    page.wait_for_url("**/mypost/track/details/**", timeout=15_000)
+                if self._retry_if_needed(page, humanize):
                     break
-                except Exception:
-                    try:
-                        btn = page.locator('button:has-text("Track"), button:has-text("Search")').first
-                        btn.wait_for(state="visible", timeout=5_000)
-                        btn.click()
-                        # tried_generic = True
-                        try:
-                            page.wait_for_url("**/mypost/track/details/**", timeout=15_000)
-                            break
-                        except Exception:
-                            pass
-                    except Exception:
-                        pass
-                    if humanize:
-                        logger.debug("Applying humanized pause and scroll noise after failed attempt")
-                        try:
-                            human_pause(0.25, 0.7)
-                            scroll_noise(page, cycles_range=(1, 1))
-                        except Exception:
-                            pass
-
-                # If we are still on search page (common after verification), loop and retry
-                try:
-                    is_on_search = "/mypost/track/search" in (page.url or "")
-                    details_not_visible = not page.locator("h3#trackingPanelHeading").first.is_visible()
-                    if is_on_search and details_not_visible:
-                        # small grace wait before next attempt to let any cookies settle
-                        try:
-                            page.wait_for_load_state("domcontentloaded", timeout=2_000)
-                        except Exception:
-                            pass
-                        continue
-                except Exception:
-                    pass
             except Exception:
                 # On any unexpected errors, continue attempts but don't fail the whole flow
                 pass
@@ -186,6 +98,79 @@ class AuspostTrackAction(BasePageAction):
                 pass
 
         return page
+
+    def _fill_tracking_code(self, page: Any, humanize: bool) -> None:
+        """Resolve the tracking input and fill it with the tracking code."""
+        # Re-query fresh locators each attempt to avoid stale references and prefer
+        # the main page tracking form (avoid the global site search overlay)
+        input_locator = self._first_visible(page, [
+            'input[placeholder="Enter tracking number(s)"]',
+            'main input[placeholder="Enter tracking number(s)"]',
+            'main input[data-testid="SearchBarInput"]:not([placeholder="Search our site"])',
+            'input[data-testid="SearchBarInput"]:not([placeholder="Search our site"])',
+            'main input[placeholder*="tracking number"]',
+            'main input[placeholder*="Tracking number"]',
+            'input[placeholder*="tracking number"]',
+            'input[placeholder*="Tracking number"]',
+            'input[aria-label*="tracking"]',
+            'input[aria-label*="Tracking"]',
+        ], timeout=10_000)
+
+        if humanize:
+            logger.debug("Using humanized input interaction: mouse move, jitter, click, type")
+            try:
+                move_mouse_to_locator(page, input_locator)
+                jitter_mouse(page, input_locator)
+            except Exception:
+                pass
+            input_locator.click()
+            try:
+                type_like_human(input_locator, self.tracking_code)
+            except Exception:
+                input_locator.fill(self.tracking_code)
+        else:
+            input_locator.click()
+            try:
+                input_locator.fill("")
+            except Exception:
+                pass
+            input_locator.fill(self.tracking_code)
+
+    def _submit_form(self, page: Any, humanize: bool) -> None:
+        """Submit the form by clicking the Track/Search button or pressing Enter."""
+
+        def _click(locator):
+            if humanize:
+                logger.debug("Using humanized click for submission button")
+                try:
+                    jitter_mouse(page, locator)
+                    click_like_human(locator)
+                    return
+                except Exception:
+                    pass
+            locator.click()
+
+        try:
+            track_btn = self._first_visible(page, [
+                'button:has-text("Track")',
+                'main button[data-testid="SearchButton"]',
+                'button[data-testid="SearchButton"]',
+            ], timeout=5_000)
+            _click(track_btn)
+            return
+        except Exception:
+            pass
+
+        try:
+            fallback_btn = page.locator('button:has-text("Track"), button:has-text("Search")').first
+            fallback_btn.wait_for(state="visible", timeout=5_000)
+            _click(fallback_btn)
+            return
+        except Exception:
+            pass
+
+        # Fallback: press Enter if no clickable button is found
+        page.keyboard.press("Enter")
 
     def _close_global_search(self, page: Any) -> None:
         """Close the global search overlay if it's open."""
@@ -230,3 +215,44 @@ class AuspostTrackAction(BasePageAction):
                 pass
         except Exception:
             pass
+
+    def _retry_if_needed(self, page: Any, humanize: bool) -> bool:
+        """Wait for the details page or prepare for a retry."""
+        try:
+            if "/mypost/track/details/" in (page.url or ""):
+                return True
+        except Exception:
+            pass
+
+        try:
+            page.wait_for_url("**/mypost/track/details/**", timeout=15_000)
+            return True
+        except Exception:
+            pass
+
+        try:
+            header = page.locator("h3#trackingPanelHeading").first
+            if header.is_visible():
+                return True
+        except Exception:
+            pass
+
+        if humanize:
+            logger.debug("Applying humanized pause and scroll noise after failed attempt")
+            try:
+                human_pause(0.25, 0.7)
+                scroll_noise(page, cycles_range=(1, 1))
+            except Exception:
+                pass
+
+        try:
+            is_on_search = "/mypost/track/search" in (page.url or "")
+            if is_on_search:
+                try:
+                    page.wait_for_load_state("domcontentloaded", timeout=2_000)
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+        return False
