@@ -21,7 +21,7 @@ class FakeLocator:
     def wait_for(self, state: str, timeout: int):
         self.wait_calls.append((state, timeout))
         if self.should_raise:
-            raise RuntimeError(f"{self.selector} is not visible")
+            raise TimeoutError(f"{self.selector} is not visible")
         return self
 
 
@@ -63,3 +63,18 @@ def test_first_visible_falls_back_to_last_selector_when_all_fail(action):
     assert page.calls == selectors + [selectors[-1]]
     for selector in selectors:
         assert page._locators[selector].wait_calls == [("visible", 777)]
+
+
+def test_first_visible_raises_for_empty_selector_list(action):
+    page = FakePage({})
+
+    with pytest.raises(ValueError, match="at least one selector"):
+        action._first_visible(page, [], timeout=100)
+
+
+@pytest.mark.parametrize("selectors", [["#valid", ""], ["#valid", None]])
+def test_first_visible_raises_for_invalid_selectors(action, selectors):
+    page = FakePage({"#valid": False})
+
+    with pytest.raises(ValueError, match="non-empty strings"):
+        action._first_visible(page, selectors, timeout=100)

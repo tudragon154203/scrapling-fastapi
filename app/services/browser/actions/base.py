@@ -17,6 +17,13 @@ class BasePageAction(PageAction, ABC):
 
     def _first_visible(self, page: Any, selectors: list, timeout: int = 5000):
         """Helper to find the first visible selector."""
+        if not selectors:
+            raise ValueError("selectors must contain at least one selector")
+
+        for sel in selectors:
+            if not isinstance(sel, str) or not sel:
+                raise ValueError("selectors must be non-empty strings")
+
         for sel in selectors:
             try:
                 loc = page.locator(sel).first
