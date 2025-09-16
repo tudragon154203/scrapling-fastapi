@@ -1,4 +1,4 @@
-"""Unit tests for TikTok Search Service."""
+"""Unit tests for the TikTok URL-parameter search service."""
 
 import logging
 from typing import Any, Dict, List, Set, cast
@@ -7,7 +7,7 @@ import pytest
 from unittest.mock import AsyncMock, Mock, patch
 
 from app.services.tiktok.protocols import SearchContext
-from app.services.tiktok.search_service import TikTokSearchService
+from app.services.tiktok.url_param_search_service import TikTokURLParamSearchService
 from app.services.tiktok.service import TiktokService
 from app.services.tiktok.tiktok_executor import TiktokExecutor
 
@@ -15,7 +15,7 @@ from app.services.tiktok.tiktok_executor import TiktokExecutor
 pytestmark = pytest.mark.asyncio
 
 
-class TestTikTokSearchService:
+class TestTikTokURLParamSearchService:
     """Unit tests for TikTok search service functionality"""
 
     @pytest.fixture
@@ -45,7 +45,7 @@ class TestTikTokSearchService:
         # Mock the independent search service to avoid network calls
         with patch.object(
             tiktok_service, 'get_active_session', new=AsyncMock(return_value=mock_executor)
-        ), patch("app.services.tiktok.service.TikTokSearchService") as mock_search_service:
+        ), patch("app.services.tiktok.service.TikTokURLParamSearchService") as mock_search_service:
             mock_instance = mock_search_service.return_value
             mock_instance.search = AsyncMock(
                 return_value={"results": [{"id": "123"}], "totalResults": 1, "query": "test query"}
@@ -79,7 +79,7 @@ class TestTikTokSearchService:
         # Mock the independent search service to avoid network calls
         with patch.object(
             tiktok_service, 'get_active_session', new=AsyncMock(return_value=mock_executor)
-        ), patch("app.services.tiktok.service.TikTokSearchService") as mock_search_service:
+        ), patch("app.services.tiktok.service.TikTokURLParamSearchService") as mock_search_service:
             mock_instance = mock_search_service.return_value
             mock_instance.search = AsyncMock(
                 return_value={"results": [{"id": "456"}], "totalResults": 1, "query": "test query"}
@@ -102,17 +102,17 @@ class TestTikTokSearchService:
             assert result["query"] == "test query"
 
     async def test_search_service_continues_after_query_error(self):
-        """TikTokSearchService should continue processing queries on recoverable errors."""
+        """TikTokURLParamSearchService should continue processing queries on recoverable errors."""
 
         service = Mock()
         service.settings = Mock()
         service.settings.tiktok_url = "https://www.tiktok.com/"
         service.settings.private_proxy_url = None
 
-        search_service = TikTokSearchService(service)
+        search_service = TikTokURLParamSearchService(service)
 
         with patch.object(
-            TikTokSearchService, "_prepare_context", return_value={
+            TikTokURLParamSearchService, "_prepare_context", return_value={
                 "fetcher": Mock(),
                 "composer": Mock(),
                 "caps": {},
@@ -122,9 +122,9 @@ class TestTikTokSearchService:
                 "options": {},
             }
         ), patch("app.services.tiktok.parser.orchestrator.TikTokSearchParser") as mock_parser_cls, patch.object(
-            TikTokSearchService, "_process_query", side_effect=[None, True]
+            TikTokURLParamSearchService, "_process_query", side_effect=[None, True]
         ) as mock_process_query, patch.object(
-            TikTokSearchService, "_cleanup_user_data", new=AsyncMock()
+            TikTokURLParamSearchService, "_cleanup_user_data", new=AsyncMock()
         ) as mock_cleanup:
             mock_parser_cls.return_value.parse.return_value = []
 
@@ -142,7 +142,7 @@ class TestTikTokSearchService:
         service.settings = Mock()
         service.settings.tiktok_url = "https://www.tiktok.com/"
 
-        search_service = TikTokSearchService(service)
+        search_service = TikTokURLParamSearchService(service)
         parser = Mock()
         parser.parse.return_value = [
             {"id": "1", "webViewUrl": "https://example.com/1"},
@@ -156,7 +156,7 @@ class TestTikTokSearchService:
         seen_urls: Set[str] = set()
 
         with patch.object(
-            TikTokSearchService,
+            TikTokURLParamSearchService,
             "_fetch_html",
             new=AsyncMock(return_value=(200, "<html></html>")),
         ) as fetch_mock:
@@ -200,7 +200,7 @@ class TestTikTokSearchService:
         service.settings = Mock()
         service.settings.tiktok_url = "https://www.tiktok.com/"
 
-        search_service = TikTokSearchService(service)
+        search_service = TikTokURLParamSearchService(service)
         parser = Mock()
         parser.parse.return_value = [{"id": "1", "webViewUrl": "https://example.com/1"}]
         aggregated: List[Dict[str, Any]] = []
@@ -208,7 +208,7 @@ class TestTikTokSearchService:
         seen_urls: Set[str] = set()
 
         with patch.object(
-            TikTokSearchService,
+            TikTokURLParamSearchService,
             "_fetch_html",
             new=AsyncMock(return_value=(500, "")),
         ):
@@ -246,7 +246,7 @@ class TestTikTokSearchService:
 
         service = Mock()
         service.settings = Mock()
-        search_service = TikTokSearchService(service)
+        search_service = TikTokURLParamSearchService(service)
 
         result = search_service._validate_request(["  foo  ", "bar"], sort_type="RELEVANCE")
 
@@ -257,7 +257,7 @@ class TestTikTokSearchService:
 
         service = Mock()
         service.settings = Mock()
-        search_service = TikTokSearchService(service)
+        search_service = TikTokURLParamSearchService(service)
 
         result = search_service._validate_request("query", sort_type="TRENDING")
 
@@ -289,7 +289,7 @@ class TestTikTokSearchService:
             "app.services.common.browser.camoufox.CamoufoxArgsBuilder",
             return_value=camoufox,
         ) as mock_builder_cls:
-            search_service = TikTokSearchService(service)
+            search_service = TikTokURLParamSearchService(service)
             context = search_service._prepare_context(in_tests=True)
 
         mock_fetcher_cls.assert_called_once_with()
@@ -309,7 +309,7 @@ class TestTikTokSearchService:
 
         service = Mock()
         service.settings = Mock()
-        search_service = TikTokSearchService(service)
+        search_service = TikTokURLParamSearchService(service)
         cleanup_callable = Mock()
 
         with patch(
@@ -328,7 +328,7 @@ class TestTikTokSearchService:
         service.settings.tiktok_url = "https://www.tiktok.com/"
         service.settings.private_proxy_url = "http://proxy.example"
 
-        search_service = TikTokSearchService(service)
+        search_service = TikTokURLParamSearchService(service)
         search_service.logger.setLevel(logging.INFO)
 
         fetcher = Mock()
@@ -368,7 +368,7 @@ class TestTikTokSearchService:
 
         service = Mock()
         service.settings = Mock()
-        search_service = TikTokSearchService(service)
+        search_service = TikTokURLParamSearchService(service)
 
         with patch(
             "app.services.tiktok.abstract_search_service.asyncio.sleep", new=AsyncMock()
@@ -382,7 +382,7 @@ class TestTikTokSearchService:
 
         service = Mock()
         service.settings = Mock()
-        search_service = TikTokSearchService(service)
+        search_service = TikTokURLParamSearchService(service)
 
         cleanup_one = Mock()
         cleanup_two = Mock()

@@ -1,8 +1,4 @@
-"""
-TikTok search service extracted from TiktokService for clarity and reuse.
-OOP interface: TikTokSearchService(service).search(...)
-The 'service' parameter is the TiktokService instance providing settings and session helpers.
-"""
+"""URL-parameter based TikTok search service implementation."""
 
 from __future__ import annotations
 
@@ -16,7 +12,9 @@ from app.services.tiktok.abstract_search_service import AbstractTikTokSearchServ
 from app.services.tiktok.protocols import SearchContext
 
 
-class TikTokSearchService(AbstractTikTokSearchService):
+class TikTokURLParamSearchService(AbstractTikTokSearchService):
+    """Search service that builds TikTok queries using URL parameters."""
+
     def __init__(self, service: Any):
         super().__init__(service)
 
