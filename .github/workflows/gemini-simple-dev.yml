@@ -200,6 +200,7 @@ jobs:
         id: gemini
         continue-on-error: true
         env:
+          NODE_OPTIONS: "--require ${{ github.workspace }}/.github/workflows/scripts/set-node-max-listeners.cjs"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ISSUE_TITLE: ${{ github.event.pull_request.title || github.event.issue.title || '' }}
           ISSUE_BODY: ${{ github.event.pull_request.body || github.event.issue.body || '' }}
