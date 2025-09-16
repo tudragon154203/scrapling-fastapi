@@ -172,7 +172,7 @@ jobs:
               }
             },
             "Router": {
-              "default": "openrouter,z-ai/glm-4.5-air:free",
+              "default": "openrouter,deepseek/deepseek-chat-v3.1:free",
               "background": "openrouter,moonshotai/kimi-k2:free",
               "think": "openrouter,deepseek/deepseek-chat-v3.1:free",
               "longContext": "gemini,gemini-2.5-flash",
