@@ -103,22 +103,13 @@ jobs:
                   "qwen/qwen3-coder:free",
                   "z-ai/glm-4.5-air:free",
                   "moonshotai/kimi-k2:free",
-                  "deepseek/deepseek-chat-v3.1:free"
+                  "deepseek/deepseek-chat-v3.1:free",
+                  "deepseek/deepseek-r1-0528:free"
                 ],
                 "transformer": {
                   "use": [
                     "openrouter"
-                  ],
-                  "tngtech/deepseek-r1t2-chimera:free": {
-                    "use": [
-                      "deepseek"
-                    ]
-                  },
-                  "deepseek/deepseek-chat-v3-0324:free": {
-                    "use": [
-                      "deepseek"
-                    ]
-                  }
+                  ]
                 }
               },
               {
@@ -172,7 +163,7 @@ jobs:
               }
             },
             "Router": {
-              "default": "openrouter,deepseek/deepseek-chat-v3.1:free",
+              "default": "openrouter,deepseek/deepseek-r1-0528:free",
               "background": "openrouter,moonshotai/kimi-k2:free",
               "think": "openrouter,deepseek/deepseek-chat-v3.1:free",
               "longContext": "gemini,gemini-2.5-flash",
