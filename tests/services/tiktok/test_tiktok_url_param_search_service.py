@@ -9,6 +9,8 @@ from unittest.mock import AsyncMock, Mock, patch
 from app.services.tiktok.protocols import SearchContext
 from app.services.tiktok.url_param_search_service import TikTokURLParamSearchService
 from app.services.tiktok.service import TiktokService
+from app.services.tiktok.session_registry import SessionRecord
+from app.schemas.tiktok.session import TikTokLoginState
 from app.services.tiktok.tiktok_executor import TiktokExecutor
 
 
@@ -30,17 +32,43 @@ class TestTikTokURLParamSearchService:
         executor.browser = Mock()
         return executor
 
-    async def test_search_tiktok_with_active_session(self, tiktok_service, mock_executor):
+    @pytest.fixture
+    def register_session(self, tiktok_service, mock_executor):
+        """Register a disposable session record for tests."""
+
+        def _register(
+            session_id: str = "test_session",
+            *,
+            executor=None,
+            login_state: str = TikTokLoginState.LOGGED_IN,
+            user_data_dir: str = "/tmp/test",
+            config=None,
+            created_at=None,
+            last_activity=None,
+        ) -> SessionRecord:
+            cfg = config or Mock()
+            if not hasattr(cfg, "max_session_duration"):
+                cfg.max_session_duration = 300
+            record = SessionRecord(
+                id=session_id,
+                executor=executor or mock_executor,
+                config=cfg,
+                login_state=login_state,
+                user_data_dir=user_data_dir,
+            )
+            if created_at is not None:
+                record.created_at = created_at
+            if last_activity is not None:
+                record.last_activity = last_activity
+            tiktok_service.sessions.register(record)
+            return record
+
+        return _register
+
+    async def test_search_tiktok_with_active_session(self, tiktok_service, mock_executor, register_session):
         """Test TikTok search with active session"""
         # Set up mock session
-        tiktok_service.active_sessions["test_session"] = mock_executor
-        tiktok_service.session_metadata["test_session"] = {
-            "created_at": Mock(),
-            "last_activity": Mock(),
-            "user_data_dir": "/tmp/test",
-            "config": Mock(),
-            "login_state": "logged_in"
-        }
+        register_session()
 
         # Mock the independent search service to avoid network calls
         with patch.object(
@@ -64,17 +92,10 @@ class TestTikTokURLParamSearchService:
             assert "query" in result
             assert result["query"] == "test query"
 
-    async def test_search_tiktok_with_multiple_queries(self, tiktok_service, mock_executor):
+    async def test_search_tiktok_with_multiple_queries(self, tiktok_service, mock_executor, register_session):
         """Test TikTok search with multiple queries"""
         # Set up mock session
-        tiktok_service.active_sessions["test_session"] = mock_executor
-        tiktok_service.session_metadata["test_session"] = {
-            "created_at": Mock(),
-            "last_activity": Mock(),
-            "user_data_dir": "/tmp/test",
-            "config": Mock(),
-            "login_state": "logged_in"
-        }
+        register_session()
 
         # Mock the independent search service to avoid network calls
         with patch.object(
@@ -404,7 +425,7 @@ class TestTikTokURLParamSearchService:
     async def test_search_tiktok_with_empty_session(self, tiktok_service):
         """Test TikTok search with empty session returns error"""
         # Set up empty session state
-        tiktok_service.active_sessions = {}
+        tiktok_service.sessions.clear()
 
         result = await tiktok_service.search_tiktok("test query")
 
@@ -413,30 +434,30 @@ class TestTikTokURLParamSearchService:
         assert result["error"]["code"] == "NOT_LOGGED_IN"
         assert result["error"]["message"] == "TikTok session is not logged in"
 
-    async def test_has_active_session_with_sessions(self, tiktok_service, mock_executor):
+    async def test_has_active_session_with_sessions(self, tiktok_service, mock_executor, register_session):
         """Test has_active_session returns True when sessions exist"""
-        tiktok_service.active_sessions["test_session"] = mock_executor
+        register_session()
 
         result = await tiktok_service.has_active_session()
         assert result is True
 
     async def test_has_active_session_without_sessions(self, tiktok_service):
         """Test has_active_session returns False when no sessions exist"""
-        tiktok_service.active_sessions = {}
+        tiktok_service.sessions.clear()
 
         result = await tiktok_service.has_active_session()
         assert result is False
 
-    async def test_get_active_session_with_sessions(self, tiktok_service, mock_executor):
+    async def test_get_active_session_with_sessions(self, tiktok_service, mock_executor, register_session):
         """Test get_active_session returns session when sessions exist"""
-        tiktok_service.active_sessions["test_session"] = mock_executor
+        register_session()
 
         result = await tiktok_service.get_active_session()
         assert result == mock_executor
 
     async def test_get_active_session_without_sessions(self, tiktok_service):
         """Test get_active_session returns None when no sessions exist"""
-        tiktok_service.active_sessions = {}
+        tiktok_service.sessions.clear()
 
         result = await tiktok_service.get_active_session()
         assert result is None

@@ -1,313 +1,258 @@
 """
 TikTok session service
 """
-import os
+
+from __future__ import annotations
+
 import logging
+import os
 import uuid
-from typing import Dict, Any, Optional, Union, List
-from datetime import datetime, timedelta
-from app.services.tiktok.tiktok_executor import TiktokExecutor
-from app.services.tiktok.utils.login_detection import LoginDetector
+from typing import Any, Dict, Optional, Union, List
+
+from app.core.config import get_settings
 from app.schemas.tiktok.session import (
-    TikTokSessionRequest,
-    TikTokSessionResponse,
     TikTokLoginState,
     TikTokSessionConfig,
+    TikTokSessionRequest,
+    TikTokSessionResponse,
 )
-from app.core.config import get_settings
+from app.services.tiktok.interfaces import TikTokSearchInterface
+from app.services.tiktok.session_registry import SessionRecord, SessionRegistry
+from app.services.tiktok.tiktok_executor import TiktokExecutor
 from app.services.tiktok.url_param_search_service import TikTokURLParamSearchService
+from app.services.tiktok.utils.login_detection import LoginDetector
 
 
 class TiktokService:
-    """TikTok session management service"""
+    """TikTok session management service."""
 
-    def __init__(self):
+    def __init__(
+        self,
+        *,
+        search_service_cls: Optional[type[TikTokSearchInterface]] = None,
+        session_registry: Optional[SessionRegistry] = None,
+    ) -> None:
         self.settings = get_settings()
-        self.active_sessions: Dict[str, TiktokExecutor] = {}
-        self.session_metadata: Dict[str, Dict[str, Any]] = {}
         self.logger = logging.getLogger(__name__)
+        self._search_service_cls = search_service_cls
+        self.sessions = session_registry or SessionRegistry()
 
     async def create_session(
-        self, request: TikTokSessionRequest, user_data_dir: Optional[str] = None, immediate_cleanup: bool = False
+        self,
+        request: TikTokSessionRequest,
+        user_data_dir: Optional[str] = None,
+        immediate_cleanup: bool = False,
     ) -> TikTokSessionResponse:
-        """
-        Create a new TikTok session with login detection
-        Args:
-            request: TikTok session request (empty body)
-            user_data_dir: Optional user data directory path
-        Returns:
-            TikTokSessionResponse: Session creation result
-        """
+        """Create a new TikTok session with login detection."""
+        del request  # Payload currently unused but kept for parity with signature
         session_id = str(uuid.uuid4())
+        executor: Optional[TiktokExecutor] = None
+
         try:
-            # Load TikTok configuration
             config = await self._load_tiktok_config(user_data_dir)
-            # Create executor instance
             executor = TiktokExecutor(config)
-            # Start browser session
             await executor.start_session()
-            # Detect login state
-            login_state = await self._detect_login_state(executor, config.login_detection_timeout)
+
+            login_state = await self._detect_login_state(executor, config, config.login_detection_timeout)
             if login_state == TikTokLoginState.LOGGED_OUT:
-                # User not logged in - close session and return 409
-                await executor.cleanup()
-                return TikTokSessionResponse(
-                    status="error",
+                await self._safe_cleanup_executor(executor)
+                return self._error_response(
                     message="Not logged in to TikTok",
-                    error_details={
-                        "code": "NOT_LOGGED_IN",
+                    code="NOT_LOGGED_IN",
+                    details={
                         "details": "User is not logged in to TikTok",
                         "method": "dom_api_combo",
-                        "timeout": config.login_detection_timeout
-                    }
+                        "timeout": config.login_detection_timeout,
+                    },
                 )
-            # Session created successfully
-            if not immediate_cleanup:
-                self.active_sessions[session_id] = executor
-                self.session_metadata[session_id] = {
-                    "created_at": datetime.now(),
-                    "last_activity": datetime.now(),
-                    "user_data_dir": executor.user_data_dir,
-                    "config": config,
-                    "login_state": login_state
-                }
-            response = TikTokSessionResponse(
-                status="success",
-                message="TikTok session established successfully"
-            )
-            # If immediate cleanup is requested, clean up now
+
             if immediate_cleanup:
-                await executor.cleanup()
-            return response
-        except Exception as e:
-            await self._cleanup_session(session_id)
-            return TikTokSessionResponse(
-                status="error",
+                await self._safe_cleanup_executor(executor)
+            else:
+                record = SessionRecord(
+                    id=session_id,
+                    executor=executor,
+                    config=config,
+                    login_state=login_state,
+                    user_data_dir=executor.user_data_dir,
+                )
+                self.sessions.register(record)
+
+            return TikTokSessionResponse(status="success", message="TikTok session established successfully")
+        except Exception as exc:  # pragma: no cover - defensive logging
+            self.logger.error("[TiktokService] Failed to create session: %s", exc, exc_info=True)
+            if executor is not None:
+                await self._safe_cleanup_executor(executor)
+            self.sessions.remove(session_id)
+            return self._error_response(
                 message="Failed to create TikTok session",
-                error_details={
-                    "code": "SESSION_CREATION_FAILED",
-                    "details": str(e),
-                    "method": "internal_error"
-                }
+                code="SESSION_CREATION_FAILED",
+                details={"method": "internal_error", "details": str(exc)},
             )
 
     async def has_active_session(self) -> bool:
-        """
-        Check if there is an active TikTok session
-        Returns:
-            bool: True if there is an active session, False otherwise
-        """
-        # For now, we'll check if there are any active sessions
-        # In a more complex implementation, we might want to check session validity
-        has_session = len(self.active_sessions) > 0
+        """Return True when at least one logged-in session is available."""
+        count = len(self.sessions)
         self.logger.debug(
-            f"[TiktokService] has_active_session called - current sessions: {len(self.active_sessions)}, "
-            f"result: {has_session}"
+            "[TiktokService] has_active_session called - current sessions: %s, result: %s",
+            count,
+            bool(count),
         )
-        return has_session
+        return bool(count)
 
     async def get_active_session(self) -> Optional[TiktokExecutor]:
-        """
-        Get the active TikTok session executor
-        Returns:
-            TiktokExecutor: The active session executor or None if no active session
-        """
-        # For now, we'll return the first active session
-        # In a more complex implementation, we might want to select based on criteria
-        session_count = len(self.active_sessions)
-        self.logger.debug(f"[TiktokService] get_active_session called - available sessions: {session_count}")
-        if self.active_sessions:
-            # Get the first session
-            session_id = next(iter(self.active_sessions))
-            self.logger.debug(f"[TiktokService] Returning active session: {session_id}")
-            return self.active_sessions[session_id]
-        self.logger.debug("[TiktokService] No active session available")
-        return None
+        """Return the executor for the first active session, if any."""
+        first_pair = next(self.sessions.items(), None)
+        self.logger.debug(
+            "[TiktokService] get_active_session called - available sessions: %s",
+            len(self.sessions),
+        )
+        if first_pair is None:
+            self.logger.debug("[TiktokService] No active session available")
+            return None
+        session_id, record = first_pair
+        self.logger.debug("[TiktokService] Returning active session: %s", session_id)
+        return record.executor
 
     async def search_tiktok(
-        self, query: Union[str, List[str]], num_videos: int = 50, sort_type: str = "RELEVANCE", recency_days: str = "ALL"
+        self,
+        query: Union[str, List[str]],
+        num_videos: int = 50,
+        sort_type: str = "RELEVANCE",
+        recency_days: str = "ALL",
     ) -> Dict[str, Any]:
         """Delegate to TikTokSearchService to execute the search."""
         self.logger.debug(
-            f"[TiktokService] search_tiktok called - query: {query}, num_videos: {num_videos}, "
-            f"sort_type: {sort_type}, recency_days: {recency_days}"
+            "[TiktokService] search_tiktok called - query: %s, num_videos: %s, sort_type: %s, recency_days: %s",
+            query,
+            num_videos,
+            sort_type,
+            recency_days,
         )
 
-        # Check if there's an active session
         if not await self.has_active_session():
             self.logger.debug("[TiktokService] No active session found, returning error")
             return {
                 "error": {
                     "code": "NOT_LOGGED_IN",
-                    "message": "TikTok session is not logged in"
+                    "message": "TikTok session is not logged in",
                 }
             }
 
         try:
-            # Execute search (search operates independently of sessions)
-            self.logger.debug(
-                "[TiktokService] Creating TikTokURLParamSearchService and executing independent search"
-            )
-            search_service = TikTokURLParamSearchService(self)
+            search_service = self._build_search_service()
             result = await search_service.search(
-                query, num_videos=num_videos, sort_type=sort_type, recency_days=recency_days
+                query,
+                num_videos=num_videos,
+                sort_type=sort_type,
+                recency_days=recency_days,
             )
             self.logger.debug(
-                f"[TiktokService] Search completed successfully - total results: "
-                f"{len(result.get('results', []))}"
+                "[TiktokService] Search completed successfully - total results: %s",
+                len(result.get("results", [])),
             )
             return result
-        except Exception as e:
-            self.logger.error(f"[TiktokService] Exception in search_tiktok: {e}", exc_info=True)
-            return {"error": f"Search failed: {str(e)}"}
-    # Search helpers moved to app.services.tiktok.url_param_search_service
+        except Exception as exc:  # pragma: no cover - defensive logging
+            self.logger.error("[TiktokService] Exception in search_tiktok: %s", exc, exc_info=True)
+            return {"error": f"Search failed: {exc}"}
 
     async def close_session(self, session_id: str) -> bool:
-        """
-        Close an active TikTok session
-        Args:
-            session_id: Session ID to close
-        Returns:
-            bool: True if session was closed successfully
-        """
-        self.logger.debug(f"[TiktokService] Attempting to close session: {session_id}")
-        try:
-            if session_id not in self.active_sessions:
-                self.logger.warning(f"[TiktokService] Session {session_id} not found in active sessions")
-                return False
-            executor = self.active_sessions[session_id]
-            await executor.cleanup()
-            # Remove from active sessions
-            del self.active_sessions[session_id]
-            if session_id in self.session_metadata:
-                del self.session_metadata[session_id]
-            self.logger.debug(f"[TiktokService] Successfully closed session: {session_id}")
-            return True
-        except Exception as e:
-            self.logger.error(f"[TiktokService] Error closing session {session_id}: {e}", exc_info=True)
+        """Close and cleanup an active TikTok session."""
+        self.logger.debug("[TiktokService] Attempting to close session: %s", session_id)
+        record = self.sessions.remove(session_id)
+        if record is None:
+            self.logger.warning("[TiktokService] Session %s not found in active sessions", session_id)
             return False
+        await self._safe_cleanup_executor(record.executor)
+        self.logger.debug("[TiktokService] Successfully closed session: %s", session_id)
+        return True
 
     async def keep_alive(self, session_id: str) -> bool:
-        """
-        Keep session alive by updating activity timestamp
-        Args:
-            session_id: Session ID to keep alive
-        Returns:
-            bool: True if session was found and kept alive
-        """
-        try:
-            if session_id not in self.active_sessions:
-                return False
-            # Check if session is still active
-            executor = self.active_sessions[session_id]
-            if not await executor.is_still_active():
-                await self.close_session(session_id)
-                return False
-            # Update last activity time
-            self.session_metadata[session_id]["last_activity"] = datetime.now()
-            return True
-        except Exception:
+        """Refresh the last-activity timestamp for a session if it is still active."""
+        record = self.sessions.get(session_id)
+        if record is None:
             return False
+        if not await record.executor.is_still_active():
+            await self._cleanup_session(session_id)
+            return False
+        record.touch()
+        return True
 
     async def get_session_info(self, session_id: str) -> Optional[Dict[str, Any]]:
-        """
-        Get information about an active session
-        Args:
-            session_id: Session ID to query
-        Returns:
-            Dict with session information or None if not found
-        """
-        self.logger.debug(f"[TiktokService] Getting session info for: {session_id}")
-        try:
-            if session_id not in self.active_sessions:
-                self.logger.warning(f"[TiktokService] Session {session_id} not found")
-                return None
-            executor = self.active_sessions[session_id]
-            metadata = self.session_metadata[session_id]
-            self.logger.debug(f"[TiktokService] Session {session_id} metadata: {metadata}")
-            session_info = await executor.get_session_info()
-            result = {
-                **metadata,
-                **session_info,
-                "timeout_remaining": self._get_timeout_remaining(metadata)
-            }
-            self.logger.debug(f"[TiktokService] Session {session_id} info retrieved successfully")
-            return result
-        except Exception as e:
-            self.logger.error(f"[TiktokService] Error getting session info for {session_id}: {e}", exc_info=True)
+        """Return combined metadata and executor info for the given session."""
+        self.logger.debug("[TiktokService] Getting session info for: %s", session_id)
+        record = self.sessions.get(session_id)
+        if record is None:
+            self.logger.warning("[TiktokService] Session %s not found", session_id)
             return None
-
-    async def perform_action(self, session_id: str, action: str, **kwargs) -> Dict[str, Any]:
-        """
-        Perform an action using an active TikTok session
-        Args:
-            session_id: Session ID to use
-            action: Action to perform
-            **kwargs: Action-specific parameters
-        Returns:
-            Dict with action result
-        """
-        self.logger.debug(
-            f"[TiktokService] Performing action '{action}' on session '{session_id}' with args: {kwargs}"
-        )
         try:
-            if session_id not in self.active_sessions:
-                self.logger.warning(f"[TiktokService] Session {session_id} not found for action '{action}'")
-                return {"error": "Session not found"}
-            executor = self.active_sessions[session_id]
-            # Update last activity
-            self.session_metadata[session_id]["last_activity"] = datetime.now()
-            self.logger.debug(f"[TiktokService] Updated last activity for session {session_id}")
-            # Perform the action
-            if hasattr(executor, action):
-                method = getattr(executor, action)
-                self.logger.debug(f"[TiktokService] Found method '{action}' on executor")
-                result = await method(**kwargs)
-                self.logger.debug(f"[TiktokService] Action '{action}' completed successfully")
-                return {"success": True, "result": result}
-            else:
-                self.logger.warning(f"[TiktokService] Unknown action '{action}' requested")
-                return {"error": f"Unknown action: {action}"}
-        except Exception as e:
+            session_info = await record.executor.get_session_info()
+        except Exception as exc:  # pragma: no cover - defensive logging
             self.logger.error(
-                f"[TiktokService] Exception performing action '{action}' on session {session_id}: {e}",
-                exc_info=True
+                "[TiktokService] Error getting session info for %s: %s",
+                session_id,
+                exc,
+                exc_info=True,
             )
-            return {"error": str(e)}
+            return None
+        metadata = record.to_metadata()
+        metadata.update(session_info)
+        metadata["timeout_remaining"] = record.timeout_remaining()
+        self.logger.debug("[TiktokService] Session %s info retrieved successfully", session_id)
+        return metadata
+
+    async def perform_action(self, session_id: str, action: str, **kwargs: Any) -> Dict[str, Any]:
+        """Perform an action using an active TikTok session."""
+        self.logger.debug(
+            "[TiktokService] Performing action '%s' on session '%s' with args: %s",
+            action,
+            session_id,
+            kwargs,
+        )
+        record = self.sessions.get(session_id)
+        if record is None:
+            self.logger.warning("[TiktokService] Session %s not found for action '%s'", session_id, action)
+            return {"error": "Session not found"}
+
+        record.touch()
+        executor = record.executor
+        if hasattr(executor, action):
+            try:
+                method = getattr(executor, action)
+                result = await method(**kwargs)
+                self.logger.debug("[TiktokService] Action '%s' completed successfully", action)
+                return {"success": True, "result": result}
+            except Exception as exc:  # pragma: no cover - defensive logging
+                self.logger.error(
+                    "[TiktokService] Exception performing action '%s' on session %s: %s",
+                    action,
+                    session_id,
+                    exc,
+                    exc_info=True,
+                )
+                return {"error": str(exc)}
+        self.logger.warning("[TiktokService] Unknown action '%s' requested", action)
+        return {"error": f"Unknown action: {action}"}
 
     async def check_session_timeout(self, session_id: str) -> bool:
-        """
-        Check if a session has timed out
-        Args:
-            session_id: Session ID to check
-        Returns:
-            bool: True if session has timed out
-        """
-        try:
-            if session_id not in self.session_metadata:
-                return True
-            metadata = self.session_metadata[session_id]
-            timeout_remaining = self._get_timeout_remaining(metadata)
-            return timeout_remaining <= 0
-        except Exception:
+        """Return True when the session has exceeded its allowed lifetime."""
+        record = self.sessions.get(session_id)
+        if record is None:
             return True
+        return record.timeout_remaining() <= 0
 
     async def _load_tiktok_config(self, user_data_dir: Optional[str] = None) -> TikTokSessionConfig:
-        """Load TikTok configuration from settings"""
-        # Use CAMOUFOX_USER_DATA_DIR for both master and clones directories
-        base_user_data_dir = self.settings.camoufox_user_data_dir or "./user_data"
-        # Headless policy:
-        # - Default aligns with global HEADLESS setting (settings.default_headless)
-        # - Unit tests (some) force headless
+        """Load TikTok configuration from settings and optional overrides."""
+        base_user_data_dir = user_data_dir or self.settings.camoufox_user_data_dir or "./user_data"
         headless = bool(getattr(self.settings, "default_headless", True))
         try:
-            # Detect pytest and only enable headless for unit tests path
             current_test = os.environ.get("PYTEST_CURRENT_TEST", "")
             norm = current_test.replace("\\", "/").lower()
             if "/tests/unit/" in norm or "tests/unit/" in norm:
                 headless = True
-        except Exception:
+        except Exception:  # pragma: no cover - defensive fallback
             headless = bool(getattr(self.settings, "default_headless", True))
+
         return TikTokSessionConfig(
             user_data_master_dir=base_user_data_dir,
             user_data_clones_dir=base_user_data_dir,
@@ -316,48 +261,59 @@ class TiktokService:
             login_detection_timeout=self.settings.tiktok_login_detection_timeout,
             max_session_duration=self.settings.tiktok_max_session_duration,
             tiktok_url=self.settings.tiktok_url,
-            headless=headless
+            headless=headless,
         )
 
-    async def _detect_login_state(self, executor: TiktokExecutor, timeout: int) -> TikTokLoginState:
-        """Detect login state using the executor"""
+    async def _detect_login_state(
+        self,
+        executor: TiktokExecutor,
+        config: TikTokSessionConfig,
+        timeout: int,
+    ) -> TikTokLoginState:
+        """Detect login state using the executor."""
         if not executor.browser:
             return TikTokLoginState.UNCERTAIN
-        detector = LoginDetector(executor.browser, await self._load_tiktok_config())
-        return await detector.detect_login_state(timeout)
+        detector = LoginDetector(executor.browser, config)
+        return await detector.detect_login_state(timeout=timeout)
 
-    def _get_timeout_remaining(self, metadata: Dict[str, Any]) -> int:
-        """Calculate timeout remaining for a session"""
-        created_at = metadata["created_at"]
-        last_activity = metadata["last_activity"]
-        max_duration = metadata["config"].max_session_duration
-        # Use the later of creation time or last activity
-        time_reference = max(created_at, last_activity)
-        timeout_at = time_reference + timedelta(seconds=max_duration)
-        now = datetime.now()
-        return max(0, int((timeout_at - now).total_seconds()))
+    def _build_search_service(self) -> TikTokSearchInterface:
+        """Instantiate the configured search service implementation."""
+        service_cls = self._search_service_cls or TikTokURLParamSearchService
+        return service_cls(self)
 
     async def _cleanup_session(self, session_id: str) -> None:
-        """Clean up session resources"""
+        """Clean up session resources."""
+        record = self.sessions.remove(session_id)
+        if record is None:
+            return
+        await self._safe_cleanup_executor(record.executor)
+
+    async def _safe_cleanup_executor(self, executor: TiktokExecutor) -> None:
+        """Best-effort cleanup for executors, with defensive logging."""
         try:
-            if session_id in self.active_sessions:
-                await self.close_session(session_id)
-        except Exception as e:
-            print(f"Error cleaning up session {session_id}: {e}")
+            await executor.cleanup()
+        except Exception as exc:  # pragma: no cover - defensive logging
+            self.logger.warning("[TiktokService] Executor cleanup failed: %s", exc, exc_info=True)
+
+    def _error_response(self, *, message: str, code: str, details: Optional[Dict[str, Any]] = None) -> TikTokSessionResponse:
+        """Helper for building error responses with consistent structure."""
+        payload: Dict[str, Any] = {"code": code}
+        if details:
+            payload.update(details)
+        return TikTokSessionResponse(status="error", message=message, error_details=payload)
 
     async def get_active_sessions(self) -> Dict[str, Dict[str, Any]]:
-        """Get information about all active sessions"""
-        sessions_info = {}
-        for session_id in list(self.active_sessions.keys()):
+        """Return information about all active sessions."""
+        sessions_info: Dict[str, Dict[str, Any]] = {}
+        for session_id in list(self.sessions.ids()):
             session_info = await self.get_session_info(session_id)
             if session_info:
                 sessions_info[session_id] = session_info
             else:
-                # Session no longer active, clean it up
                 await self._cleanup_session(session_id)
         return sessions_info
 
     async def cleanup_all_sessions(self) -> None:
-        """Clean up all active sessions"""
-        for session_id in list(self.active_sessions.keys()):
+        """Clean up all active sessions."""
+        for session_id in list(self.sessions.ids()):
             await self._cleanup_session(session_id)
