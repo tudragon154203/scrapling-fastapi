@@ -36,11 +36,12 @@ class TestBrowseCrawler:
         mock_ctx.__exit__.return_value = False
 
         with patch('app.services.browser.browse.app_config.get_settings', return_value=mock_settings), \
-                patch('app.services.browser.browse.user_data_mod.user_data_context', return_value=mock_ctx):
+                patch('app.services.browser.browse.user_data_mod.user_data_context') as user_data_ctx_mock:
+            user_data_ctx_mock.return_value = mock_ctx
             # Act
             result = crawler.run(request)
 
             # Assert
-            mock_ctx.assert_called_once_with('/tmp/camoufox_profiles', 'write')
+            user_data_ctx_mock.assert_called_once_with('/tmp/camoufox_profiles', 'write')
             mock_engine.run.assert_called_once()
             crawl_req = mock_engine.run.call_args.args[0]

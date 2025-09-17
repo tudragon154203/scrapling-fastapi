@@ -1,8 +1,9 @@
-import os
 import logging
+import os
 import platform
-from typing import Dict, Any, Optional, Tuple
+import warnings
 from pathlib import Path
+from typing import Any, Dict, Optional, Tuple
 
 from app.services.common.browser import user_data as user_data_mod
 
@@ -71,6 +72,7 @@ class CamoufoxArgsBuilder:
 
             except Exception as e:
                 logger.warning(f"Failed to setup user data directory: {e}")
+                warnings.warn(str(e), UserWarning)
                 # Continue without user-data on error
 
         if getattr(settings, "camoufox_disable_coop", False):

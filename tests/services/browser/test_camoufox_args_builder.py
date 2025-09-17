@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import Mock, MagicMock
+from unittest.mock import Mock, MagicMock, patch
 from app.services.common.browser.camoufox import CamoufoxArgsBuilder
 from app.schemas.crawl import CrawlRequest
 from app.services.common.types import FetchCapabilities
