@@ -65,15 +65,19 @@ jobs:
       )
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      QWEN_CODE_API_KEY: ${{ secrets.QWEN_CODE_API_KEY }}
+      QWEN_CODE_BASE_URL: ${{ secrets.QWEN_CODE_BASE_URL }}
+      QWEN_CODE_MODEL: ${{ secrets.QWEN_CODE_MODEL }}
     steps:
       - name: "Qwen credentials not configured"
-        if: ${{ !(secrets.QWEN_CODE_API_KEY != '' && secrets.QWEN_CODE_BASE_URL != '' && secrets.QWEN_CODE_MODEL != '') }}
+        if: ${{ env.QWEN_CODE_API_KEY == '' || env.QWEN_CODE_BASE_URL == '' || env.QWEN_CODE_MODEL == '' }}
         run: |
           echo "QWEN_CODE_API_KEY, QWEN_CODE_BASE_URL, and QWEN_CODE_MODEL secrets must be configured to run Qwen Code review."
           echo "Skipping automated review."
 
       - name: Checkout repository
-        if: ${{ secrets.QWEN_CODE_API_KEY != '' && secrets.QWEN_CODE_BASE_URL != '' && secrets.QWEN_CODE_MODEL != '' }}
+        if: ${{ env.QWEN_CODE_API_KEY != '' && env.QWEN_CODE_BASE_URL != '' && env.QWEN_CODE_MODEL != '' }}
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # ratchet:actions/checkout@v5
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -81,7 +85,7 @@ jobs:
 
       - name: Gather pull request context
         id: context
-        if: ${{ secrets.QWEN_CODE_API_KEY != '' && secrets.QWEN_CODE_BASE_URL != '' && secrets.QWEN_CODE_MODEL != '' }}
+        if: ${{ env.QWEN_CODE_API_KEY != '' && env.QWEN_CODE_BASE_URL != '' && env.QWEN_CODE_MODEL != '' }}
         env:
           EVENT_NAME: ${{ github.event_name }}
           EVENT_ACTION: ${{ github.event.action || '' }}
@@ -136,7 +140,7 @@ jobs:
 
       - name: Run Qwen PR review
         id: qwen
-        if: ${{ secrets.QWEN_CODE_API_KEY != '' && secrets.QWEN_CODE_BASE_URL != '' && secrets.QWEN_CODE_MODEL != '' }}
+        if: ${{ env.QWEN_CODE_API_KEY != '' && env.QWEN_CODE_BASE_URL != '' && env.QWEN_CODE_MODEL != '' }}
         uses: QwenLM/qwen-code-action@5fd6818d04d64e87d255ee4d5f77995e32fbf4c2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -147,9 +151,9 @@ jobs:
           ADDITIONAL_INSTRUCTIONS: ${{ steps.context.outputs.additional_instructions }}
           REPOSITORY: ${{ github.repository }}
         with:
-          OPENAI_API_KEY: ${{ secrets.QWEN_CODE_API_KEY }}
-          OPENAI_BASE_URL: ${{ secrets.QWEN_CODE_BASE_URL }}
-          OPENAI_MODEL: ${{ secrets.QWEN_CODE_MODEL }}
+          OPENAI_API_KEY: ${{ env.QWEN_CODE_API_KEY }}
+          OPENAI_BASE_URL: ${{ env.QWEN_CODE_BASE_URL }}
+          OPENAI_MODEL: ${{ env.QWEN_CODE_MODEL }}
           settings_json: |
             {
               "coreTools": [
@@ -190,7 +194,7 @@ jobs:
             End the review with a verdict line that starts with either `APPROVED` or `REVISIONS_REQUIRED`.
 
       - name: Post Qwen review comment
-        if: ${{ secrets.QWEN_CODE_API_KEY != '' && secrets.QWEN_CODE_BASE_URL != '' && secrets.QWEN_CODE_MODEL != '' && steps.qwen.outputs.summary != '' }}
+        if: ${{ env.QWEN_CODE_API_KEY != '' && env.QWEN_CODE_BASE_URL != '' && env.QWEN_CODE_MODEL != '' && steps.qwen.outputs.summary != '' }}
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
