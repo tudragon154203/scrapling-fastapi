@@ -1,132 +1,216 @@
-name: "⭐ Qwen Code"
+name: "🧐 Qwen Pull Request Review"
 
 on:
-  pull_request:
+  pull_request_target:
     types:
       - opened
-      - synchronize
       - reopened
+      - synchronize
       - ready_for_review
+  issue_comment:
+    types:
+      - created
+  pull_request_review_comment:
+    types:
+      - created
+  pull_request_review:
+    types:
+      - submitted
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "PR number to review"
+        required: true
+        type: number
 
 permissions:
   contents: read
   issues: write
   pull-requests: write
+  id-token: write
 
 jobs:
-  review:
-    if: github.event.pull_request.draft == false
+  review-pr:
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (
+        github.event_name == 'pull_request_target' &&
+        contains(fromJson('["opened","reopened","synchronize","ready_for_review"]'), github.event.action) &&
+        (
+          github.event.pull_request.author_association == 'OWNER' ||
+          github.event.pull_request.author_association == 'MEMBER' ||
+          github.event.pull_request.author_association == 'COLLABORATOR'
+        )
+      ) ||
+      (
+        github.event_name == 'issue_comment' &&
+        github.event.issue.pull_request &&
+        contains(github.event.comment.body, '@qwen /review') &&
+        (
+          github.event.comment.author_association == 'OWNER' ||
+          github.event.comment.author_association == 'MEMBER' ||
+          github.event.comment.author_association == 'COLLABORATOR'
+        )
+      ) ||
+      (
+        github.event_name == 'pull_request_review_comment' &&
+        contains(github.event.comment.body, '@qwen /review') &&
+        (
+          github.event.comment.author_association == 'OWNER' ||
+          github.event.comment.author_association == 'MEMBER' ||
+          github.event.comment.author_association == 'COLLABORATOR'
+        )
+      ) ||
+      (
+        github.event_name == 'pull_request_review' &&
+        contains(github.event.review.body, '@qwen /review') &&
+        (
+          github.event.review.author_association == 'OWNER' ||
+          github.event.review.author_association == 'MEMBER' ||
+          github.event.review.author_association == 'COLLABORATOR'
+        )
+      )
     runs-on: ubuntu-latest
-    environment: 'Agents/Bots'
+    timeout-minutes: 15
     env:
-      HAS_QWEN_OAUTH_CREDENTIALS: ${{ secrets.QWEN_CODE_ACCESS_TOKEN != '' && secrets.QWEN_CODE_REFRESH_TOKEN != '' }}
+      HAS_QWEN_CODE_CREDENTIALS: ${{ secrets.QWEN_CODE_API_KEY != '' && secrets.QWEN_CODE_BASE_URL != '' && secrets.QWEN_CODE_MODEL != '' }}
     steps:
-      - name: Check for Qwen OAuth credentials
-        if: env.HAS_QWEN_OAUTH_CREDENTIALS == 'false'
+      - name: "Qwen credentials not configured"
+        if: env.HAS_QWEN_CODE_CREDENTIALS == 'false'
         run: |
-          echo "QWEN_CODE_ACCESS_TOKEN and/or QWEN_CODE_REFRESH_TOKEN secrets are not configured. Skipping automated Qwen code review."
+          echo "QWEN_CODE_API_KEY, QWEN_CODE_BASE_URL, and QWEN_CODE_MODEL secrets must be configured to run Qwen Code review."
+          echo "Skipping automated review."
+
       - name: Checkout repository
-        if: env.HAS_QWEN_OAUTH_CREDENTIALS == 'true'
-        uses: actions/checkout@v4
+        if: env.HAS_QWEN_CODE_CREDENTIALS == 'true'
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # ratchet:actions/checkout@v5
         with:
+          token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
 
-      - name: Fetch base branch
-        if: env.HAS_QWEN_OAUTH_CREDENTIALS == 'true'
-        run: git fetch origin "${{ github.event.pull_request.base.ref }}" --depth=1
-
-      - name: Set up Node.js
-        if: env.HAS_QWEN_OAUTH_CREDENTIALS == 'true'
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Install Qwen Code CLI
-        if: env.HAS_QWEN_OAUTH_CREDENTIALS == 'true'
-        run: npm install -g @qwen-code/qwen-code@latest
-
-      - name: Configure Qwen workspace
-        if: env.HAS_QWEN_OAUTH_CREDENTIALS == 'true'
-        run: |
-          set -euo pipefail
-          QWEN_DIR="$HOME/.qwen"
-          mkdir -p "$QWEN_DIR"
-
-          cat <<EOF > "$QWEN_DIR/oauth_creds.json"
-          {
-            "access_token": "${{ secrets.QWEN_CODE_ACCESS_TOKEN }}",
-            "refresh_token": "${{ secrets.QWEN_CODE_REFRESH_TOKEN }}",
-            "token_type": "Bearer",
-            "resource_url": "portal.qwen.ai",
-            "expiry_date": 1757452472185
-          }
-          EOF
-
-          cat <<'EOF' > "$QWEN_DIR/google_accounts.json"
-          {
-            "active": null,
-            "old": []
-          }
-          EOF
-
-          cat <<'EOF' > "$QWEN_DIR/installation_id"
-          8b332e4e-47ca-4fd1-82a2-bfaab70d4b55
-          EOF
-
-          cat <<'EOF' > "$QWEN_DIR/settings.json"
-          {
-            "selectedAuthType": "qwen-oauth",
-            "useExternalAuth": false,
-            "ideMode": true,
-            "hasSeenIdeIntegrationNudge": true
-          }
-          EOF
-
-          chmod 600 "$QWEN_DIR/oauth_creds.json" "$QWEN_DIR/settings.json"
-
-      - name: Generate pull request diff
-        if: env.HAS_QWEN_OAUTH_CREDENTIALS == 'true'
-        run: |
-          git diff --stat
-          git diff "${{ github.event.pull_request.base.sha }}" HEAD > pr.diff
-
-      - name: Run Qwen code review
-        id: qwen
-        if: env.HAS_QWEN_OAUTH_CREDENTIALS == 'true'
+      - name: Gather pull request context
+        id: context
+        if: env.HAS_QWEN_CODE_CREDENTIALS == 'true'
         env:
-          REVIEW_PROMPT: |
-            You are an autonomous Qwen code reviewer running inside a GitHub Actions workflow.
-            Review the changes introduced in pull request #${{ github.event.number }} that targets `${{ github.event.pull_request.base.ref }}`.
-            Carefully analyze the provided diff and the current repository state to understand the modifications.
-            Focus on correctness, testing gaps, security implications, maintainability, and consistency with the project's conventions.
-            When you are confident in your analysis, respond with a Markdown report that contains the following sections:
-            - **Summary**: Briefly describe the overall change.
-            - **Strengths** (optional): Bullet points highlighting what looks good.
-            - **Issues**: Bullet points calling out any blocking problems with clear file references and line numbers when possible.
-            - **Suggestions** (optional): Non-blocking improvements or refactoring ideas.
-            - **Testing**: Tests that were run (or should be run) to verify the change.
-            Conclude with an explicit verdict line that starts with either `APPROVED` or `REVISIONS_REQUIRED` to help triage.
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_ACTION: ${{ github.event.action || '' }}
+          COMMENT_BODY: ${{ github.event.comment.body || '' }}
+          REVIEW_BODY: ${{ github.event.review.body || '' }}
+          WORKFLOW_PR_NUMBER: ${{ github.event.inputs.pr_number || '' }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          printf '%s\n' "$REVIEW_PROMPT" > review_prompt.txt
 
-          qwen --prompt "$REVIEW_PROMPT" < pr.diff | tee qwen-review.md
+          pr_number=""
+          additional_instructions=""
 
+          case "${EVENT_NAME}" in
+            workflow_dispatch)
+              pr_number="${WORKFLOW_PR_NUMBER}"
+              ;;
+            pull_request_target)
+              pr_number="${{ github.event.pull_request.number }}"
+              ;;
+            issue_comment)
+              pr_number="${{ github.event.issue.number }}"
+              additional_instructions=$(echo "${COMMENT_BODY}" | sed 's/.*@qwen \/review//' | xargs || true)
+              ;;
+            pull_request_review_comment)
+              pr_number="${{ github.event.pull_request.number }}"
+              additional_instructions=$(echo "${COMMENT_BODY}" | sed 's/.*@qwen \/review//' | xargs || true)
+              ;;
+            pull_request_review)
+              pr_number="${{ github.event.pull_request.number }}"
+              additional_instructions=$(echo "${REVIEW_BODY}" | sed 's/.*@qwen \/review//' | xargs || true)
+              ;;
+            *)
+              echo "Unsupported event: ${EVENT_NAME}"
+              exit 1
+              ;;
+          esac
+
+          if [ -z "${pr_number}" ]; then
+            echo "Unable to determine PR number for event ${EVENT_NAME}"
+            exit 1
+          fi
+
+          echo "pr_number=${pr_number}" >> "${GITHUB_OUTPUT}"
+          echo "additional_instructions=${additional_instructions}" >> "${GITHUB_OUTPUT}"
+
+          pr_data=$(gh pr view "${pr_number}" --json title,body,additions,deletions,changedFiles,baseRefName,headRefName)
+          echo "pr_data=${pr_data}" >> "${GITHUB_OUTPUT}"
+
+          changed_files=$(gh pr diff "${pr_number}" --name-only)
           {
-            echo "summary<<EOF" >> "$GITHUB_OUTPUT"
-            cat qwen-review.md >> "$GITHUB_OUTPUT"
-            echo "EOF" >> "$GITHUB_OUTPUT"
-          }
+            echo "changed_files<<'EOF'"
+            echo "${changed_files}"
+            echo 'EOF'
+          } >> "${GITHUB_OUTPUT}"
+
+      - name: Run Qwen PR review
+        id: qwen
+        if: env.HAS_QWEN_CODE_CREDENTIALS == 'true'
+        uses: QwenLM/qwen-code-action@5fd6818d04d64e87d255ee4d5f77995e32fbf4c2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ steps.context.outputs.pr_number }}
+          PR_DATA: ${{ steps.context.outputs.pr_data }}
+          CHANGED_FILES: ${{ steps.context.outputs.changed_files }}
+          ADDITIONAL_INSTRUCTIONS: ${{ steps.context.outputs.additional_instructions }}
+          REPOSITORY: ${{ github.repository }}
+        with:
+          OPENAI_API_KEY: ${{ secrets.QWEN_CODE_API_KEY }}
+          OPENAI_BASE_URL: ${{ secrets.QWEN_CODE_BASE_URL }}
+          OPENAI_MODEL: ${{ secrets.QWEN_CODE_MODEL }}
+          settings_json: |
+            {
+              "coreTools": [
+                "run_shell_command",
+                "write_file"
+              ],
+              "sandbox": false
+            }
+          prompt: |
+            You are an autonomous Qwen code reviewer running inside a GitHub Actions workflow for the repository $REPOSITORY.
+            You have access to the GitHub CLI and shell commands. Use them to collect the necessary context before writing your review.
+
+            Required commands to run before drafting the review:
+            1. echo "$PR_DATA"
+            2. echo "$CHANGED_FILES"
+            3. echo "$PR_NUMBER"
+            4. echo "$ADDITIONAL_INSTRUCTIONS"
+            5. gh pr diff $PR_NUMBER
+            6. Inspect any specific files as needed using commands such as head, tail, or cat.
+
+            After reviewing the changes, produce a markdown report using the format below. Write the review to stdout only—do NOT post comments with the GitHub CLI. The workflow will publish your review for you.
+
+            ## Summary
+            - Provide a concise overview of the pull request.
+
+            ## Strengths (optional)
+            - Highlight notable improvements or best practices.
+
+            ## Issues
+            - List blocking issues with references to files and line numbers when possible. If there are no blocking issues, state "No blocking issues identified."
+
+            ## Suggestions (optional)
+            - Offer non-blocking improvements or follow-up ideas.
+
+            ## Testing
+            - Describe which tests were run or should be run to validate the changes.
+
+            End the review with a verdict line that starts with either `APPROVED` or `REVISIONS_REQUIRED`.
 
       - name: Post Qwen review comment
-        if: env.HAS_QWEN_OAUTH_CREDENTIALS == 'true' && steps.qwen.outputs.summary != ''
+        if: env.HAS_QWEN_CODE_CREDENTIALS == 'true' && steps.qwen.outputs.summary != ''
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const summary = ${{ toJSON(steps.qwen.outputs.summary) }};
             if (!summary || summary.trim().length === 0) {
-              core.info('No review content generated by Qwen.');
+              core.info('Qwen review output is empty.');
               return;
             }
             await github.rest.issues.createComment({
