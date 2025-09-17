@@ -28,12 +28,13 @@ jobs:
       - name: Check Gemini keys
         id: check_key
         env:
+          GEMINE_API_KEY: ${{ secrets.GEMINE_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GEMINI_API_KEY_2: ${{ secrets.GEMINI_API_KEY_2 }}
         run: |
-          if [ -z "$GEMINI_API_KEY" ] && [ -z "$GEMINI_API_KEY_2" ]; then
+          if [ -z "$GEMINE_API_KEY" ] && [ -z "$GEMINI_API_KEY" ] && [ -z "$GEMINI_API_KEY_2" ]; then
             echo "key_present=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::Skipping review because neither GEMINI_API_KEY nor GEMINI_API_KEY_2 is set."
+            echo "::notice::Skipping review because no Gemini API key secret (GEMINE_API_KEY, GEMINI_API_KEY, GEMINI_API_KEY_2) is set."
           else
             echo "key_present=true" >> "$GITHUB_OUTPUT"
           fi
@@ -112,6 +113,7 @@ jobs:
         if: steps.check_key.outputs.key_present == 'true' && steps.diff.outputs.no_diff != 'true'
         id: aider
         env:
+          GEMINE_API_KEY: ${{ secrets.GEMINE_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GEMINI_API_KEY_2: ${{ secrets.GEMINI_API_KEY_2 }}
           AIDER_YES_ALWAYS: "true"
@@ -121,6 +123,9 @@ jobs:
           set -o pipefail
           : > aider_review_raw.txt
           keys=()
+          if [ -n "$GEMINE_API_KEY" ]; then
+            keys+=("$GEMINE_API_KEY")
+          fi
           if [ -n "$GEMINI_API_KEY_2" ]; then
             keys+=("$GEMINI_API_KEY_2")
           fi
@@ -135,6 +140,7 @@ jobs:
           for key in "${keys[@]}"; do
             export GEMINI_API_KEY="$key"
             export AIDER_GEMINI_API_KEY="$key"
+            export GEMINE_API_KEY="$key"
             echo "::notice::Starting Aider attempt $attempt of $max_attempts"
             if aider \
               --model gemini/gemini-2.5-flash \
@@ -175,15 +181,89 @@ jobs:
           python <<'PY'
           import os
           import pathlib
+          import re
           import textwrap
 
           review_path = pathlib.Path("aider_review_raw.txt")
           success = os.environ.get("AIDER_SUCCESS") == "true"
           truncated = os.environ.get("DIFF_TRUNCATED") == "true"
 
+          def extract_review(raw: str) -> str:
+              if not raw:
+                  return ""
+              candidate = raw.strip()
+              match = re.search(r"(?:^|\n)(### Summary[\s\S]*)", candidate)
+              if match:
+                  candidate = match.group(1)
+
+              noise_prefixes = (
+                  "aider v",
+                  "using diff",
+                  "reading diff",
+                  "diff size",
+                  "assistant >",
+                  "assistant:",
+                  "user >",
+                  "user:",
+                  "system >",
+                  "system:",
+                  "aider>",
+                  "working directory",
+                  "git status",
+                  "open an issue",
+                  "run with --",
+                  "set --model",
+                  "tokens used:",
+                  "tool error",
+                  "telemetry",
+                  "fetching update",
+                  "pip install",
+                  "to submit feedback",
+                  "view the diff",
+                  "dry run is enabled",
+                  "repo map",
+                  "repo summary",
+              )
+              noise_contains = (
+                  "rate limit",
+                  "token limit",
+                  "ctrl-c",
+                  "keyboardinterrupt",
+                  "dry-run",
+                  "model context window",
+                  "command line args",
+                  "this action will not",
+                  "elapsed time",
+                  "cache size",
+              )
+
+              cleaned_lines = []
+              for line in candidate.splitlines():
+                  stripped = line.strip()
+                  lower = stripped.lower()
+                  if not stripped:
+                      cleaned_lines.append("")
+                      continue
+                  if any(lower.startswith(prefix) for prefix in noise_prefixes):
+                      continue
+                  if any(term in lower for term in noise_contains):
+                      continue
+                  cleaned_lines.append(line.rstrip())
+
+              cleaned = "\n".join(cleaned_lines).strip()
+              if cleaned:
+                  lines = cleaned.splitlines()
+                  if len(lines) > 400:
+                      cleaned = "\n".join(lines[:400])
+                  return cleaned
+              return candidate
+
           body = ""
           if success and review_path.exists():
-              body = review_path.read_text().strip()
+              raw = review_path.read_text()
+              body = extract_review(raw)
+              if not body.strip():
+                  body = raw.strip()
           else:
               log = review_path.read_text().strip() if review_path.exists() else ""
               body = textwrap.dedent(
