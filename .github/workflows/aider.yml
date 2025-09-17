@@ -7,14 +7,6 @@ on:
       - synchronize
       - reopened
       - ready_for_review
-    paths:
-      - 'app/**'
-      - 'tests/**'
-      - 'requirements-test.txt'
-      - 'requirements.txt'
-      - 'pytest.ini'
-      - '.flake8'
-      - '.pre-commit-config.yaml'
 
 permissions:
   contents: read
@@ -120,7 +112,7 @@ jobs:
         run: |
           set -o pipefail
           : > aider_review_raw.txt
-          if aider --model openrouter/deepseek/deepseek-r1:free --dry-run --no-auto-commits --no-pretty --no-stream --message-file .github/aider/review_prompt.md 2>&1 | tee aider_review_raw.txt; then
+          if aider --model openrouter/deepseek/deepseek-chat:free --dry-run --no-auto-commits --no-pretty --no-stream --message-file .github/aider/review_prompt.md 2>&1 | tee aider_review_raw.txt; then
             echo "success=true" >> "$GITHUB_OUTPUT"
           else
             status=$?
