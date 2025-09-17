@@ -5,7 +5,7 @@ from app.schemas.crawl import CrawlRequest
 from app.schemas.browse import BrowseRequest, BrowseResponse
 from app.services.common.engine import CrawlerEngine
 from app.services.browser.actions.wait_for_close import WaitForUserCloseAction
-from app.services.common.browser.user_data import user_data_context
+from app.services.common.browser import user_data as user_data_mod
 from app.services.browser.executors.browse_executor import BrowseExecutor
 
 logger = logging.getLogger(__name__)
@@ -38,7 +38,7 @@ class BrowseCrawler:
             settings = app_config.get_settings()
             user_data_dir = getattr(settings, 'camoufox_user_data_dir', 'data/camoufox_profiles')
 
-            with user_data_context(user_data_dir, 'write') as (effective_dir, cleanup):
+            with user_data_mod.user_data_context(user_data_dir, 'write') as (effective_dir, cleanup):
                 try:
                     # Signal write-mode to CamoufoxArgsBuilder via settings (runtime-only flags)
                     try:
