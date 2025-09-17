@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: 'Agents/Bots'
     env:
-      HAS_QWEN_OAUTH_CREDENTIALS: ${{ and(secrets.QWEN_CODE_ACCESS_TOKEN != '', secrets.QWEN_CODE_REFRESH_TOKEN != '') }}
+      HAS_QWEN_OAUTH_CREDENTIALS: ${{ secrets.QWEN_CODE_ACCESS_TOKEN != '' && secrets.QWEN_CODE_REFRESH_TOKEN != '' }}
     steps:
       - name: Check for Qwen OAuth credentials
         if: env.HAS_QWEN_OAUTH_CREDENTIALS == 'false'
