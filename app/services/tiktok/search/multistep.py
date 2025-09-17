@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Union
 
-from app.services.tiktok.abstract_search_service import AbstractTikTokSearchService
+from app.services.tiktok.search.abstract import AbstractTikTokSearchService
 
 
 class TiktokMultistepSearchService(AbstractTikTokSearchService):
