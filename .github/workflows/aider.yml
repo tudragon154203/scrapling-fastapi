@@ -25,14 +25,15 @@ jobs:
     timeout-minutes: 30
 
     steps:
-      - name: Check Gemini key
+      - name: Check Gemini keys
         id: check_key
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_API_KEY_2: ${{ secrets.GEMINI_API_KEY_2 }}
         run: |
-          if [ -z "$GEMINI_API_KEY" ]; then
+          if [ -z "$GEMINI_API_KEY" ] && [ -z "$GEMINI_API_KEY_2" ]; then
             echo "key_present=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::Skipping review because GEMINI_API_KEY is not set."
+            echo "::notice::Skipping review because neither GEMINI_API_KEY nor GEMINI_API_KEY_2 is set."
           else
             echo "key_present=true" >> "$GITHUB_OUTPUT"
           fi
@@ -112,18 +113,28 @@ jobs:
         id: aider
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          AIDER_GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_API_KEY_2: ${{ secrets.GEMINI_API_KEY_2 }}
           AIDER_YES_ALWAYS: "true"
           AIDER_CHECK_UPDATE: "0"
           AIDER_SHOW_RELEASE_NOTES: "0"
         run: |
           set -o pipefail
           : > aider_review_raw.txt
-          max_attempts=5
-          base_wait=60
+          keys=()
+          if [ -n "$GEMINI_API_KEY_2" ]; then
+            keys+=("$GEMINI_API_KEY_2")
+          fi
+          if [ -n "$GEMINI_API_KEY" ]; then
+            keys+=("$GEMINI_API_KEY")
+          fi
+
+          max_attempts=${#keys[@]}
           attempt=1
           success=false
-          while [ "$attempt" -le "$max_attempts" ]; do
+
+          for key in "${keys[@]}"; do
+            export GEMINI_API_KEY="$key"
+            export AIDER_GEMINI_API_KEY="$key"
             echo "::notice::Starting Aider attempt $attempt of $max_attempts"
             if aider \
               --model gemini/gemini-2.5-flash \
@@ -144,17 +155,7 @@ jobs:
             status=$?
             echo "::warning::Aider attempt $attempt failed with status $status"
 
-            if tail -n 200 aider_review_raw.txt | grep -qi 'Rate limit exceeded'; then
-              if [ "$attempt" -lt "$max_attempts" ]; then
-                wait_time=$((base_wait * attempt))
-                echo "::notice::Detected API rate limiting. Waiting ${wait_time}s before retrying."
-                sleep "$wait_time"
-                attempt=$((attempt + 1))
-                continue
-              fi
-            fi
-
-            break
+            attempt=$((attempt + 1))
           done
 
           if [ "$success" = "true" ]; then
