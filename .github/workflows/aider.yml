@@ -18,6 +18,9 @@ jobs:
     name: Aider Review
     if: ${{ contains(fromJSON('["OWNER","COLLABORATOR","MEMBER"]'), github.event.pull_request.author_association) }}
     runs-on: ubuntu-latest
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
     environment: 'Agents/Bots'
     timeout-minutes: 30
 
@@ -116,22 +119,47 @@ jobs:
         run: |
           set -o pipefail
           : > aider_review_raw.txt
-          if aider \
-            --model openrouter/deepseek/deepseek-chat-v3-0324:free \
-            --dry-run \
-            --no-auto-commits \
-            --no-pretty \
-            --no-stream \
-            --no-gitignore \
-            --no-check-update \
-            --no-show-release-notes \
-            --disable-playwright \
-            --message-file .github/aider/review_prompt.md \
-            2>&1 | tee aider_review_raw.txt; then
+          max_attempts=5
+          base_wait=60
+          attempt=1
+          success=false
+          while [ "$attempt" -le "$max_attempts" ]; do
+            echo "::notice::Starting Aider attempt $attempt of $max_attempts"
+            if aider \
+              --model openrouter/deepseek/deepseek-chat-v3-0324:free \
+              --dry-run \
+              --no-auto-commits \
+              --no-pretty \
+              --no-stream \
+              --no-gitignore \
+              --no-check-update \
+              --no-show-release-notes \
+              --disable-playwright \
+              --message-file .github/aider/review_prompt.md \
+              2>&1 | tee -a aider_review_raw.txt; then
+              success=true
+              break
+            fi
+
+            status=$?
+            echo "::warning::Aider attempt $attempt failed with status $status"
+
+            if tail -n 200 aider_review_raw.txt | grep -qi 'Rate limit exceeded'; then
+              if [ "$attempt" -lt "$max_attempts" ]; then
+                wait_time=$((base_wait * attempt))
+                echo "::notice::Detected OpenRouter rate limiting. Waiting ${wait_time}s before retrying."
+                sleep "$wait_time"
+                attempt=$((attempt + 1))
+                continue
+              fi
+            fi
+
+            break
+          done
+
+          if [ "$success" = "true" ]; then
             echo "success=true" >> "$GITHUB_OUTPUT"
           else
-            status=$?
-            echo "::warning::Aider exited with status $status"
             echo "success=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
