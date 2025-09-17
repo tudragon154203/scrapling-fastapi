@@ -25,14 +25,14 @@ jobs:
     timeout-minutes: 30
 
     steps:
-      - name: Check OpenRouter key
+      - name: Check Gemini key
         id: check_key
         env:
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINE_API_KEY }}
         run: |
-          if [ -z "$OPENROUTER_API_KEY" ]; then
+          if [ -z "$GEMINI_API_KEY" ]; then
             echo "key_present=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::Skipping review because OPENROUTER_API_KEY is not set."
+            echo "::notice::Skipping review because GEMINE_API_KEY is not set."
           else
             echo "key_present=true" >> "$GITHUB_OUTPUT"
           fi
@@ -111,8 +111,8 @@ jobs:
         if: steps.check_key.outputs.key_present == 'true' && steps.diff.outputs.no_diff != 'true'
         id: aider
         env:
-          AIDER_OPENROUTER_API_BASE: https://openrouter.ai/api/v1
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINE_API_KEY }}
+          AIDER_GEMINI_API_KEY: ${{ secrets.GEMINE_API_KEY }}
           AIDER_YES_ALWAYS: "true"
           AIDER_CHECK_UPDATE: "0"
           AIDER_SHOW_RELEASE_NOTES: "0"
@@ -126,7 +126,7 @@ jobs:
           while [ "$attempt" -le "$max_attempts" ]; do
             echo "::notice::Starting Aider attempt $attempt of $max_attempts"
             if aider \
-              --model openrouter/deepseek/deepseek-chat-v3-0324:free \
+              --model gemini/gemini-2.5-flash \
               --dry-run \
               --no-auto-commits \
               --no-pretty \
@@ -147,7 +147,7 @@ jobs:
             if tail -n 200 aider_review_raw.txt | grep -qi 'Rate limit exceeded'; then
               if [ "$attempt" -lt "$max_attempts" ]; then
                 wait_time=$((base_wait * attempt))
-                echo "::notice::Detected OpenRouter rate limiting. Waiting ${wait_time}s before retrying."
+                echo "::notice::Detected API rate limiting. Waiting ${wait_time}s before retrying."
                 sleep "$wait_time"
                 attempt=$((attempt + 1))
                 continue
@@ -224,6 +224,6 @@ jobs:
               body
             });
 
-      - name: Skip review (missing OpenRouter key)
+      - name: Skip review (missing Gemini key)
         if: steps.check_key.outputs.key_present != 'true'
-        run: echo 'OpenRouter API key not configured. Aider review skipped.'
+        run: echo 'Gemini API key not configured. Aider review skipped.'
