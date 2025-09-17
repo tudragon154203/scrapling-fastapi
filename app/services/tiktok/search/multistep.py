@@ -204,7 +204,7 @@ class TikTokMultiStepSearchService(AbstractTikTokSearchService):
 
             # Execute the search with timeout protection
             try:
-                await asyncio.wait_for(
+                result = await asyncio.wait_for(
                     engine.run(crawl_request, search_action),
                     timeout=180,  # 3 minute timeout for browser automation
                 )
@@ -212,7 +212,11 @@ class TikTokMultiStepSearchService(AbstractTikTokSearchService):
                 self.logger.warning("Browser search timed out after 3 minutes")
                 return ""
 
-            # Return the captured HTML content
+            # Prefer returning the engine response HTML when available.
+            if result and getattr(result, "html", None):
+                return result.html or ""
+
+            # Fall back to the HTML captured directly by the search action.
             return search_action.html_content
 
         except Exception as e:
