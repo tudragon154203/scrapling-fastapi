@@ -2,6 +2,11 @@ name: '🧪 CI - Push (Unit)'
 
 on:
   push:
+    paths:
+      - 'app/**'
+      - 'tests/**'
+      - 'requirements-test.txt'
+      - 'requirements.txt'
   workflow_call:
 
 jobs:

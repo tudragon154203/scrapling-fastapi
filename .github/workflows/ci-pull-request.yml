@@ -2,6 +2,11 @@ name: '🧪 CI - Pull Request (Unit + Integration)'
 
 on:
   pull_request:
+    paths:
+      - 'app/**'
+      - 'tests/**'
+      - 'requirements-test.txt'
+      - 'requirements.txt'
 
 jobs:
   unit_api:
