@@ -16,10 +16,8 @@ from app.schemas.tiktok.session import (
     TikTokSessionRequest,
     TikTokSessionResponse,
 )
-from app.services.tiktok.interfaces import TikTokSearchInterface
 from app.services.tiktok.session.registry import SessionRecord, SessionRegistry
 from app.services.tiktok.tiktok_executor import TiktokExecutor
-from app.services.tiktok.search.url_param import TikTokURLParamSearchService
 from app.services.tiktok.utils.login_detection import LoginDetector
 
 
@@ -29,12 +27,10 @@ class TiktokService:
     def __init__(
         self,
         *,
-        search_service_cls: Optional[type[TikTokSearchInterface]] = None,
         session_registry: Optional[SessionRegistry] = None,
     ) -> None:
         self.settings = get_settings()
         self.logger = logging.getLogger(__name__)
-        self._search_service_cls = search_service_cls
         self.sessions = session_registry or SessionRegistry()
 
     async def create_session(
@@ -113,48 +109,6 @@ class TiktokService:
         session_id, record = first_pair
         self.logger.debug("[TiktokService] Returning active session: %s", session_id)
         return record.executor
-
-    async def search_tiktok(
-        self,
-        query: Union[str, List[str]],
-        num_videos: int = 50,
-        sort_type: str = "RELEVANCE",
-        recency_days: str = "ALL",
-    ) -> Dict[str, Any]:
-        """Delegate to TikTokSearchService to execute the search."""
-        self.logger.debug(
-            "[TiktokService] search_tiktok called - query: %s, num_videos: %s, sort_type: %s, recency_days: %s",
-            query,
-            num_videos,
-            sort_type,
-            recency_days,
-        )
-
-        if not await self.has_active_session():
-            self.logger.debug("[TiktokService] No active session found, returning error")
-            return {
-                "error": {
-                    "code": "NOT_LOGGED_IN",
-                    "message": "TikTok session is not logged in",
-                }
-            }
-
-        try:
-            search_service = self._build_search_service()
-            result = await search_service.search(
-                query,
-                num_videos=num_videos,
-                sort_type=sort_type,
-                recency_days=recency_days,
-            )
-            self.logger.debug(
-                "[TiktokService] Search completed successfully - total results: %s",
-                len(result.get("results", [])),
-            )
-            return result
-        except Exception as exc:  # pragma: no cover - defensive logging
-            self.logger.error("[TiktokService] Exception in search_tiktok: %s", exc, exc_info=True)
-            return {"error": f"Search failed: {exc}"}
 
     async def close_session(self, session_id: str) -> bool:
         """Close and cleanup an active TikTok session."""
@@ -275,11 +229,6 @@ class TiktokService:
             return TikTokLoginState.UNCERTAIN
         detector = LoginDetector(executor.browser, config)
         return await detector.detect_login_state(timeout=timeout)
-
-    def _build_search_service(self) -> TikTokSearchInterface:
-        """Instantiate the configured search service implementation."""
-        service_cls = self._search_service_cls or TikTokURLParamSearchService
-        return service_cls(self)
 
     async def _cleanup_session(self, session_id: str) -> None:
         """Clean up session resources."""

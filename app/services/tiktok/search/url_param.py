@@ -15,8 +15,8 @@ from app.services.tiktok.protocols import SearchContext
 class TikTokURLParamSearchService(AbstractTikTokSearchService):
     """Search service that builds TikTok queries using URL parameters."""
 
-    def __init__(self, service: Any):
-        super().__init__(service)
+    def __init__(self):
+        super().__init__()
 
     async def search(
         self,

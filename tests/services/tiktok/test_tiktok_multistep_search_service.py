@@ -10,17 +10,9 @@ class TestTikTokMultiStepSearchService:
     """Test TikTok MultiStepSearchService implementation"""
 
     @pytest.fixture
-    def mock_service(self):
-        """Create a mock TikTok service instance"""
-        service = Mock()
-        service.settings = Mock()
-        service.settings.tiktok_url = "https://www.tiktok.com/"
-        return service
-
-    @pytest.fixture
-    def search_service(self, mock_service):
+    def search_service(self):
         """Create a TikTokMultiStepSearchService instance"""
-        return TikTokMultiStepSearchService(mock_service)
+        return TikTokMultiStepSearchService()
 
     @pytest.fixture
     def mock_context(self):
@@ -35,10 +27,9 @@ class TestTikTokMultiStepSearchService:
             "options": {}
         }
 
-    def test_service_initialization(self, search_service, mock_service):
+    def test_service_initialization(self, search_service):
         """Test that service initializes properly"""
-        assert search_service.service == mock_service
-        assert search_service.settings == mock_service.settings
+        assert search_service.settings is not None
         assert hasattr(search_service, 'logger')
 
     def test_auto_search_action_initialization(self):

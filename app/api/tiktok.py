@@ -3,6 +3,7 @@ from fastapi.responses import JSONResponse
 from app.schemas.tiktok.search import TikTokSearchRequest, TikTokSearchResponse
 from app.schemas.tiktok.session import TikTokSessionRequest, TikTokSessionResponse
 from app.services.tiktok.session import TiktokService
+from app.services.tiktok.search.service import TikTokSearchService
 
 
 router = APIRouter()
@@ -55,7 +56,8 @@ async def create_tiktok_session_endpoint(request: Request):
 @router.post("/tiktok/search", response_model=TikTokSearchResponse, tags=["TikTok Search"])
 async def tiktok_search_endpoint(payload: TikTokSearchRequest):
     """Perform TikTok search by delegating to the service. Minimal routing only."""
-    result = await tiktok_service.search_tiktok(
+    search_service = TikTokSearchService(strategy=payload.strategy)
+    result = await search_service.search(
         query=payload.query,
         num_videos=payload.numVideos,
         sort_type=payload.sortType,

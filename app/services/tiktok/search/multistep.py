@@ -19,8 +19,8 @@ from app.services.tiktok.protocols import SearchContext
 class TikTokMultiStepSearchService(AbstractTikTokSearchService):
     """Multi-step TikTok search service using browser automation for search interaction."""
 
-    def __init__(self, service: Any) -> None:
-        super().__init__(service)
+    def __init__(self) -> None:
+        super().__init__()
         self._cleanup_functions: List[Callable] = []
 
     async def search(

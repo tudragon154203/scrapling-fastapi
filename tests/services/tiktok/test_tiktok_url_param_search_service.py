@@ -78,19 +78,20 @@ class TestTikTokURLParamSearchService:
             mock_instance.search = AsyncMock(
                 return_value={"results": [{"id": "123"}], "totalResults": 1, "query": "test query"}
             )
+            # Mock the _build_search_service to return our mocked service
+            with patch.object(tiktok_service, '_build_search_service', return_value=mock_instance):
+                result = await tiktok_service.search_tiktok("test query", strategy="direct")
 
-            result = await tiktok_service.search_tiktok("test query")
+                mock_search_service.assert_called_once_with(tiktok_service)
+                mock_instance.search.assert_awaited_once_with(
+                    "test query", num_videos=50, sort_type="RELEVANCE", recency_days="ALL", strategy="direct"
+                )
 
-            mock_search_service.assert_called_once_with(tiktok_service)
-            mock_instance.search.assert_awaited_once_with(
-                "test query", num_videos=50, sort_type="RELEVANCE", recency_days="ALL"
-            )
-
-            # Verify the result structure
-            assert "results" in result
-            assert "totalResults" in result
-            assert "query" in result
-            assert result["query"] == "test query"
+                # Verify the result structure
+                assert "results" in result
+                assert "totalResults" in result
+                assert "query" in result
+                assert result["query"] == "test query"
 
     async def test_search_tiktok_with_multiple_queries(self, tiktok_service, mock_executor, register_session):
         """Test TikTok search with multiple queries"""
@@ -105,22 +106,24 @@ class TestTikTokURLParamSearchService:
             mock_instance.search = AsyncMock(
                 return_value={"results": [{"id": "456"}], "totalResults": 1, "query": "test query"}
             )
+            # Mock the _build_search_service to return our mocked service
+            with patch.object(tiktok_service, '_build_search_service', return_value=mock_instance):
+                result = await tiktok_service.search_tiktok(["test", "query"], strategy="direct")
 
-            result = await tiktok_service.search_tiktok(["test", "query"])
+                mock_search_service.assert_called_once_with(tiktok_service)
+                mock_instance.search.assert_awaited_once_with(
+                    ["test", "query"],
+                    num_videos=50,
+                    sort_type="RELEVANCE",
+                    recency_days="ALL",
+                    strategy="direct"
+                )
 
-            mock_search_service.assert_called_once_with(tiktok_service)
-            mock_instance.search.assert_awaited_once_with(
-                ["test", "query"],
-                num_videos=50,
-                sort_type="RELEVANCE",
-                recency_days="ALL",
-            )
-
-            # Verify the result structure
-            assert "results" in result
-            assert "totalResults" in result
-            assert "query" in result
-            assert result["query"] == "test query"
+                # Verify the result structure
+                assert "results" in result
+                assert "totalResults" in result
+                assert "query" in result
+                assert result["query"] == "test query"
 
     async def test_search_service_continues_after_query_error(self):
         """TikTokURLParamSearchService should continue processing queries on recoverable errors."""
