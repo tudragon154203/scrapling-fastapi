@@ -17,6 +17,7 @@ jobs:
     name: Aider Review
     if: ${{ secrets.OPENROUTER_API_KEY != '' && contains(fromJSON('["OWNER","COLLABORATOR","MEMBER"]'), github.event.pull_request.author_association) }}
     runs-on: ubuntu-latest
+    environment: 'Agents/Bots'
     timeout-minutes: 30
 
     steps:
