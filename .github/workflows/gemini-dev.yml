@@ -45,8 +45,9 @@ jobs:
             if (eventName === 'issue_comment' || eventName === 'pull_request_review_comment') {
               const body = context.payload.comment?.body ?? '';
               const trimmed = body.trimStart();
-              const prefixes = ['Gemini', 'GEMINI', '@gemini', '@gemini-cli', '/gemini'];
-              return prefixes.some((prefix) => trimmed.startsWith(prefix)) ? 'true' : 'false';
+              const normalized = trimmed.toLowerCase();
+              const prefixes = ['gemini', '@gemini', '@gemini-cli', '/gemini'];
+              return prefixes.some((prefix) => normalized.startsWith(prefix)) ? 'true' : 'false';
             }
             return 'false';
 
@@ -70,7 +71,12 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const react = require('./.github/workflows/scripts/react-with-eyes.js');
-            await react({ github, context, core });
+            await react({
+              github,
+              context,
+              core,
+              allowedCommentPrefixes: ['gemini', '@gemini', '@gemini-cli', '/gemini'],
+            });
 
       - name: Prepare prompt
         if: ${{ env.GEMINI_API_KEY != '' && steps.should-run-gemini.outputs.result == 'true' }}

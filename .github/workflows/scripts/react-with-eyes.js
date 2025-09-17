@@ -1,7 +1,40 @@
-module.exports = async ({ github, context, core }) => {
+module.exports = async ({
+  github,
+  context,
+  core,
+  allowedCommentPrefixes = [],
+}) => {
   const { eventName, payload, repo } = context;
   const owner = repo.owner;
   const repository = repo.repo;
+
+  const normalizedPrefixes = Array.isArray(allowedCommentPrefixes)
+    ? allowedCommentPrefixes
+        .map((prefix) => (typeof prefix === 'string' ? prefix.trim().toLowerCase() : ''))
+        .filter(Boolean)
+    : [];
+
+  function shouldReactToComment(commentBody) {
+    if (normalizedPrefixes.length === 0) {
+      return true;
+    }
+
+    if (!commentBody || typeof commentBody !== 'string') {
+      core.info('Skipping 👀 reaction: no comment body to inspect.');
+      return false;
+    }
+
+    const normalizedBody = commentBody.trimStart().toLowerCase();
+    const matchesPrefix = normalizedPrefixes.some((prefix) =>
+      normalizedBody.startsWith(prefix),
+    );
+
+    if (!matchesPrefix) {
+      core.info('Skipping 👀 reaction: comment does not match required prefixes.');
+    }
+
+    return matchesPrefix;
+  }
 
   async function addIssueReaction(issueNumber) {
     if (!issueNumber) {
@@ -33,8 +66,14 @@ module.exports = async ({ github, context, core }) => {
     if (eventName === 'pull_request') {
       await addIssueReaction(payload.pull_request?.number);
     } else if (eventName === 'issue_comment') {
+      if (!shouldReactToComment(payload.comment?.body)) {
+        return;
+      }
       await addCommentReaction(payload.comment?.id, 'issue');
     } else if (eventName === 'pull_request_review_comment') {
+      if (!shouldReactToComment(payload.comment?.body)) {
+        return;
+      }
       await addCommentReaction(payload.comment?.id, 'review');
     } else {
       core.warning(`Unsupported event "${eventName}" for reaction step.`);
