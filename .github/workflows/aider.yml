@@ -86,6 +86,7 @@ jobs:
           mkdir -p .github/aider
           {
             printf '%s\n' "You are an experienced software engineer performing a thorough code review for the GitHub pull request below."
+            printf '%s\n' "This automation only provides read-only feedback, so no code changes are required."
             printf '%s\n' ""
             printf '%s\n' "Provide a concise review with three sections:"
             printf '%s\n' "1. **Summary** – highlight the key changes."
@@ -116,7 +117,7 @@ jobs:
           set -o pipefail
           : > aider_review_raw.txt
           if aider \
-            --model openrouter/deepseek/deepseek-r1:free \
+            --model openrouter/deepseek/deepseek-chat-v3-0324:free \
             --dry-run \
             --no-auto-commits \
             --no-pretty \
