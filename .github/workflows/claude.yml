@@ -82,13 +82,16 @@ jobs:
           bun-version: latest
 
       - name: Export optional OpenRouter API key 2
-        if: ${{ secrets.OPENROUTER_API_KEY_2 != '' }}
+        env:
+          OPTIONAL_OPENROUTER_API_KEY_2: ${{ secrets.OPENROUTER_API_KEY_2 }}
         run: |
-          {
-            echo 'OPENROUTER_API_KEY_2<<EOF'
-            echo '${{ secrets.OPENROUTER_API_KEY_2 }}'
-            echo 'EOF'
-          } >> "$GITHUB_ENV"
+          if [ -n "${OPTIONAL_OPENROUTER_API_KEY_2}" ]; then
+            {
+              echo 'OPENROUTER_API_KEY_2<<EOF'
+              echo "${OPTIONAL_OPENROUTER_API_KEY_2}"
+              echo 'EOF'
+            } >> "$GITHUB_ENV"
+          fi
 
       - name: Start Claude Code Router
         env:
