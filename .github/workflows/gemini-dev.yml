@@ -17,19 +17,10 @@ jobs:
         github.event.comment != null &&
         (github.event.comment.author_association == 'OWNER' || github.event.comment.author_association == 'COLLABORATOR' || github.event.comment.author_association == 'MEMBER') &&
         (
-          startsWith(format('{0}', github.event.comment.body), 'gemini') ||
-          startsWith(format('{0}', github.event.comment.body), 'Gemini') ||
-          startsWith(format('{0}', github.event.comment.body), 'GEMINI') ||
-          startsWith(format('{0}', github.event.comment.body), '@gemini') ||
-          startsWith(format('{0}', github.event.comment.body), '@Gemini') ||
-          startsWith(format('{0}', github.event.comment.body), '@GEMINI') ||
-          startsWith(format('{0}', github.event.comment.body), '@gemini-cli') ||
-          startsWith(format('{0}', github.event.comment.body), '@Gemini-cli') ||
-          startsWith(format('{0}', github.event.comment.body), '@Gemini-CLI') ||
-          startsWith(format('{0}', github.event.comment.body), '@GEMINI-CLI') ||
-          startsWith(format('{0}', github.event.comment.body), '/gemini') ||
-          startsWith(format('{0}', github.event.comment.body), '/Gemini') ||
-          startsWith(format('{0}', github.event.comment.body), '/GEMINI')
+          startsWith(toLower(trim(github.event.comment.body || '')), 'gemini') ||
+          startsWith(toLower(trim(github.event.comment.body || '')), '@gemini') ||
+          startsWith(toLower(trim(github.event.comment.body || '')), '@gemini-cli') ||
+          startsWith(toLower(trim(github.event.comment.body || '')), '/gemini')
         )
       ) ||
       (
@@ -37,19 +28,10 @@ jobs:
         github.event.comment != null &&
         (github.event.comment.author_association == 'OWNER' || github.event.comment.author_association == 'COLLABORATOR' || github.event.comment.author_association == 'MEMBER') &&
         (
-          startsWith(format('{0}', github.event.comment.body), 'gemini') ||
-          startsWith(format('{0}', github.event.comment.body), 'Gemini') ||
-          startsWith(format('{0}', github.event.comment.body), 'GEMINI') ||
-          startsWith(format('{0}', github.event.comment.body), '@gemini') ||
-          startsWith(format('{0}', github.event.comment.body), '@Gemini') ||
-          startsWith(format('{0}', github.event.comment.body), '@GEMINI') ||
-          startsWith(format('{0}', github.event.comment.body), '@gemini-cli') ||
-          startsWith(format('{0}', github.event.comment.body), '@Gemini-cli') ||
-          startsWith(format('{0}', github.event.comment.body), '@Gemini-CLI') ||
-          startsWith(format('{0}', github.event.comment.body), '@GEMINI-CLI') ||
-          startsWith(format('{0}', github.event.comment.body), '/gemini') ||
-          startsWith(format('{0}', github.event.comment.body), '/Gemini') ||
-          startsWith(format('{0}', github.event.comment.body), '/GEMINI')
+          startsWith(toLower(trim(github.event.comment.body || '')), 'gemini') ||
+          startsWith(toLower(trim(github.event.comment.body || '')), '@gemini') ||
+          startsWith(toLower(trim(github.event.comment.body || '')), '@gemini-cli') ||
+          startsWith(toLower(trim(github.event.comment.body || '')), '/gemini')
         )
       )
     runs-on: ubuntu-latest
@@ -84,8 +66,17 @@ jobs:
               const body = context.payload.comment?.body ?? '';
               const trimmed = body.trimStart();
               const normalized = trimmed.toLowerCase();
-              const prefixes = ['gemini', '@gemini', '@gemini-cli', '/gemini'];
-              return prefixes.some((prefix) => normalized.startsWith(prefix)) ? 'true' : 'false';
+              const prefixes = ['gemini', '@gemini', '@gemini-cli', '/gemini', 'GEMINI'];
+              const shouldRun = prefixes.some((prefix) =>
+                normalized.startsWith(prefix.toLowerCase()),
+              );
+              const preview = normalized
+                .slice(0, 80)
+                .replace(/\s+/g, ' ');
+              core.info(
+                `Gemini trigger prefix check: ${shouldRun ? 'matched' : 'did not match'} for "${preview}"`,
+              );
+              return shouldRun ? 'true' : 'false';
             }
             return 'false';
 
@@ -113,7 +104,7 @@ jobs:
               github,
               context,
               core,
-              allowedCommentPrefixes: ['gemini', '@gemini', '@gemini-cli', '/gemini'],
+              allowedCommentPrefixes: ['gemini', '@gemini', '@gemini-cli', '/gemini', 'GEMINI'],
             });
 
       - name: Prepare prompt
