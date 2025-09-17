@@ -3,6 +3,8 @@ name: '🤖 Claude'
 on:
   pull_request:
     types: [opened, synchronize, reopened]
+  pull_request_target:
+    types: [opened, reopened]
   issue_comment:
     types: [created, edited]
   pull_request_review_comment:
