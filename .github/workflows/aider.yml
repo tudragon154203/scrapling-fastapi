@@ -1,0 +1,378 @@
+name: '📝 Aider'
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  review:
+    name: Aider Review
+    if: ${{ contains(fromJSON('["OWNER","COLLABORATOR","MEMBER"]'), github.event.pull_request.author_association) }}
+    runs-on: ubuntu-latest
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+    environment: 'Agents/Bots'
+    timeout-minutes: 30
+
+    steps:
+      - name: Check Gemini keys
+        id: check_key
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_API_KEY_2: ${{ secrets.GEMINI_API_KEY_2 }}
+          GEMINI_API_KEY_LEGACY: ${{ secrets.GEMINI_API_KEY_LEGACY }}
+        run: |
+          if [ -z "$GEMINI_API_KEY" ] && [ -z "$GEMINI_API_KEY_2" ] && [ -z "$GEMINI_API_KEY_LEGACY" ]; then
+            echo "key_present=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Skipping review because no Gemini API key secret (GEMINI_API_KEY, GEMINI_API_KEY_2, or legacy GEMINI_API_KEY_LEGACY) is set."
+          else
+            echo "key_present=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout repository
+        if: steps.check_key.outputs.key_present == 'true'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        if: steps.check_key.outputs.key_present == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Aider
+        if: steps.check_key.outputs.key_present == 'true'
+        run: |
+          python -m pip install --upgrade pip
+          pip install aider-chat
+
+      - name: Generate pull request diff and prompt
+        if: steps.check_key.outputs.key_present == 'true'
+        id: diff
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          if ! git cat-file -e "$BASE_SHA^{commit}"; then
+            git fetch origin "$BASE_REF" --depth=1
+          fi
+          git diff "$BASE_SHA...$HEAD_SHA" > pr.diff || true
+          diff_bytes=$(wc -c < pr.diff)
+          echo "diff_bytes=$diff_bytes" >> "$GITHUB_OUTPUT"
+          if [ "$diff_bytes" -eq 0 ]; then
+            echo "no_diff=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "no_diff=false" >> "$GITHUB_OUTPUT"
+          fi
+          max_bytes=60000
+          if [ "$diff_bytes" -gt "$max_bytes" ]; then
+            head -c "$max_bytes" pr.diff > pr.truncated.diff
+            mv pr.truncated.diff pr.diff
+            echo "diff_truncated=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "diff_truncated=false" >> "$GITHUB_OUTPUT"
+          fi
+          mkdir -p .github/aider
+          {
+            printf '%s\n' "You are an experienced software engineer performing a thorough code review for the GitHub pull request below."
+            printf '%s\n' "This automation only provides read-only feedback, so no code changes are required."
+            printf '%s\n' "Do not offer to edit files, apply patches, or ask for confirmation to make changes."
+            printf '%s\n' "Respond with exactly three sections titled **Summary**, **Issues**, and **Suggestions** and nothing else."
+            printf '%s\n' ""
+            printf '%s\n' "Provide a concise review with three sections:"
+            printf '%s\n' "1. **Summary** – highlight the key changes."
+            printf '%s\n' "2. **Issues** – list potential bugs, regressions, or risks. Reference files/lines when possible."
+            printf '%s\n' "3. **Suggestions** – actionable improvements or follow-up work."
+            printf '%s\n' ""
+            printf '%s\n' "Focus on correctness, security, performance, and maintainability. If the diff was truncated for length, call that out in your review."
+            printf '%s\n' ""
+            printf '%s\n' "Pull request: $PR_TITLE"
+            printf '%s\n' "URL: $PR_URL"
+            printf '%s\n' ""
+            printf '%s\n' "Diff:"
+            printf '%s\n' '```diff'
+          } > .github/aider/review_prompt.md
+          cat pr.diff >> .github/aider/review_prompt.md
+          printf '\n```\n' >> .github/aider/review_prompt.md
+
+      - name: Run aider review
+        if: steps.check_key.outputs.key_present == 'true' && steps.diff.outputs.no_diff != 'true'
+        id: aider
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_API_KEY_2: ${{ secrets.GEMINI_API_KEY_2 }}
+          GEMINI_API_KEY_LEGACY: ${{ secrets.GEMINI_API_KEY_LEGACY }}
+          AIDER_YES_ALWAYS: "true"
+          AIDER_CHECK_UPDATE: "0"
+          AIDER_SHOW_RELEASE_NOTES: "0"
+        run: |
+          set -euo pipefail
+          : > aider_review_raw.txt
+
+          keys=()
+          if [ -n "$GEMINI_API_KEY_2" ]; then
+            keys+=("$GEMINI_API_KEY_2")
+          fi
+          if [ -n "$GEMINI_API_KEY" ]; then
+            keys+=("$GEMINI_API_KEY")
+          fi
+          if [ -n "$GEMINI_API_KEY_LEGACY" ]; then
+            keys+=("$GEMINI_API_KEY_LEGACY")
+          fi
+
+          max_attempts=${#keys[@]}
+          if [ "$max_attempts" -eq 0 ]; then
+            echo "::error::No Gemini API keys available despite prior check."
+            exit 1
+          fi
+          success=false
+          for index in "${!keys[@]}"; do
+            key="${keys[$index]}"
+            export GEMINI_API_KEY="$key"
+            export AIDER_GEMINI_API_KEY="$key"
+            echo "::notice::Starting Gemini credential attempt $((index + 1)) of $max_attempts"
+            if aider \
+               --model gemini/gemini-2.5-flash \
+               --max-chat-history-tokens 120000 \
+               --dry-run \
+               --no-auto-commits \
+               --no-pretty \
+               --no-stream \
+               --no-gitignore \
+               --no-check-update \
+               --no-show-release-notes \
+               --disable-playwright \
+               --message-file .github/aider/review_prompt.md \
+               2>&1 | tee -a aider_review_raw.txt; then
+              success=true
+              echo "::notice::Aider review completed after $((index + 1)) attempt(s)."
+              break
+            fi
+
+            status=$?
+            echo "::warning::Aider attempt $((index + 1)) failed with status $status"
+          done
+
+          if [ "$success" = "true" ]; then
+            echo "success=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "success=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+      - name: Prepare review comment
+        if: steps.check_key.outputs.key_present == 'true' && steps.diff.outputs.no_diff != 'true'
+        id: prepare_comment
+        env:
+          AIDER_SUCCESS: ${{ steps.aider.outputs.success }}
+          DIFF_TRUNCATED: ${{ steps.diff.outputs.diff_truncated }}
+        run: |
+          python <<'PY'
+          import os
+          import pathlib
+          import re
+          import textwrap
+
+          review_path = pathlib.Path("aider_review_raw.txt")
+          success = os.environ.get("AIDER_SUCCESS") == "true"
+          truncated = os.environ.get("DIFF_TRUNCATED") == "true"
+
+          def extract_review(raw: str) -> str:
+              if not raw:
+                  return ""
+
+              candidate = raw.strip()
+              match = re.search(r"(?:^|\n)(?:###\s*Summary|📝\s*Summary|\*\*\s*Summary\s*\*\*)", candidate, flags=re.IGNORECASE)
+              if match:
+                  candidate = candidate[match.start():]
+
+              lower = candidate.lower()
+              stop_terms = (
+                  "\ntokens:",
+                  "\nhere are the search/replace",
+                  "\nsearch/replace blocks",
+                  "\n```",
+                  "\nsummarization failed",
+                  "\nlitellm.",
+                  "\nretrying in",
+                  "\nthe api provider's servers are down",
+                  "\nmodel:",
+                  "\ngit repo:",
+                  "\nrepo-map:",
+                  "\nupdate git name",
+                  "\nupdate git email",
+              )
+              stop_index = len(candidate)
+              for term in stop_terms:
+                  idx = lower.find(term)
+                  if idx != -1 and idx < stop_index:
+                      stop_index = idx
+              candidate = candidate[:stop_index].rstrip()
+
+              noise_prefixes = (
+                  "aider v",
+                  "using diff",
+                  "reading diff",
+                  "diff size",
+                  "assistant >",
+                  "assistant:",
+                  "user >",
+                  "user:",
+                  "system >",
+                  "system:",
+                  "aider>",
+                  "working directory",
+                  "git status",
+                  "open an issue",
+                  "run with --",
+                  "set --model",
+                  "tokens used:",
+                  "tool error",
+                  "telemetry",
+                  "fetching update",
+                  "pip install",
+                  "to submit feedback",
+                  "view the diff",
+                  "dry run is enabled",
+                  "repo map",
+                  "repo summary",
+                  "warning:",
+                  "update git name",
+                  "update git email",
+                  "model:",
+                  "git repo:",
+                  "repo-map:",
+                  "scraping #",
+                  "initial repo scan",
+                  "scanning repo:",
+              )
+              noise_contains = (
+                  "rate limit",
+                  "token limit",
+                  "ctrl-c",
+                  "keyboardinterrupt",
+                  "dry-run",
+                  "model context window",
+                  "command line args",
+                  "this action will not",
+                  "elapsed time",
+                  "cache size",
+                  "search/replace",
+                  "apply_patch",
+                  "vertexaiexception",
+              )
+
+              cleaned_lines = []
+              for line in candidate.splitlines():
+                  stripped = line.strip()
+                  lower_line = stripped.lower()
+                  if not stripped:
+                      if cleaned_lines and cleaned_lines[-1] == "":
+                          continue
+                      cleaned_lines.append("")
+                      continue
+                  if any(lower_line.startswith(prefix) for prefix in noise_prefixes):
+                      continue
+                  if any(term in lower_line for term in noise_contains):
+                      continue
+                  if re.fullmatch(r"[\w./-]+\.[a-z0-9]+", stripped.lower()):
+                      continue
+                  cleaned_lines.append(line.rstrip())
+
+              cleaned = "\n".join(cleaned_lines).strip()
+              if cleaned:
+                  lines = cleaned.splitlines()
+                  if len(lines) > 400:
+                      cleaned = "\n".join(lines[:400])
+                  return cleaned
+              return candidate
+
+          heading = "### 📝 Aider Review"
+
+          body = ""
+          if success and review_path.exists():
+              raw = review_path.read_text()
+              body = extract_review(raw)
+              if not body.strip():
+                  body = raw.strip()
+          else:
+              log = review_path.read_text().strip() if review_path.exists() else ""
+              body = textwrap.dedent(
+                  """
+                  ⚠️ Aider review could not be generated automatically.
+                  """
+              ).strip()
+              if log:
+                  tail = "\n".join(log.splitlines()[-40:])
+                  body += "\n\n```\n" + tail + "\n```"
+          if not body:
+              body = "Aider did not return any feedback for this pull request."
+          if truncated:
+              body += "\n\n_Note: The diff was truncated to approximately 60k characters for analysis._"
+
+          content = body.lstrip()
+          lowered = content.lower()
+          if lowered.startswith("### 📝 aider review"):
+              content = content.split("\n", 1)[1] if "\n" in content else ""
+              content = content.lstrip()
+          elif lowered.startswith("📝 aider review"):
+              content = content.split("\n", 1)[1] if "\n" in content else ""
+              content = content.lstrip()
+
+          if content:
+              final_body = f"{heading}\n\n{content}"
+          else:
+              final_body = heading
+
+          pathlib.Path("review_comment.md").write_text(final_body)
+          PY
+          if [ -s review_comment.md ]; then
+            echo "comment_empty=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "comment_empty=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Post review comment
+        if: steps.check_key.outputs.key_present == 'true' && steps.diff.outputs.no_diff != 'true' && steps.prepare_comment.outputs.comment_empty != 'true'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const body = fs.readFileSync('review_comment.md', 'utf8').trim();
+            if (!body) {
+              core.info('Review body empty, skipping comment.');
+              return;
+            }
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body
+            });
+
+      - name: Fail workflow when review generation fails
+        if: steps.check_key.outputs.key_present == 'true' && steps.diff.outputs.no_diff != 'true' && steps.aider.outputs.success != 'true'
+        run: |
+          echo '::error::Aider review did not complete successfully.'
+          exit 1
+
+      - name: Skip review (missing Gemini key)
+        if: steps.check_key.outputs.key_present != 'true'
+        run: echo 'Gemini API key not configured. Aider review skipped.'
