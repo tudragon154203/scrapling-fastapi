@@ -67,13 +67,13 @@ jobs:
     timeout-minutes: 15
     env:
       QWEN_CODE_API_KEY: ${{ secrets.QWEN_CODE_API_KEY }}
-      QWEN_CODE_BASE_URL: ${{ secrets.QWEN_CODE_BASE_URL }}
-      QWEN_CODE_MODEL: ${{ secrets.QWEN_CODE_MODEL }}
+      QWEN_CODE_BASE_URL: ${{ vars.QWEN_CODE_BASE_URL || '' }}
+      QWEN_CODE_MODEL: ${{ vars.QWEN_CODE_MODEL || '' }}
     steps:
       - name: "Qwen credentials not configured"
         if: ${{ env.QWEN_CODE_API_KEY == '' || env.QWEN_CODE_BASE_URL == '' || env.QWEN_CODE_MODEL == '' }}
         run: |
-          echo "QWEN_CODE_API_KEY, QWEN_CODE_BASE_URL, and QWEN_CODE_MODEL secrets must be configured to run Qwen Code review."
+          echo "QWEN_CODE_API_KEY secret and QWEN_CODE_BASE_URL, QWEN_CODE_MODEL variables must be configured to run Qwen Code review."
           echo "Skipping automated review."
 
       - name: Checkout repository
