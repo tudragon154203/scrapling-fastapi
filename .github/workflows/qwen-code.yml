@@ -166,62 +166,47 @@ jobs:
           OPENAI_API_KEY: ${{ env.QWEN_CODE_API_KEY }}
           OPENAI_BASE_URL: ${{ env.QWEN_CODE_BASE_URL }}
           OPENAI_MODEL: ${{ env.QWEN_CODE_MODEL }}
-          settings_json: |
-            {
-              "coreTools": [
-                "run_shell_command",
-                "write_file"
-              ],
-              "sandbox": false
-            }
           prompt: |
-            You are an autonomous Qwen code reviewer running inside a GitHub Actions workflow for the repository $REPOSITORY.
-            You have access to the GitHub CLI and shell commands. Use them to collect the necessary context before writing your review.
+            You are an expert Qwen code reviewer running inside a GitHub Actions workflow for $REPOSITORY.
 
-            Required commands to run before drafting the review:
-            1. echo "$PR_DATA"
-            2. echo "$CHANGED_FILES"
-            3. echo "$PR_NUMBER"
-            4. echo "$ADDITIONAL_INSTRUCTIONS"
-            5. gh pr diff $PR_NUMBER
-            6. Inspect any specific files as needed using commands such as head, tail, or cat.
+            IMPORTANT: Use the available shell commands to gather all necessary information about the pull request. Do not ask anyone for data—run the commands yourself.
 
-            After reviewing the changes, produce a markdown report using the format below. Write the review to stdout only—do NOT post comments with the GitHub CLI. The workflow will publish your review for you.
+            Start by running these commands to collect the required context:
+            1. echo "$PR_DATA"  # PR metadata (JSON)
+            2. echo "$CHANGED_FILES"  # changed file list
+            3. echo "$PR_NUMBER"  # pull request number
+            4. echo "$ADDITIONAL_INSTRUCTIONS"  # optional reviewer instructions
+            5. gh pr diff $PR_NUMBER  # full diff
+            6. Inspect any relevant files using commands like: cat path/to/file, head -n 50 path/to/file, tail -n 50 path/to/file
 
-            ## Summary
-            - Provide a concise overview of the pull request.
+            If ADDITIONAL_INSTRUCTIONS is empty, there are no extra reviewer requests.
 
-            ## Strengths (optional)
-            - Highlight notable improvements or best practices.
+            Once you have gathered the context and reviewed the changes, prepare your feedback:
+            1. Write the review to a markdown file using write_file("review.md", "<detailed review>").
+            2. Post the review comment with gh pr comment $PR_NUMBER --body-file review.md --repo $REPOSITORY.
 
-            ## Issues
-            - List blocking issues with references to files and line numbers when possible. If there are no blocking issues, state "No blocking issues identified."
+            Structure the review using this exact template:
+            ## 📋 Review Summary
+            - Provide a concise 2-3 sentence overview of the pull request and your overall impression.
 
-            ## Suggestions (optional)
-            - Offer non-blocking improvements or follow-up ideas.
+            ## 🔍 General Feedback
+            - Share high-level observations about code quality, architecture, and positive aspects.
 
-            ## Testing
-            - Describe which tests were run or should be run to validate the changes.
+            ## 🎯 Specific Feedback
+            - Add the following subsections only when issues exist. If no items for a subsection, omit it entirely.
+            ### 🔴 Critical
+            - **File: `path:line`** - Describe any must-fix problems (security, correctness, breaking changes).
+            ### 🟡 High
+            - **File: `path:line`** - Call out important issues that should be addressed soon (performance, design flaws).
+            ### 🟢 Medium
+            - **File: `path:line`** - Note medium-priority improvements (readability, maintainability).
+            ### 🔵 Low
+            - **File: `path:line`** - Suggest optional refinements or polish.
 
-            End the review with a verdict line that starts with either `APPROVED` or `REVISIONS_REQUIRED`.
+            ## ✅ Highlights
+            - Recognize specific improvements or well-executed pieces of the implementation.
 
-      - name: Post Qwen review comment
-        if: ${{ env.QWEN_CODE_API_KEY != '' && env.QWEN_CODE_BASE_URL != '' && env.QWEN_CODE_MODEL != '' && steps.qwen.outputs.summary != '' }}
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const summary = ${{ toJSON(steps.qwen.outputs.summary) }};
-            if (!summary || summary.trim().length === 0) {
-              core.info('Qwen review output is empty.');
-              return;
-            }
+            ## 🧪 Testing
+            - State which tests were run or recommend tests that should be added.
 
-            const issueNumber = ${{ toJSON(steps.context_pr.outputs.pr_number || steps.context_comment.outputs.pr_number) }};
-
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: issueNumber,
-              body: summary,
-            });
+            End the review with a line that begins with either APPROVED or REVISIONS_REQUIRED.
