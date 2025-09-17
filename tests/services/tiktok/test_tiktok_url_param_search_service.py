@@ -8,8 +8,8 @@ from unittest.mock import AsyncMock, Mock, patch
 
 from app.services.tiktok.protocols import SearchContext
 from app.services.tiktok.url_param_search_service import TikTokURLParamSearchService
-from app.services.tiktok.service import TiktokService
-from app.services.tiktok.session_registry import SessionRecord
+from app.services.tiktok.session import TiktokService
+from app.services.tiktok.session import SessionRecord
 from app.schemas.tiktok.session import TikTokLoginState
 from app.services.tiktok.tiktok_executor import TiktokExecutor
 
@@ -73,7 +73,7 @@ class TestTikTokURLParamSearchService:
         # Mock the independent search service to avoid network calls
         with patch.object(
             tiktok_service, 'get_active_session', new=AsyncMock(return_value=mock_executor)
-        ), patch("app.services.tiktok.service.TikTokURLParamSearchService") as mock_search_service:
+        ), patch("app.services.tiktok.session.service.TikTokURLParamSearchService") as mock_search_service:
             mock_instance = mock_search_service.return_value
             mock_instance.search = AsyncMock(
                 return_value={"results": [{"id": "123"}], "totalResults": 1, "query": "test query"}
@@ -100,7 +100,7 @@ class TestTikTokURLParamSearchService:
         # Mock the independent search service to avoid network calls
         with patch.object(
             tiktok_service, 'get_active_session', new=AsyncMock(return_value=mock_executor)
-        ), patch("app.services.tiktok.service.TikTokURLParamSearchService") as mock_search_service:
+        ), patch("app.services.tiktok.session.service.TikTokURLParamSearchService") as mock_search_service:
             mock_instance = mock_search_service.return_value
             mock_instance.search = AsyncMock(
                 return_value={"results": [{"id": "456"}], "totalResults": 1, "query": "test query"}

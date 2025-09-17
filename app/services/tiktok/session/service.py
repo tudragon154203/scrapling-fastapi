@@ -1,4 +1,4 @@
-"""
+﻿"""
 TikTok session service
 """
 
@@ -17,7 +17,7 @@ from app.schemas.tiktok.session import (
     TikTokSessionResponse,
 )
 from app.services.tiktok.interfaces import TikTokSearchInterface
-from app.services.tiktok.session_registry import SessionRecord, SessionRegistry
+from .registry import SessionRecord, SessionRegistry
 from app.services.tiktok.tiktok_executor import TiktokExecutor
 from app.services.tiktok.url_param_search_service import TikTokURLParamSearchService
 from app.services.tiktok.utils.login_detection import LoginDetector

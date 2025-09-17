@@ -2,7 +2,7 @@ from fastapi import APIRouter, status, Request
 from fastapi.responses import JSONResponse
 from app.schemas.tiktok.search import TikTokSearchRequest, TikTokSearchResponse
 from app.schemas.tiktok.session import TikTokSessionRequest, TikTokSessionResponse
-from app.services.tiktok.service import TiktokService
+from app.services.tiktok.session import TiktokService
 
 
 router = APIRouter()

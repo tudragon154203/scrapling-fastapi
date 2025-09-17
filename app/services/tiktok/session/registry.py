@@ -1,4 +1,4 @@
-"""Utilities for tracking TikTok scraping sessions."""
+﻿"""Utilities for tracking TikTok scraping sessions."""
 
 from __future__ import annotations
 
