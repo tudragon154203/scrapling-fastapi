@@ -10,16 +10,16 @@ from abc import ABC, abstractmethod
 from types import SimpleNamespace
 from typing import Any, Dict, List, Optional, Tuple, Union, cast
 
-from app.services.tiktok.interfaces import TikTokSearchInterface
+from app.services.tiktok.search.interfaces import TikTokSearchInterface
 from app.services.tiktok.protocols import CleanupCallable, SearchContext
 
 
 class AbstractTikTokSearchService(ABC, TikTokSearchInterface):
     """Base class containing reusable helpers for TikTok search services."""
 
-    def __init__(self, service: Any) -> None:
-        self.service = service
-        self.settings = service.settings
+    def __init__(self) -> None:
+        from app.core.config import get_settings
+        self.settings = get_settings()
         self.logger = logging.getLogger(self.__class__.__module__)
 
     @abstractmethod

@@ -5,18 +5,25 @@ from __future__ import annotations
 import inspect
 import logging
 import os
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set, Tuple, Union
 from urllib.parse import quote_plus
 
-from app.services.tiktok.abstract_search_service import AbstractTikTokSearchService
+from app.services.tiktok.search.abstract import AbstractTikTokSearchService
+from app.services.tiktok.search.parser import TikTokSearchParser
 from app.services.tiktok.protocols import SearchContext
+
+if TYPE_CHECKING:  # pragma: no cover
+    from app.services.tiktok.session.service import TiktokService
 
 
 class TikTokURLParamSearchService(AbstractTikTokSearchService):
     """Search service that builds TikTok queries using URL parameters."""
 
-    def __init__(self, service: Any):
-        super().__init__(service)
+    def __init__(self, session_service: Optional["TiktokService"] = None):
+        super().__init__()
+        self.session_service = session_service
+        if session_service is not None and getattr(session_service, "settings", None) is not None:
+            self.settings = session_service.settings
 
     async def search(
         self,
@@ -24,6 +31,7 @@ class TikTokURLParamSearchService(AbstractTikTokSearchService):
         num_videos: int = 50,
         sort_type: str = "RELEVANCE",
         recency_days: str = "ALL",
+        **_: Any,
     ) -> Dict[str, Any]:
         self.logger.debug(
             f"[TikTokSearchService] Starting search - query: {query}, "
@@ -38,8 +46,6 @@ class TikTokURLParamSearchService(AbstractTikTokSearchService):
         self.logger.debug(f"[TikTokSearchService] Test environment: {in_tests}")
         context = self._prepare_context(in_tests=in_tests)
         user_data_cleanup = context["user_data_cleanup"]
-
-        from app.services.tiktok.parser.orchestrator import TikTokSearchParser  # no-hoist
 
         parser = TikTokSearchParser()
         aggregated: List[Dict[str, Any]] = []
