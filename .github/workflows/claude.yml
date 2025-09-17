@@ -108,6 +108,7 @@ jobs:
             echo "At least one OpenRouter API key must be configured." >&2
             exit 1
           fi
+          # Rotate between any configured keys using the run number to balance usage.
           run_number="${GITHUB_RUN_NUMBER:-0}"
           selected_index=$(( run_number % ${#openrouter_api_keys[@]} ))
           selected_openrouter_api_key="${openrouter_api_keys[$selected_index]}"
