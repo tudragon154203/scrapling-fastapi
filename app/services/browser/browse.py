@@ -11,6 +11,11 @@ from app.services.browser.executors.browse_executor import BrowseExecutor
 logger = logging.getLogger(__name__)
 
 
+def user_data_context(*args, **kwargs):
+    """Proxy to the shared user-data context for easier patching in tests."""
+    return user_data_mod.user_data_context(*args, **kwargs)
+
+
 class BrowseCrawler:
     """Browse-specific crawler for interactive user data population sessions."""
 
@@ -38,7 +43,7 @@ class BrowseCrawler:
             settings = app_config.get_settings()
             user_data_dir = getattr(settings, 'camoufox_user_data_dir', 'data/camoufox_profiles')
 
-            with user_data_mod.user_data_context(user_data_dir, 'write') as (effective_dir, cleanup):
+            with user_data_context(user_data_dir, 'write') as (effective_dir, cleanup):
                 try:
                     # Signal write-mode to CamoufoxArgsBuilder via settings (runtime-only flags)
                     try:
@@ -72,7 +77,8 @@ class BrowseCrawler:
                             delattr(settings, '_camoufox_effective_user_data_dir')
                     except Exception:
                         pass
-                    cleanup()
+                    if callable(cleanup):
+                        cleanup()
 
         except Exception as e:
             logger.error(f"Browse session failed: {e}")

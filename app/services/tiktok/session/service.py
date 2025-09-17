@@ -7,7 +7,7 @@ from __future__ import annotations
 import logging
 import os
 import uuid
-from typing import Any, Dict, Optional, Union, List
+from typing import Any, Dict, Optional
 
 from app.core.config import get_settings
 from app.schemas.tiktok.session import (

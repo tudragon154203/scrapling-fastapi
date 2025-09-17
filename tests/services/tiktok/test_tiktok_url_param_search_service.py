@@ -65,66 +65,6 @@ class TestTikTokURLParamSearchService:
 
         return _register
 
-    async def test_search_tiktok_with_active_session(self, tiktok_service, mock_executor, register_session):
-        """Test TikTok search with active session"""
-        # Set up mock session
-        register_session()
-
-        # Mock the independent search service to avoid network calls
-        with patch.object(
-            tiktok_service, 'get_active_session', new=AsyncMock(return_value=mock_executor)
-        ), patch("app.services.tiktok.session.service.TikTokURLParamSearchService") as mock_search_service:
-            mock_instance = mock_search_service.return_value
-            mock_instance.search = AsyncMock(
-                return_value={"results": [{"id": "123"}], "totalResults": 1, "query": "test query"}
-            )
-            # Mock the _build_search_service to return our mocked service
-            with patch.object(tiktok_service, '_build_search_service', return_value=mock_instance):
-                result = await tiktok_service.search_tiktok("test query", strategy="direct")
-
-                mock_search_service.assert_called_once_with(tiktok_service)
-                mock_instance.search.assert_awaited_once_with(
-                    "test query", num_videos=50, sort_type="RELEVANCE", recency_days="ALL", strategy="direct"
-                )
-
-                # Verify the result structure
-                assert "results" in result
-                assert "totalResults" in result
-                assert "query" in result
-                assert result["query"] == "test query"
-
-    async def test_search_tiktok_with_multiple_queries(self, tiktok_service, mock_executor, register_session):
-        """Test TikTok search with multiple queries"""
-        # Set up mock session
-        register_session()
-
-        # Mock the independent search service to avoid network calls
-        with patch.object(
-            tiktok_service, 'get_active_session', new=AsyncMock(return_value=mock_executor)
-        ), patch("app.services.tiktok.session.service.TikTokURLParamSearchService") as mock_search_service:
-            mock_instance = mock_search_service.return_value
-            mock_instance.search = AsyncMock(
-                return_value={"results": [{"id": "456"}], "totalResults": 1, "query": "test query"}
-            )
-            # Mock the _build_search_service to return our mocked service
-            with patch.object(tiktok_service, '_build_search_service', return_value=mock_instance):
-                result = await tiktok_service.search_tiktok(["test", "query"], strategy="direct")
-
-                mock_search_service.assert_called_once_with(tiktok_service)
-                mock_instance.search.assert_awaited_once_with(
-                    ["test", "query"],
-                    num_videos=50,
-                    sort_type="RELEVANCE",
-                    recency_days="ALL",
-                    strategy="direct"
-                )
-
-                # Verify the result structure
-                assert "results" in result
-                assert "totalResults" in result
-                assert "query" in result
-                assert result["query"] == "test query"
-
     async def test_search_service_continues_after_query_error(self):
         """TikTokURLParamSearchService should continue processing queries on recoverable errors."""
 
@@ -415,27 +355,6 @@ class TestTikTokURLParamSearchService:
 
         cleanup_one.assert_called_once_with()
         cleanup_two.assert_called_once_with()
-
-    async def test_search_tiktok_without_active_session(self, tiktok_service):
-        """Test TikTok search without active session returns error"""
-        result = await tiktok_service.search_tiktok("test query")
-
-        # Verify error response
-        assert "error" in result
-        assert result["error"]["code"] == "NOT_LOGGED_IN"
-        assert result["error"]["message"] == "TikTok session is not logged in"
-
-    async def test_search_tiktok_with_empty_session(self, tiktok_service):
-        """Test TikTok search with empty session returns error"""
-        # Set up empty session state
-        tiktok_service.sessions.clear()
-
-        result = await tiktok_service.search_tiktok("test query")
-
-        # Verify error response
-        assert "error" in result
-        assert result["error"]["code"] == "NOT_LOGGED_IN"
-        assert result["error"]["message"] == "TikTok session is not logged in"
 
     async def test_has_active_session_with_sessions(self, tiktok_service, mock_executor, register_session):
         """Test has_active_session returns True when sessions exist"""

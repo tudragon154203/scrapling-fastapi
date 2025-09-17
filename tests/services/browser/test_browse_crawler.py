@@ -1,11 +1,9 @@
 
 import pytest
-import tempfile
-from unittest.mock import Mock, patch, MagicMock, ANY
-from pathlib import Path
+from unittest.mock import MagicMock, Mock, patch
 
 from app.services.browser.browse import BrowseCrawler
-from app.schemas.browse import BrowseRequest
+from app.schemas.browse import BrowseRequest, BrowseResponse
 from app.services.common.engine import CrawlerEngine
 from app.schemas.crawl import CrawlRequest
 
@@ -36,11 +34,16 @@ class TestBrowseCrawler:
         mock_ctx.__exit__.return_value = False
 
         with patch('app.services.browser.browse.app_config.get_settings', return_value=mock_settings), \
-                patch('app.services.browser.browse.user_data_mod.user_data_context', return_value=mock_ctx):
+                patch('app.services.browser.browse.user_data_mod.user_data_context') as user_data_ctx_mock:
+            user_data_ctx_mock.return_value = mock_ctx
             # Act
             result = crawler.run(request)
 
             # Assert
-            mock_ctx.assert_called_once_with('/tmp/camoufox_profiles', 'write')
+            user_data_ctx_mock.assert_called_once_with('/tmp/camoufox_profiles', 'write')
             mock_engine.run.assert_called_once()
             crawl_req = mock_engine.run.call_args.args[0]
+            assert isinstance(crawl_req, CrawlRequest)
+            assert crawl_req.force_user_data is True
+            assert isinstance(result, BrowseResponse)
+            assert result.status == 'success'

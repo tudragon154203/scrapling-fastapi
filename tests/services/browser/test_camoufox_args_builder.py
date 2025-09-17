@@ -1,8 +1,20 @@
+import os
+import platform
+import tempfile
+from pathlib import Path
+from unittest.mock import MagicMock, Mock, patch
+
 import pytest
-from unittest.mock import Mock, MagicMock
 from app.services.common.browser.camoufox import CamoufoxArgsBuilder
 from app.schemas.crawl import CrawlRequest
 from app.services.common.types import FetchCapabilities
+
+
+def _expected_path(raw_path: str) -> str:
+    """Normalize a filesystem path in the same way as CamoufoxArgsBuilder."""
+    if platform.system() == "Windows":
+        return str(Path(raw_path).resolve())
+    return os.path.abspath(raw_path)
 
 
 class TestCamoufoxArgsBuilder:
@@ -27,9 +39,9 @@ class TestCamoufoxArgsBuilder:
         return request
 
     @pytest.fixture
-    def mock_settings(self):
+    def mock_settings(self, tmp_path_factory):
         settings = Mock()
-        settings.camoufox_user_data_dir = '/tmp/camoufox_profiles'
+        settings.camoufox_user_data_dir = str(tmp_path_factory.mktemp("camoufox_profiles"))
         settings.camoufox_locale = None
         settings.camoufox_window = None
         settings.camoufox_disable_coop = False
@@ -48,14 +60,17 @@ class TestCamoufoxArgsBuilder:
         assert additional_args == {}
         assert extra_headers is None
 
-    def test_build_with_user_data_read_mode(self, builder, mock_request, mock_settings, mock_caps):
+    def test_build_with_user_data_read_mode(
+        self, builder, mock_request, mock_settings, mock_caps, tmp_path
+    ):
         # Arrange
         mock_request.force_user_data = True
         mock_settings._camoufox_user_data_mode = None  # Read mode default
 
         mock_context = MagicMock()
         mock_cleanup = Mock()
-        mock_context.__enter__.return_value = ('/tmp/clone', mock_cleanup)
+        clone_dir = tmp_path / "clone"
+        mock_context.__enter__.return_value = (str(clone_dir), mock_cleanup)
         mock_context.__exit__.return_value = False
 
         with patch('app.services.common.browser.user_data.user_data_context', return_value=mock_context):
@@ -63,22 +78,25 @@ class TestCamoufoxArgsBuilder:
             additional_args, extra_headers = builder.build(mock_request, mock_settings, mock_caps)
 
             # Assert
-            assert additional_args['user_data_dir'] == '/tmp/clone'
+            assert additional_args['user_data_dir'] == _expected_path(str(clone_dir))
             assert '_user_data_cleanup' in additional_args
             assert additional_args['_user_data_cleanup'] == mock_cleanup
             assert extra_headers is None
 
-    def test_build_with_user_data_write_mode(self, builder, mock_request, mock_settings, mock_caps):
+    def test_build_with_user_data_write_mode(
+        self, builder, mock_request, mock_settings, mock_caps, tmp_path
+    ):
         # Arrange
         mock_request.force_user_data = True
         mock_settings._camoufox_user_data_mode = 'write'
-        mock_settings._camoufox_effective_user_data_dir = '/tmp/master'
+        master_dir = tmp_path / "master"
+        mock_settings._camoufox_effective_user_data_dir = str(master_dir)
 
         # Act
         additional_args, extra_headers = builder.build(mock_request, mock_settings, mock_caps)
 
         # Assert
-        assert additional_args['user_data_dir'] == '/tmp/master'
+        assert additional_args['user_data_dir'] == _expected_path(str(master_dir))
         assert '_user_data_cleanup' not in additional_args
         assert extra_headers is None
 
@@ -139,7 +157,8 @@ class TestCamoufoxArgsBuilder:
         # Arrange
         mock_request.force_user_data = True
         mock_settings._camoufox_user_data_mode = None
-        mock_settings.camoufox_user_data_dir = '/non/writable/dir'
+        unwritable_dir = Path(tempfile.gettempdir()) / "non" / "writable" / "dir"
+        mock_settings.camoufox_user_data_dir = str(unwritable_dir)
 
         with patch('os.access', return_value=False):
             with pytest.warns(UserWarning):

@@ -1,9 +1,12 @@
 """Unit tests for TikTok MultiStepSearchService functionality"""
 
 import pytest
-from unittest.mock import Mock, AsyncMock, patch
-from app.services.tiktok.search.multistep import TikTokMultiStepSearchService, TikTokAutoSearchAction
-from app.services.tiktok.protocols import SearchContext
+from unittest.mock import AsyncMock, Mock, patch
+
+from app.services.tiktok.search.multistep import (
+    TikTokAutoSearchAction,
+    TikTokMultiStepSearchService,
+)
 
 
 class TestTikTokMultiStepSearchService:

@@ -5,19 +5,25 @@ from __future__ import annotations
 import inspect
 import logging
 import os
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set, Tuple, Union
 from urllib.parse import quote_plus
 
 from app.services.tiktok.search.abstract import AbstractTikTokSearchService
 from app.services.tiktok.search.parser import TikTokSearchParser
 from app.services.tiktok.protocols import SearchContext
 
+if TYPE_CHECKING:  # pragma: no cover
+    from app.services.tiktok.session.service import TiktokService
+
 
 class TikTokURLParamSearchService(AbstractTikTokSearchService):
     """Search service that builds TikTok queries using URL parameters."""
 
-    def __init__(self):
+    def __init__(self, session_service: Optional["TiktokService"] = None):
         super().__init__()
+        self.session_service = session_service
+        if session_service is not None and getattr(session_service, "settings", None) is not None:
+            self.settings = session_service.settings
 
     async def search(
         self,
@@ -25,6 +31,7 @@ class TikTokURLParamSearchService(AbstractTikTokSearchService):
         num_videos: int = 50,
         sort_type: str = "RELEVANCE",
         recency_days: str = "ALL",
+        **_: Any,
     ) -> Dict[str, Any]:
         self.logger.debug(
             f"[TikTokSearchService] Starting search - query: {query}, "
