@@ -63,6 +63,7 @@ jobs:
       contents: write
       pull-requests: write
       issues: write
+      reactions: write
       id-token: write
       actions: read # Required for Claude to read CI results on PRs
     steps:
@@ -77,7 +78,7 @@ jobs:
 
             async function addIssueReaction(issueNumber) {
               if (!issueNumber) {
-                core.warning('No issue or PR number found for reaction.');
+                console.warn('No issue or PR number found for reaction.');
                 return;
               }
               await github.rest.reactions.createForIssue({
@@ -90,7 +91,7 @@ jobs:
 
             async function addCommentReaction(commentId, type) {
               if (!commentId) {
-                core.warning(`No ${type} comment id found for reaction.`);
+                console.warn(`No ${type} comment id found for reaction.`);
                 return;
               }
               const params = { owner, repo: repository, comment_id: commentId, content: 'eyes' };
@@ -103,7 +104,7 @@ jobs:
 
             async function addReviewReaction(reviewId, pullNumber) {
               if (!reviewId || !pullNumber) {
-                core.warning('Missing review id or pull request number for reaction.');
+                console.warn('Missing review id or pull request number for reaction.');
                 return;
               }
               await github.rest.reactions.createForPullRequestReview({
@@ -127,10 +128,10 @@ jobs:
               } else if (eventName === 'issues') {
                 await addIssueReaction(payload.issue?.number);
               } else {
-                core.warning(`Unsupported event "${eventName}" for reaction step.`);
+                console.warn(`Unsupported event "${eventName}" for reaction step.`);
               }
             } catch (error) {
-              core.warning(`Failed to add 👀 reaction: ${error.message}`);
+              console.warn(`Failed to add 👀 reaction: ${error.message}`);
             }
 
       - name: Checkout repository
