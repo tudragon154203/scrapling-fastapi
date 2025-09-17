@@ -5,8 +5,14 @@ on:
     paths:
       - 'app/**'
       - 'tests/**'
+      - '.github/workflows/**'
+      - '.flake8'
+      - '.pre-commit-config.yaml'
+      - 'docker-compose.yml'
+      - 'Dockerfile'
       - 'requirements-test.txt'
       - 'requirements.txt'
+      - 'pytest.ini'
 
 jobs:
   unit_api:
