@@ -7,6 +7,8 @@ import inspect
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Set, Tuple, Union
 
 from app.services.tiktok.search.abstract import AbstractTikTokSearchService
+from app.services.tiktok.search.parser import TikTokSearchParser
+
 from app.schemas.crawl import CrawlRequest
 from app.services.common.engine import CrawlerEngine
 from app.services.tiktok.search.actions.auto_search import TikTokAutoSearchAction
@@ -51,7 +53,6 @@ class TikTokMultiStepSearchService(AbstractTikTokSearchService):
             if user_data_cleanup:
                 self._cleanup_functions.append(user_data_cleanup)
 
-            from app.services.tiktok.parser.orchestrator import TikTokSearchParser  # no-hoist
             parser = TikTokSearchParser()
 
             aggregated: List[Dict[str, Any]] = []
