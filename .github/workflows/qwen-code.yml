@@ -45,12 +45,14 @@ jobs:
         if: env.HAS_QWEN_OAUTH_CREDENTIALS == 'true'
         run: npm install -g @qwen-code/qwen-code@latest
 
-      - name: Configure Qwen OAuth credentials
+      - name: Configure Qwen workspace
         if: env.HAS_QWEN_OAUTH_CREDENTIALS == 'true'
         run: |
           set -euo pipefail
-          mkdir -p "$HOME/.qwen"
-          cat <<EOF > "$HOME/.qwen/oauth_creds.json"
+          QWEN_DIR="$HOME/.qwen"
+          mkdir -p "$QWEN_DIR"
+
+          cat <<EOF > "$QWEN_DIR/oauth_creds.json"
           {
             "access_token": "${{ secrets.QWEN_CODE_ACCESS_TOKEN }}",
             "refresh_token": "${{ secrets.QWEN_CODE_REFRESH_TOKEN }}",
@@ -59,19 +61,27 @@ jobs:
             "expiry_date": 1757452472185
           }
           EOF
-          chmod 600 "$HOME/.qwen/oauth_creds.json"
 
-      - name: Configure Qwen settings
-        if: env.HAS_QWEN_OAUTH_CREDENTIALS == 'true'
-        run: |
-          set -euo pipefail
-          mkdir -p "$HOME/.qwen"
-          cat <<'EOF' > "$HOME/.qwen/settings.json"
+          cat <<'EOF' > "$QWEN_DIR/google_accounts.json"
           {
-            "selectedAuthType": "QWEN_OAUTH",
-            "useExternalAuth": false
+            "active": null,
+            "old": []
           }
           EOF
+
+          cat <<'EOF' > "$QWEN_DIR/installation_id"
+          8b332e4e-47ca-4fd1-82a2-bfaab70d4b55
+          EOF
+
+          cat <<'EOF' > "$QWEN_DIR/settings.json"
+          {
+            "selectedAuthType": "qwen-oauth",
+            "ideMode": true,
+            "hasSeenIdeIntegrationNudge": true
+          }
+          EOF
+
+          chmod 600 "$QWEN_DIR/oauth_creds.json"
 
       - name: Generate pull request diff
         if: env.HAS_QWEN_OAUTH_CREDENTIALS == 'true'
