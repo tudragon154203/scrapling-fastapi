@@ -66,29 +66,82 @@ jobs:
       id-token: write
       actions: read # Required for Claude to read CI results on PRs
     steps:
+      - name: React with 👀 to show Claude is running
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { eventName, payload, repo } = context;
+            const owner = repo.owner;
+            const repository = repo.repo;
+
+            async function addIssueReaction(issueNumber) {
+              if (!issueNumber) {
+                console.warn('No issue or PR number found for reaction.');
+                return;
+              }
+              await github.rest.reactions.createForIssue({
+                owner,
+                repo: repository,
+                issue_number: issueNumber,
+                content: 'eyes',
+              });
+            }
+
+            async function addCommentReaction(commentId, type) {
+              if (!commentId) {
+                console.warn(`No ${type} comment id found for reaction.`);
+                return;
+              }
+              const params = { owner, repo: repository, comment_id: commentId, content: 'eyes' };
+              if (type === 'issue') {
+                await github.rest.reactions.createForIssueComment(params);
+              } else if (type === 'review') {
+                await github.rest.reactions.createForPullRequestReviewComment(params);
+              }
+            }
+
+            async function addReviewReaction(reviewId, pullNumber) {
+              if (!reviewId || !pullNumber) {
+                console.warn('Missing review id or pull request number for reaction.');
+                return;
+              }
+              await github.rest.reactions.createForPullRequestReview({
+                owner,
+                repo: repository,
+                pull_number: pullNumber,
+                review_id: reviewId,
+                content: 'eyes',
+              });
+            }
+
+            try {
+              if (eventName === 'pull_request') {
+                await addIssueReaction(payload.pull_request?.number);
+              } else if (eventName === 'issue_comment') {
+                await addCommentReaction(payload.comment?.id, 'issue');
+              } else if (eventName === 'pull_request_review_comment') {
+                await addCommentReaction(payload.comment?.id, 'review');
+              } else if (eventName === 'pull_request_review') {
+                await addReviewReaction(payload.review?.id, payload.pull_request?.number);
+              } else if (eventName === 'issues') {
+                await addIssueReaction(payload.issue?.number);
+              } else {
+                console.warn(`Unsupported event "${eventName}" for reaction step.`);
+              }
+            } catch (error) {
+              console.warn(`Failed to add 👀 reaction: ${error.message}`);
+            }
+
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Configure Git user
-        run: |
-          git config --global user.name "Claude Code"
-          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
       - name: Setup Bun runtime
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
-
-      - name: Export optional OpenRouter API key 2
-        if: ${{ secrets.OPENROUTER_API_KEY_2 != '' }}
-        run: |
-          {
-            echo 'OPENROUTER_API_KEY_2<<EOF'
-            echo '${{ secrets.OPENROUTER_API_KEY_2 }}'
-            echo 'EOF'
-          } >> "$GITHUB_ENV"
 
       - name: Start Claude Code Router
         env:
@@ -97,21 +150,6 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p ~/.claude-code-router
-          openrouter_api_keys=()
-          if [ -n "${OPENROUTER_API_KEY:-}" ]; then
-            openrouter_api_keys+=("${OPENROUTER_API_KEY}")
-          fi
-          if [ -n "${OPENROUTER_API_KEY_2:-}" ]; then
-            openrouter_api_keys+=("${OPENROUTER_API_KEY_2}")
-          fi
-          if [ "${#openrouter_api_keys[@]}" -eq 0 ]; then
-            echo "At least one OpenRouter API key must be configured." >&2
-            exit 1
-          fi
-          # Rotate between any configured keys using the run number to balance usage.
-          run_number="${GITHUB_RUN_NUMBER:-0}"
-          selected_index=$(( run_number % ${#openrouter_api_keys[@]} ))
-          selected_openrouter_api_key="${openrouter_api_keys[$selected_index]}"
           cat > ~/.claude-code-router/config.json <<EOF
           {
             "LOG": false,
@@ -127,7 +165,7 @@ jobs:
               {
                 "name": "openrouter",
                 "api_base_url": "https://openrouter.ai/api/v1/chat/completions",
-                "api_key": "${selected_openrouter_api_key}",
+                "api_key": "${OPENROUTER_API_KEY}",
                 "models": [
                   "qwen/qwen3-coder:free",
                   "z-ai/glm-4.5-air:free",
@@ -215,65 +253,12 @@ jobs:
           sleep 5
         shell: bash
 
-      - name: Determine edit permissions
-        id: edit_permissions
-        env:
-          EVENT_NAME: ${{ github.event_name }}
-          COMMENT_ASSOC: ${{ github.event.comment.author_association || '' }}
-          REVIEW_ASSOC: ${{ github.event.review.author_association || '' }}
-          ISSUE_IS_PR: ${{ github.event.issue && github.event.issue.pull_request && 'true' || '' }}
-        run: |
-          set -euo pipefail
-
-          can_push=false
-          case "$EVENT_NAME" in
-            issue_comment)
-              if [ "$ISSUE_IS_PR" = "true" ]; then
-                if [ "$COMMENT_ASSOC" = "OWNER" ] || [ "$COMMENT_ASSOC" = "MEMBER" ]; then
-                  can_push=true
-                fi
-              fi
-              ;;
-            pull_request_review_comment)
-              if [ "$COMMENT_ASSOC" = "OWNER" ] || [ "$COMMENT_ASSOC" = "MEMBER" ]; then
-                can_push=true
-              fi
-              ;;
-            pull_request_review)
-              if [ "$REVIEW_ASSOC" = "OWNER" ] || [ "$REVIEW_ASSOC" = "MEMBER" ]; then
-                can_push=true
-              fi
-              ;;
-          esac
-
-          echo "can_push=$can_push" >> "$GITHUB_OUTPUT"
-          if [ "$can_push" = "true" ]; then
-            {
-              echo "extra_tools<<'EOF'"
-              echo '--allowedTools "Bash(gh pr checkout:*)"'
-              echo '--allowedTools "Bash(git add:*)"'
-              echo '--allowedTools "Bash(git restore:*)"'
-              echo '--allowedTools "Bash(git checkout:*)"'
-              echo '--allowedTools "Bash(git switch:*)"'
-              echo '--allowedTools "Bash(git mv:*)"'
-              echo '--allowedTools "Bash(git rm:*)"'
-              echo '--allowedTools "Bash(git commit:*)"'
-              echo '--allowedTools "Bash(git push:*)"'
-              echo 'EOF'
-            } >> "$GITHUB_OUTPUT"
-          else
-            echo "extra_tools=" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Run Claude Code
         id: claude
         uses: anthropics/claude-code-action@v1
         env:
           ANTHROPIC_BASE_URL: http://localhost:3456
           ANTHROPIC_API_KEY: "dummy"
-          GH_TOKEN: ${{ secrets.GH_TOKEN || github.token }}
-          GITHUB_TOKEN: ${{ github.token }}
-          CLAUDE_CAN_PUSH: ${{ steps.edit_permissions.outputs.can_push }}
         with:
           anthropic_api_key: "dummy"
           prompt: |
@@ -281,70 +266,24 @@ jobs:
               EVENT: ${{ github.event_name }}
               PR NUMBER: ${{ github.event.pull_request && github.event.pull_request.number || '' }}
               ISSUE NUMBER: ${{ github.event.issue && github.event.issue.number || '' }}
-              PR HEAD REPO: ${{ github.event.pull_request && github.event.pull_request.head.repo.full_name || '' }}
-              PR HEAD IS FORK: ${{ github.event.pull_request && github.event.pull_request.head.repo.fork || '' }}
-              ISSUE IS PULL REQUEST: ${{ github.event.issue && github.event.issue.pull_request && 'true' || '' }}
-              COMMENT BODY: ${{ github.event.comment && github.event.comment.body || '' }}
-              REVIEW BODY: ${{ github.event.review && github.event.review.body || '' }}
-              ISSUE TITLE: ${{ github.event.issue && github.event.issue.title || '' }}
-              ISSUE BODY: ${{ github.event.issue && github.event.issue.body || '' }}
-              CLAUDE CAN PUSH: ${{ steps.edit_permissions.outputs.can_push }}
 
-              Act as a helpful GitHub assistant for the event above.
-
-              Pull requests:
-              - Review the changes for quality, correctness, security, and performance concerns.
-              Issues:
-              - Help triage, reproduce, or answer the reported concern.
-              Comments or reviews:
-              - Address the explicit request and provide any necessary analysis.
+              Act as a helpful GitHub assistant for the current event.
+              - For pull requests: review the changes for quality, bugs, security, and performance.
+              - For issues: help triage or answer questions.
+              - For comments or reviews: address the user's request and provide any necessary analysis.
 
               The repository is already checked out in the working directory.
 
-              When `CLAUDE CAN PUSH` is not `true`, remain in review-only mode:
-              - Do not install dependencies (`pip install`, `npm install`, `poetry install`, `uv pip`, etc.) or run test suites—rely on CI results instead.
-              - Skip formatters, linters, or other heavy automation and focus on static analysis of the diff.
-              - Plan what to inspect before running commands so you gather diffs or files in as few tool calls as possible.
-
-              Only make repository changes when a project maintainer clearly requests edits (for example, "@claude fix …"). Provide review feedback without touching the code when the request is purely informational (for example, "@claude review").
-
-              When a valid change request arrives:
-              1. Check out the pull request head branch (for example, `gh pr checkout <number>`).
-              2. Implement the minimal changes needed and keep commits focused.
-              3. Run only the smallest relevant set of tests or linters to validate those edits.
-              4. Stage the files, commit with a descriptive message, and push back to the same branch.
-              5. Leave a follow-up comment summarizing the modifications and how they were verified.
-
-              If you cannot push changes (for example, the pull request comes from a fork without write access as indicated by `PR HEAD IS FORK`), explain the limitation in a comment instead of failing silently.
-
-              Never attempt to create commits or run `git push` when `CLAUDE CAN PUSH` is not `true`.
-
-              After each run, leave a top-level summary comment so the author receives feedback. Use `gh pr comment` (or `gh issue comment` for issues), call `gh pr review` when submitting the final PR review, and use `mcp__github_inline_comment__create_inline_comment` for inline feedback.
+              Use `gh pr comment` for pull request feedback or `gh issue comment` for issue discussions.
+              Use `mcp__github_inline_comment__create_inline_comment` to make inline comments on pull request diffs.
+              Only interact through GitHub comments.
 
           claude_args: |
             --allowedTools "mcp__github_inline_comment__create_inline_comment"
             --allowedTools "Bash(gh pr comment:*)"
-            --allowedTools "Bash(gh pr review:*)"
             --allowedTools "Bash(gh issue comment:*)"
             --allowedTools "Bash(gh pr diff:*)"
             --allowedTools "Bash(gh pr view:*)"
             --allowedTools "Bash(gh pr list:*)"
             --allowedTools "Bash(gh issue view:*)"
             --allowedTools "Bash(gh issue list:*)"
-            --allowedTools "Bash(git status:*)"
-            --allowedTools "Bash(git diff:*)"
-            --allowedTools "Bash(git fetch:*)"
-            --allowedTools "Bash(git pull:*)"
-            --allowedTools "Bash(git config:*)"
-            ${{ steps.edit_permissions.outputs.can_push == 'true' && '--allowedTools "Bash(pytest:*)"' || '' }}
-            ${{ steps.edit_permissions.outputs.can_push == 'true' && '--allowedTools "Bash(python:*)"' || '' }}
-            ${{ steps.edit_permissions.outputs.can_push == 'true' && '--allowedTools "Bash(pip:*)"' || '' }}
-            ${{ steps.edit_permissions.outputs.can_push == 'true' && '--allowedTools "Bash(pip3:*)"' || '' }}
-            ${{ steps.edit_permissions.outputs.can_push == 'true' && '--allowedTools "Bash(pre-commit:*)"' || '' }}
-            ${{ steps.edit_permissions.outputs.can_push == 'true' && '--allowedTools "Bash(poetry:*)"' || '' }}
-            ${{ steps.edit_permissions.outputs.can_push == 'true' && '--allowedTools "Bash(uv:*)"' || '' }}
-            ${{ steps.edit_permissions.outputs.can_push == 'true' && '--allowedTools "Bash(npm:*)"' || '' }}
-            ${{ steps.edit_permissions.outputs.can_push == 'true' && '--allowedTools "Bash(yarn:*)"' || '' }}
-            ${{ steps.edit_permissions.outputs.can_push == 'true' && '--allowedTools "Bash(pnpm:*)"' || '' }}
-            ${{ steps.edit_permissions.outputs.can_push == 'true' && '--allowedTools "Bash(bun:*)"' || '' }}
-            ${{ steps.edit_permissions.outputs.extra_tools }}
