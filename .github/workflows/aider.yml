@@ -1,4 +1,4 @@
-name: '📝 Aider PR Review'
+name: '📝 Aider'
 
 on:
   pull_request:
@@ -28,13 +28,13 @@ jobs:
       - name: Check Gemini keys
         id: check_key
         env:
-          GEMINE_API_KEY: ${{ secrets.GEMINE_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GEMINI_API_KEY_2: ${{ secrets.GEMINI_API_KEY_2 }}
+          GEMINI_API_KEY_LEGACY: ${{ secrets.GEMINE_API_KEY }}
         run: |
-          if [ -z "$GEMINE_API_KEY" ] && [ -z "$GEMINI_API_KEY" ] && [ -z "$GEMINI_API_KEY_2" ]; then
+          if [ -z "$GEMINI_API_KEY" ] && [ -z "$GEMINI_API_KEY_2" ] && [ -z "$GEMINI_API_KEY_LEGACY" ]; then
             echo "key_present=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::Skipping review because no Gemini API key secret (GEMINE_API_KEY, GEMINI_API_KEY, GEMINI_API_KEY_2) is set."
+            echo "::notice::Skipping review because no Gemini API key secret (GEMINI_API_KEY, GEMINI_API_KEY_2, or legacy GEMINE_API_KEY) is set."
           else
             echo "key_present=true" >> "$GITHUB_OUTPUT"
           fi
@@ -115,9 +115,9 @@ jobs:
         if: steps.check_key.outputs.key_present == 'true' && steps.diff.outputs.no_diff != 'true'
         id: aider
         env:
-          GEMINE_API_KEY: ${{ secrets.GEMINE_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GEMINI_API_KEY_2: ${{ secrets.GEMINI_API_KEY_2 }}
+          GEMINI_API_KEY_LEGACY: ${{ secrets.GEMINE_API_KEY }}
           AIDER_YES_ALWAYS: "true"
           AIDER_CHECK_UPDATE: "0"
           AIDER_SHOW_RELEASE_NOTES: "0"
@@ -126,18 +126,14 @@ jobs:
           : > aider_review_raw.txt
 
           keys=()
-          labels=()
-          if [ -n "$GEMINE_API_KEY" ]; then
-            keys+=("$GEMINE_API_KEY")
-            labels+=("GEMINE_API_KEY")
-          fi
           if [ -n "$GEMINI_API_KEY_2" ]; then
             keys+=("$GEMINI_API_KEY_2")
-            labels+=("GEMINI_API_KEY_2")
           fi
           if [ -n "$GEMINI_API_KEY" ]; then
             keys+=("$GEMINI_API_KEY")
-            labels+=("GEMINI_API_KEY")
+          fi
+          if [ -n "$GEMINI_API_KEY_LEGACY" ]; then
+            keys+=("$GEMINI_API_KEY_LEGACY")
           fi
 
           max_attempts=${#keys[@]}
@@ -146,15 +142,11 @@ jobs:
             exit 1
           fi
           success=false
-          used_label=""
-
           for index in "${!keys[@]}"; do
             key="${keys[$index]}"
-            label="${labels[$index]}"
             export GEMINI_API_KEY="$key"
             export AIDER_GEMINI_API_KEY="$key"
-            export GEMINE_API_KEY="$key"
-            echo "::notice::Starting Aider attempt $((index + 1)) of $max_attempts using $label"
+            echo "::notice::Starting Gemini credential attempt $((index + 1)) of $max_attempts"
             if aider \
                --model gemini/gemini-2.5-flash \
                --dry-run \
@@ -168,18 +160,15 @@ jobs:
                --message-file .github/aider/review_prompt.md \
                2>&1 | tee -a aider_review_raw.txt; then
               success=true
-              used_label="$label"
+              echo "::notice::Aider review completed after $((index + 1)) attempt(s)."
               break
             fi
 
             status=$?
-            echo "::warning::Aider attempt $((index + 1)) failed with status $status using $label"
+            echo "::warning::Aider attempt $((index + 1)) failed with status $status"
           done
 
           if [ "$success" = "true" ]; then
-            if [ -n "$used_label" ]; then
-              echo "::notice::Aider review completed using $used_label"
-            fi
             echo "success=true" >> "$GITHUB_OUTPUT"
           else
             echo "success=false" >> "$GITHUB_OUTPUT"
@@ -313,6 +302,8 @@ jobs:
                   return cleaned
               return candidate
 
+          heading = "### 📝 Aider Review"
+
           body = ""
           if success and review_path.exists():
               raw = review_path.read_text()
@@ -333,7 +324,22 @@ jobs:
               body = "Aider did not return any feedback for this pull request."
           if truncated:
               body += "\n\n_Note: The diff was truncated to approximately 60k characters for analysis._"
-          pathlib.Path("review_comment.md").write_text(body)
+
+          content = body.lstrip()
+          lowered = content.lower()
+          if lowered.startswith("### 📝 aider review"):
+              content = content.split("\n", 1)[1] if "\n" in content else ""
+              content = content.lstrip()
+          elif lowered.startswith("📝 aider review"):
+              content = content.split("\n", 1)[1] if "\n" in content else ""
+              content = content.lstrip()
+
+          if content:
+              final_body = f"{heading}\n\n{content}"
+          else:
+              final_body = heading
+
+          pathlib.Path("review_comment.md").write_text(final_body)
           PY
           if [ -s review_comment.md ]; then
             echo "comment_empty=false" >> "$GITHUB_OUTPUT"
@@ -359,6 +365,12 @@ jobs:
               issue_number: context.issue.number,
               body
             });
+
+      - name: Fail workflow when review generation fails
+        if: steps.check_key.outputs.key_present == 'true' && steps.diff.outputs.no_diff != 'true' && steps.aider.outputs.success != 'true'
+        run: |
+          echo '::error::Aider review did not complete successfully.'
+          exit 1
 
       - name: Skip review (missing Gemini key)
         if: steps.check_key.outputs.key_present != 'true'
