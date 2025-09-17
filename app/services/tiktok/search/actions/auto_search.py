@@ -2,7 +2,8 @@
 
 import logging
 import time
-from typing import List, Callable
+from pathlib import Path
+from typing import Callable, List, Optional
 
 from app.services.browser.actions.base import BasePageAction
 from app.services.browser.actions.humanize import human_pause, type_like_human, move_mouse_to_locator, click_like_human
@@ -11,12 +12,21 @@ from app.services.browser.actions.humanize import human_pause, type_like_human, 
 class TikTokAutoSearchAction(BasePageAction):
     """Page action that automatically performs TikTok search using human-like typing."""
 
-    def __init__(self, search_query: str):
+    def __init__(
+        self,
+        search_query: str,
+        *,
+        save_html: bool = False,
+        html_save_path: Optional[str] = None,
+    ):
         self.search_query = search_query
         self.page = None
         self.html_content = ""
         self.logger = logging.getLogger(__name__)
         self._cleanup_functions: List[Callable] = []
+        self.save_html = save_html
+        default_snapshot_path = Path(__file__).resolve().parents[1] / "browsing_tiktok_search.html"
+        self._html_snapshot_path = Path(html_save_path) if html_save_path else default_snapshot_path
 
     def __call__(self, page):
         return self._execute(page)
@@ -188,6 +198,8 @@ class TikTokAutoSearchAction(BasePageAction):
             try:
                 self.html_content = page.content()
                 self.logger.info(f"Captured HTML content length: {len(self.html_content)}")
+                if self.save_html and self.html_content:
+                    self._persist_html_snapshot(self.html_content)
             except Exception as e:
                 self.logger.error(f"Failed to capture HTML content: {e}")
                 self.html_content = ""
@@ -221,3 +233,23 @@ class TikTokAutoSearchAction(BasePageAction):
             except Exception as e:
                 self.logger.warning(f"Cleanup function failed: {e}")
         self._cleanup_functions.clear()
+
+    def _persist_html_snapshot(self, html_content: str) -> None:
+        """Persist captured HTML to disk for debugging and parity with demo script."""
+        try:
+            snapshot_path = self._html_snapshot_path
+            snapshot_path.parent.mkdir(parents=True, exist_ok=True)
+            timestamp = time.strftime("%Y%m%d_%H%M%S")
+            header = (
+                f"<!-- TikTok Search Results Snapshot - {timestamp} -->\n"
+                f"<!-- Search query: {self.search_query} -->\n\n"
+            )
+            try:
+                snapshot_path.write_text(header + html_content, encoding="utf-8")
+            except UnicodeEncodeError:
+                snapshot_path.write_text(
+                    header + html_content, encoding="latin-1", errors="replace"
+                )
+            self.logger.info("Saved HTML snapshot to %s", snapshot_path)
+        except Exception as exc:
+            self.logger.warning("Failed to save HTML snapshot: %s", exc)

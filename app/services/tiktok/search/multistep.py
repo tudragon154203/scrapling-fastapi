@@ -4,14 +4,16 @@ from __future__ import annotations
 
 import asyncio
 import inspect
+from functools import partial
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Set, Tuple, Union
 
+from app.services.common.browser.user_data import user_data_context
+from app.services.common.engine import CrawlerEngine
 from app.services.tiktok.search.abstract import AbstractTikTokSearchService
+from app.services.tiktok.search.actions.auto_search import TikTokAutoSearchAction
 from app.services.tiktok.search.parser import TikTokSearchParser
 
 from app.schemas.crawl import CrawlRequest
-from app.services.common.engine import CrawlerEngine
-from app.services.tiktok.search.actions.auto_search import TikTokAutoSearchAction
 
 if TYPE_CHECKING:  # pragma: no cover - import for type checkers only
     from app.services.tiktok.protocols import SearchContext
@@ -129,7 +131,7 @@ class TikTokMultiStepSearchService(AbstractTikTokSearchService):
 
         try:
             # Use browser automation to perform the search
-            search_action = TikTokAutoSearchAction(query)
+            search_action = TikTokAutoSearchAction(query, save_html=False)
 
             # Execute the search using browser automation
             html_content = await self._execute_browser_search(search_action, context)
@@ -190,33 +192,53 @@ class TikTokMultiStepSearchService(AbstractTikTokSearchService):
                 executor=browse_executor,
                 fetch_client=browse_executor.fetch_client,
                 options_resolver=browse_executor.options_resolver,
-                camoufox_builder=browse_executor.camoufox_builder
+                camoufox_builder=browse_executor.camoufox_builder,
             )
 
-            # Create crawl request with appropriate settings
+            options = context.get("options", {}) if isinstance(context, dict) else {}
+            headless_requested = bool(options.get("headless"))
+
             crawl_request = CrawlRequest(
                 url="https://www.tiktok.com/",
-                force_headful=False,  # Headless mode for automation
+                force_headful=not headless_requested,
                 force_user_data=True,
-                timeout_seconds=120,  # Longer timeout for browser automation
-                wait_for_network_idle=True,
+                timeout_seconds=120,
+                network_idle=True,
             )
 
-            # Execute the search with timeout protection
-            try:
-                result = await asyncio.wait_for(
-                    engine.run(crawl_request, search_action),
-                    timeout=180,  # 3 minute timeout for browser automation
-                )
-            except asyncio.TimeoutError:
-                self.logger.warning("Browser search timed out after 3 minutes")
-                return ""
+            settings = self.settings
+            user_data_dir = getattr(settings, "camoufox_user_data_dir", "data/camoufox_profiles")
+            result = None
+            loop = asyncio.get_running_loop()
 
-            # Prefer returning the engine response HTML when available.
+            with user_data_context(user_data_dir, "read") as (effective_dir, cleanup):
+                try:
+                    try:
+                        setattr(settings, "_camoufox_user_data_mode", "read")
+                        setattr(settings, "_camoufox_effective_user_data_dir", effective_dir)
+                    except Exception:
+                        pass
+
+                    try:
+                        engine_task = loop.run_in_executor(
+                            None, partial(engine.run, crawl_request, search_action)
+                        )
+                        result = await asyncio.wait_for(engine_task, timeout=180)
+                    except asyncio.TimeoutError:
+                        self.logger.warning("Browser search timed out after 3 minutes")
+                        return ""
+                finally:
+                    try:
+                        if hasattr(settings, "_camoufox_user_data_mode"):
+                            delattr(settings, "_camoufox_user_data_mode")
+                        if hasattr(settings, "_camoufox_effective_user_data_dir"):
+                            delattr(settings, "_camoufox_effective_user_data_dir")
+                    finally:
+                        cleanup()
+
             if result and getattr(result, "html", None):
                 return result.html or ""
 
-            # Fall back to the HTML captured directly by the search action.
             return search_action.html_content
 
         except Exception as e:
