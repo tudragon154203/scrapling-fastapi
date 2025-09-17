@@ -10,8 +10,8 @@ from typing import Any, Callable, Dict, List
 
 from bs4 import BeautifulSoup
 
-from app.services.tiktok.parser.json_parser import _from_sigi_state
-from app.services.tiktok.parser.utils import parse_like_count
+from .json_parser import _from_sigi_state
+from .utils import parse_like_count
 
 logger = logging.getLogger(__name__)
 
