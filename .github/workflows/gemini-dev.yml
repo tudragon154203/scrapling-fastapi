@@ -12,8 +12,46 @@ jobs:
   gemini:
     if: >-
       github.event_name == 'pull_request' ||
-      (github.event_name == 'issue_comment' && github.event.comment != null && (github.event.comment.author_association == 'OWNER' || github.event.comment.author_association == 'COLLABORATOR' || github.event.comment.author_association == 'MEMBER')) ||
-      (github.event_name == 'pull_request_review_comment' && github.event.comment != null && (github.event.comment.author_association == 'OWNER' || github.event.comment.author_association == 'COLLABORATOR' || github.event.comment.author_association == 'MEMBER'))
+      (
+        github.event_name == 'issue_comment' &&
+        github.event.comment != null &&
+        (github.event.comment.author_association == 'OWNER' || github.event.comment.author_association == 'COLLABORATOR' || github.event.comment.author_association == 'MEMBER') &&
+        (
+          startsWith(format('{0}', github.event.comment.body), 'gemini') ||
+          startsWith(format('{0}', github.event.comment.body), 'Gemini') ||
+          startsWith(format('{0}', github.event.comment.body), 'GEMINI') ||
+          startsWith(format('{0}', github.event.comment.body), '@gemini') ||
+          startsWith(format('{0}', github.event.comment.body), '@Gemini') ||
+          startsWith(format('{0}', github.event.comment.body), '@GEMINI') ||
+          startsWith(format('{0}', github.event.comment.body), '@gemini-cli') ||
+          startsWith(format('{0}', github.event.comment.body), '@Gemini-cli') ||
+          startsWith(format('{0}', github.event.comment.body), '@Gemini-CLI') ||
+          startsWith(format('{0}', github.event.comment.body), '@GEMINI-CLI') ||
+          startsWith(format('{0}', github.event.comment.body), '/gemini') ||
+          startsWith(format('{0}', github.event.comment.body), '/Gemini') ||
+          startsWith(format('{0}', github.event.comment.body), '/GEMINI')
+        )
+      ) ||
+      (
+        github.event_name == 'pull_request_review_comment' &&
+        github.event.comment != null &&
+        (github.event.comment.author_association == 'OWNER' || github.event.comment.author_association == 'COLLABORATOR' || github.event.comment.author_association == 'MEMBER') &&
+        (
+          startsWith(format('{0}', github.event.comment.body), 'gemini') ||
+          startsWith(format('{0}', github.event.comment.body), 'Gemini') ||
+          startsWith(format('{0}', github.event.comment.body), 'GEMINI') ||
+          startsWith(format('{0}', github.event.comment.body), '@gemini') ||
+          startsWith(format('{0}', github.event.comment.body), '@Gemini') ||
+          startsWith(format('{0}', github.event.comment.body), '@GEMINI') ||
+          startsWith(format('{0}', github.event.comment.body), '@gemini-cli') ||
+          startsWith(format('{0}', github.event.comment.body), '@Gemini-cli') ||
+          startsWith(format('{0}', github.event.comment.body), '@Gemini-CLI') ||
+          startsWith(format('{0}', github.event.comment.body), '@GEMINI-CLI') ||
+          startsWith(format('{0}', github.event.comment.body), '/gemini') ||
+          startsWith(format('{0}', github.event.comment.body), '/Gemini') ||
+          startsWith(format('{0}', github.event.comment.body), '/GEMINI')
+        )
+      )
     runs-on: ubuntu-latest
     environment: 'Agents/Bots'
     env:
