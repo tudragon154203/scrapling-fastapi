@@ -7,14 +7,6 @@ on:
       - synchronize
       - reopened
       - ready_for_review
-    paths:
-      - 'app/**'
-      - 'tests/**'
-      - 'requirements-test.txt'
-      - 'requirements.txt'
-      - 'pytest.ini'
-      - '.flake8'
-      - '.pre-commit-config.yaml'
 
 permissions:
   contents: read
