@@ -68,11 +68,8 @@ jobs:
           mkdir -p "$HOME/.qwen"
           cat <<'EOF' > "$HOME/.qwen/settings.json"
           {
-            "security": {
-              "auth": {
-                "selectedType": "QWEN_OAUTH"
-              }
-            }
+            "selectedAuthType": "QWEN_OAUTH",
+            "useExternalAuth": false
           }
           EOF
 
