@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple, Union
 from urllib.parse import quote_plus
 
 from app.services.tiktok.search.abstract import AbstractTikTokSearchService
+from app.services.tiktok.search.parser import TikTokSearchParser
 from app.services.tiktok.protocols import SearchContext
 
 
@@ -38,8 +39,6 @@ class TikTokURLParamSearchService(AbstractTikTokSearchService):
         self.logger.debug(f"[TikTokSearchService] Test environment: {in_tests}")
         context = self._prepare_context(in_tests=in_tests)
         user_data_cleanup = context["user_data_cleanup"]
-
-        from app.services.tiktok.search.parser import TikTokSearchParser  # no-hoist
 
         parser = TikTokSearchParser()
         aggregated: List[Dict[str, Any]] = []

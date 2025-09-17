@@ -52,7 +52,6 @@ class TikTokMultiStepSearchService(AbstractTikTokSearchService):
             if user_data_cleanup:
                 self._cleanup_functions.append(user_data_cleanup)
 
-            from app.services.tiktok.search.parser import TikTokSearchParser  # no-hoist
             parser = TikTokSearchParser()
 
             aggregated: List[Dict[str, Any]] = []
