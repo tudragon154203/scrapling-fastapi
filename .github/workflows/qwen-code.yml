@@ -85,23 +85,24 @@ jobs:
       - name: Run Qwen code review
         id: qwen
         if: env.HAS_QWEN_OAUTH_CREDENTIALS == 'true'
+        env:
+          REVIEW_PROMPT: |
+            You are an autonomous Qwen code reviewer running inside a GitHub Actions workflow.
+            Review the changes introduced in pull request #${{ github.event.number }} that targets `${{ github.event.pull_request.base.ref }}`.
+            Carefully analyze the provided diff and the current repository state to understand the modifications.
+            Focus on correctness, testing gaps, security implications, maintainability, and consistency with the project's conventions.
+            When you are confident in your analysis, respond with a Markdown report that contains the following sections:
+            - **Summary**: Briefly describe the overall change.
+            - **Strengths** (optional): Bullet points highlighting what looks good.
+            - **Issues**: Bullet points calling out any blocking problems with clear file references and line numbers when possible.
+            - **Suggestions** (optional): Non-blocking improvements or refactoring ideas.
+            - **Testing**: Tests that were run (or should be run) to verify the change.
+            Conclude with an explicit verdict line that starts with either `APPROVED` or `REVISIONS_REQUIRED` to help triage.
         run: |
           set -euo pipefail
-          cat <<'PROMPT' > review_prompt.txt
-You are an autonomous Qwen code reviewer running inside a GitHub Actions workflow.
-Review the changes introduced in pull request #${{ github.event.number }} that targets `${{ github.event.pull_request.base.ref }}`.
-Carefully analyze the provided diff and the current repository state to understand the modifications.
-Focus on correctness, testing gaps, security implications, maintainability, and consistency with the project's conventions.
-When you are confident in your analysis, respond with a Markdown report that contains the following sections:
-- **Summary**: Briefly describe the overall change.
-- **Strengths** (optional): Bullet points highlighting what looks good.
-- **Issues**: Bullet points calling out any blocking problems with clear file references and line numbers when possible.
-- **Suggestions** (optional): Non-blocking improvements or refactoring ideas.
-- **Testing**: Tests that were run (or should be run) to verify the change.
-Conclude with an explicit verdict line that starts with either `APPROVED` or `REVISIONS_REQUIRED` to help triage.
-PROMPT
+          printf '%s\n' "$REVIEW_PROMPT" > review_prompt.txt
 
-          qwen --prompt "$(cat review_prompt.txt)" < pr.diff | tee qwen-review.md
+          qwen --prompt "$REVIEW_PROMPT" < pr.diff | tee qwen-review.md
 
           {
             echo "summary<<'EOF'" >> "$GITHUB_OUTPUT"
