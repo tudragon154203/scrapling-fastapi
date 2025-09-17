@@ -92,6 +92,8 @@ jobs:
           {
             printf '%s\n' "You are an experienced software engineer performing a thorough code review for the GitHub pull request below."
             printf '%s\n' "This automation only provides read-only feedback, so no code changes are required."
+            printf '%s\n' "Do not offer to edit files, apply patches, or ask for confirmation to make changes."
+            printf '%s\n' "Respond with exactly three sections titled **Summary**, **Issues**, and **Suggestions** and nothing else."
             printf '%s\n' ""
             printf '%s\n' "Provide a concise review with three sections:"
             printf '%s\n' "1. **Summary** – highlight the key changes."
@@ -120,51 +122,64 @@ jobs:
           AIDER_CHECK_UPDATE: "0"
           AIDER_SHOW_RELEASE_NOTES: "0"
         run: |
-          set -o pipefail
+          set -euo pipefail
           : > aider_review_raw.txt
+
           keys=()
+          labels=()
           if [ -n "$GEMINE_API_KEY" ]; then
             keys+=("$GEMINE_API_KEY")
+            labels+=("GEMINE_API_KEY")
           fi
           if [ -n "$GEMINI_API_KEY_2" ]; then
             keys+=("$GEMINI_API_KEY_2")
+            labels+=("GEMINI_API_KEY_2")
           fi
           if [ -n "$GEMINI_API_KEY" ]; then
             keys+=("$GEMINI_API_KEY")
+            labels+=("GEMINI_API_KEY")
           fi
 
           max_attempts=${#keys[@]}
-          attempt=1
+          if [ "$max_attempts" -eq 0 ]; then
+            echo "::error::No Gemini API keys available despite prior check."
+            exit 1
+          fi
           success=false
+          used_label=""
 
-          for key in "${keys[@]}"; do
+          for index in "${!keys[@]}"; do
+            key="${keys[$index]}"
+            label="${labels[$index]}"
             export GEMINI_API_KEY="$key"
             export AIDER_GEMINI_API_KEY="$key"
             export GEMINE_API_KEY="$key"
-            echo "::notice::Starting Aider attempt $attempt of $max_attempts"
+            echo "::notice::Starting Aider attempt $((index + 1)) of $max_attempts using $label"
             if aider \
-              --model gemini/gemini-2.5-flash \
-              --dry-run \
-              --no-auto-commits \
-              --no-pretty \
-              --no-stream \
-              --no-gitignore \
-              --no-check-update \
-              --no-show-release-notes \
-              --disable-playwright \
-              --message-file .github/aider/review_prompt.md \
-              2>&1 | tee -a aider_review_raw.txt; then
+               --model gemini/gemini-2.5-flash \
+               --dry-run \
+               --no-auto-commits \
+               --no-pretty \
+               --no-stream \
+               --no-gitignore \
+               --no-check-update \
+               --no-show-release-notes \
+               --disable-playwright \
+               --message-file .github/aider/review_prompt.md \
+               2>&1 | tee -a aider_review_raw.txt; then
               success=true
+              used_label="$label"
               break
             fi
 
             status=$?
-            echo "::warning::Aider attempt $attempt failed with status $status"
-
-            attempt=$((attempt + 1))
+            echo "::warning::Aider attempt $((index + 1)) failed with status $status using $label"
           done
 
           if [ "$success" = "true" ]; then
+            if [ -n "$used_label" ]; then
+              echo "::notice::Aider review completed using $used_label"
+            fi
             echo "success=true" >> "$GITHUB_OUTPUT"
           else
             echo "success=false" >> "$GITHUB_OUTPUT"
@@ -191,10 +206,34 @@ jobs:
           def extract_review(raw: str) -> str:
               if not raw:
                   return ""
+
               candidate = raw.strip()
-              match = re.search(r"(?:^|\n)(### Summary[\s\S]*)", candidate)
+              match = re.search(r"(?:^|\n)(?:###\s*Summary|📝\s*Summary|\*\*\s*Summary\s*\*\*)", candidate, flags=re.IGNORECASE)
               if match:
-                  candidate = match.group(1)
+                  candidate = candidate[match.start():]
+
+              lower = candidate.lower()
+              stop_terms = (
+                  "\ntokens:",
+                  "\nhere are the search/replace",
+                  "\nsearch/replace blocks",
+                  "\n```",
+                  "\nsummarization failed",
+                  "\nlitellm.",
+                  "\nretrying in",
+                  "\nthe api provider's servers are down",
+                  "\nmodel:",
+                  "\ngit repo:",
+                  "\nrepo-map:",
+                  "\nupdate git name",
+                  "\nupdate git email",
+              )
+              stop_index = len(candidate)
+              for term in stop_terms:
+                  idx = lower.find(term)
+                  if idx != -1 and idx < stop_index:
+                      stop_index = idx
+              candidate = candidate[:stop_index].rstrip()
 
               noise_prefixes = (
                   "aider v",
@@ -223,6 +262,15 @@ jobs:
                   "dry run is enabled",
                   "repo map",
                   "repo summary",
+                  "warning:",
+                  "update git name",
+                  "update git email",
+                  "model:",
+                  "git repo:",
+                  "repo-map:",
+                  "scraping #",
+                  "initial repo scan",
+                  "scanning repo:",
               )
               noise_contains = (
                   "rate limit",
@@ -235,18 +283,25 @@ jobs:
                   "this action will not",
                   "elapsed time",
                   "cache size",
+                  "search/replace",
+                  "apply_patch",
+                  "vertexaiexception",
               )
 
               cleaned_lines = []
               for line in candidate.splitlines():
                   stripped = line.strip()
-                  lower = stripped.lower()
+                  lower_line = stripped.lower()
                   if not stripped:
+                      if cleaned_lines and cleaned_lines[-1] == "":
+                          continue
                       cleaned_lines.append("")
                       continue
-                  if any(lower.startswith(prefix) for prefix in noise_prefixes):
+                  if any(lower_line.startswith(prefix) for prefix in noise_prefixes):
                       continue
-                  if any(term in lower for term in noise_contains):
+                  if any(term in lower_line for term in noise_contains):
+                      continue
+                  if re.fullmatch(r"[\w./-]+\.[a-z0-9]+", stripped.lower()):
                       continue
                   cleaned_lines.append(line.rstrip())
 
