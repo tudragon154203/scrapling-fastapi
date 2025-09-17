@@ -76,12 +76,13 @@ jobs:
           cat <<'EOF' > "$QWEN_DIR/settings.json"
           {
             "selectedAuthType": "qwen-oauth",
+            "useExternalAuth": false,
             "ideMode": true,
             "hasSeenIdeIntegrationNudge": true
           }
           EOF
 
-          chmod 600 "$QWEN_DIR/oauth_creds.json"
+          chmod 600 "$QWEN_DIR/oauth_creds.json" "$QWEN_DIR/settings.json"
 
       - name: Generate pull request diff
         if: env.HAS_QWEN_OAUTH_CREDENTIALS == 'true'
