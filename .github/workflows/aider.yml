@@ -149,6 +149,7 @@ jobs:
             echo "::notice::Starting Gemini credential attempt $((index + 1)) of $max_attempts"
             if aider \
                --model gemini/gemini-2.5-flash \
+               --max-chat-history-tokens 120000 \
                --dry-run \
                --no-auto-commits \
                --no-pretty \
