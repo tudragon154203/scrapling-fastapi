@@ -4,16 +4,15 @@ from __future__ import annotations
 
 import asyncio
 import inspect
-import logging
-from typing import Any, Dict, List, Optional, Set, Tuple, Union, Callable
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Set, Tuple, Union
 
 from app.services.tiktok.search.abstract import AbstractTikTokSearchService
-from app.services.tiktok.parser.orchestrator import TikTokSearchParser
 from app.schemas.crawl import CrawlRequest
 from app.services.common.engine import CrawlerEngine
-from app.services.browser.executors.browse_executor import BrowseExecutor
 from app.services.tiktok.search.actions.auto_search import TikTokAutoSearchAction
-from app.services.tiktok.protocols import SearchContext
+
+if TYPE_CHECKING:  # pragma: no cover - import for type checkers only
+    from app.services.tiktok.protocols import SearchContext
 
 
 class TikTokMultiStepSearchService(AbstractTikTokSearchService):
@@ -204,9 +203,9 @@ class TikTokMultiStepSearchService(AbstractTikTokSearchService):
 
             # Execute the search with timeout protection
             try:
-                result = await asyncio.wait_for(
+                await asyncio.wait_for(
                     engine.run(crawl_request, search_action),
-                    timeout=180  # 3 minute timeout for browser automation
+                    timeout=180,  # 3 minute timeout for browser automation
                 )
             except asyncio.TimeoutError:
                 self.logger.warning("Browser search timed out after 3 minutes")

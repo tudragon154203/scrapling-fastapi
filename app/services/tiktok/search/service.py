@@ -5,8 +5,6 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, List, Union
 
-from app.core.config import get_settings
-
 from app.services.tiktok.search.interfaces import TikTokSearchInterface
 from app.services.tiktok.search.multistep import TikTokMultiStepSearchService
 from app.services.tiktok.search.url_param import TikTokURLParamSearchService

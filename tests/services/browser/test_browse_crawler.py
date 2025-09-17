@@ -1,11 +1,9 @@
 
 import pytest
-import tempfile
-from unittest.mock import Mock, patch, MagicMock, ANY
-from pathlib import Path
+from unittest.mock import MagicMock, Mock, patch
 
 from app.services.browser.browse import BrowseCrawler
-from app.schemas.browse import BrowseRequest
+from app.schemas.browse import BrowseRequest, BrowseResponse
 from app.services.common.engine import CrawlerEngine
 from app.schemas.crawl import CrawlRequest
 
@@ -45,3 +43,7 @@ class TestBrowseCrawler:
             user_data_ctx_mock.assert_called_once_with('/tmp/camoufox_profiles', 'write')
             mock_engine.run.assert_called_once()
             crawl_req = mock_engine.run.call_args.args[0]
+            assert isinstance(crawl_req, CrawlRequest)
+            assert crawl_req.force_user_data is True
+            assert isinstance(result, BrowseResponse)
+            assert result.status == 'success'

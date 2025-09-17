@@ -1,9 +1,9 @@
 """
 E2E tests for TikTok Search endpoint
 """
-from unittest.mock import patch, AsyncMock
+from unittest.mock import AsyncMock, patch
+
 from app.schemas.tiktok.search import TikTokSearchResponse
-from app.services.tiktok.search.service import TikTokSearchService
 
 
 class TestTikTokSearchEndpoint:
