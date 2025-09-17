@@ -28,11 +28,11 @@ jobs:
       - name: Check Gemini key
         id: check_key
         env:
-          GEMINI_API_KEY: ${{ secrets.GEMINE_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           if [ -z "$GEMINI_API_KEY" ]; then
             echo "key_present=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::Skipping review because GEMINE_API_KEY is not set."
+            echo "::notice::Skipping review because GEMINI_API_KEY is not set."
           else
             echo "key_present=true" >> "$GITHUB_OUTPUT"
           fi
@@ -111,8 +111,8 @@ jobs:
         if: steps.check_key.outputs.key_present == 'true' && steps.diff.outputs.no_diff != 'true'
         id: aider
         env:
-          GEMINI_API_KEY: ${{ secrets.GEMINE_API_KEY }}
-          AIDER_GEMINI_API_KEY: ${{ secrets.GEMINE_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          AIDER_GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           AIDER_YES_ALWAYS: "true"
           AIDER_CHECK_UPDATE: "0"
           AIDER_SHOW_RELEASE_NOTES: "0"
