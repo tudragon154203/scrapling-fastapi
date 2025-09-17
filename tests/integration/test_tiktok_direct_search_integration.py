@@ -7,18 +7,18 @@ pytestmark = pytest.mark.integration
 client = TestClient(app)
 
 
-class TestTikTokSearchIntegration:
-    """Integration tests for TikTok search endpoint"""
+class TestTikTokDirectSearchIntegration:
+    """Integration tests for TikTok direct search endpoint"""
 
-    def test_tiktok_search_endpoint(self):
-        """Test TikTok search endpoint with query 'gái xinh' and numVideos 10"""
+    def test_tiktok_direct_search_endpoint(self):
+        """Test TikTok direct search endpoint with query 'gái xinh' and numVideos 10"""
         # Prepare the request payload
         payload = {
             "query": "gái xinh",
             "numVideos": 10,
             "sortType": "RELEVANCE",
             "recencyDays": "ALL",
-            "strategy": "multistep"
+            "strategy": "direct"
         }
 
         # Make request to the TikTok search endpoint
