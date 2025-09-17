@@ -84,47 +84,58 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
 
-      - name: Gather pull request context
-        id: context
-        if: ${{ env.QWEN_CODE_API_KEY != '' && env.QWEN_CODE_BASE_URL != '' && env.QWEN_CODE_MODEL != '' }}
+      - name: Gather pull request context (pull_request)
+        id: context_pr
+        if: ${{ env.QWEN_CODE_API_KEY != '' && env.QWEN_CODE_BASE_URL != '' && env.QWEN_CODE_MODEL != '' && github.event_name == 'pull_request' }}
         env:
-          EVENT_NAME: ${{ github.event_name }}
-          EVENT_ACTION: ${{ github.event.action || '' }}
-          COMMENT_BODY: ${{ github.event.comment.body || '' }}
-          REVIEW_BODY: ${{ github.event.review.body || '' }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
 
-          pr_number=""
-          additional_instructions=""
+          pr_number="${{ github.event.pull_request.number }}"
+          echo "pr_number=${pr_number}" >> "${GITHUB_OUTPUT}"
+          echo "additional_instructions=" >> "${GITHUB_OUTPUT}"
 
-          case "${EVENT_NAME}" in
-            pull_request)
-              pr_number="${{ github.event.pull_request.number }}"
-              ;;
+          pr_data=$(gh pr view "${pr_number}" --json title,body,additions,deletions,changedFiles,baseRefName,headRefName)
+          echo "pr_data=${pr_data}" >> "${GITHUB_OUTPUT}"
+
+          changed_files=$(gh pr diff "${pr_number}" --name-only)
+          {
+            echo "changed_files<<EOF"
+            echo "${changed_files}"
+            echo "EOF"
+          } >> "${GITHUB_OUTPUT}"
+
+      - name: Gather pull request context (comments)
+        id: context_comment
+        if: ${{ env.QWEN_CODE_API_KEY != '' && env.QWEN_CODE_BASE_URL != '' && env.QWEN_CODE_MODEL != '' && (github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment' || github.event_name == 'pull_request_review') }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMMENT_BODY: ${{ github.event.comment.body || '' }}
+          REVIEW_BODY: ${{ github.event.review.body || '' }}
+        run: |
+          set -euo pipefail
+
+          case "${{ github.event_name }}" in
             issue_comment)
               pr_number="${{ github.event.issue.number }}"
-              additional_instructions=$(echo "${COMMENT_BODY}" | sed 's/.*@qwen \/review//' | xargs || true)
+              raw_body="${COMMENT_BODY}"
               ;;
             pull_request_review_comment)
               pr_number="${{ github.event.pull_request.number }}"
-              additional_instructions=$(echo "${COMMENT_BODY}" | sed 's/.*@qwen \/review//' | xargs || true)
+              raw_body="${COMMENT_BODY}"
               ;;
             pull_request_review)
               pr_number="${{ github.event.pull_request.number }}"
-              additional_instructions=$(echo "${REVIEW_BODY}" | sed 's/.*@qwen \/review//' | xargs || true)
+              raw_body="${REVIEW_BODY}"
               ;;
             *)
-              echo "Unsupported event: ${EVENT_NAME}"
+              echo "Unsupported event"
               exit 1
               ;;
           esac
 
-          if [ -z "${pr_number}" ]; then
-            echo "Unable to determine PR number for event ${EVENT_NAME}"
-            exit 1
-          fi
+          additional_instructions=$(echo "${raw_body}" | sed 's/.*@qwen \/review//' | xargs || true)
 
           echo "pr_number=${pr_number}" >> "${GITHUB_OUTPUT}"
           echo "additional_instructions=${additional_instructions}" >> "${GITHUB_OUTPUT}"
@@ -134,9 +145,9 @@ jobs:
 
           changed_files=$(gh pr diff "${pr_number}" --name-only)
           {
-            echo "changed_files<<'EOF'"
+            echo "changed_files<<EOF"
             echo "${changed_files}"
-            echo 'EOF'
+            echo "EOF"
           } >> "${GITHUB_OUTPUT}"
 
       - name: Run Qwen PR review
@@ -146,10 +157,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ steps.context.outputs.pr_number }}
-          PR_DATA: ${{ steps.context.outputs.pr_data }}
-          CHANGED_FILES: ${{ steps.context.outputs.changed_files }}
-          ADDITIONAL_INSTRUCTIONS: ${{ steps.context.outputs.additional_instructions }}
+          PR_NUMBER: ${{ steps.context_pr.outputs.pr_number || steps.context_comment.outputs.pr_number }}
+          PR_DATA: ${{ steps.context_pr.outputs.pr_data || steps.context_comment.outputs.pr_data }}
+          CHANGED_FILES: ${{ steps.context_pr.outputs.changed_files || steps.context_comment.outputs.changed_files }}
+          ADDITIONAL_INSTRUCTIONS: ${{ steps.context_pr.outputs.additional_instructions || steps.context_comment.outputs.additional_instructions }}
           REPOSITORY: ${{ github.repository }}
         with:
           OPENAI_API_KEY: ${{ env.QWEN_CODE_API_KEY }}
@@ -205,9 +216,12 @@ jobs:
               core.info('Qwen review output is empty.');
               return;
             }
+
+            const issueNumber = ${{ toJSON(steps.context_pr.outputs.pr_number || steps.context_comment.outputs.pr_number) }};
+
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              issue_number: context.issue.number,
+              issue_number: issueNumber,
               body: summary,
             });
