@@ -112,7 +112,7 @@ jobs:
           qwen --prompt "$REVIEW_PROMPT" < pr.diff | tee qwen-review.md
 
           {
-            echo "summary<<'EOF'" >> "$GITHUB_OUTPUT"
+            echo "summary<<EOF" >> "$GITHUB_OUTPUT"
             cat qwen-review.md >> "$GITHUB_OUTPUT"
             echo "EOF" >> "$GITHUB_OUTPUT"
           }
