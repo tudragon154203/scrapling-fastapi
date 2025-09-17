@@ -81,6 +81,15 @@ jobs:
         with:
           bun-version: latest
 
+      - name: Export optional OpenRouter API key 2
+        if: ${{ secrets.OPENROUTER_API_KEY_2 != '' }}
+        run: |
+          {
+            echo 'OPENROUTER_API_KEY_2<<EOF'
+            echo '${{ secrets.OPENROUTER_API_KEY_2 }}'
+            echo 'EOF'
+          } >> "$GITHUB_ENV"
+
       - name: Start Claude Code Router
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
@@ -88,6 +97,21 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p ~/.claude-code-router
+          openrouter_api_keys=()
+          if [ -n "${OPENROUTER_API_KEY:-}" ]; then
+            openrouter_api_keys+=("${OPENROUTER_API_KEY}")
+          fi
+          if [ -n "${OPENROUTER_API_KEY_2:-}" ]; then
+            openrouter_api_keys+=("${OPENROUTER_API_KEY_2}")
+          fi
+          if [ "${#openrouter_api_keys[@]}" -eq 0 ]; then
+            echo "At least one OpenRouter API key must be configured." >&2
+            exit 1
+          fi
+          # Rotate between any configured keys using the run number to balance usage.
+          run_number="${GITHUB_RUN_NUMBER:-0}"
+          selected_index=$(( run_number % ${#openrouter_api_keys[@]} ))
+          selected_openrouter_api_key="${openrouter_api_keys[$selected_index]}"
           cat > ~/.claude-code-router/config.json <<EOF
           {
             "LOG": false,
@@ -103,7 +127,7 @@ jobs:
               {
                 "name": "openrouter",
                 "api_base_url": "https://openrouter.ai/api/v1/chat/completions",
-                "api_key": "${OPENROUTER_API_KEY}",
+                "api_key": "${selected_openrouter_api_key}",
                 "models": [
                   "qwen/qwen3-coder:free",
                   "z-ai/glm-4.5-air:free",
