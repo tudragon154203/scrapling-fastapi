@@ -1,5 +1,5 @@
 from typing import Optional
-from pydantic import BaseModel, AnyUrl
+from pydantic import BaseModel, AnyUrl, Field
 from pydantic.config import ConfigDict
 
 
@@ -10,7 +10,7 @@ class BrowseRequest(BaseModel):
     """
     model_config = ConfigDict(extra='forbid')
 
-    url: Optional[AnyUrl] = None
+    url: Optional[AnyUrl] = Field(None, description="The URL to browse to (optional)")
 
 
 class BrowseResponse(BaseModel):

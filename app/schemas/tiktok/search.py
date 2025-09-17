@@ -33,10 +33,6 @@ class TikTokSearchRequest(BaseModel):
         default="multistep",
         description="Search strategy to use - 'direct' for URL parameters, 'multistep' for browser automation",
     )
-    strategy: Literal["direct", "multistep"] = Field(
-        default="multistep",
-        description="Search strategy: 'direct' for URL parameters, 'multistep' for browser automation",
-    )
 
     @model_validator(mode='after')
     def validate_query(self):
