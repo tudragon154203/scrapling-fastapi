@@ -102,6 +102,36 @@ class TestTikTokMultiStepSearchService:
             # Should normalize multiple queries into single string
             assert result["query"] == "query1 query2"
 
+    @pytest.mark.asyncio
+    async def test_search_returns_results_from_html(self, search_service, mock_context):
+        """Ensure parsed HTML content populates search results."""
+        sample_html = (
+            "<html><body>"
+            "<script id=\"EXTRACTED_SEARCH_ITEMS\">"
+            "[{"
+            "\"id\": \"1234567890\","
+            "\"caption\": \"Sample caption\","
+            "\"authorHandle\": \"sample_author\","
+            "\"likeCount\": 42,"
+            "\"uploadTime\": \"2024-01-01\","
+            "\"webViewUrl\": \"https://www.tiktok.com/@sample_author/video/1234567890\""
+            "}]"
+            "</script>"
+            "</body></html>"
+        )
+
+        with patch.object(search_service, '_prepare_context', return_value=mock_context), \
+                patch.object(search_service, '_execute_browser_search', AsyncMock(return_value=sample_html)), \
+                patch.object(search_service, '_cleanup_user_data', AsyncMock()):
+
+            result = await search_service.search("sample query", 5, "RELEVANCE", "ALL")
+
+        assert result["results"], "Expected parsed results from sample HTML"
+        assert result["totalResults"] == len(result["results"])
+        first_result = result["results"][0]
+        assert first_result["id"] == "1234567890"
+        assert first_result["webViewUrl"].endswith("/1234567890")
+
     def test_auto_search_action_cleanup(self):
         """Test TikTokAutoSearchAction cleanup functionality"""
         action = TikTokAutoSearchAction("test query")
