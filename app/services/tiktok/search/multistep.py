@@ -8,7 +8,7 @@ import logging
 from typing import Any, Dict, List, Optional, Set, Tuple, Union, Callable
 
 from app.services.tiktok.search.abstract import AbstractTikTokSearchService
-from app.services.tiktok.parser.orchestrator import TikTokSearchParser
+from app.services.tiktok.search.parser import TikTokSearchParser
 from app.schemas.crawl import CrawlRequest
 from app.services.common.engine import CrawlerEngine
 from app.services.browser.executors.browse_executor import BrowseExecutor
@@ -52,7 +52,7 @@ class TikTokMultiStepSearchService(AbstractTikTokSearchService):
             if user_data_cleanup:
                 self._cleanup_functions.append(user_data_cleanup)
 
-            from app.services.tiktok.parser.orchestrator import TikTokSearchParser  # no-hoist
+            from app.services.tiktok.search.parser import TikTokSearchParser  # no-hoist
             parser = TikTokSearchParser()
 
             aggregated: List[Dict[str, Any]] = []

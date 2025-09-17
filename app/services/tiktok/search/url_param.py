@@ -39,7 +39,7 @@ class TikTokURLParamSearchService(AbstractTikTokSearchService):
         context = self._prepare_context(in_tests=in_tests)
         user_data_cleanup = context["user_data_cleanup"]
 
-        from app.services.tiktok.parser.orchestrator import TikTokSearchParser  # no-hoist
+        from app.services.tiktok.search.parser import TikTokSearchParser  # no-hoist
 
         parser = TikTokSearchParser()
         aggregated: List[Dict[str, Any]] = []

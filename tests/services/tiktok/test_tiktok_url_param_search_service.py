@@ -145,7 +145,7 @@ class TestTikTokURLParamSearchService:
                 "user_data_cleanup": None,
                 "options": {},
             }
-        ), patch("app.services.tiktok.parser.orchestrator.TikTokSearchParser") as mock_parser_cls, patch.object(
+        ), patch("app.services.tiktok.search.parser.orchestrator.TikTokSearchParser") as mock_parser_cls, patch.object(
             TikTokURLParamSearchService, "_process_query", side_effect=[None, True]
         ) as mock_process_query, patch.object(
             TikTokURLParamSearchService, "_cleanup_user_data", new=AsyncMock()

@@ -1,8 +1,8 @@
 """
 Unit tests for TikTok HTML Parser
 """
-from app.services.tiktok.parser.utils import parse_like_count
-from app.services.tiktok.parser.html_parser import extract_video_data_from_html
+from app.services.tiktok.search.parser.utils import parse_like_count
+from app.services.tiktok.search.parser.html_parser import extract_video_data_from_html
 from pathlib import Path
 
 
