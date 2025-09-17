@@ -4,7 +4,7 @@ Main strategy coordination for TikTok parsing
 import logging
 from typing import Any, Dict, List
 
-from app.services.tiktok.parser.html_parser import TikTokHtmlParser
+from .html_parser import TikTokHtmlParser
 
 logger = logging.getLogger(__name__)
 

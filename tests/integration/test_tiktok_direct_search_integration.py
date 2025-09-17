@@ -7,27 +7,18 @@ pytestmark = pytest.mark.integration
 client = TestClient(app)
 
 
-class TestTikTokSearchIntegration:
-    """Integration tests for TikTok search endpoint"""
+class TestTikTokDirectSearchIntegration:
+    """Integration tests for TikTok direct search endpoint"""
 
-    def test_tiktok_search_endpoint(self):
-        """Test TikTok search endpoint with query 'gái xinh' and numVideos 10"""
-        # First, create a TikTok session - test requires successful session creation
-        session_response = client.post("/tiktok/session", json={})
-        # In CI/tight environments, login is unlikely; accept 200 or 409
-        assert session_response.status_code in (200, 409), (
-            f"Session creation unexpected status {session_response.status_code}: {session_response.text}"
-        )
-        # If 200, validate structure
-        if session_response.status_code == 200:
-            session_data = session_response.json()
-            assert session_data["status"] == "success"
-            assert "TikTok session established successfully" in session_data.get("message", "")
-
+    def test_tiktok_direct_search_endpoint(self):
+        """Test TikTok direct search endpoint with query 'gái xinh' and numVideos 10"""
         # Prepare the request payload
         payload = {
             "query": "gái xinh",
-            "numVideos": 10
+            "numVideos": 10,
+            "sortType": "RELEVANCE",
+            "recencyDays": "ALL",
+            "strategy": "direct"
         }
 
         # Make request to the TikTok search endpoint

@@ -370,7 +370,7 @@ class FetchArgComposer:
                 if cls._supports(caps, key):
                     safe_additional_args[key] = value
                     continue
-                if key in cls._USER_DATA_KEYS and cls._supports_any(caps, cls._USER_DATA_KEYS):
+                if key in cls._USER_DATA_KEYS:
                     safe_additional_args[key] = value
             if safe_additional_args:
                 fetch_kwargs["additional_args"] = safe_additional_args

@@ -1,7 +1,8 @@
 """
 E2E tests for TikTok Search endpoint
 """
-from unittest.mock import patch, AsyncMock
+from unittest.mock import AsyncMock, patch
+
 from app.schemas.tiktok.search import TikTokSearchResponse
 
 
@@ -14,11 +15,11 @@ class TestTikTokSearchEndpoint:
         assert resp.status_code == 200
         assert resp.json() == {"status": "ok"}
 
-    @patch('app.api.tiktok.tiktok_service', new_callable=AsyncMock)
-    def test_valid_search_request(self, mock_tiktok_service, client):
+    @patch('app.services.tiktok.search.service.TikTokSearchService.search', new_callable=AsyncMock)
+    def test_valid_search_request(self, mock_search, client):
         """Test that valid search request is accepted by the endpoint"""
-        # Mock the service to return successful search results
-        mock_tiktok_service.search_tiktok = AsyncMock(return_value={
+        # Mock the search to return successful results
+        mock_search.return_value = {
             "results": [
                 {
                     "id": "123456789",
@@ -31,13 +32,14 @@ class TestTikTokSearchEndpoint:
             ],
             "totalResults": 1,
             "query": "test"
-        })
+        }
 
         search_request = {
             "query": "test",
             "numVideos": 10,
             "sortType": "RELEVANCE",
-            "recencyDays": "ALL"
+            "recencyDays": "ALL",
+            "strategy": "multistep"
         }
 
         resp = client.post("/tiktok/search", json=search_request)
@@ -51,11 +53,11 @@ class TestTikTokSearchEndpoint:
         assert response_data["totalResults"] == 1
         assert response_data["query"] == "test"
 
-    @patch('app.api.tiktok.tiktok_service', new_callable=AsyncMock)
-    def test_search_with_multiple_queries(self, mock_tiktok_service, client):
+    @patch('app.services.tiktok.search.service.TikTokSearchService.search', new_callable=AsyncMock)
+    def test_search_with_multiple_queries(self, mock_search, client):
         """Test search with multiple queries"""
-        # Mock the service to return successful search results
-        mock_tiktok_service.search_tiktok = AsyncMock(return_value={
+        # Mock the search to return successful results
+        mock_search.return_value = {
             "results": [
                 {
                     "id": "123456789",
@@ -68,13 +70,14 @@ class TestTikTokSearchEndpoint:
             ],
             "totalResults": 1,
             "query": "test query"
-        })
+        }
 
         search_request = {
             "query": ["test", "query"],
             "numVideos": 10,
             "sortType": "RELEVANCE",
-            "recencyDays": "ALL"
+            "recencyDays": "ALL",
+            "strategy": "multistep"
         }
 
         resp = client.post("/tiktok/search", json=search_request)
@@ -83,23 +86,24 @@ class TestTikTokSearchEndpoint:
         response_data = resp.json()
         assert response_data["query"] == "test query"
 
-    @patch('app.api.tiktok.tiktok_service', new_callable=AsyncMock)
-    def test_not_logged_in_error_response(self, mock_tiktok_service, client):
+    @patch('app.services.tiktok.search.service.TikTokSearchService.search', new_callable=AsyncMock)
+    def test_not_logged_in_error_response(self, mock_search, client):
         """Test response for network connection errors (replacing session dependency)"""
-        # Mock the service to return a network connection error
-        mock_tiktok_service.search_tiktok = AsyncMock(return_value={
+        # Mock the search to return a network connection error
+        mock_search.return_value = {
             "error": {
                 "code": "SCRAPE_FAILED",
                 "message": "Failed to connect to TikTok",
                 "details": {"error": "Network connection failed"}
             }
-        })
+        }
 
         search_request = {
             "query": "test",
             "numVideos": 10,
             "sortType": "RELEVANCE",
-            "recencyDays": "ALL"
+            "recencyDays": "ALL",
+            "strategy": "multistep"
         }
 
         resp = client.post("/tiktok/search", json=search_request)
@@ -110,18 +114,19 @@ class TestTikTokSearchEndpoint:
         assert response_data["error"]["code"] == "SCRAPE_FAILED"
         assert response_data["error"]["message"] == "Failed to connect to TikTok"
 
-    @patch('app.api.tiktok.tiktok_service', new_callable=AsyncMock)
-    def test_string_error_normalization(self, mock_tiktok_service, client):
+    @patch('app.services.tiktok.search.service.TikTokSearchService.search', new_callable=AsyncMock)
+    def test_string_error_normalization(self, mock_search, client):
         """Plain string errors should be normalized and mapped to correct HTTP status."""
-        mock_tiktok_service.search_tiktok = AsyncMock(return_value={
+        mock_search.return_value = {
             "error": "session not logged in"
-        })
+        }
 
         search_request = {
             "query": "test",
             "numVideos": 10,
             "sortType": "RELEVANCE",
-            "recencyDays": "ALL"
+            "recencyDays": "ALL",
+            "strategy": "multistep"
         }
 
         resp = client.post("/tiktok/search", json=search_request)
@@ -135,23 +140,24 @@ class TestTikTokSearchEndpoint:
             }
         }
 
-    @patch('app.api.tiktok.tiktok_service', new_callable=AsyncMock)
-    def test_validation_error_response(self, mock_tiktok_service, client):
+    @patch('app.services.tiktok.search.service.TikTokSearchService.search', new_callable=AsyncMock)
+    def test_validation_error_response(self, mock_search, client):
         """Test response for validation errors"""
         # Mock the service to return a validation error
-        mock_tiktok_service.search_tiktok = AsyncMock(return_value={
+        mock_search.return_value = {
             "error": {
                 "code": "VALIDATION_ERROR",
                 "message": "Invalid request parameters",
                 "fields": {"query": "Query cannot be empty"}
             }
-        })
+        }
 
         search_request = {
             "query": "",  # Invalid empty query
             "numVideos": 10,
             "sortType": "RELEVANCE",
-            "recencyDays": "ALL"
+            "recencyDays": "ALL",
+            "strategy": "multistep"
         }
 
         resp = client.post("/tiktok/search", json=search_request)
@@ -161,22 +167,23 @@ class TestTikTokSearchEndpoint:
         assert "error" in response_data
         assert response_data["error"]["code"] == "VALIDATION_ERROR"
 
-    @patch('app.api.tiktok.tiktok_service', new_callable=AsyncMock)
-    def test_rate_limited_error_response(self, mock_tiktok_service, client):
+    @patch('app.services.tiktok.search.service.TikTokSearchService.search', new_callable=AsyncMock)
+    def test_rate_limited_error_response(self, mock_search, client):
         """Test response when rate limited"""
         # Mock the service to return a rate limited error
-        mock_tiktok_service.search_tiktok = AsyncMock(return_value={
+        mock_search.return_value = {
             "error": {
                 "code": "RATE_LIMITED",
                 "message": "Too many requests"
             }
-        })
+        }
 
         search_request = {
             "query": "test",
             "numVideos": 10,
             "sortType": "RELEVANCE",
-            "recencyDays": "ALL"
+            "recencyDays": "ALL",
+            "strategy": "multistep"
         }
 
         resp = client.post("/tiktok/search", json=search_request)
@@ -187,23 +194,24 @@ class TestTikTokSearchEndpoint:
         assert response_data["error"]["code"] == "RATE_LIMITED"
         assert response_data["error"]["message"] == "Too many requests"
 
-    @patch('app.api.tiktok.tiktok_service', new_callable=AsyncMock)
-    def test_scrape_failed_error_response(self, mock_tiktok_service, client):
+    @patch('app.services.tiktok.search.service.TikTokSearchService.search', new_callable=AsyncMock)
+    def test_scrape_failed_error_response(self, mock_search, client):
         """Test response for scrape failures"""
         # Mock the service to return a scrape failed error
-        mock_tiktok_service.search_tiktok = AsyncMock(return_value={
+        mock_search.return_value = {
             "error": {
                 "code": "SCRAPE_FAILED",
                 "message": "Failed to scrape TikTok search results",
                 "details": {"error": "Timeout occurred"}
             }
-        })
+        }
 
         search_request = {
             "query": "test",
             "numVideos": 10,
             "sortType": "RELEVANCE",
-            "recencyDays": "ALL"
+            "recencyDays": "ALL",
+            "strategy": "multistep"
         }
 
         resp = client.post("/tiktok/search", json=search_request)
@@ -242,10 +250,10 @@ class TestTikTokSearchEndpoint:
         response_data = resp.json()
         assert "detail" in response_data
 
-    @patch('app.api.tiktok.tiktok_service', new_callable=AsyncMock)
-    def test_response_consistency_with_schema(self, mock_tiktok_service, client):
+    @patch('app.services.tiktok.search.service.TikTokSearchService.search', new_callable=AsyncMock)
+    def test_response_consistency_with_schema(self, mock_search, client):
         """Test that response is consistent with TikTokSearchResponse schema"""
-        mock_tiktok_service.search_tiktok = AsyncMock(return_value={
+        mock_search.return_value = {
             "results": [
                 {
                     "id": "123456789",
@@ -258,13 +266,14 @@ class TestTikTokSearchEndpoint:
             ],
             "totalResults": 1,
             "query": "test"
-        })
+        }
 
         search_request = {
             "query": "test",
             "numVideos": 10,
             "sortType": "RELEVANCE",
-            "recencyDays": "ALL"
+            "recencyDays": "ALL",
+            "strategy": "multistep"
         }
 
         resp = client.post("/tiktok/search", json=search_request)
@@ -287,22 +296,57 @@ class TestTikTokSearchEndpoint:
         assert video.uploadTime == "2023-01-01"
         assert video.webViewUrl == "https://www.tiktok.com/@testuser/video/123456789"
 
-    @patch('app.api.tiktok.tiktok_service', new_callable=AsyncMock)
-    def test_response_content_type(self, mock_tiktok_service, client):
+    @patch('app.services.tiktok.search.service.TikTokSearchService.search', new_callable=AsyncMock)
+    def test_response_content_type(self, mock_search, client):
         """Test that response has correct content type"""
-        mock_tiktok_service.search_tiktok = AsyncMock(return_value={
+        mock_search.return_value = {
             "results": [],
             "totalResults": 0,
             "query": "test"
-        })
+        }
 
         search_request = {
             "query": "test",
             "numVideos": 10,
             "sortType": "RELEVANCE",
-            "recencyDays": "ALL"
+            "recencyDays": "ALL",
+            "strategy": "multistep"
         }
 
         resp = client.post("/tiktok/search", json=search_request)
         assert resp.status_code == 200
         assert resp.headers["content-type"] == "application/json"
+
+    @patch('app.services.tiktok.search.service.TikTokSearchService.search', new_callable=AsyncMock)
+    def test_direct_strategy_selection(self, mock_search, client):
+        """Test that direct strategy selects URL parameter service"""
+        # Mock the search to return successful results (strategy is handled internally)
+        mock_search.return_value = {
+            "results": [
+                {
+                    "id": "123456789",
+                    "caption": "Test video caption",
+                    "authorHandle": "testuser",
+                    "likeCount": 100,
+                    "uploadTime": "2023-01-01",
+                    "webViewUrl": "https://www.tiktok.com/@testuser/video/123456789"
+                }
+            ],
+            "totalResults": 1,
+            "query": "test"
+        }
+
+        search_request = {
+            "query": "test",
+            "numVideos": 10,
+            "sortType": "RELEVANCE",
+            "recencyDays": "ALL",
+            "strategy": "direct"
+        }
+
+        resp = client.post("/tiktok/search", json=search_request)
+        assert resp.status_code == 200
+
+        response_data = resp.json()
+        assert "results" in response_data
+        assert response_data["query"] == "test"

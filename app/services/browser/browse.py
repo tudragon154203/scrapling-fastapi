@@ -5,10 +5,15 @@ from app.schemas.crawl import CrawlRequest
 from app.schemas.browse import BrowseRequest, BrowseResponse
 from app.services.common.engine import CrawlerEngine
 from app.services.browser.actions.wait_for_close import WaitForUserCloseAction
-from app.services.common.browser.user_data import user_data_context
+from app.services.common.browser import user_data as user_data_mod
 from app.services.browser.executors.browse_executor import BrowseExecutor
 
 logger = logging.getLogger(__name__)
+
+
+def user_data_context(*args, **kwargs):
+    """Proxy to the shared user-data context for easier patching in tests."""
+    return user_data_mod.user_data_context(*args, **kwargs)
 
 
 class BrowseCrawler:
@@ -72,7 +77,8 @@ class BrowseCrawler:
                             delattr(settings, '_camoufox_effective_user_data_dir')
                     except Exception:
                         pass
-                    cleanup()
+                    if callable(cleanup):
+                        cleanup()
 
         except Exception as e:
             logger.error(f"Browse session failed: {e}")
