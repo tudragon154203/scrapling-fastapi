@@ -249,7 +249,7 @@ jobs:
           echo "can_push=$can_push" >> "$GITHUB_OUTPUT"
           if [ "$can_push" = "true" ]; then
             {
-              echo "extra_tools<<'EOF'"
+              echo "extra_tools<<EOF"
               echo '--allowedTools "Bash(gh pr checkout:*)"'
               echo '--allowedTools "Bash(git add:*)"'
               echo '--allowedTools "Bash(git restore:*)"'
@@ -259,7 +259,7 @@ jobs:
               echo '--allowedTools "Bash(git rm:*)"'
               echo '--allowedTools "Bash(git commit:*)"'
               echo '--allowedTools "Bash(git push:*)"'
-              echo 'EOF'
+              echo "EOF"
             } >> "$GITHUB_OUTPUT"
           else
             echo "extra_tools=" >> "$GITHUB_OUTPUT"
