@@ -1,3 +1,11 @@
+"""Tiktok
+=========
+
+Expose the unified Tiktok API surface that covers session management and
+search capabilities. Both endpoints are grouped under the same documentation
+section to keep the generated OpenAPI docs concise.
+"""
+
 from fastapi import APIRouter, status, Request
 from fastapi.responses import JSONResponse
 from app.schemas.tiktok.search import TikTokSearchRequest, TikTokSearchResponse
@@ -11,9 +19,9 @@ router = APIRouter()
 tiktok_service = TiktokService()
 
 
-@router.post("/tiktok/session", response_model=TikTokSessionResponse, tags=["TikTok Session"])
+@router.post("/tiktok/session", response_model=TikTokSessionResponse, tags=["Tiktok"])
 async def create_tiktok_session_endpoint(request: Request):
-    """Create a TikTok session. Accepts empty body or JSON; rejects extra fields."""
+    """Handle the Tiktok session workflow, accepting empty JSON bodies gracefully."""
     # Accept empty body or JSON; if invalid JSON, fallback to empty request
     try:
         body = await request.body()
@@ -53,9 +61,9 @@ async def create_tiktok_session_endpoint(request: Request):
     return JSONResponse(content=result.model_dump(exclude_none=True), status_code=status_map.get(code, 500))
 
 
-@router.post("/tiktok/search", response_model=TikTokSearchResponse, tags=["TikTok Search"])
+@router.post("/tiktok/search", response_model=TikTokSearchResponse, tags=["Tiktok"])
 async def tiktok_search_endpoint(payload: TikTokSearchRequest):
-    """Perform TikTok search by delegating to the service. Minimal routing only."""
+    """Handle the Tiktok search workflow by delegating to the service layer."""
     search_service = TikTokSearchService(strategy=payload.strategy)
     result = await search_service.search(
         query=payload.query,
