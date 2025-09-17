@@ -2,6 +2,14 @@ name: '🧪 CI - Push (Unit)'
 
 on:
   push:
+    paths:
+      - 'app/**'
+      - 'tests/**'
+      - 'requirements-test.txt'
+      - 'requirements.txt'
+      - 'pytest.ini'
+      - '.flake8'
+      - '.pre-commit-config.yaml'
   workflow_call:
 
 jobs:
