@@ -7,6 +7,14 @@ on:
       - synchronize
       - reopened
       - ready_for_review
+    paths:
+      - 'app/**'
+      - 'tests/**'
+      - 'requirements-test.txt'
+      - 'requirements.txt'
+      - 'pytest.ini'
+      - '.flake8'
+      - '.pre-commit-config.yaml'
 
 permissions:
   contents: read
@@ -15,10 +23,7 @@ permissions:
 jobs:
   review:
     name: Aider Review
-    if: ${{
-      secrets.OPENROUTER_API_KEY != '' &&
-      contains(fromJSON('["OWNER","COLLABORATOR","MEMBER"]'), github.event.pull_request.author_association)
-    }}
+    if: ${{ secrets.OPENROUTER_API_KEY != '' && contains(fromJSON('["OWNER","COLLABORATOR","MEMBER"]'), github.event.pull_request.author_association) }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
