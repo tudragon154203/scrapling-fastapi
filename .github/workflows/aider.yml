@@ -109,10 +109,24 @@ jobs:
         env:
           AIDER_OPENROUTER_API_BASE: https://openrouter.ai/api/v1
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          AIDER_YES_ALWAYS: "true"
+          AIDER_CHECK_UPDATE: "0"
+          AIDER_SHOW_RELEASE_NOTES: "0"
         run: |
           set -o pipefail
           : > aider_review_raw.txt
-          if aider --model openrouter/deepseek/deepseek-chat:free --dry-run --no-auto-commits --no-pretty --no-stream --message-file .github/aider/review_prompt.md 2>&1 | tee aider_review_raw.txt; then
+          if aider \
+            --model openrouter/deepseek/deepseek-chat:free \
+            --dry-run \
+            --no-auto-commits \
+            --no-pretty \
+            --no-stream \
+            --no-gitignore \
+            --no-check-update \
+            --no-show-release-notes \
+            --disable-playwright \
+            --message-file .github/aider/review_prompt.md \
+            2>&1 | tee aider_review_raw.txt; then
             echo "success=true" >> "$GITHUB_OUTPUT"
           else
             status=$?
