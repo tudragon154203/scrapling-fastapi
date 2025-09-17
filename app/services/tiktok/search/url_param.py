@@ -8,7 +8,7 @@ import os
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 from urllib.parse import quote_plus
 
-from app.services.tiktok.abstract_search_service import AbstractTikTokSearchService
+from app.services.tiktok.search.abstract import AbstractTikTokSearchService
 from app.services.tiktok.protocols import SearchContext
 
 

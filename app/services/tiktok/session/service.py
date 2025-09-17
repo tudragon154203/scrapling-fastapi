@@ -17,9 +17,9 @@ from app.schemas.tiktok.session import (
     TikTokSessionResponse,
 )
 from app.services.tiktok.interfaces import TikTokSearchInterface
-from .registry import SessionRecord, SessionRegistry
+from app.services.tiktok.session.registry import SessionRecord, SessionRegistry
 from app.services.tiktok.tiktok_executor import TiktokExecutor
-from app.services.tiktok.url_param_search_service import TikTokURLParamSearchService
+from app.services.tiktok.search.url_param import TikTokURLParamSearchService
 from app.services.tiktok.utils.login_detection import LoginDetector
 
 

@@ -7,7 +7,7 @@ import pytest
 from unittest.mock import AsyncMock, Mock, patch
 
 from app.services.tiktok.protocols import SearchContext
-from app.services.tiktok.url_param_search_service import TikTokURLParamSearchService
+from app.services.tiktok.search.url_param import TikTokURLParamSearchService
 from app.services.tiktok.session import TiktokService
 from app.services.tiktok.session import SessionRecord
 from app.schemas.tiktok.session import TikTokLoginState
@@ -334,7 +334,7 @@ class TestTikTokURLParamSearchService:
         cleanup_callable = Mock()
 
         with patch(
-            "app.services.tiktok.abstract_search_service.asyncio.sleep", new=AsyncMock()
+            "app.services.tiktok.search.abstract.asyncio.sleep", new=AsyncMock()
         ) as sleep_mock:
             await search_service._cleanup_user_data(cleanup_callable)
 
@@ -392,7 +392,7 @@ class TestTikTokURLParamSearchService:
         search_service = TikTokURLParamSearchService(service)
 
         with patch(
-            "app.services.tiktok.abstract_search_service.asyncio.sleep", new=AsyncMock()
+            "app.services.tiktok.search.abstract.asyncio.sleep", new=AsyncMock()
         ) as sleep_mock:
             await search_service._cleanup_user_data(None)
 
