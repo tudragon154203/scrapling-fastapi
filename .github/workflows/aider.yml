@@ -116,7 +116,7 @@ jobs:
           set -o pipefail
           : > aider_review_raw.txt
           if aider \
-            --model openrouter/deepseek/deepseek-chat:free \
+            --model openrouter/deepseek/deepseek-r1:free \
             --dry-run \
             --no-auto-commits \
             --no-pretty \
