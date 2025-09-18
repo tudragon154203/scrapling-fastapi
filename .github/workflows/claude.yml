@@ -52,6 +52,9 @@ jobs:
             const reactWithEmoji = require(join(process.cwd(), '.github/workflows/scripts/bots/common/javascript/react_with_emoji.cjs'));
             await reactWithEmoji({ github, context, core, reaction: 'eyes' });
 
+      - name: Make setup_router.sh executable
+        run: chmod +x ./.github/workflows/scripts/bots/claude/setup_router.sh
+
       - name: Setup Bun runtime
         uses: oven-sh/setup-bun@v2
         with:

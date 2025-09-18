@@ -70,6 +70,10 @@ jobs:
           node-version: '20'
           check-latest: true
 
+      - name: Install Node dependencies for Gemini scripts
+        if: steps.check_key.outputs.key_present == 'true'
+        run: npm install @actions/core @actions/github
+
       - name: Prepare prompt
         if: steps.check_key.outputs.key_present == 'true'
         id: prepare-prompt
@@ -77,6 +81,7 @@ jobs:
         env:
           EVENT_NAME: ${{ inputs.event-name }}
           EVENT_PAYLOAD: ${{ inputs.event }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: google-github-actions/run-gemini-cli@v0
         if: steps.check_key.outputs.key_present == 'true'

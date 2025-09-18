@@ -54,6 +54,10 @@ jobs:
           GEMINI_API_KEY_LEGACY: ${{ secrets.GEMINI_API_KEY_LEGACY }}
         run: ./.github/workflows/scripts/bots/common/shell/check_gemini_keys.sh
 
+      - name: Make generate_diff.sh executable
+        if: steps.check_key.outputs.key_present == 'true'
+        run: chmod +x ./.github/workflows/scripts/bots/aider/generate_diff.sh
+
       - name: Set up Python
         if: steps.check_key.outputs.key_present == 'true'
         uses: actions/setup-python@v5
