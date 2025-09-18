@@ -20,45 +20,51 @@ jobs:
   claude:
     if: |
       (
-        github.event_name == 'pull_request'
-      ) ||
+        vars.ACTIVE_BOTS == '' ||
+        contains(fromJSON(vars.ACTIVE_BOTS), 'claude')
+      ) &&
       (
-        github.event_name == 'issue_comment' &&
-        contains(fromJSON('["OWNER","COLLABORATOR","MEMBER"]'), github.event.comment.author_association) &&
         (
-          startsWith(github.event.comment.body, '@claude') ||
-          startsWith(github.event.comment.body, 'CLAUDE') ||
-          startsWith(github.event.comment.body, '/claude')
-        )
-      ) ||
-      (
-        github.event_name == 'pull_request_review_comment' &&
-        contains(fromJSON('["OWNER","COLLABORATOR","MEMBER"]'), github.event.comment.author_association) &&
+          github.event_name == 'pull_request'
+        ) ||
         (
-          startsWith(github.event.comment.body, '@claude') ||
-          startsWith(github.event.comment.body, 'CLAUDE') ||
-          startsWith(github.event.comment.body, '/claude')
-        )
-      ) ||
-      (
-        github.event_name == 'pull_request_review' &&
-        contains(fromJSON('["OWNER","COLLABORATOR","MEMBER"]'), github.event.review.author_association) &&
+          github.event_name == 'issue_comment' &&
+          contains(fromJSON('["OWNER","COLLABORATOR","MEMBER"]'), github.event.comment.author_association) &&
+          (
+            startsWith(github.event.comment.body, '@claude') ||
+            startsWith(github.event.comment.body, 'CLAUDE') ||
+            startsWith(github.event.comment.body, '/claude')
+          )
+        ) ||
         (
-          startsWith(github.event.review.body, '@claude') ||
-          startsWith(github.event.review.body, 'CLAUDE') ||
-          startsWith(github.event.review.body, '/claude')
-        )
-      ) ||
-      (
-        github.event_name == 'issues' &&
-        contains(fromJSON('["OWNER","COLLABORATOR","MEMBER"]'), github.event.issue.author_association) &&
+          github.event_name == 'pull_request_review_comment' &&
+          contains(fromJSON('["OWNER","COLLABORATOR","MEMBER"]'), github.event.comment.author_association) &&
+          (
+            startsWith(github.event.comment.body, '@claude') ||
+            startsWith(github.event.comment.body, 'CLAUDE') ||
+            startsWith(github.event.comment.body, '/claude')
+          )
+        ) ||
         (
-          contains(github.event.issue.body, '@claude') ||
-          contains(github.event.issue.body, 'CLAUDE') ||
-          contains(github.event.issue.body, '/claude') ||
-          contains(github.event.issue.title, '@claude') ||
-          contains(github.event.issue.title, 'CLAUDE') ||
-          contains(github.event.issue.title, '/claude')
+          github.event_name == 'pull_request_review' &&
+          contains(fromJSON('["OWNER","COLLABORATOR","MEMBER"]'), github.event.review.author_association) &&
+          (
+            startsWith(github.event.review.body, '@claude') ||
+            startsWith(github.event.review.body, 'CLAUDE') ||
+            startsWith(github.event.review.body, '/claude')
+          )
+        ) ||
+        (
+          github.event_name == 'issues' &&
+          contains(fromJSON('["OWNER","COLLABORATOR","MEMBER"]'), github.event.issue.author_association) &&
+          (
+            contains(github.event.issue.body, '@claude') ||
+            contains(github.event.issue.body, 'CLAUDE') ||
+            contains(github.event.issue.body, '/claude') ||
+            contains(github.event.issue.title, '@claude') ||
+            contains(github.event.issue.title, 'CLAUDE') ||
+            contains(github.event.issue.title, '/claude')
+          )
         )
       )
     runs-on: ${{ vars.OS || 'ubuntu-latest' }}

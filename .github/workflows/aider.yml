@@ -16,7 +16,12 @@ permissions:
 jobs:
   review:
     name: Aider Review
-    if: ${{ contains(fromJSON('["OWNER","COLLABORATOR","MEMBER"]'), github.event.pull_request.author_association) }}
+    if: >-
+      (
+        vars.ACTIVE_BOTS == '' ||
+        contains(fromJSON(vars.ACTIVE_BOTS), 'aider')
+      ) &&
+      contains(fromJSON('["OWNER","COLLABORATOR","MEMBER"]'), github.event.pull_request.author_association)
     runs-on: ${{ vars.OS || 'ubuntu-latest' }}
     concurrency:
       group: ${{ github.workflow }}-${{ github.event.pull_request.number }}

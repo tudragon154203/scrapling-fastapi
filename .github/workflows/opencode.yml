@@ -19,64 +19,70 @@ jobs:
   opencode:
     if: |
       (
-        github.event_name == 'issue_comment' &&
-        contains(fromJSON('["OWNER","COLLABORATOR","AUTHOR"]'), github.event.comment.author_association) &&
-        (
-          startsWith(github.event.comment.body, '@opencode') ||
-          startsWith(github.event.comment.body, 'OPENCODE') ||
-          startsWith(github.event.comment.body, '/opencode')
-        )
-      ) ||
+        vars.ACTIVE_BOTS == '' ||
+        contains(fromJSON(vars.ACTIVE_BOTS), 'opencode')
+      ) &&
       (
-        github.event_name == 'pull_request_review_comment' &&
-        contains(fromJSON('["OWNER","COLLABORATOR","AUTHOR"]'), github.event.comment.author_association) &&
         (
-          startsWith(github.event.comment.body, '@opencode') ||
-          startsWith(github.event.comment.body, 'OPENCODE') ||
-          startsWith(github.event.comment.body, '/opencode')
-        )
-      ) ||
-      (
-        github.event_name == 'pull_request_review' &&
-        contains(fromJSON('["OWNER","COLLABORATOR","AUTHOR"]'), github.event.review.author_association) &&
-        (
-          startsWith(github.event.review.body, '@opencode') ||
-          startsWith(github.event.review.body, 'OPENCODE') ||
-          startsWith(github.event.review.body, '/opencode')
-        )
-      ) ||
-      (
-        github.event_name == 'pull_request' &&
-        contains(fromJSON('["OWNER","COLLABORATOR","AUTHOR"]'), github.event.pull_request.author_association) &&
-        (
+          github.event_name == 'issue_comment' &&
+          contains(fromJSON('["OWNER","COLLABORATOR","AUTHOR"]'), github.event.comment.author_association) &&
           (
-            github.event.pull_request.body != null &&
-            (
-              contains(github.event.pull_request.body, '@opencode') ||
-              contains(github.event.pull_request.body, 'OPENCODE') ||
-              contains(github.event.pull_request.body, '/opencode')
-            )
-          ) ||
+            startsWith(github.event.comment.body, '@opencode') ||
+            startsWith(github.event.comment.body, 'OPENCODE') ||
+            startsWith(github.event.comment.body, '/opencode')
+          )
+        ) ||
+        (
+          github.event_name == 'pull_request_review_comment' &&
+          contains(fromJSON('["OWNER","COLLABORATOR","AUTHOR"]'), github.event.comment.author_association) &&
           (
-            github.event.pull_request.title != null &&
+            startsWith(github.event.comment.body, '@opencode') ||
+            startsWith(github.event.comment.body, 'OPENCODE') ||
+            startsWith(github.event.comment.body, '/opencode')
+          )
+        ) ||
+        (
+          github.event_name == 'pull_request_review' &&
+          contains(fromJSON('["OWNER","COLLABORATOR","AUTHOR"]'), github.event.review.author_association) &&
+          (
+            startsWith(github.event.review.body, '@opencode') ||
+            startsWith(github.event.review.body, 'OPENCODE') ||
+            startsWith(github.event.review.body, '/opencode')
+          )
+        ) ||
+        (
+          github.event_name == 'pull_request' &&
+          contains(fromJSON('["OWNER","COLLABORATOR","AUTHOR"]'), github.event.pull_request.author_association) &&
+          (
             (
-              contains(github.event.pull_request.title, '@opencode') ||
-              contains(github.event.pull_request.title, 'OPENCODE') ||
-              contains(github.event.pull_request.title, '/opencode')
+              github.event.pull_request.body != null &&
+              (
+                contains(github.event.pull_request.body, '@opencode') ||
+                contains(github.event.pull_request.body, 'OPENCODE') ||
+                contains(github.event.pull_request.body, '/opencode')
+              )
+            ) ||
+            (
+              github.event.pull_request.title != null &&
+              (
+                contains(github.event.pull_request.title, '@opencode') ||
+                contains(github.event.pull_request.title, 'OPENCODE') ||
+                contains(github.event.pull_request.title, '/opencode')
+              )
             )
           )
-        )
-      ) ||
-      (
-        github.event_name == 'issues' &&
-        contains(fromJSON('["OWNER","COLLABORATOR","AUTHOR"]'), github.event.issue.author_association) &&
+        ) ||
         (
-          contains(github.event.issue.body, '@opencode') ||
-          contains(github.event.issue.body, 'OPENCODE') ||
-          contains(github.event.issue.body, '/opencode') ||
-          contains(github.event.issue.title, '@opencode') ||
-          contains(github.event.issue.title, 'OPENCODE') ||
-          contains(github.event.issue.title, '/opencode')
+          github.event_name == 'issues' &&
+          contains(fromJSON('["OWNER","COLLABORATOR","AUTHOR"]'), github.event.issue.author_association) &&
+          (
+            contains(github.event.issue.body, '@opencode') ||
+            contains(github.event.issue.body, 'OPENCODE') ||
+            contains(github.event.issue.body, '/opencode') ||
+            contains(github.event.issue.title, '@opencode') ||
+            contains(github.event.issue.title, 'OPENCODE') ||
+            contains(github.event.issue.title, '/opencode')
+          )
         )
       )
     runs-on: ${{ vars.OS || 'ubuntu-latest' }}
