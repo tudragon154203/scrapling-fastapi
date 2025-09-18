@@ -223,9 +223,9 @@ jobs:
           anthropic_api_key: "dummy"
           prompt: |
               REPO: ${{ github.repository }}
-              EVENT: ${{ env.EVENT_NAME }}
-              PR NUMBER: ${{ env.TARGET_TYPE == 'pull_request' && env.TARGET_ID || '' }}
-              ISSUE NUMBER: ${{ env.TARGET_TYPE == 'issue' && env.TARGET_ID || '' }}
+              EVENT: ${{ inputs.event-name }}
+              PR NUMBER: ${{ inputs.target-type == 'pull_request' && inputs.target-id || '' }}
+              ISSUE NUMBER: ${{ inputs.target-type == 'issue' && inputs.target-id || '' }}
 
               Act as a helpful GitHub assistant for the current event.
               - For pull requests: review the changes for quality, bugs, security, and performance.

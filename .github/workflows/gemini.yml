@@ -39,7 +39,7 @@ jobs:
       KEY_PRESENT: ${{ secrets.GEMINI_API_KEY != '' }}
     steps:
       - name: React with 👀 to show Gemini is running
-        if: env.KEY_PRESENT == 'true'
+        if: ${{ env.KEY_PRESENT == 'true' }}
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -91,24 +91,24 @@ jobs:
             }
 
       - name: Skip when Gemini API key is unavailable
-        if: env.KEY_PRESENT == 'false'
+        if: ${{ env.KEY_PRESENT == 'false' }}
         run: echo 'GEMINI_API_KEY is not configured. Skipping Gemini workflow.'
 
       - name: Use Node.js 20
-        if: env.KEY_PRESENT == 'true'
+        if: ${{ env.KEY_PRESENT == 'true' }}
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           check-latest: true
 
       - name: Checkout repository
-        if: env.KEY_PRESENT == 'true'
+        if: ${{ env.KEY_PRESENT == 'true' }}
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Prepare prompt
-        if: env.KEY_PRESENT == 'true'
+        if: ${{ env.KEY_PRESENT == 'true' }}
         id: prepare-prompt
         uses: actions/github-script@v7
         with:
@@ -276,7 +276,7 @@ jobs:
             core.setOutput('comment_body', commentBodyRaw || '');
 
       - uses: google-github-actions/run-gemini-cli@v0
-        if: env.KEY_PRESENT == 'true'
+        if: ${{ env.KEY_PRESENT == 'true' }}
         id: gemini
         continue-on-error: true
         env:
@@ -294,7 +294,7 @@ jobs:
           prompt: ${{ steps.prepare-prompt.outputs.prompt }}
 
       - name: Post Gemini response as comment
-        if: always() && env.KEY_PRESENT == 'true'
+        if: ${{ always() && env.KEY_PRESENT == 'true' }}
         uses: actions/github-script@v7
         env:
           GEMINI_SUMMARY: ${{ steps.gemini.outputs.summary }}
@@ -333,7 +333,7 @@ jobs:
             });
 
       - name: Fail workflow if Gemini step failed
-        if: env.KEY_PRESENT == 'true' && steps.gemini.outcome == 'failure'
+        if: ${{ env.KEY_PRESENT == 'true' && steps.gemini.outcome == 'failure' }}
         run: |
           echo "Gemini CLI step failed"
           exit 1
