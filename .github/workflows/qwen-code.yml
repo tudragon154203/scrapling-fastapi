@@ -2,6 +2,8 @@ name: '🧐 Qwen-Code'
 
 
 on:
+  pull_request_target:
+    types: ['opened', 'reopened', 'synchronize', 'ready_for_review']
   pull_request:
     types: ['opened', 'reopened', 'synchronize', 'ready_for_review']
   issue_comment:
@@ -21,7 +23,8 @@ jobs:
   review-pr:
     if: |-
       github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'pull_request' &&
+      ((github.event_name == 'pull_request_target' ||
+        (github.event_name == 'pull_request' && !github.event.pull_request.head.repo.fork)) &&
        (github.event.action == 'opened' ||
         github.event.action == 'reopened' ||
         github.event.action == 'synchronize' ||
@@ -60,10 +63,10 @@ jobs:
           token: '${{ secrets.GITHUB_TOKEN }}'
           fetch-depth: 0
 
-      - name: 'Get PR details (pull_request & workflow_dispatch)'
+      - name: 'Get PR details (pull_request_target, pull_request & workflow_dispatch)'
         id: 'get_pr'
         if: |-
-          ${{ github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' }}
+          ${{ github.event_name == 'pull_request_target' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' }}
         env:
           GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN }}'
         run: |-
