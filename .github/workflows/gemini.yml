@@ -43,7 +43,7 @@ jobs:
           fetch-depth: 0
 
       - name: Make key check script executable
-        run: chmod +x ./.github/workflows/scripts/common/shell/check_gemini_keys.sh
+        run: chmod +x ./.github/workflows/scripts/bots/common/shell/check_gemini_keys.sh
 
       - name: Check Gemini keys
         id: check_key
@@ -51,7 +51,7 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GEMINI_API_KEY_2: ${{ secrets.GEMINI_API_KEY_2 }}
           GEMINI_API_KEY_LEGACY: ${{ secrets.GEMINI_API_KEY_LEGACY }}
-        run: ./.github/workflows/scripts/common/shell/check_gemini_keys.sh
+        run: ./.github/workflows/scripts/bots/common/shell/check_gemini_keys.sh
 
       - name: React with 😄 to show Gemini is running
         if: steps.check_key.outputs.key_present == 'true'
@@ -60,7 +60,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const { join } = require('node:path');
-            const reactWithEmoji = require(join(process.cwd(), '.github/workflows/scripts/common/javascript/react_with_emoji.cjs'));
+            const reactWithEmoji = require(join(process.cwd(), '.github/workflows/scripts/bots/common/javascript/react_with_emoji.cjs'));
             await reactWithEmoji({ github, context, core, reaction: 'laugh' });
 
       - name: Use Node.js 20
@@ -73,170 +73,10 @@ jobs:
       - name: Prepare prompt
         if: steps.check_key.outputs.key_present == 'true'
         id: prepare-prompt
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const eventName = process.env.EVENT_NAME;
-            const payload = JSON.parse(process.env.EVENT_PAYLOAD || '{}');
-            const repoOwner = context.repo.owner;
-            const repoName = context.repo.repo;
-
-            const prNumber =
-              eventName === 'pull_request'
-                ? payload.pull_request?.number
-                : payload.issue?.number ?? payload.pull_request?.number ?? null;
-
-            async function loadPullRequestContext(number) {
-              if (!number) {
-                return { pr: null, files: [], commits: [] };
-              }
-              try {
-                const prResponse = await github.rest.pulls.get({
-                  owner: repoOwner,
-                  repo: repoName,
-                  pull_number: number,
-                });
-                const files = await github.paginate(github.rest.pulls.listFiles, {
-                  owner: repoOwner,
-                  repo: repoName,
-                  pull_number: number,
-                  per_page: 100,
-                });
-                const commits = await github.paginate(github.rest.pulls.listCommits, {
-                  owner: repoOwner,
-                  repo: repoName,
-                  pull_number: number,
-                  per_page: 100,
-                });
-                return { pr: prResponse.data, files, commits };
-              } catch (error) {
-                core.warning(`Failed to load pull request context: ${error.message}`);
-                return { pr: null, files: [], commits: [] };
-              }
-            }
-
-            function formatPatch(patch) {
-              if (!patch) {
-                return '';
-              }
-              const maxChars = 1500;
-              let content = patch;
-              if (content.length > maxChars) {
-                content = `${content.slice(0, maxChars)}\n... (patch truncated)`;
-              }
-              return ['```diff', content, '```'].join('\n');
-            }
-
-            function formatFiles(files) {
-              if (!files || files.length === 0) {
-                return '_No changed files found._';
-              }
-              return files
-                .map((file) => {
-                  const header = `- ${file.filename} (${file.status}, +${file.additions} / -${file.deletions})`;
-                  const patch = formatPatch(file.patch);
-                  return patch ? `${header}\n${patch}` : header;
-                })
-                .join('\n\n');
-            }
-
-            function formatCommits(commits) {
-              if (!commits || commits.length === 0) {
-                return '_No commits returned._';
-              }
-              return commits
-                .map((commit) => `- ${commit.sha.slice(0, 7)} ${commit.commit.message.split('\n')[0]}`)
-                .join('\n');
-            }
-
-            const { pr, files, commits } = await loadPullRequestContext(prNumber);
-
-            const descriptionSource =
-              pr?.body ??
-              payload.pull_request?.body ??
-              payload.issue?.body ??
-              '';
-            const description = descriptionSource?.trim();
-            const prDescription = description && description.length > 0 ? description : '_No description provided._';
-
-            const commentBody = payload.comment?.body?.trim();
-            const userRequest = commentBody && commentBody.length > 0 ? commentBody : null;
-
-            const prTitle =
-              pr?.title ??
-              payload.pull_request?.title ??
-              payload.issue?.title ??
-              'unknown';
-
-            const prAuthor =
-              pr?.user?.login ??
-              payload.pull_request?.user?.login ??
-              payload.issue?.user?.login ??
-              'unknown';
-
-            const prUrl =
-              pr?.html_url ??
-              payload.pull_request?.html_url ??
-              payload.issue?.pull_request?.html_url ??
-              payload.comment?.html_url ??
-              '';
-
-            const rawIssueNumber = payload.pull_request?.number ?? payload.issue?.number ?? '';
-            const rawIssueTitle = payload.pull_request?.title ?? payload.issue?.title ?? '';
-            const rawIssueBody = payload.pull_request?.body ?? payload.issue?.body ?? '';
-            const commentBodyRaw = payload.comment?.body ?? '';
-
-            const sections = [
-              'You are a meticulous senior engineer reviewing the following pull request. Provide a thorough analysis of the changes, highlighting intent, quality, and potential issues.',
-              'Follow the Markdown response template exactly. Use concise bullet points under each heading, and write `- None noted.` when a section does not apply. Prioritize actionable feedback, missing tests, and blockers.',
-              '',
-
-              'Response template:',
-              '📝 **Summary**',
-              '✅ **Tests & Coverage**',
-              '⚠️ **Risks & Regressions**',
-              '💡 **Suggestions & Improvements**',
-              '📌 **Follow-ups**',
-              '🚫 **Blocking Issues**',
-              '',
-
-              'Guidelines:',
-              '- Reference specific files, commits, or behaviors when possible.',
-              '- Explicitly call out missing or insufficient tests.',
-              '- Separate blocking issues (must fix before merge) from optional suggestions.',
-              '',
-
-              `Repository: ${repoOwner}/${repoName}`,
-              `Pull Request: #${pr?.number ?? prNumber ?? 'unknown'}`,
-              `Title: ${prTitle}`,
-              `Author: ${prAuthor}`,
-              `URL: ${prUrl}`,
-              '',
-
-              'Changed files:',
-              formatFiles(files),
-              '',
-
-              'Recent commits:',
-              formatCommits(commits),
-              '',
-
-              'Pull request description:',
-              prDescription,
-            ];
-
-            if (userRequest) {
-              sections.push('', 'Additional request from comment:', userRequest);
-            }
-
-            const prompt = sections.join('\n');
-
-            core.setOutput('prompt', prompt);
-            core.setOutput('issue_number', `${rawIssueNumber || ''}`);
-            core.setOutput('issue_title', rawIssueTitle || '');
-            core.setOutput('issue_body', rawIssueBody || '');
-            core.setOutput('comment_body', commentBodyRaw || '');
+        run: node ./.github/workflows/scripts/bots/gemini/prepare_prompt.js
+        env:
+          EVENT_NAME: ${{ inputs.event-name }}
+          EVENT_PAYLOAD: ${{ inputs.event }}
 
       - uses: google-github-actions/run-gemini-cli@v0
         if: steps.check_key.outputs.key_present == 'true'
@@ -258,32 +98,14 @@ jobs:
 
       - name: Post Gemini response as comment
         if: ${{ always() && steps.check_key.outputs.key_present == 'true' }}
-        uses: actions/github-script@v7
         env:
           GEMINI_SUMMARY: ${{ steps.gemini.outputs.summary }}
           GEMINI_ERROR: ${{ steps.gemini.outputs.error }}
           GEMINI_STATUS: ${{ steps.gemini.outcome }}
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const { join } = require('node:path');
-            const { postComment } = require(join(process.cwd(), '.github/workflows/scripts/utils/github_api/post_comment.js'));
-            const payload = JSON.parse(process.env.EVENT_PAYLOAD || '{}');
-            const issueNumber = payload.issue?.number ?? payload.pull_request?.number;
-            const status = process.env.GEMINI_STATUS ?? 'unknown';
-            const parts = [];
-            if (process.env.GEMINI_SUMMARY) {
-              parts.push('## 🤖 Gemini Review\n\n' + process.env.GEMINI_SUMMARY);
-            }
-            if (process.env.GEMINI_ERROR) {
-              parts.push('## ❗ Gemini Error\n\n```\n' + process.env.GEMINI_ERROR + '\n```');
-            }
-            if (status !== 'success') {
-              parts.push(`⚠️ _Gemini CLI step ended with status: **${status}**._`);
-            }
-            const body = parts.join('\n\n').trim();
-            await postComment(github, context, body, issueNumber);
-
+          EVENT_PAYLOAD: ${{ inputs.event }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node ./.github/workflows/scripts/bots/gemini/post_response.js
+      
       - name: Fail workflow if Gemini step failed
         if: ${{ steps.check_key.outputs.key_present == 'true' && steps.gemini.outcome == 'failure' }}
         run: |

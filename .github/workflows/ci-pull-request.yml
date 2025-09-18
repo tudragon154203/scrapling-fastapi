@@ -32,19 +32,8 @@ jobs:
       # When running locally with 'act' on Windows, use the host's pyenv Python 3.10.8
       - name: Use pyenv Python 3.10.8 (ACT Windows only)
         if: runner.os == 'Windows' && env.ACT == 'true'
-        shell: powershell
-        run: |
-          $ErrorActionPreference = 'Stop'
-          if (-not (Get-Command pyenv -ErrorAction SilentlyContinue)) {
-            Write-Error "pyenv not found in PATH. Ensure pyenv-win is installed and on PATH."
-          }
-          if (Test-Path .python-version) {
-            Write-Host ".python-version: $(Get-Content .python-version -Raw)"
-          } else {
-            pyenv shell 3.10.8
-          }
-          python --version
-          pip --version
+        shell: pwsh
+        run: pwsh -ExecutionPolicy Bypass -File ./.github/workflows/scripts/ci/use_pyenv.ps1
 
       - name: Set up Python ${{ matrix.python }}
         if: runner.os != 'Windows' || env.ACT != 'true'
@@ -75,16 +64,12 @@ jobs:
         env:
           CAMOUFOX_MAX_RETRIES: 3
           CAMOUFOX_RETRY_DELAY: 10
-        run: |
-          $scriptPath = Join-Path $env:GITHUB_WORKSPACE '.github/workflows/scripts/systems/camoufox/fetch_camoufox.ps1'
-          & $scriptPath -ExecutionPolicy Bypass
+        run: pwsh -ExecutionPolicy Bypass -File ./.github/workflows/scripts/ci/fetch_camoufox.ps1
 
       - name: Update root certificates
         if: runner.os == 'Windows'
-        shell: powershell
-        run: |
-          certutil -generateSSTFromWU roots.sst
-          Import-Certificate -FilePath roots.sst -CertStoreLocation Cert:\LocalMachine\Root
+        shell: pwsh
+        run: pwsh -ExecutionPolicy Bypass -File ./.github/workflows/scripts/ci/update_root_certificates.ps1
 
       - name: Run integration tests
         run: python -m pytest -q -m "integration" --disable-warnings --maxfail=1

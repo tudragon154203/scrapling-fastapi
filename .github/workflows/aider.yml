@@ -44,7 +44,7 @@ jobs:
           fetch-depth: 0
 
       - name: Make key check script executable
-        run: chmod +x ./.github/workflows/scripts/common/shell/check_gemini_keys.sh
+        run: chmod +x ./.github/workflows/scripts/bots/common/shell/check_gemini_keys.sh
 
       - name: Check Gemini keys
         id: check_key
@@ -52,7 +52,7 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GEMINI_API_KEY_2: ${{ secrets.GEMINI_API_KEY_2 }}
           GEMINI_API_KEY_LEGACY: ${{ secrets.GEMINI_API_KEY_LEGACY }}
-        run: ./.github/workflows/scripts/common/shell/check_gemini_keys.sh
+        run: ./.github/workflows/scripts/bots/common/shell/check_gemini_keys.sh
 
       - name: Set up Python
         if: steps.check_key.outputs.key_present == 'true'
@@ -69,55 +69,9 @@ jobs:
       - name: Generate pull request diff and prompt
         if: steps.check_key.outputs.key_present == 'true'
         id: diff
-        run: |
-          EVENT_PAYLOAD='${{ inputs.event }}'
-          PR_TITLE=$(echo "$EVENT_PAYLOAD" | python -c "import sys, json; data=json.load(sys.stdin); print(data['pull_request']['title'] if 'pull_request' in data else '')")
-          PR_URL=$(echo "$EVENT_PAYLOAD" | python -c "import sys, json; data=json.load(sys.stdin); print(data['pull_request']['html_url'] if 'pull_request' in data else '')")
-          BASE_SHA=$(echo "$EVENT_PAYLOAD" | python -c "import sys, json; data=json.load(sys.stdin); print(data['pull_request']['base']['sha'] if 'pull_request' in data else '')")
-          BASE_REF=$(echo "$EVENT_PAYLOAD" | python -c "import sys, json; data=json.load(sys.stdin); print(data['pull_request']['base']['ref'] if 'pull_request' in data else '')")
-          HEAD_SHA=$(echo "$EVENT_PAYLOAD" | python -c "import sys, json; data=json.load(sys.stdin); print(data['pull_request']['head']['sha'] if 'pull_request' in data else '')")
-          set -euo pipefail
-          git config --global --add safe.directory "$GITHUB_WORKSPACE"
-          if ! git cat-file -e "$BASE_SHA^{commit}"; then
-            git fetch origin "$BASE_REF" --depth=1
-          fi
-          git diff "$BASE_SHA...$HEAD_SHA" > pr.diff || true
-          diff_bytes=$(wc -c < pr.diff)
-          echo "diff_bytes=$diff_bytes" >> "$GITHUB_OUTPUT"
-          if [ "$diff_bytes" -eq 0 ]; then
-            echo "no_diff=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "no_diff=false" >> "$GITHUB_OUTPUT"
-          fi
-          max_bytes=60000
-          if [ "$diff_bytes" -gt "$max_bytes" ]; then
-            head -c "$max_bytes" pr.diff > pr.truncated.diff
-            mv pr.truncated.diff pr.diff
-            echo "diff_truncated=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "diff_truncated=false" >> "$GITHUB_OUTPUT"
-          fi
-          mkdir -p .github/aider
-          {
-            printf '%s\n' "You are an experienced software engineer performing a thorough code review for the GitHub pull request below."
-            printf '%s\n' "This automation only provides read-only feedback, so no code changes are required."
-            printf '%s\n' "Do not offer to edit files, apply patches, or ask for confirmation to make changes."
-            printf '%s\n' ""
-            printf '%s\n' "Respond in Markdown beginning with the heading ### 📝 Aider Review followed by exactly three level-3 headings in this order: ### ✅ Summary, ### ⚠️ Issues, and ### 💡 Suggestions. Do not add any other sections."
-            printf '%s\n' "- **✅ Summary**: Provide 1-3 short bullet points covering the most important changes."
-            printf '%s\n' "- **⚠️ Issues**: Bullet any bugs, regressions, or risks. Reference files and line numbers when helpful. Write 'None.' if you find no issues."
-            printf '%s\n' "- **💡 Suggestions**: Offer actionable improvements, testing ideas, or follow-up work. Write 'None.' if you have no suggestions."
-            printf '%s\n' ""
-            printf '%s\n' "Keep bullets tight, prefix each bullet with a fitting emoji, and focus on correctness, security, performance, and maintainability. If the diff was truncated for length, mention it explicitly."
-            printf '%s\n' ""
-            printf '%s\n' "Pull request: $PR_TITLE"
-            printf '%s\n' "URL: $PR_URL"
-            printf '%s\n' ""
-            printf '%s\n' "Diff:"
-            printf '%s\n' '```diff'
-          } > .github/aider/review_prompt.md
-          cat pr.diff >> .github/aider/review_prompt.md
-          printf '\n```\n' >> .github/aider/review_prompt.md
+        run: ./.github/workflows/scripts/bots/aider/generate_diff.sh
+        env:
+          EVENT_PAYLOAD: ${{ inputs.event }}
 
       - name: Run aider review
         if: steps.check_key.outputs.key_present == 'true' && steps.diff.outputs.no_diff != 'true'
@@ -129,60 +83,8 @@ jobs:
           AIDER_YES_ALWAYS: "true"
           AIDER_CHECK_UPDATE: "0"
           AIDER_SHOW_RELEASE_NOTES: "0"
-        run: |
-          set -euo pipefail
-          : > aider_review_raw.txt
-
-          keys=()
-          if [ -n "$GEMINI_API_KEY_2" ]; then
-            keys+=("$GEMINI_API_KEY_2")
-          fi
-          if [ -n "$GEMINI_API_KEY" ]; then
-            keys+=("$GEMINI_API_KEY")
-          fi
-          if [ -n "$GEMINI_API_KEY_LEGACY" ]; then
-            keys+=("$GEMINI_API_KEY_LEGACY")
-          fi
-
-          max_attempts=${#keys[@]}
-          if [ "$max_attempts" -eq 0 ]; then
-            echo "::error::No Gemini API keys available despite prior check."
-            exit 1
-          fi
-          success=false
-          for index in "${!keys[@]}"; do
-            key="${keys[$index]}"
-            export GEMINI_API_KEY="$key"
-            export AIDER_GEMINI_API_KEY="$key"
-            echo "::notice::Starting Gemini credential attempt $((index + 1)) of $max_attempts"
-            if aider \
-               --model "gemini/${GEMINI_MODEL}" \
-               --max-chat-history-tokens 120000 \
-               --dry-run \
-               --no-auto-commits \
-               --no-pretty \
-               --no-stream \
-               --no-gitignore \
-               --no-check-update \
-               --no-show-release-notes \
-               --disable-playwright \
-               --message-file .github/aider/review_prompt.md \
-               2>&1 | tee -a aider_review_raw.txt; then
-              success=true
-              echo "::notice::Aider review completed after $((index + 1)) attempt(s)."
-              break
-            fi
-
-            status=$?
-            echo "::warning::Aider attempt $((index + 1)) failed with status $status"
-          done
-
-          if [ "$success" = "true" ]; then
-            echo "success=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "success=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
+          GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-2.5-flash' }}
+        run: ./.github/workflows/scripts/bots/aider/run_review.sh
 
       - name: Prepare review comment
         if: steps.check_key.outputs.key_present == 'true' && steps.diff.outputs.no_diff != 'true'
@@ -201,11 +103,13 @@ jobs:
       - name: Post review comment
         if: steps.check_key.outputs.key_present == 'true' && steps.diff.outputs.no_diff != 'true' && steps.prepare_comment.outputs.comment_empty != 'true'
         uses: actions/github-script@v7
+        env:
+          EVENT_PAYLOAD: ${{ inputs.event }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const fs = require('fs');
-            const { postComment } = require('./.github/workflows/scripts/utils/github_api/post_comment.js');
+            const { postComment } = require('./.github/workflows/scripts/bots/common/post_comment.js');
             const body = fs.readFileSync('review_comment.md', 'utf8').trim();
             const payload = JSON.parse(process.env.EVENT_PAYLOAD || '{}');
             const issueNumber = payload.pull_request?.number;
