@@ -1,8 +1,10 @@
 # Agent workflow selection at runtime
 
-The repository now exposes a single configuration point to decide which
-agent-oriented GitHub Actions workflows should execute for an incoming event.
-The workflows affected are:
+Incoming pull-request and comment events now land in a single dispatcher
+workflow that decides which agent-oriented GitHub Actions should execute. The
+dispatcher lives in `.github/workflows/main.yml` (named **🤖 Main (Dispatcher)**)
+and calls the
+following reusable workflows:
 
 - `.github/workflows/aider.yml`
 - `.github/workflows/claude.yml`
@@ -12,7 +14,9 @@ The workflows affected are:
 ## Controlling the selection
 
 1. Define or update the repository (or environment/organization) variable
-   `ACTIVE_BOTS`.
+   `ACTIVE_BOTS`. Alternatively, export the same JSON array through an
+   environment variable named `ACTIVE_BOTS` on the workflow, repository, or
+   organization.
 2. Give the variable a JSON array that lists the workflows you would like to
    execute. Use the lowercase identifiers shown below:
 
@@ -27,21 +31,22 @@ The workflows affected are:
    ```
 
 3. Save the variable. No code change is required. The next workflow run will
-   read the value at runtime and only start the jobs whose identifier is
-   present in the array.
+   read the value at runtime and only call the reusable workflows whose
+   identifier is present in the array.
 
-If the variable is not defined, or it is left blank, all four workflows run as
-before because the workflows fall back to the default list shown above.
+If neither the variable nor the environment variable is defined (or they are
+left blank), all four workflows run as before because the workflows fall back
+to the default list shown above.
 
 ## Runtime behaviour
 
 - The selection is evaluated for every run. Changing the variable immediately
   affects subsequent workflow executions.
-- A workflow that is not selected is skipped entirely, keeping the workflow
-  list tidy without consuming runner minutes.
-- The configuration works for pull requests as well as comment-triggered
-  events because the `vars` context is resolved before the job condition is
-  evaluated.
+- A workflow that is not selected is skipped entirely, so the dispatcher keeps
+  the workflow list tidy without consuming runner minutes.
+- The configuration works for pull requests as well as comment-triggered events
+  because the dispatcher evaluates the JSON list against the original event
+  payload before deciding which reusable workflows to invoke.
 
 ## Troubleshooting
 
@@ -56,4 +61,9 @@ before because the workflows fall back to the default list shown above.
   ```bash
   gh variable set ACTIVE_BOTS --body='["gemini","opencode"]'
   ```
+
+- Environment variables can be exported at different scopes (workflow, job, or
+  organization environment). The dispatcher prefers repository variables when
+  present and falls back to `env.ACTIVE_BOTS` when that is the only
+  configuration provided.
 

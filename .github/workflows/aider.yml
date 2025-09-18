@@ -1,30 +1,38 @@
 name: '📝 Aider'
 
 on:
-  pull_request:
-    types:
-      - opened
-      - synchronize
-      - reopened
-      - ready_for_review
+  workflow_call:
+    inputs:
+      event-name:
+        required: true
+        type: string
+      event:
+        required: true
+        type: string
+      target-id:
+        required: false
+        type: string
+      target-type:
+        required: false
+        type: string
 
 permissions:
   contents: read
   pull-requests: write
   issues: write
 
+env:
+  EVENT_NAME: ${{ inputs['event-name'] }}
+  EVENT_PAYLOAD: ${{ inputs.event }}
+  TARGET_ID: ${{ inputs['target-id'] || '' }}
+  TARGET_TYPE: ${{ inputs['target-type'] || '' }}
+
 jobs:
   review:
     name: Aider Review
-    if: >-
-      (
-        vars.ACTIVE_BOTS == '' ||
-        contains(fromJSON(vars.ACTIVE_BOTS || '[]'), 'aider')
-      ) &&
-      contains(fromJSON('["OWNER","COLLABORATOR","MEMBER"]'), github.event.pull_request.author_association)
     runs-on: ${{ vars.OS || 'ubuntu-latest' }}
     concurrency:
-      group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+      group: ${{ github.workflow }}-${{ env.TARGET_ID != '' && env.TARGET_ID || github.run_id }}
       cancel-in-progress: true
     environment: 'Agents/Bots'
     timeout-minutes: 30
@@ -68,11 +76,11 @@ jobs:
         if: steps.check_key.outputs.key_present == 'true'
         id: diff
         env:
-          PR_TITLE: ${{ github.event.pull_request.title }}
-          PR_URL: ${{ github.event.pull_request.html_url }}
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          BASE_REF: ${{ github.event.pull_request.base.ref }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_TITLE: ${{ fromJSON(env.EVENT_PAYLOAD).pull_request.title }}
+          PR_URL: ${{ fromJSON(env.EVENT_PAYLOAD).pull_request.html_url }}
+          BASE_SHA: ${{ fromJSON(env.EVENT_PAYLOAD).pull_request.base.sha }}
+          BASE_REF: ${{ fromJSON(env.EVENT_PAYLOAD).pull_request.base.ref }}
+          HEAD_SHA: ${{ fromJSON(env.EVENT_PAYLOAD).pull_request.head.sha }}
         run: |
           set -euo pipefail
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
@@ -199,6 +207,8 @@ jobs:
       - name: Post review comment
         if: steps.check_key.outputs.key_present == 'true' && steps.diff.outputs.no_diff != 'true' && steps.prepare_comment.outputs.comment_empty != 'true'
         uses: actions/github-script@v7
+        env:
+          EVENT_PAYLOAD: ${{ env.EVENT_PAYLOAD }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -208,10 +218,16 @@ jobs:
               core.info('Review body empty, skipping comment.');
               return;
             }
+            const payload = JSON.parse(process.env.EVENT_PAYLOAD || '{}');
+            const issueNumber = payload.pull_request?.number;
+            if (!issueNumber) {
+              core.warning('Unable to determine pull request number for comment.');
+              return;
+            }
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              issue_number: context.issue.number,
+              issue_number: issueNumber,
               body
             });
 

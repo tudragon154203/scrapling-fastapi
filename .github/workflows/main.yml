@@ -1,0 +1,235 @@
+name: '🤖 Main (Dispatcher)'
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+  issue_comment:
+    types: [created, edited]
+  pull_request_review_comment:
+    types: [created, edited]
+  issues:
+    types: [opened, assigned, reopened]
+  pull_request_review:
+    types: [submitted, edited]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  id-token: write
+  actions: read
+
+jobs:
+  determine:
+    runs-on: ${{ vars.OS || 'ubuntu-latest' }}
+    outputs:
+      run_aider: ${{ steps.filter.outputs.run_aider }}
+      run_claude: ${{ steps.filter.outputs.run_claude }}
+      run_gemini: ${{ steps.filter.outputs.run_gemini }}
+      run_opencode: ${{ steps.filter.outputs.run_opencode }}
+      target_id: ${{ steps.filter.outputs.target_id }}
+      target_type: ${{ steps.filter.outputs.target_type }}
+    steps:
+      - id: filter
+        env:
+          ACTIVE_BOTS_VAR: ${{ vars.ACTIVE_BOTS }}
+          ACTIVE_BOTS_ENV: ${{ env.ACTIVE_BOTS }}
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_PAYLOAD: ${{ toJson(github.event) }}
+        run: |
+          python <<'PY'
+import json
+import os
+
+active_var = (os.environ.get('ACTIVE_BOTS_VAR') or '').strip()
+active_env = (os.environ.get('ACTIVE_BOTS_ENV') or '').strip()
+active_raw = active_var or active_env
+
+active_filter = None
+if active_raw:
+    try:
+        parsed = json.loads(active_raw)
+        if isinstance(parsed, list):
+            bots = [str(item).strip().lower() for item in parsed if str(item).strip()]
+        elif isinstance(parsed, str):
+            bots = [parsed.strip().lower()] if parsed.strip() else []
+        else:
+            bots = [str(parsed).strip().lower()]
+    except json.JSONDecodeError:
+        bots = [part.strip().lower() for part in active_raw.split(',') if part.strip()]
+    active_filter = set(bots)
+else:
+    active_filter = None
+
+def allowed(bot: str) -> bool:
+    if active_filter is None:
+        return True
+    return bot in active_filter
+
+EVENT_NAME = os.environ.get('EVENT_NAME') or ''
+PAYLOAD = json.loads(os.environ.get('EVENT_PAYLOAD') or '{}')
+
+TRUSTED_MEMBERS = {'OWNER', 'COLLABORATOR', 'MEMBER'}
+TRUSTED_WITH_AUTHOR = TRUSTED_MEMBERS | {'AUTHOR'}
+
+CLAUDE_PREFIXES = ('@claude', 'CLAUDE', '/claude')
+GEMINI_PREFIXES = ('Gemini', 'GEMINI', '@gemini', '@gemini-cli', '/gemini')
+OPENCODE_PREFIXES = ('@opencode', 'OPENCODE', '/opencode')
+
+def get(*keys):
+    data = PAYLOAD
+    for key in keys:
+        if not isinstance(data, dict):
+            return None
+        data = data.get(key)
+    return data
+
+def text(value) -> str:
+    return value or ''
+
+def startswith_any(value: str, prefixes) -> bool:
+    return any(value.startswith(prefix) for prefix in prefixes)
+
+def contains_any(value: str, substrings) -> bool:
+    return any(sub in value for sub in substrings)
+
+aider_should_run = False
+if allowed('aider') and EVENT_NAME == 'pull_request':
+    assoc = text(get('pull_request', 'author_association'))
+    aider_should_run = assoc in TRUSTED_MEMBERS
+
+claude_should_run = False
+if allowed('claude'):
+    if EVENT_NAME == 'pull_request':
+        claude_should_run = True
+    elif EVENT_NAME == 'issue_comment':
+        assoc = text(get('comment', 'author_association'))
+        body = text(get('comment', 'body'))
+        claude_should_run = assoc in TRUSTED_MEMBERS and startswith_any(body, CLAUDE_PREFIXES)
+    elif EVENT_NAME == 'pull_request_review_comment':
+        assoc = text(get('comment', 'author_association'))
+        body = text(get('comment', 'body'))
+        claude_should_run = assoc in TRUSTED_MEMBERS and startswith_any(body, CLAUDE_PREFIXES)
+    elif EVENT_NAME == 'pull_request_review':
+        assoc = text(get('review', 'author_association'))
+        body = text(get('review', 'body'))
+        claude_should_run = assoc in TRUSTED_MEMBERS and startswith_any(body, CLAUDE_PREFIXES)
+    elif EVENT_NAME == 'issues':
+        assoc = text(get('issue', 'author_association'))
+        issue_body = text(get('issue', 'body'))
+        title = text(get('issue', 'title'))
+        claude_should_run = assoc in TRUSTED_MEMBERS and (
+            contains_any(issue_body, CLAUDE_PREFIXES) or contains_any(title, CLAUDE_PREFIXES)
+        )
+
+gemini_should_run = False
+if allowed('gemini'):
+    if EVENT_NAME == 'pull_request':
+        gemini_should_run = True
+    elif EVENT_NAME == 'issue_comment':
+        assoc = text(get('comment', 'author_association'))
+        body = text(get('comment', 'body'))
+        gemini_should_run = assoc in TRUSTED_MEMBERS and startswith_any(body, GEMINI_PREFIXES)
+    elif EVENT_NAME == 'pull_request_review_comment':
+        assoc = text(get('comment', 'author_association'))
+        body = text(get('comment', 'body'))
+        gemini_should_run = assoc in TRUSTED_MEMBERS and startswith_any(body, GEMINI_PREFIXES)
+
+opencode_should_run = False
+if allowed('opencode'):
+    if EVENT_NAME == 'issue_comment':
+        assoc = text(get('comment', 'author_association'))
+        body = text(get('comment', 'body'))
+        opencode_should_run = assoc in TRUSTED_WITH_AUTHOR and startswith_any(body, OPENCODE_PREFIXES)
+    elif EVENT_NAME == 'pull_request_review_comment':
+        assoc = text(get('comment', 'author_association'))
+        body = text(get('comment', 'body'))
+        opencode_should_run = assoc in TRUSTED_WITH_AUTHOR and startswith_any(body, OPENCODE_PREFIXES)
+    elif EVENT_NAME == 'pull_request_review':
+        assoc = text(get('review', 'author_association'))
+        body = text(get('review', 'body'))
+        opencode_should_run = assoc in TRUSTED_WITH_AUTHOR and startswith_any(body, OPENCODE_PREFIXES)
+    elif EVENT_NAME == 'pull_request':
+        assoc = text(get('pull_request', 'author_association'))
+        pr_body = text(get('pull_request', 'body'))
+        title = text(get('pull_request', 'title'))
+        opencode_should_run = assoc in TRUSTED_WITH_AUTHOR and (
+            contains_any(pr_body, OPENCODE_PREFIXES) or contains_any(title, OPENCODE_PREFIXES)
+        )
+    elif EVENT_NAME == 'issues':
+        assoc = text(get('issue', 'author_association'))
+        issue_body = text(get('issue', 'body'))
+        title = text(get('issue', 'title'))
+        opencode_should_run = assoc in TRUSTED_WITH_AUTHOR and (
+            contains_any(issue_body, OPENCODE_PREFIXES) or contains_any(title, OPENCODE_PREFIXES)
+        )
+
+def write_output(name: str, value: bool) -> None:
+    with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as fh:
+        fh.write(f"{name}={'true' if value else 'false'}\n")
+
+write_output('run_aider', aider_should_run)
+write_output('run_claude', claude_should_run)
+write_output('run_gemini', gemini_should_run)
+write_output('run_opencode', opencode_should_run)
+target_id = ''
+pr_payload = get('pull_request')
+if isinstance(pr_payload, dict):
+    target_id = str(pr_payload.get('number') or '')
+target_type = 'pull_request' if target_id else ''
+if not target_id:
+    issue_payload = get('issue')
+    if isinstance(issue_payload, dict):
+        target_id = str(issue_payload.get('number') or '')
+        target_type = 'issue' if target_id else target_type
+write_output('target_id', target_id or '')
+write_output('target_type', target_type or '')
+PY
+
+  aider:
+    needs: determine
+    if: needs.determine.outputs.run_aider == 'true'
+    uses: ./.github/workflows/aider.yml
+    secrets: inherit
+    with:
+      event-name: ${{ github.event_name }}
+      event: ${{ toJson(github.event) }}
+      target-id: ${{ needs.determine.outputs.target_id }}
+      target-type: ${{ needs.determine.outputs.target_type }}
+
+  claude:
+    needs: determine
+    if: needs.determine.outputs.run_claude == 'true'
+    uses: ./.github/workflows/claude.yml
+    secrets: inherit
+    with:
+      event-name: ${{ github.event_name }}
+      event: ${{ toJson(github.event) }}
+      target-id: ${{ needs.determine.outputs.target_id }}
+      target-type: ${{ needs.determine.outputs.target_type }}
+
+  gemini:
+    needs: determine
+    if: needs.determine.outputs.run_gemini == 'true'
+    uses: ./.github/workflows/gemini.yml
+    secrets: inherit
+    with:
+      event-name: ${{ github.event_name }}
+      event: ${{ toJson(github.event) }}
+      target-id: ${{ needs.determine.outputs.target_id }}
+      target-type: ${{ needs.determine.outputs.target_type }}
+
+  opencode:
+    needs: determine
+    if: needs.determine.outputs.run_opencode == 'true'
+    uses: ./.github/workflows/opencode.yml
+    secrets: inherit
+    with:
+      event-name: ${{ github.event_name }}
+      event: ${{ toJson(github.event) }}
+      target-id: ${{ needs.determine.outputs.target_id }}
+      target-type: ${{ needs.determine.outputs.target_type }}

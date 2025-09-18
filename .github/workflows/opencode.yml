@@ -1,99 +1,39 @@
 name: '🔓 Opencode'
 
 on:
-  pull_request:
-    types:
-      - opened
-      - reopened
-      - synchronize
-  issue_comment:
-    types: [created, edited]
-  pull_request_review_comment:
-    types: [created, edited]
-  issues:
-    types: [opened, assigned, reopened]
-  pull_request_review:
-    types: [submitted, edited]
+  workflow_call:
+    inputs:
+      event-name:
+        required: true
+        type: string
+      event:
+        required: true
+        type: string
+      target-id:
+        required: false
+        type: string
+      target-type:
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  id-token: write
+
+env:
+  EVENT_NAME: ${{ inputs['event-name'] }}
+  EVENT_PAYLOAD: ${{ inputs.event }}
+  TARGET_ID: ${{ inputs['target-id'] || '' }}
+  TARGET_TYPE: ${{ inputs['target-type'] || '' }}
 
 jobs:
   opencode:
-    if: |
-      (
-        vars.ACTIVE_BOTS == '' ||
-        contains(fromJSON(vars.ACTIVE_BOTS || '[]'), 'opencode')
-      ) &&
-      (
-        (
-          github.event_name == 'issue_comment' &&
-          contains(fromJSON('["OWNER","COLLABORATOR","AUTHOR"]'), github.event.comment.author_association) &&
-          (
-            startsWith(github.event.comment.body, '@opencode') ||
-            startsWith(github.event.comment.body, 'OPENCODE') ||
-            startsWith(github.event.comment.body, '/opencode')
-          )
-        ) ||
-        (
-          github.event_name == 'pull_request_review_comment' &&
-          contains(fromJSON('["OWNER","COLLABORATOR","AUTHOR"]'), github.event.comment.author_association) &&
-          (
-            startsWith(github.event.comment.body, '@opencode') ||
-            startsWith(github.event.comment.body, 'OPENCODE') ||
-            startsWith(github.event.comment.body, '/opencode')
-          )
-        ) ||
-        (
-          github.event_name == 'pull_request_review' &&
-          contains(fromJSON('["OWNER","COLLABORATOR","AUTHOR"]'), github.event.review.author_association) &&
-          (
-            startsWith(github.event.review.body, '@opencode') ||
-            startsWith(github.event.review.body, 'OPENCODE') ||
-            startsWith(github.event.review.body, '/opencode')
-          )
-        ) ||
-        (
-          github.event_name == 'pull_request' &&
-          contains(fromJSON('["OWNER","COLLABORATOR","AUTHOR"]'), github.event.pull_request.author_association) &&
-          (
-            (
-              github.event.pull_request.body != null &&
-              (
-                contains(github.event.pull_request.body, '@opencode') ||
-                contains(github.event.pull_request.body, 'OPENCODE') ||
-                contains(github.event.pull_request.body, '/opencode')
-              )
-            ) ||
-            (
-              github.event.pull_request.title != null &&
-              (
-                contains(github.event.pull_request.title, '@opencode') ||
-                contains(github.event.pull_request.title, 'OPENCODE') ||
-                contains(github.event.pull_request.title, '/opencode')
-              )
-            )
-          )
-        ) ||
-        (
-          github.event_name == 'issues' &&
-          contains(fromJSON('["OWNER","COLLABORATOR","AUTHOR"]'), github.event.issue.author_association) &&
-          (
-            contains(github.event.issue.body, '@opencode') ||
-            contains(github.event.issue.body, 'OPENCODE') ||
-            contains(github.event.issue.body, '/opencode') ||
-            contains(github.event.issue.title, '@opencode') ||
-            contains(github.event.issue.title, 'OPENCODE') ||
-            contains(github.event.issue.title, '/opencode')
-          )
-        )
-      )
     runs-on: ${{ vars.OS || 'ubuntu-latest' }}
     environment: 'Agents/Bots'
-    permissions:
-      id-token: write
-      contents: write
-      pull-requests: write
-      issues: write
     concurrency:
-      group: opencode-${{ github.workflow }}-${{ github.event_name }}-${{ github.event.issue.number || github.event.pull_request.number || github.run_id }}
+      group: opencode-${{ github.workflow }}-${{ env.EVENT_NAME }}-${{ env.TARGET_ID != '' && env.TARGET_ID || github.run_id }}
       cancel-in-progress: true
     steps:
       - name: Checkout repository
