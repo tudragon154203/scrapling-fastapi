@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param (
-    [int]$MaxRetries,
-    [int]$RetryDelaySeconds
+    [Nullable[int]]$MaxRetries,
+    [Nullable[int]]$RetryDelaySeconds
 )
 
 function Resolve-IntOrDefault {
