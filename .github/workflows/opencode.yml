@@ -126,6 +126,21 @@ jobs:
           curl -fsSL "${base_url}/package.json" -o "$runner_dir/package.json"
           curl -fsSL "${base_url}/bun.lock" -o "$runner_dir/bun.lock"
           curl -fsSL "${base_url}/index.ts" -o "$runner_dir/index.ts"
+          RUNNER_DIR_FOR_PY="$runner_dir" python - <<'PY'
+import json
+import os
+import pathlib
+
+runner_dir = pathlib.Path(os.environ["RUNNER_DIR_FOR_PY"])
+package_path = runner_dir / "package.json"
+data = json.loads(package_path.read_text())
+
+deps = data.get("devDependencies", {})
+if deps.get("@types/bun") == "catalog:":
+    deps["@types/bun"] = "^1.2.21"
+    data["devDependencies"] = deps
+    package_path.write_text(json.dumps(data, indent=2) + "\n")
+PY
           echo "RUNNER_DIR=$runner_dir" >> "$GITHUB_ENV"
 
       - name: Install bun
