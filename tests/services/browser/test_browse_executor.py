@@ -1,5 +1,8 @@
+from contextlib import contextmanager
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
+from app.schemas.browse import BrowseRequest
 from app.services.browser.browse import BrowseCrawler
 from app.services.browser.executors.browse_executor import BrowseExecutor
 
@@ -51,6 +54,47 @@ def test_browse_executor_never_retries():
     # Test retry delay is zero
     delay = executor.get_retry_delay(mock_response, 1)
     assert delay == 0.0
+
+
+def test_browse_crawler_sets_mute_flag(monkeypatch, tmp_path):
+    """BrowseCrawler should mute Camoufox via settings for user-facing sessions."""
+
+    settings = SimpleNamespace(
+        camoufox_user_data_dir=str(tmp_path),
+        camoufox_locale=None,
+        camoufox_window=None,
+        camoufox_disable_coop=False,
+        camoufox_virtual_display=None,
+    )
+
+    monkeypatch.setattr(
+        'app.services.browser.browse.app_config.get_settings',
+        lambda: settings,
+    )
+
+    @contextmanager
+    def fake_user_data_context(_user_data_dir, _mode):
+        yield str(tmp_path), lambda: None
+
+    monkeypatch.setattr(
+        'app.services.browser.browse.user_data_context',
+        fake_user_data_context,
+    )
+
+    engine = MagicMock()
+    flag_states = []
+
+    def run_side_effect(_crawl_request, _page_action):
+        flag_states.append(getattr(settings, '_camoufox_force_mute_audio', False))
+
+    engine.run.side_effect = run_side_effect
+
+    crawler = BrowseCrawler(engine=engine)
+    response = crawler.run(BrowseRequest())
+
+    assert response.status == 'success'
+    assert flag_states == [True]
+    assert not hasattr(settings, '_camoufox_force_mute_audio')
 
 
 def test_browse_executor_handles_browser_close_as_success():

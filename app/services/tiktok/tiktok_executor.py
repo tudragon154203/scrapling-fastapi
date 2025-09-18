@@ -56,6 +56,7 @@ class TiktokExecutor(AbstractBrowsingExecutor):
 
         class MockRequest:
             force_user_data = True
+            force_mute_audio = True
         # Build additional args using CamoufoxArgsBuilder
         additional_args, extra_headers = self.camoufox_builder.build(
             MockRequest(), self.settings, self.fetcher.detect_capabilities()

@@ -80,6 +80,17 @@ class CamoufoxArgsBuilder:
         if getattr(settings, "camoufox_virtual_display", None):
             additional_args["virtual_display"] = settings.camoufox_virtual_display
 
+        force_mute = bool(getattr(payload, "force_mute_audio", False))
+        if not force_mute:
+            force_mute = bool(getattr(settings, "_camoufox_force_mute_audio", False))
+        if force_mute:
+            existing_prefs = additional_args.get("firefox_user_prefs")
+            firefox_prefs = dict(existing_prefs) if isinstance(existing_prefs, dict) else {}
+            firefox_prefs.setdefault("media.volume_scale", 0.0)
+            firefox_prefs.setdefault("media.default_volume", 0.0)
+            firefox_prefs.setdefault("dom.audiochannel.mutedByDefault", True)
+            additional_args["firefox_user_prefs"] = firefox_prefs
+
         # Do NOT pass `solve_cloudflare` via additional_args.
         # It is a top-level argument of StealthyFetcher.fetch and forwarding it inside
         # Camoufox launch options causes Playwright to receive an unexpected kwarg.
