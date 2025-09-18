@@ -92,6 +92,7 @@ claudedocs/
 .codex*
 GEMINI.md
 scripts/
+!.github/workflows/scripts/
 memory/
 templates/
 tiktok_search.html
