@@ -118,74 +118,74 @@ jobs:
           set -euo pipefail
 
           python <<'PY'
-import json
-import os
-import subprocess
-import sys
+          import json
+          import os
+          import subprocess
+          import sys
 
-event_name = os.environ.get("EVENT_NAME", "")
+          event_name = os.environ.get("EVENT_NAME", "")
 
-with open(os.environ["GITHUB_EVENT_PATH"], encoding="utf-8") as payload_file:
-    payload = json.load(payload_file)
+          with open(os.environ["GITHUB_EVENT_PATH"], encoding="utf-8") as payload_file:
+              payload = json.load(payload_file)
 
-if event_name == "issue_comment":
-    pr_number = payload["issue"]["number"]
-    raw_body = payload.get("comment", {}).get("body", "")
-elif event_name == "pull_request_review_comment":
-    pr_number = payload["pull_request"]["number"]
-    raw_body = payload.get("comment", {}).get("body", "")
-elif event_name == "pull_request_review":
-    pr_number = payload["pull_request"]["number"]
-    raw_body = payload.get("review", {}).get("body", "")
-else:
-    print("Unsupported event", file=sys.stderr)
-    sys.exit(1)
+          if event_name == "issue_comment":
+              pr_number = payload["issue"]["number"]
+              raw_body = payload.get("comment", {}).get("body", "")
+          elif event_name == "pull_request_review_comment":
+              pr_number = payload["pull_request"]["number"]
+              raw_body = payload.get("comment", {}).get("body", "")
+          elif event_name == "pull_request_review":
+              pr_number = payload["pull_request"]["number"]
+              raw_body = payload.get("review", {}).get("body", "")
+          else:
+              print("Unsupported event", file=sys.stderr)
+              sys.exit(1)
 
-trigger = "@qwen /review"
-additional_instructions = ""
-if raw_body and trigger in raw_body:
-    additional_instructions = raw_body.split(trigger, 1)[1].strip()
+          trigger = "@qwen /review"
+          additional_instructions = ""
+          if raw_body and trigger in raw_body:
+              additional_instructions = raw_body.split(trigger, 1)[1].strip()
 
-pr_number_str = str(pr_number)
+          pr_number_str = str(pr_number)
 
-pr_data = subprocess.check_output(
-    [
-        "gh",
-        "pr",
-        "view",
-        pr_number_str,
-        "--json",
-        "title,body,additions,deletions,changedFiles,baseRefName,headRefName",
-    ],
-    text=True,
-).rstrip("\n")
+          pr_data = subprocess.check_output(
+              [
+                  "gh",
+                  "pr",
+                  "view",
+                  pr_number_str,
+                  "--json",
+                  "title,body,additions,deletions,changedFiles,baseRefName,headRefName",
+              ],
+              text=True,
+          ).rstrip("\n")
 
-changed_files = subprocess.check_output(
-    ["gh", "pr", "diff", pr_number_str, "--name-only"],
-    text=True,
-).rstrip("\n")
+          changed_files = subprocess.check_output(
+              ["gh", "pr", "diff", pr_number_str, "--name-only"],
+              text=True,
+          ).rstrip("\n")
 
-output_path = os.environ["GITHUB_OUTPUT"]
+          output_path = os.environ["GITHUB_OUTPUT"]
 
-with open(output_path, "a", encoding="utf-8") as github_output:
-    github_output.write(f"pr_number={pr_number_str}\n")
-    if "\n" in additional_instructions:
-        github_output.write("additional_instructions<<EOF\n")
-        github_output.write(f"{additional_instructions}\nEOF\n")
-    else:
-        github_output.write(f"additional_instructions={additional_instructions}\n")
+          with open(output_path, "a", encoding="utf-8") as github_output:
+              github_output.write(f"pr_number={pr_number_str}\n")
+              if "\n" in additional_instructions:
+                  github_output.write("additional_instructions<<EOF\n")
+                  github_output.write(f"{additional_instructions}\nEOF\n")
+              else:
+                  github_output.write(f"additional_instructions={additional_instructions}\n")
 
-    if "\n" in pr_data:
-        github_output.write("pr_data<<EOF\n")
-        github_output.write(f"{pr_data}\nEOF\n")
-    else:
-        github_output.write(f"pr_data={pr_data}\n")
+              if "\n" in pr_data:
+                  github_output.write("pr_data<<EOF\n")
+                  github_output.write(f"{pr_data}\nEOF\n")
+              else:
+                  github_output.write(f"pr_data={pr_data}\n")
 
-    github_output.write("changed_files<<EOF\n")
-    if changed_files:
-        github_output.write(f"{changed_files}\n")
-    github_output.write("EOF\n")
-PY
+              github_output.write("changed_files<<EOF\n")
+              if changed_files:
+                  github_output.write(f"{changed_files}\n")
+              github_output.write("EOF\n")
+          PY
 
       - name: "Assemble review inputs"
         id: review_inputs
@@ -199,40 +199,40 @@ PY
           set -euo pipefail
 
           python <<'PY'
-import os
-import sys
+          import os
+          import sys
 
-pr_number = os.environ.get("PR_NUMBER_INPUT", "").strip()
-pr_data = os.environ.get("PR_DATA_INPUT", "")
-additional_instructions = os.environ.get("ADDITIONAL_INSTRUCTIONS_INPUT", "")
-changed_files = os.environ.get("CHANGED_FILES_INPUT", "")
+          pr_number = os.environ.get("PR_NUMBER_INPUT", "").strip()
+          pr_data = os.environ.get("PR_DATA_INPUT", "")
+          additional_instructions = os.environ.get("ADDITIONAL_INSTRUCTIONS_INPUT", "")
+          changed_files = os.environ.get("CHANGED_FILES_INPUT", "")
 
-if not pr_number:
-    print("No pull request identified for review.")
-    sys.exit(1)
+          if not pr_number:
+              print("No pull request identified for review.")
+              sys.exit(1)
 
-output_path = os.environ["GITHUB_OUTPUT"]
+          output_path = os.environ["GITHUB_OUTPUT"]
 
-with open(output_path, "a", encoding="utf-8") as github_output:
-    github_output.write(f"pr_number={pr_number}\n")
+          with open(output_path, "a", encoding="utf-8") as github_output:
+              github_output.write(f"pr_number={pr_number}\n")
 
-    if "\n" in pr_data:
-        github_output.write("pr_data<<EOF\n")
-        github_output.write(f"{pr_data}\nEOF\n")
-    else:
-        github_output.write(f"pr_data={pr_data}\n")
+              if "\n" in pr_data:
+                  github_output.write("pr_data<<EOF\n")
+                  github_output.write(f"{pr_data}\nEOF\n")
+              else:
+                  github_output.write(f"pr_data={pr_data}\n")
 
-    if "\n" in additional_instructions:
-        github_output.write("additional_instructions<<EOF\n")
-        github_output.write(f"{additional_instructions}\nEOF\n")
-    else:
-        github_output.write(f"additional_instructions={additional_instructions}\n")
+              if "\n" in additional_instructions:
+                  github_output.write("additional_instructions<<EOF\n")
+                  github_output.write(f"{additional_instructions}\nEOF\n")
+              else:
+                  github_output.write(f"additional_instructions={additional_instructions}\n")
 
-    github_output.write("changed_files<<EOF\n")
-    if changed_files:
-        github_output.write(f"{changed_files}\n")
-    github_output.write("EOF\n")
-PY
+              github_output.write("changed_files<<EOF\n")
+              if changed_files:
+                  github_output.write(f"{changed_files}\n")
+              github_output.write("EOF\n")
+          PY
 
       - name: Run Qwen PR review
         id: qwen
