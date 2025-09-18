@@ -14,15 +14,25 @@ async function run() {
       return;
     }
 
-    const parts = [];
-    if (process.env.GEMINI_SUMMARY) {
-      parts.push('## Gemini Review\n\n' + process.env.GEMINI_SUMMARY);
+    const summary = (process.env.GEMINI_SUMMARY || '').trim();
+    const error = (process.env.GEMINI_ERROR || '').trim();
+    const hasContent = Boolean(summary || error || status !== 'success');
+    if (!hasContent) {
+      core.info('No Gemini output to post.');
+      return;
     }
-    if (process.env.GEMINI_ERROR) {
-      parts.push('## Gemini Error\n\n```\n' + process.env.GEMINI_ERROR + '\n```');
+
+    const parts = ['## 🪐 Gemini Review'];
+
+    const statusEmoji =
+      status === 'success' ? '✅' : status === 'failure' ? '❌' : '⚠️';
+    parts.push(`${statusEmoji} **Status:** \`${status}\``);
+
+    if (summary) {
+      parts.push('### 📝 Summary\n\n' + summary);
     }
-    if (status !== 'success') {
-      parts.push(`Gemini CLI step ended with status: **${status}**.`);
+    if (error) {
+      parts.push('### ❗ Error\n\n```\n' + error + '\n```');
     }
 
     const body = parts.join('\n\n').trim();
