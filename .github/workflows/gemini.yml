@@ -12,12 +12,18 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.event.issue.number || github.ref }}
   cancel-in-progress: true
 
+env:
+  ACTIVE_BOTS: ${{ vars.ACTIVE_BOTS || '["aider","claude","gemini","opencode"]' }}
+
 jobs:
   gemini:
     if: >-
-      github.event_name == 'pull_request' ||
-      (github.event_name == 'issue_comment' && github.event.comment != null && (github.event.comment.author_association == 'OWNER' || github.event.comment.author_association == 'COLLABORATOR' || github.event.comment.author_association == 'MEMBER') && (startsWith(format('{0}', github.event.comment.body), 'Gemini') || startsWith(format('{0}', github.event.comment.body), 'GEMINI') || startsWith(format('{0}', github.event.comment.body), '@gemini') || startsWith(format('{0}', github.event.comment.body), '@gemini-cli') || startsWith(format('{0}', github.event.comment.body), '/gemini'))) ||
-      (github.event_name == 'pull_request_review_comment' && github.event.comment != null && (github.event.comment.author_association == 'OWNER' || github.event.comment.author_association == 'COLLABORATOR' || github.event.comment.author_association == 'MEMBER') && (startsWith(format('{0}', github.event.comment.body), 'Gemini') || startsWith(format('{0}', github.event.comment.body), 'GEMINI') || startsWith(format('{0}', github.event.comment.body), '@gemini') || startsWith(format('{0}', github.event.comment.body), '@gemini-cli') || startsWith(format('{0}', github.event.comment.body), '/gemini')))
+      contains(fromJSON(env.ACTIVE_BOTS), 'gemini') &&
+      (
+        github.event_name == 'pull_request' ||
+        (github.event_name == 'issue_comment' && github.event.comment != null && (github.event.comment.author_association == 'OWNER' || github.event.comment.author_association == 'COLLABORATOR' || github.event.comment.author_association == 'MEMBER') && (startsWith(format('{0}', github.event.comment.body), 'Gemini') || startsWith(format('{0}', github.event.comment.body), 'GEMINI') || startsWith(format('{0}', github.event.comment.body), '@gemini') || startsWith(format('{0}', github.event.comment.body), '@gemini-cli') || startsWith(format('{0}', github.event.comment.body), '/gemini'))) ||
+        (github.event_name == 'pull_request_review_comment' && github.event.comment != null && (github.event.comment.author_association == 'OWNER' || github.event.comment.author_association == 'COLLABORATOR' || github.event.comment.author_association == 'MEMBER') && (startsWith(format('{0}', github.event.comment.body), 'Gemini') || startsWith(format('{0}', github.event.comment.body), 'GEMINI') || startsWith(format('{0}', github.event.comment.body), '@gemini') || startsWith(format('{0}', github.event.comment.body), '@gemini-cli') || startsWith(format('{0}', github.event.comment.body), '/gemini')))
+      )
     runs-on: ${{ vars.OS || 'ubuntu-latest' }}
     environment: 'Agents/Bots'
     env:
