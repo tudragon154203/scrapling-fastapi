@@ -1,6 +1,11 @@
 name: '🔓 Opencode'
 
 on:
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
   issue_comment:
     types: [created, edited]
   pull_request_review_comment:
@@ -38,6 +43,28 @@ jobs:
           startsWith(github.event.review.body, '@opencode') ||
           startsWith(github.event.review.body, 'OPENCODE') ||
           startsWith(github.event.review.body, '/opencode')
+        )
+      ) ||
+      (
+        github.event_name == 'pull_request' &&
+        contains(fromJSON('["OWNER","COLLABORATOR","AUTHOR"]'), github.event.pull_request.author_association) &&
+        (
+          (
+            github.event.pull_request.body != null &&
+            (
+              contains(github.event.pull_request.body, '@opencode') ||
+              contains(github.event.pull_request.body, 'OPENCODE') ||
+              contains(github.event.pull_request.body, '/opencode')
+            )
+          ) ||
+          (
+            github.event.pull_request.title != null &&
+            (
+              contains(github.event.pull_request.title, '@opencode') ||
+              contains(github.event.pull_request.title, 'OPENCODE') ||
+              contains(github.event.pull_request.title, '/opencode')
+            )
+          )
         )
       ) ||
       (
