@@ -35,9 +35,63 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Run opencode
-        uses: sst/opencode/github@latest
+      - name: Install opencode CLI
+        run: |
+          set -euo pipefail
+          curl -fsSL https://opencode.ai/install | bash
+          echo "$HOME/.opencode/bin" >> "$GITHUB_PATH"
+
+      - name: Determine opencode version
+        id: opencode_version
+        run: |
+          set -euo pipefail
+          version="$(opencode --version | tr -d '\n')"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+      - name: Prepare opencode GitHub runner
+        env:
+          OPC_VERSION: ${{ steps.opencode_version.outputs.version }}
+        run: |
+          set -euo pipefail
+          runner_dir=".github/opencode-runner"
+          rm -rf "$runner_dir"
+          mkdir -p "$runner_dir"
+          base_url="https://raw.githubusercontent.com/sst/opencode/v${OPC_VERSION}/github"
+          curl -fsSL "${base_url}/package.json" -o "$runner_dir/package.json"
+          curl -fsSL "${base_url}/bun.lock" -o "$runner_dir/bun.lock"
+          curl -fsSL "${base_url}/index.ts" -o "$runner_dir/index.ts"
+          RUNNER_DIR_FOR_PY="$runner_dir" python - <<'PY'
+import json
+import os
+import pathlib
+
+runner_dir = pathlib.Path(os.environ["RUNNER_DIR_FOR_PY"])
+package_path = runner_dir / "package.json"
+data = json.loads(package_path.read_text())
+
+deps = data.get("devDependencies", {})
+if deps.get("@types/bun") == "catalog:":
+    deps["@types/bun"] = "^1.2.21"
+    data["devDependencies"] = deps
+    package_path.write_text(json.dumps(data, indent=2) + "\n")
+PY
+          echo "RUNNER_DIR=$runner_dir" >> "$GITHUB_ENV"
+
+      - name: Install bun
+        run: |
+          set -euo pipefail
+          npm install -g bun
+
+      - name: Install GitHub runner dependencies
+        working-directory: ${{ env.RUNNER_DIR }}
+        run: |
+          set -euo pipefail
+          bun install
+
+      - name: Run opencode GitHub agent
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-        with:
-          model: openrouter/tngtech/deepseek-r1t2-chimera:free
+          MODEL: openrouter/${{ vars.OPENROUTER_MODEL != '' && vars.OPENROUTER_MODEL || 'glm-4.5-air' }}
+        run: |
+          set -euo pipefail
+          bun "$RUNNER_DIR/index.ts"
