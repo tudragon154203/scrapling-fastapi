@@ -13,14 +13,14 @@ permissions:
   pull-requests: write
   issues: write
 
-env:
-  ACTIVE_BOTS: ${{ vars.ACTIVE_BOTS || '["aider","claude","gemini","opencode"]' }}
-
 jobs:
   review:
     name: Aider Review
     if: >-
-      contains(fromJSON(env.ACTIVE_BOTS), 'aider') &&
+      (
+        vars.ACTIVE_BOTS == '' ||
+        contains(fromJSON(vars.ACTIVE_BOTS), 'aider')
+      ) &&
       contains(fromJSON('["OWNER","COLLABORATOR","MEMBER"]'), github.event.pull_request.author_association)
     runs-on: ${{ vars.OS || 'ubuntu-latest' }}
     concurrency:

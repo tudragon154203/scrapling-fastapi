@@ -15,13 +15,13 @@ on:
   pull_request_review:
     types: [submitted, edited]
 
-env:
-  ACTIVE_BOTS: ${{ vars.ACTIVE_BOTS || '["aider","claude","gemini","opencode"]' }}
-
 jobs:
   opencode:
     if: |
-      contains(fromJSON(env.ACTIVE_BOTS), 'opencode') &&
+      (
+        vars.ACTIVE_BOTS == '' ||
+        contains(fromJSON(vars.ACTIVE_BOTS), 'opencode')
+      ) &&
       (
         (
           github.event_name == 'issue_comment' &&

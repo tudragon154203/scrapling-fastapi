@@ -16,13 +16,13 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.event.issue.number || github.ref }}
   cancel-in-progress: true
 
-env:
-  ACTIVE_BOTS: ${{ vars.ACTIVE_BOTS || '["aider","claude","gemini","opencode"]' }}
-
 jobs:
   claude:
     if: |
-      contains(fromJSON(env.ACTIVE_BOTS), 'claude') &&
+      (
+        vars.ACTIVE_BOTS == '' ||
+        contains(fromJSON(vars.ACTIVE_BOTS), 'claude')
+      ) &&
       (
         (
           github.event_name == 'pull_request'

@@ -31,7 +31,7 @@ The workflows affected are:
    present in the array.
 
 If the variable is not defined, or it is left blank, all four workflows run as
-before.
+before because the workflows fall back to the default list shown above.
 
 ## Runtime behaviour
 
@@ -46,8 +46,8 @@ before.
 ## Troubleshooting
 
 - Make sure the value is valid JSON. Invalid JSON causes GitHub Actions to
-  fail while parsing the list. When in doubt, wrap the array in double quotes
-  and escape them as shown above.
+  fail while parsing the list. Provide the array exactly as shown above without
+  additional escaping.
 - Remember that the identifiers are lowercase (`"aider"`, `"claude"`,
   `"gemini"`, `"opencode"`).
 - Repository variables can be set through the **Settings → Variables** UI or by
