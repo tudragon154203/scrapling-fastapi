@@ -1,89 +1,51 @@
 name: '🤖 Claude'
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened]
-  issue_comment:
-    types: [created, edited]
-  pull_request_review_comment:
-    types: [created, edited]
-  issues:
-    types: [opened, assigned, reopened]
-  pull_request_review:
-    types: [submitted, edited]
+  workflow_call:
+    inputs:
+      event-name:
+        required: true
+        type: string
+      event:
+        required: true
+        type: string
+      target-id:
+        required: false
+        type: string
+      target-type:
+        required: false
+        type: string
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.event.issue.number || github.ref }}
-  cancel-in-progress: true
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  id-token: write
+  actions: read
+
 
 jobs:
   claude:
-    if: |
-      (
-        vars.ACTIVE_BOTS == '' ||
-        contains(fromJSON(vars.ACTIVE_BOTS || '[]'), 'claude')
-      ) &&
-      (
-        (
-          github.event_name == 'pull_request'
-        ) ||
-        (
-          github.event_name == 'issue_comment' &&
-          contains(fromJSON('["OWNER","COLLABORATOR","MEMBER"]'), github.event.comment.author_association) &&
-          (
-            startsWith(github.event.comment.body, '@claude') ||
-            startsWith(github.event.comment.body, 'CLAUDE') ||
-            startsWith(github.event.comment.body, '/claude')
-          )
-        ) ||
-        (
-          github.event_name == 'pull_request_review_comment' &&
-          contains(fromJSON('["OWNER","COLLABORATOR","MEMBER"]'), github.event.comment.author_association) &&
-          (
-            startsWith(github.event.comment.body, '@claude') ||
-            startsWith(github.event.comment.body, 'CLAUDE') ||
-            startsWith(github.event.comment.body, '/claude')
-          )
-        ) ||
-        (
-          github.event_name == 'pull_request_review' &&
-          contains(fromJSON('["OWNER","COLLABORATOR","MEMBER"]'), github.event.review.author_association) &&
-          (
-            startsWith(github.event.review.body, '@claude') ||
-            startsWith(github.event.review.body, 'CLAUDE') ||
-            startsWith(github.event.review.body, '/claude')
-          )
-        ) ||
-        (
-          github.event_name == 'issues' &&
-          contains(fromJSON('["OWNER","COLLABORATOR","MEMBER"]'), github.event.issue.author_association) &&
-          (
-            contains(github.event.issue.body, '@claude') ||
-            contains(github.event.issue.body, 'CLAUDE') ||
-            contains(github.event.issue.body, '/claude') ||
-            contains(github.event.issue.title, '@claude') ||
-            contains(github.event.issue.title, 'CLAUDE') ||
-            contains(github.event.issue.title, '/claude')
-          )
-        )
-      )
     runs-on: ${{ vars.OS || 'ubuntu-latest' }}
+    concurrency:
+      group: claude-${{ inputs.target-id != '' && inputs.target-id || github.run_id }}
+      cancel-in-progress: true
     environment: 'Agents/Bots'
     env:
+      EVENT_NAME: ${{ inputs.event-name }}
+      EVENT_PAYLOAD: ${{ inputs.event }}
+      TARGET_ID: ${{ inputs.target-id || '' }}
+      TARGET_TYPE: ${{ inputs.target-type || '' }}
       GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-2.5-flash' }}
-    permissions:
-      contents: write
-      pull-requests: write
-      issues: write
-      id-token: write
-      actions: read # Required for Claude to read CI results on PRs
     steps:
       - name: React with 👀 to show Claude is running
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const { eventName, payload, repo } = context;
+            const eventName = process.env.EVENT_NAME;
+            const payload = JSON.parse(process.env.EVENT_PAYLOAD || '{}');
+            const { repo } = context;
             const owner = repo.owner;
             const repository = repo.repo;
 
@@ -120,6 +82,8 @@ jobs:
                 await addCommentReaction(payload.comment?.id, 'issue');
               } else if (eventName === 'pull_request_review_comment') {
                 await addCommentReaction(payload.comment?.id, 'review');
+              } else if (eventName === 'issues') {
+                await addIssueReaction(payload.issue?.number);
               } else {
                 core.warning(`Unsupported event "${eventName}" for reaction step.`);
               }
@@ -259,9 +223,9 @@ jobs:
           anthropic_api_key: "dummy"
           prompt: |
               REPO: ${{ github.repository }}
-              EVENT: ${{ github.event_name }}
-              PR NUMBER: ${{ github.event.pull_request && github.event.pull_request.number || '' }}
-              ISSUE NUMBER: ${{ github.event.issue && github.event.issue.number || '' }}
+              EVENT: ${{ inputs.event-name }}
+              PR NUMBER: ${{ inputs.target-type == 'pull_request' && inputs.target-id || '' }}
+              ISSUE NUMBER: ${{ inputs.target-type == 'issue' && inputs.target-id || '' }}
 
               Act as a helpful GitHub assistant for the current event.
               - For pull requests: review the changes for quality, bugs, security, and performance.

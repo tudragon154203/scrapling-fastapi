@@ -1,47 +1,52 @@
 name: '🪐 Gemini'
 
 on:
-  pull_request:
-    types: [opened, reopened, synchronize]
-  issue_comment:
-    types: [created, edited]
-  pull_request_review_comment:
-    types: [created, edited]
+  workflow_call:
+    inputs:
+      event-name:
+        required: true
+        type: string
+      event:
+        required: true
+        type: string
+      target-id:
+        required: false
+        type: string
+      target-type:
+        required: false
+        type: string
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.event.issue.number || github.ref }}
-  cancel-in-progress: true
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  id-token: write
+
 
 jobs:
   gemini:
-    if: >-
-      (
-        vars.ACTIVE_BOTS == '' ||
-        contains(fromJSON(vars.ACTIVE_BOTS || '[]'), 'gemini')
-      ) &&
-      (
-        github.event_name == 'pull_request' ||
-        (github.event_name == 'issue_comment' && github.event.comment != null && (github.event.comment.author_association == 'OWNER' || github.event.comment.author_association == 'COLLABORATOR' || github.event.comment.author_association == 'MEMBER') && (startsWith(format('{0}', github.event.comment.body), 'Gemini') || startsWith(format('{0}', github.event.comment.body), 'GEMINI') || startsWith(format('{0}', github.event.comment.body), '@gemini') || startsWith(format('{0}', github.event.comment.body), '@gemini-cli') || startsWith(format('{0}', github.event.comment.body), '/gemini'))) ||
-        (github.event_name == 'pull_request_review_comment' && github.event.comment != null && (github.event.comment.author_association == 'OWNER' || github.event.comment.author_association == 'COLLABORATOR' || github.event.comment.author_association == 'MEMBER') && (startsWith(format('{0}', github.event.comment.body), 'Gemini') || startsWith(format('{0}', github.event.comment.body), 'GEMINI') || startsWith(format('{0}', github.event.comment.body), '@gemini') || startsWith(format('{0}', github.event.comment.body), '@gemini-cli') || startsWith(format('{0}', github.event.comment.body), '/gemini')))
-      )
     runs-on: ${{ vars.OS || 'ubuntu-latest' }}
+    concurrency:
+      group: gemini-${{ inputs.target-id != '' && inputs.target-id || github.run_id }}
+      cancel-in-progress: true
     environment: 'Agents/Bots'
     env:
+      EVENT_NAME: ${{ inputs.event-name }}
+      EVENT_PAYLOAD: ${{ inputs.event }}
+      TARGET_ID: ${{ inputs.target-id || '' }}
+      TARGET_TYPE: ${{ inputs.target-type || '' }}
       GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-2.5-flash' }}
-      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-    permissions:
-      id-token: write
-      contents: write
-      pull-requests: write
-      issues: write
-
+      KEY_PRESENT: ${{ secrets.GEMINI_API_KEY != '' }}
     steps:
       - name: React with 👀 to show Gemini is running
+        if: ${{ env.KEY_PRESENT == 'true' }}
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const { eventName, payload, repo } = context;
+            const eventName = process.env.EVENT_NAME;
+            const payload = JSON.parse(process.env.EVENT_PAYLOAD || '{}');
+            const { repo } = context;
             const owner = repo.owner;
             const repository = repo.repo;
 
@@ -86,37 +91,38 @@ jobs:
             }
 
       - name: Skip when Gemini API key is unavailable
-        if: ${{ env.GEMINI_API_KEY == '' }}
+        if: ${{ env.KEY_PRESENT == 'false' }}
         run: echo 'GEMINI_API_KEY is not configured. Skipping Gemini workflow.'
 
       - name: Use Node.js 20
-        if: ${{ env.GEMINI_API_KEY != '' }}
+        if: ${{ env.KEY_PRESENT == 'true' }}
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           check-latest: true
 
       - name: Checkout repository
-        if: ${{ env.GEMINI_API_KEY != '' }}
+        if: ${{ env.KEY_PRESENT == 'true' }}
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Prepare prompt
-        if: ${{ env.GEMINI_API_KEY != '' }}
+        if: ${{ env.KEY_PRESENT == 'true' }}
         id: prepare-prompt
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const eventName = context.eventName;
+            const eventName = process.env.EVENT_NAME;
+            const payload = JSON.parse(process.env.EVENT_PAYLOAD || '{}');
             const repoOwner = context.repo.owner;
             const repoName = context.repo.repo;
 
             const prNumber =
               eventName === 'pull_request'
-                ? context.payload.pull_request?.number
-                : context.payload.issue?.number ?? context.payload.pull_request?.number ?? null;
+                ? payload.pull_request?.number
+                : payload.issue?.number ?? payload.pull_request?.number ?? null;
 
             async function loadPullRequestContext(number) {
               if (!number) {
@@ -185,38 +191,44 @@ jobs:
 
             const descriptionSource =
               pr?.body ??
-              context.payload.pull_request?.body ??
-              context.payload.issue?.body ??
+              payload.pull_request?.body ??
+              payload.issue?.body ??
               '';
             const description = descriptionSource?.trim();
             const prDescription = description && description.length > 0 ? description : '_No description provided._';
 
-            const commentBody = context.payload.comment?.body?.trim();
+            const commentBody = payload.comment?.body?.trim();
             const userRequest = commentBody && commentBody.length > 0 ? commentBody : null;
 
             const prTitle =
               pr?.title ??
-              context.payload.pull_request?.title ??
-              context.payload.issue?.title ??
+              payload.pull_request?.title ??
+              payload.issue?.title ??
               'unknown';
 
             const prAuthor =
               pr?.user?.login ??
-              context.payload.pull_request?.user?.login ??
-              context.payload.issue?.user?.login ??
+              payload.pull_request?.user?.login ??
+              payload.issue?.user?.login ??
               'unknown';
 
             const prUrl =
               pr?.html_url ??
-              context.payload.pull_request?.html_url ??
-              context.payload.issue?.pull_request?.html_url ??
-              context.payload.comment?.html_url ??
+              payload.pull_request?.html_url ??
+              payload.issue?.pull_request?.html_url ??
+              payload.comment?.html_url ??
               '';
+
+            const rawIssueNumber = payload.pull_request?.number ?? payload.issue?.number ?? '';
+            const rawIssueTitle = payload.pull_request?.title ?? payload.issue?.title ?? '';
+            const rawIssueBody = payload.pull_request?.body ?? payload.issue?.body ?? '';
+            const commentBodyRaw = payload.comment?.body ?? '';
 
             const sections = [
               'You are a meticulous senior engineer reviewing the following pull request. Provide a thorough analysis of the changes, highlighting intent, quality, and potential issues.',
               'Follow the Markdown response template exactly. Use concise bullet points under each heading, and write `- None noted.` when a section does not apply. Prioritize actionable feedback, missing tests, and blockers.',
               '',
+
               'Response template:',
               '📝 **Summary**',
               '✅ **Tests & Coverage**',
@@ -225,23 +237,28 @@ jobs:
               '📌 **Follow-ups**',
               '🚫 **Blocking Issues**',
               '',
+
               'Guidelines:',
               '- Reference specific files, commits, or behaviors when possible.',
               '- Explicitly call out missing or insufficient tests.',
               '- Separate blocking issues (must fix before merge) from optional suggestions.',
               '',
+
               `Repository: ${repoOwner}/${repoName}`,
               `Pull Request: #${pr?.number ?? prNumber ?? 'unknown'}`,
               `Title: ${prTitle}`,
               `Author: ${prAuthor}`,
               `URL: ${prUrl}`,
               '',
+
               'Changed files:',
               formatFiles(files),
               '',
+
               'Recent commits:',
               formatCommits(commits),
               '',
+
               'Pull request description:',
               prDescription,
             ];
@@ -253,27 +270,31 @@ jobs:
             const prompt = sections.join('\n');
 
             core.setOutput('prompt', prompt);
+            core.setOutput('issue_number', `${rawIssueNumber || ''}`);
+            core.setOutput('issue_title', rawIssueTitle || '');
+            core.setOutput('issue_body', rawIssueBody || '');
+            core.setOutput('comment_body', commentBodyRaw || '');
 
       - uses: google-github-actions/run-gemini-cli@v0
-        if: ${{ env.GEMINI_API_KEY != '' }}
+        if: ${{ env.KEY_PRESENT == 'true' }}
         id: gemini
         continue-on-error: true
         env:
           NODE_OPTIONS: "--require ${{ github.workspace }}/.github/workflows/scripts/set-node-max-listeners.cjs"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ISSUE_TITLE: ${{ github.event.pull_request.title || github.event.issue.title || '' }}
-          ISSUE_BODY: ${{ github.event.pull_request.body || github.event.issue.body || '' }}
-          PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number || '' }}
+          ISSUE_TITLE: ${{ steps.prepare-prompt.outputs.issue_title }}
+          ISSUE_BODY: ${{ steps.prepare-prompt.outputs.issue_body }}
+          PULL_REQUEST_NUMBER: ${{ steps.prepare-prompt.outputs.issue_number }}
           REPOSITORY: ${{ github.repository }}
-          ADDITIONAL_CONTEXT: ${{ github.event.comment.body || '' }}
+          ADDITIONAL_CONTEXT: ${{ steps.prepare-prompt.outputs.comment_body }}
         with:
-          gemini_api_key: ${{ env.GEMINI_API_KEY }}
+          gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
           gemini_debug: 'false'
-          gemini_model: ${{ env.GEMINI_MODEL }}
+          gemini_model: ${{ vars.GEMINI_MODEL || 'gemini-2.5-flash' }}
           prompt: ${{ steps.prepare-prompt.outputs.prompt }}
 
       - name: Post Gemini response as comment
-        if: ${{ always() && env.GEMINI_API_KEY != '' }}
+        if: ${{ always() && env.KEY_PRESENT == 'true' }}
         uses: actions/github-script@v7
         env:
           GEMINI_SUMMARY: ${{ steps.gemini.outputs.summary }}
@@ -282,8 +303,9 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const issue_number = context.payload.issue?.number ?? context.payload.pull_request?.number;
-            if (!issue_number) {
+            const payload = JSON.parse(process.env.EVENT_PAYLOAD || '{}');
+            const issueNumber = payload.issue?.number ?? payload.pull_request?.number;
+            if (!issueNumber) {
               core.warning('No issue or PR number found to post comment.');
               return;
             }
@@ -306,13 +328,12 @@ jobs:
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              issue_number,
+              issue_number: issueNumber,
               body,
             });
 
       - name: Fail workflow if Gemini step failed
-        if: ${{ env.GEMINI_API_KEY != '' && steps.gemini.outcome == 'failure' }}
+        if: ${{ env.KEY_PRESENT == 'true' && steps.gemini.outcome == 'failure' }}
         run: |
           echo "Gemini CLI step failed"
           exit 1
-
