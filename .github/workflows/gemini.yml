@@ -1,4 +1,4 @@
-name: '🪐 Gemini - Dev'
+name: '🪐 Gemini'
 
 on:
   pull_request:
