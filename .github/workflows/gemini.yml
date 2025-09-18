@@ -37,6 +37,11 @@ jobs:
       TARGET_TYPE: ${{ inputs.target-type || '' }}
       GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-2.5-flash' }}
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Check Gemini keys
         id: check_key
         env:
@@ -44,12 +49,6 @@ jobs:
           GEMINI_API_KEY_2: ${{ secrets.GEMINI_API_KEY_2 }}
           GEMINI_API_KEY_LEGACY: ${{ secrets.GEMINI_API_KEY_LEGACY }}
         run: ./.github/workflows/scripts/common/shell/check_gemini_keys.sh
-
-      - name: Checkout repository
-        if: steps.check_key.outputs.key_present == 'true'
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: React with 😄 to show Gemini is running
         if: steps.check_key.outputs.key_present == 'true'
