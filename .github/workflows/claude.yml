@@ -49,8 +49,8 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const { join } = require('node:path');
-            const reactWithEyes = require(join(process.cwd(), '.github/workflows/scripts/react-with-eyes.cjs'));
-            await reactWithEyes({ github, context, core });
+            const reactWithEmoji = require(join(process.cwd(), '.github/workflows/scripts/react-with-emoji.cjs'));
+            await reactWithEmoji({ github, context, core, reaction: 'eyes' });
 
       - name: Setup Bun runtime
         uses: oven-sh/setup-bun@v2
