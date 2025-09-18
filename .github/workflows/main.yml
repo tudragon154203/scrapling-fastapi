@@ -6,13 +6,12 @@ on:
       - opened
       - synchronize
       - ready_for_review
-      - reopened
   issue_comment:
     types: [created, edited]
   pull_request_review_comment:
     types: [created, edited]
   issues:
-    types: [opened, assigned, reopened]
+    types: [opened, assigned]
   pull_request_review:
     types: [submitted, edited]
 
