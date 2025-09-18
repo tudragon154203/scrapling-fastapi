@@ -6,7 +6,7 @@ from textwrap import dedent
 
 import pytest
 
-MODULE_PATH = pathlib.Path(".github/workflows/scripts/aider_review_formatter.py")
+MODULE_PATH = pathlib.Path(".github/workflows/scripts/bots/aider/aider_review_formatter.py")
 
 
 @pytest.fixture(scope="session")
