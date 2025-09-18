@@ -1,8 +1,7 @@
 demo/
 desktop.ini
 repomix-output.*
-*.ps1
-!.github/workflows/scripts/*.ps1
+/*.ps1
 data/
 
 # Environment variables
