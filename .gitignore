@@ -1,4 +1,4 @@
-demo/
+﻿demo/
 desktop.ini
 repomix-output.*
 *.ps1
@@ -91,7 +91,7 @@ claudedocs/
 .playwright-mcp
 .codex*
 GEMINI.md
-scripts/
+/scripts/
 memory/
 templates/
 tiktok_search.html
