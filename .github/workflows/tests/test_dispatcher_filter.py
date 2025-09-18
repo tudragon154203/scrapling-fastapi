@@ -5,7 +5,9 @@ from pathlib import Path
 import pytest
 
 
-DISPATCHER_PATH = Path(__file__).resolve().parents[1] / ".github/workflows/scripts/dispatcher_filter.py"
+DISPATCHER_PATH = (
+    Path(__file__).resolve().parents[1] / "scripts" / "dispatcher_filter.py"
+)
 
 
 spec = util.spec_from_file_location("dispatcher_filter", DISPATCHER_PATH)
@@ -41,7 +43,15 @@ def test_is_allowed(active_filter, bot, expected):
     assert dispatcher_filter.is_allowed(bot, active_filter) is expected
 
 
-def run_decide(monkeypatch, tmp_path, *, event_name, payload, active_var=None, active_env=None):
+def run_decide(
+    monkeypatch,
+    tmp_path,
+    *,
+    event_name,
+    payload,
+    active_var=None,
+    active_env=None,
+):
     monkeypatch.delenv("ACTIVE_BOTS_VAR", raising=False)
     monkeypatch.delenv("ACTIVE_BOTS_ENV", raising=False)
     monkeypatch.delenv("EVENT_NAME", raising=False)
@@ -83,7 +93,7 @@ def test_decide_for_pull_request_trusted_member(monkeypatch, tmp_path):
         tmp_path,
         event_name="pull_request",
         payload=payload,
-        active_var="[\"aider\", \"claude\", \"gemini\", \"opencode\"]",
+        active_var='["aider", "claude", "gemini", "opencode"]',
     )
 
     assert outputs["run_aider"] == "true"
@@ -108,7 +118,7 @@ def test_decide_respects_active_filter(monkeypatch, tmp_path):
         tmp_path,
         event_name="pull_request",
         payload=payload,
-        active_var="[\"claude\"]",
+        active_var='["claude"]',
     )
 
     assert outputs["run_aider"] == "false"
@@ -130,7 +140,7 @@ def test_decide_for_issue_comment_commands(monkeypatch, tmp_path):
         tmp_path,
         event_name="issue_comment",
         payload=payload,
-        active_env="[\"claude\", \"opencode\"]",
+        active_env='["claude", "opencode"]',
     )
 
     assert outputs["run_aider"] == "false"
@@ -154,7 +164,7 @@ def test_decide_for_opencode_author_command(monkeypatch, tmp_path):
         tmp_path,
         event_name="issue_comment",
         payload=payload,
-        active_var="[\"opencode\"]",
+        active_var='["opencode"]',
     )
 
     assert outputs["run_opencode"] == "true"
