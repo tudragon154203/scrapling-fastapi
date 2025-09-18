@@ -133,6 +133,7 @@ jobs:
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          OPENROUTER_MODEL: ${{ vars.OPENROUTER_MODEL || 'z-ai/glm-4.5-air:free' }}
         run: |
           set -euo pipefail
           mkdir -p ~/.claude-code-router
@@ -226,7 +227,7 @@ jobs:
               }
             },
             "Router": {
-              "default": "openrouter,z-ai/glm-4.5-air:free",
+              "default": "openrouter,${OPENROUTER_MODEL}",
               "background": "openrouter,moonshotai/kimi-k2:free",
               "think": "openrouter,deepseek/deepseek-chat-v3.1:free",
               "longContext": "gemini,gemini-2.5-flash",
