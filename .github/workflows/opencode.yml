@@ -1,66 +1,33 @@
 name: '🔓 Opencode'
 
 on:
-  issue_comment:
-    types: [created, edited]
-  pull_request_review_comment:
-    types: [created, edited]
-  issues:
-    types: [opened, assigned, reopened]
-  pull_request_review:
-    types: [submitted, edited]
+  workflow_call:
+    inputs:
+      event-name:
+        required: true
+        type: string
+      event:
+        required: true
+        type: string
+      target-id:
+        required: false
+        type: string
+      target-type:
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  id-token: write
 
 jobs:
   opencode:
-    if: |
-      (
-        github.event_name == 'issue_comment' &&
-        contains(fromJSON('["OWNER","COLLABORATOR","AUTHOR"]'), github.event.comment.author_association) &&
-        (
-          startsWith(github.event.comment.body, '@opencode') ||
-          startsWith(github.event.comment.body, 'OPENCODE') ||
-          startsWith(github.event.comment.body, '/opencode')
-        )
-      ) ||
-      (
-        github.event_name == 'pull_request_review_comment' &&
-        contains(fromJSON('["OWNER","COLLABORATOR","AUTHOR"]'), github.event.comment.author_association) &&
-        (
-          startsWith(github.event.comment.body, '@opencode') ||
-          startsWith(github.event.comment.body, 'OPENCODE') ||
-          startsWith(github.event.comment.body, '/opencode')
-        )
-      ) ||
-      (
-        github.event_name == 'pull_request_review' &&
-        contains(fromJSON('["OWNER","COLLABORATOR","AUTHOR"]'), github.event.review.author_association) &&
-        (
-          startsWith(github.event.review.body, '@opencode') ||
-          startsWith(github.event.review.body, 'OPENCODE') ||
-          startsWith(github.event.review.body, '/opencode')
-        )
-      ) ||
-      (
-        github.event_name == 'issues' &&
-        contains(fromJSON('["OWNER","COLLABORATOR","AUTHOR"]'), github.event.issue.author_association) &&
-        (
-          contains(github.event.issue.body, '@opencode') ||
-          contains(github.event.issue.body, 'OPENCODE') ||
-          contains(github.event.issue.body, '/opencode') ||
-          contains(github.event.issue.title, '@opencode') ||
-          contains(github.event.issue.title, 'OPENCODE') ||
-          contains(github.event.issue.title, '/opencode')
-        )
-      )
-    runs-on: ubuntu-22.04
+    runs-on: ${{ vars.OS || 'ubuntu-latest' }}
     environment: 'Agents/Bots'
-    permissions:
-      id-token: write
-      contents: write
-      pull-requests: write
-      issues: write
     concurrency:
-      group: opencode-${{ github.workflow }}-${{ github.event_name }}-${{ github.event.issue.number || github.event.pull_request.number || github.run_id }}
+      group: opencode-${{ github.workflow }}-${{ inputs.event-name }}-${{ inputs.target-id != '' && inputs.target-id || github.run_id }}
       cancel-in-progress: true
     steps:
       - name: Checkout repository
@@ -68,9 +35,27 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Run opencode
-        uses: sst/opencode/github@latest
+      - name: Install opencode CLI
+        run: ./.github/workflows/scripts/bots/opencode/install-opencode.sh
+
+      - name: Determine opencode version
+        id: opencode_version
+        run: ./.github/workflows/scripts/bots/opencode/get-opencode-version.sh
+
+      - name: Prepare opencode GitHub runner
+        env:
+          OPC_VERSION: ${{ steps.opencode_version.outputs.version }}
+        run: ./.github/workflows/scripts/bots/opencode/prepare-runner.sh
+
+      - name: Install bun
+        run: ./.github/workflows/scripts/bots/opencode/install-bun.sh
+
+      - name: Install GitHub runner dependencies
+        working-directory: ${{ env.RUNNER_DIR }}
+        run: ./.github/workflows/scripts/bots/opencode/install-runner-deps.sh
+
+      - name: Run opencode GitHub agent
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-        with:
-          model: openrouter/tngtech/deepseek-r1t2-chimera:free
+          MODEL: openrouter/${{ vars.OPENROUTER_MODEL != '' && vars.OPENROUTER_MODEL || 'glm-4.5-air' }}
+        run: ./.github/workflows/scripts/bots/opencode/run-agent.sh

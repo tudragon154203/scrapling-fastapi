@@ -1,7 +1,7 @@
 demo/
 desktop.ini
 repomix-output.*
-*.ps1
+/*.ps1
 data/
 
 # Environment variables
@@ -92,6 +92,7 @@ claudedocs/
 .codex*
 GEMINI.md
 scripts/
+!.github/workflows/scripts/
 memory/
 templates/
 tiktok_search.html
@@ -99,6 +100,4 @@ tiktok_search.html
 # Github Actions
 .gemini/
 gha-creds-*.json
-# Disable opencode agent for now
-.github/workflows/opencode.yml
 

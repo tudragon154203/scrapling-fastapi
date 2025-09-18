@@ -1,0 +1,130 @@
+name: '📝 Aider'
+
+on:
+  workflow_call:
+    inputs:
+      event-name:
+        required: true
+        type: string
+      event:
+        required: true
+        type: string
+      target-id:
+        required: false
+        type: string
+      target-type:
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  review:
+    name: Aider Review
+    runs-on: ${{ vars.OS || 'ubuntu-latest' }}
+    concurrency:
+      group: ${{ github.workflow }}-${{ inputs.target-id != '' && inputs.target-id || github.run_id }}
+      cancel-in-progress: true
+    environment: 'Agents/Bots'
+    timeout-minutes: 30
+    env:
+      EVENT_NAME: ${{ inputs.event-name }}
+      EVENT_PAYLOAD: ${{ inputs.event }}
+      TARGET_ID: ${{ inputs.target-id || '' }}
+      TARGET_TYPE: ${{ inputs.target-type || '' }}
+      GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-2.5-flash' }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Make key check script executable
+        run: chmod +x ./.github/workflows/scripts/bots/common/shell/check_gemini_keys.sh
+
+      - name: Check Gemini keys
+        id: check_key
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_API_KEY_2: ${{ secrets.GEMINI_API_KEY_2 }}
+          GEMINI_API_KEY_LEGACY: ${{ secrets.GEMINI_API_KEY_LEGACY }}
+        run: ./.github/workflows/scripts/bots/common/shell/check_gemini_keys.sh
+
+      - name: Make generate_diff.sh executable
+        if: steps.check_key.outputs.key_present == 'true'
+        run: chmod +x ./.github/workflows/scripts/bots/aider/generate_diff.sh
+
+      - name: Set up Python
+        if: steps.check_key.outputs.key_present == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Aider
+        if: steps.check_key.outputs.key_present == 'true'
+        run: |
+          python -m pip install --upgrade pip
+          pip install aider-chat
+
+      - name: Generate pull request diff and prompt
+        if: steps.check_key.outputs.key_present == 'true'
+        id: diff
+        run: ./.github/workflows/scripts/bots/aider/generate_diff.sh
+        env:
+          EVENT_PAYLOAD: ${{ inputs.event }}
+
+      - name: Run aider review
+        if: steps.check_key.outputs.key_present == 'true' && steps.diff.outputs.no_diff != 'true'
+        id: aider
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_API_KEY_2: ${{ secrets.GEMINI_API_KEY_2 }}
+          GEMINI_API_KEY_LEGACY: ${{ secrets.GEMINI_API_KEY_LEGACY }}
+          AIDER_YES_ALWAYS: "true"
+          AIDER_CHECK_UPDATE: "0"
+          AIDER_SHOW_RELEASE_NOTES: "0"
+          GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-2.5-flash' }}
+        run: bash ./.github/workflows/scripts/bots/aider/run_review.sh
+
+      - name: Prepare review comment
+        if: steps.check_key.outputs.key_present == 'true' && steps.diff.outputs.no_diff != 'true'
+        id: prepare_comment
+        env:
+          AIDER_SUCCESS: ${{ steps.aider.outputs.success }}
+          DIFF_TRUNCATED: ${{ steps.diff.outputs.diff_truncated }}
+        run: |
+          python .github/workflows/scripts/bots/aider/aider_review_formatter.py
+          if [ -s review_comment.md ]; then
+            echo "comment_empty=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "comment_empty=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Post review comment
+        if: steps.check_key.outputs.key_present == 'true' && steps.diff.outputs.no_diff != 'true' && steps.prepare_comment.outputs.comment_empty != 'true'
+        uses: actions/github-script@v7
+        env:
+          EVENT_PAYLOAD: ${{ inputs.event }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const { postComment } = require('./.github/workflows/scripts/bots/common/post_comment.js');
+            const body = fs.readFileSync('review_comment.md', 'utf8').trim();
+            const payload = JSON.parse(process.env.EVENT_PAYLOAD || '{}');
+            const issueNumber = payload.pull_request?.number;
+            await postComment(github, context, body, issueNumber);
+
+      - name: Fail workflow when review generation fails
+        if: steps.check_key.outputs.key_present == 'true' && steps.diff.outputs.no_diff != 'true' && steps.aider.outputs.success != 'true'
+        run: |
+          echo '::error::Aider review did not complete successfully.'
+          exit 1
+
+      - name: Skip review (missing Gemini key)
+        if: steps.check_key.outputs.key_present != 'true'
+        run: echo 'Gemini API key not configured. Aider review skipped.'

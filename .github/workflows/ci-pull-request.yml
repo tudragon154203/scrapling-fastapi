@@ -31,23 +31,12 @@ jobs:
 
       # When running locally with 'act' on Windows, use the host's pyenv Python 3.10.8
       - name: Use pyenv Python 3.10.8 (ACT Windows only)
-        if: "runner.os == 'Windows' && env.ACT == 'true'"
-        shell: powershell
-        run: |
-          $ErrorActionPreference = 'Stop'
-          if (-not (Get-Command pyenv -ErrorAction SilentlyContinue)) {
-            Write-Error "pyenv not found in PATH. Ensure pyenv-win is installed and on PATH."
-          }
-          if (Test-Path .python-version) {
-            Write-Host ".python-version: $(Get-Content .python-version -Raw)"
-          } else {
-            pyenv shell 3.10.8
-          }
-          python --version
-          pip --version
+        if: runner.os == 'Windows' && env.ACT == 'true'
+        shell: pwsh
+        run: pwsh -ExecutionPolicy Bypass -File ./.github/workflows/scripts/ci/use_pyenv.ps1
 
       - name: Set up Python ${{ matrix.python }}
-        if: "!(runner.os == 'Windows' && env.ACT == 'true')"
+        if: runner.os != 'Windows' || env.ACT != 'true'
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
@@ -58,11 +47,11 @@ jobs:
             **/requirements*.txt
 
       - name: Use preinstalled deps (ACT Windows)
-        if: "runner.os == 'Windows' && env.ACT == 'true'"
+        if: runner.os == 'Windows' && env.ACT == 'true'
         run: echo "Using local pyenv 3.10.8 with preinstalled dependencies"
 
       - name: Install dependencies
-        if: "!(runner.os == 'Windows' && env.ACT == 'true')"
+        if: runner.os != 'Windows' || env.ACT != 'true'
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt -r requirements-test.txt
@@ -75,34 +64,12 @@ jobs:
         env:
           CAMOUFOX_MAX_RETRIES: 3
           CAMOUFOX_RETRY_DELAY: 10
-        run: |
-          # Retry Camoufox fetch to mitigate rate-limit or transient network issues.
-          $maxAttempts = [int]$env:CAMOUFOX_MAX_RETRIES
-          $baseDelaySeconds = [int]$env:CAMOUFOX_RETRY_DELAY
-          for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
-            camoufox fetch
-            if ($LASTEXITCODE -eq 0) {
-              Write-Host "camoufox fetch succeeded on attempt $attempt."
-              break
-            }
-
-            if ($attempt -eq $maxAttempts) {
-              Write-Error "camoufox fetch failed after $maxAttempts attempts."
-              exit $LASTEXITCODE
-            }
-
-            $jitter = Get-Random -Minimum 0 -Maximum 5
-            $retryDelay = $baseDelaySeconds + $jitter
-            Write-Warning "camoufox fetch failed on attempt $attempt. Retrying in $retryDelay seconds..."
-            Start-Sleep -Seconds $retryDelay
-          }
+        run: pwsh -ExecutionPolicy Bypass -File ./.github/workflows/scripts/ci/fetch_camoufox.ps1
 
       - name: Update root certificates
         if: runner.os == 'Windows'
-        shell: powershell
-        run: |
-          certutil -generateSSTFromWU roots.sst
-          Import-Certificate -FilePath roots.sst -CertStoreLocation Cert:\LocalMachine\Root
+        shell: pwsh
+        run: pwsh -ExecutionPolicy Bypass -File ./.github/workflows/scripts/ci/update_root_certificates.ps1
 
       - name: Run integration tests
         run: python -m pytest -q -m "integration" --disable-warnings --maxfail=1

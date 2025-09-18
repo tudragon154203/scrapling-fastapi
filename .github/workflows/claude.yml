@@ -1,128 +1,59 @@
 name: '🤖 Claude'
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened]
-  issue_comment:
-    types: [created, edited]
-  pull_request_review_comment:
-    types: [created, edited]
-  issues:
-    types: [opened, assigned, reopened]
-  pull_request_review:
-    types: [submitted, edited]
+  workflow_call:
+    inputs:
+      event-name:
+        required: true
+        type: string
+      event:
+        required: true
+        type: string
+      target-id:
+        required: false
+        type: string
+      target-type:
+        required: false
+        type: string
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.event.issue.number || github.ref }}
-  cancel-in-progress: true
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  id-token: write
+  actions: read
+
 
 jobs:
   claude:
-    if: |
-      (
-        github.event_name == 'pull_request'
-      ) ||
-      (
-        github.event_name == 'issue_comment' &&
-        contains(fromJSON('["OWNER","COLLABORATOR","MEMBER"]'), github.event.comment.author_association) &&
-        (
-          startsWith(github.event.comment.body, '@claude') ||
-          startsWith(github.event.comment.body, 'CLAUDE') ||
-          startsWith(github.event.comment.body, '/claude')
-        )
-      ) ||
-      (
-        github.event_name == 'pull_request_review_comment' &&
-        contains(fromJSON('["OWNER","COLLABORATOR","MEMBER"]'), github.event.comment.author_association) &&
-        (
-          startsWith(github.event.comment.body, '@claude') ||
-          startsWith(github.event.comment.body, 'CLAUDE') ||
-          startsWith(github.event.comment.body, '/claude')
-        )
-      ) ||
-      (
-        github.event_name == 'pull_request_review' &&
-        contains(fromJSON('["OWNER","COLLABORATOR","MEMBER"]'), github.event.review.author_association) &&
-        (
-          startsWith(github.event.review.body, '@claude') ||
-          startsWith(github.event.review.body, 'CLAUDE') ||
-          startsWith(github.event.review.body, '/claude')
-        )
-      ) ||
-      (
-        github.event_name == 'issues' &&
-        contains(fromJSON('["OWNER","COLLABORATOR","MEMBER"]'), github.event.issue.author_association) &&
-        (
-          contains(github.event.issue.body, '@claude') ||
-          contains(github.event.issue.body, 'CLAUDE') ||
-          contains(github.event.issue.body, '/claude') ||
-          contains(github.event.issue.title, '@claude') ||
-          contains(github.event.issue.title, 'CLAUDE') ||
-          contains(github.event.issue.title, '/claude')
-        )
-      )
-    runs-on: ubuntu-22.04
+    runs-on: ${{ vars.OS || 'ubuntu-latest' }}
+    concurrency:
+      group: claude-${{ inputs.target-id != '' && inputs.target-id || github.run_id }}
+      cancel-in-progress: true
     environment: 'Agents/Bots'
-    permissions:
-      contents: write
-      pull-requests: write
-      issues: write
-      id-token: write
-      actions: read # Required for Claude to read CI results on PRs
+    env:
+      EVENT_NAME: ${{ inputs.event-name }}
+      EVENT_PAYLOAD: ${{ inputs.event }}
+      TARGET_ID: ${{ inputs.target-id || '' }}
+      TARGET_TYPE: ${{ inputs.target-type || '' }}
+      GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-2.5-flash' }}
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: React with 👀 to show Claude is running
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const { eventName, payload, repo } = context;
-            const owner = repo.owner;
-            const repository = repo.repo;
+            const { join } = require('node:path');
+            const reactWithEmoji = require(join(process.cwd(), '.github/workflows/scripts/bots/common/javascript/react_with_emoji.cjs'));
+            await reactWithEmoji({ github, context, core, reaction: 'eyes' });
 
-            async function addIssueReaction(issueNumber) {
-              if (!issueNumber) {
-                core.warning('No issue or PR number found for reaction.');
-                return;
-              }
-              await github.rest.reactions.createForIssue({
-                owner,
-                repo: repository,
-                issue_number: issueNumber,
-                content: 'eyes',
-              });
-            }
-
-            async function addCommentReaction(commentId, type) {
-              if (!commentId) {
-                core.warning(`No ${type} comment id found for reaction.`);
-                return;
-              }
-              const params = { owner, repo: repository, comment_id: commentId, content: 'eyes' };
-              if (type === 'issue') {
-                await github.rest.reactions.createForIssueComment(params);
-              } else if (type === 'review') {
-                await github.rest.reactions.createForPullRequestReviewComment(params);
-              }
-            }
-
-            try {
-              if (eventName === 'pull_request') {
-                await addIssueReaction(payload.pull_request?.number);
-              } else if (eventName === 'issue_comment') {
-                await addCommentReaction(payload.comment?.id, 'issue');
-              } else if (eventName === 'pull_request_review_comment') {
-                await addCommentReaction(payload.comment?.id, 'review');
-              } else {
-                core.warning(`Unsupported event "${eventName}" for reaction step.`);
-              }
-            } catch (error) {
-              core.warning(`Failed to add 👀 reaction: ${error.message}`);
-            }
-
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+      - name: Make setup_router.sh executable
+        run: chmod +x ./.github/workflows/scripts/bots/claude/setup_router.sh
 
       - name: Setup Bun runtime
         uses: oven-sh/setup-bun@v2
@@ -133,110 +64,9 @@ jobs:
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-        run: |
-          set -euo pipefail
-          mkdir -p ~/.claude-code-router
-          cat > ~/.claude-code-router/config.json <<EOF
-          {
-            "LOG": false,
-            "LOG_LEVEL": "info",
-            "CLAUDE_PATH": "",
-            "HOST": "127.0.0.1",
-            "PORT": 3456,
-            "APIKEY": "",
-            "API_TIMEOUT_MS": "60000",
-            "PROXY_URL": "",
-            "transformers": [],
-            "Providers": [
-              {
-                "name": "openrouter",
-                "api_base_url": "https://openrouter.ai/api/v1/chat/completions",
-                "api_key": "${OPENROUTER_API_KEY}",
-                "models": [
-                  "qwen/qwen3-coder:free",
-                  "z-ai/glm-4.5-air:free",
-                  "moonshotai/kimi-k2:free",
-                  "deepseek/deepseek-chat-v3.1:free"
-                ],
-                "transformer": {
-                  "use": [
-                    "openrouter"
-                  ],
-                  "tngtech/deepseek-r1t2-chimera:free": {
-                    "use": [
-                      "deepseek"
-                    ]
-                  },
-                  "deepseek/deepseek-chat-v3-0324:free": {
-                    "use": [
-                      "deepseek"
-                    ]
-                  }
-                }
-              },
-              {
-                "name": "gemini",
-                "api_base_url": "https://generativelanguage.googleapis.com/v1beta/models/",
-                "api_key": "${GEMINI_API_KEY}",
-                "models": [
-                  "gemini-2.5-flash"
-                ],
-                "transformer": {
-                  "use": [
-                    "gemini"
-                  ]
-                }
-              }
-            ],
-            "StatusLine": {
-              "enabled": true,
-              "currentStyle": "default",
-              "default": {
-                "modules": [
-                  {
-                    "type": "workDir",
-                    "icon": "",
-                    "text": "{{workDirName}}",
-                    "color": "bright_blue"
-                  },
-                  {
-                    "type": "model",
-                    "icon": "",
-                    "text": "{{model}}",
-                    "color": "bright_yellow"
-                  },
-                  {
-                    "type": "usage",
-                    "icon": "",
-                    "text": "{{inputTokens}} / {{outputTokens}}",
-                    "color": "bright_magenta"
-                  },
-                  {
-                    "type": "script",
-                    "icon": "",
-                    "text": "Script Module",
-                    "color": "bright_cyan",
-                    "scriptPath": ""
-                  }
-                ]
-              },
-              "powerline": {
-                "modules": []
-              }
-            },
-            "Router": {
-              "default": "openrouter,z-ai/glm-4.5-air:free",
-              "background": "openrouter,moonshotai/kimi-k2:free",
-              "think": "openrouter,deepseek/deepseek-chat-v3.1:free",
-              "longContext": "gemini,gemini-2.5-flash",
-              "longContextThreshold": 100000,
-              "webSearch": "openrouter,moonshotai/kimi-k2:free"
-            }
-          }
-          EOF
-          nohup ~/.bun/bin/bunx @musistudio/claude-code-router@latest start &
-          # Temporary fixed delay until healthcheck is reintroduced
-          sleep 5
+          OPENROUTER_MODEL: ${{ vars.OPENROUTER_MODEL || 'z-ai/glm-4.5-air:free' }}
+          GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-2.5-flash' }}
+        run: ./.github/workflows/scripts/bots/claude/setup_router.sh
         shell: bash
 
       - name: Run Claude Code
@@ -249,9 +79,9 @@ jobs:
           anthropic_api_key: "dummy"
           prompt: |
               REPO: ${{ github.repository }}
-              EVENT: ${{ github.event_name }}
-              PR NUMBER: ${{ github.event.pull_request && github.event.pull_request.number || '' }}
-              ISSUE NUMBER: ${{ github.event.issue && github.event.issue.number || '' }}
+              EVENT: ${{ inputs.event-name }}
+              PR NUMBER: ${{ inputs.target-type == 'pull_request' && inputs.target-id || '' }}
+              ISSUE NUMBER: ${{ inputs.target-type == 'issue' && inputs.target-id || '' }}
 
               Act as a helpful GitHub assistant for the current event.
               - For pull requests: review the changes for quality, bugs, security, and performance.
