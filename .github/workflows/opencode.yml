@@ -22,18 +22,12 @@ permissions:
   issues: write
   id-token: write
 
-env:
-  EVENT_NAME: ${{ inputs['event-name'] }}
-  EVENT_PAYLOAD: ${{ inputs.event }}
-  TARGET_ID: ${{ inputs['target-id'] || '' }}
-  TARGET_TYPE: ${{ inputs['target-type'] || '' }}
-
 jobs:
   opencode:
     runs-on: ${{ vars.OS || 'ubuntu-latest' }}
     environment: 'Agents/Bots'
     concurrency:
-      group: opencode-${{ github.workflow }}-${{ env.EVENT_NAME }}-${{ env.TARGET_ID != '' && env.TARGET_ID || github.run_id }}
+      group: opencode-${{ github.workflow }}-${{ inputs.event-name }}-${{ inputs.target-id != '' && inputs.target-id || github.run_id }}
       cancel-in-progress: true
     steps:
       - name: Checkout repository

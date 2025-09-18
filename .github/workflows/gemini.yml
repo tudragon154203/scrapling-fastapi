@@ -22,30 +22,25 @@ permissions:
   issues: write
   id-token: write
 
-env:
-  EVENT_NAME: ${{ inputs['event-name'] }}
-  EVENT_PAYLOAD: ${{ inputs.event }}
-  TARGET_ID: ${{ inputs['target-id'] || '' }}
-  TARGET_TYPE: ${{ inputs['target-type'] || '' }}
 
 jobs:
   gemini:
     runs-on: ${{ vars.OS || 'ubuntu-latest' }}
     concurrency:
-      group: gemini-${{ env.TARGET_ID != '' && env.TARGET_ID || github.run_id }}
+      group: gemini-${{ inputs.target-id != '' && inputs.target-id || github.run_id }}
       cancel-in-progress: true
     environment: 'Agents/Bots'
     env:
+      EVENT_NAME: ${{ inputs.event-name }}
+      EVENT_PAYLOAD: ${{ inputs.event }}
+      TARGET_ID: ${{ inputs.target-id || '' }}
+      TARGET_TYPE: ${{ inputs.target-type || '' }}
       GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-2.5-flash' }}
-      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-      EVENT_NAME: ${{ env.EVENT_NAME }}
-      EVENT_PAYLOAD: ${{ env.EVENT_PAYLOAD }}
+      KEY_PRESENT: ${{ secrets.GEMINI_API_KEY != '' }}
     steps:
       - name: React with 👀 to show Gemini is running
+        if: env.KEY_PRESENT == 'true'
         uses: actions/github-script@v7
-        env:
-          EVENT_NAME: ${{ env.EVENT_NAME }}
-          EVENT_PAYLOAD: ${{ env.EVENT_PAYLOAD }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -96,29 +91,26 @@ jobs:
             }
 
       - name: Skip when Gemini API key is unavailable
-        if: ${{ env.GEMINI_API_KEY == '' }}
+        if: env.KEY_PRESENT == 'false'
         run: echo 'GEMINI_API_KEY is not configured. Skipping Gemini workflow.'
 
       - name: Use Node.js 20
-        if: ${{ env.GEMINI_API_KEY != '' }}
+        if: env.KEY_PRESENT == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           check-latest: true
 
       - name: Checkout repository
-        if: ${{ env.GEMINI_API_KEY != '' }}
+        if: env.KEY_PRESENT == 'true'
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Prepare prompt
-        if: ${{ env.GEMINI_API_KEY != '' }}
+        if: env.KEY_PRESENT == 'true'
         id: prepare-prompt
         uses: actions/github-script@v7
-        env:
-          EVENT_NAME: ${{ env.EVENT_NAME }}
-          EVENT_PAYLOAD: ${{ env.EVENT_PAYLOAD }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -236,6 +228,7 @@ jobs:
               'You are a meticulous senior engineer reviewing the following pull request. Provide a thorough analysis of the changes, highlighting intent, quality, and potential issues.',
               'Follow the Markdown response template exactly. Use concise bullet points under each heading, and write `- None noted.` when a section does not apply. Prioritize actionable feedback, missing tests, and blockers.',
               '',
+
               'Response template:',
               '📝 **Summary**',
               '✅ **Tests & Coverage**',
@@ -244,23 +237,28 @@ jobs:
               '📌 **Follow-ups**',
               '🚫 **Blocking Issues**',
               '',
+
               'Guidelines:',
               '- Reference specific files, commits, or behaviors when possible.',
               '- Explicitly call out missing or insufficient tests.',
               '- Separate blocking issues (must fix before merge) from optional suggestions.',
               '',
+
               `Repository: ${repoOwner}/${repoName}`,
               `Pull Request: #${pr?.number ?? prNumber ?? 'unknown'}`,
               `Title: ${prTitle}`,
               `Author: ${prAuthor}`,
               `URL: ${prUrl}`,
               '',
+
               'Changed files:',
               formatFiles(files),
               '',
+
               'Recent commits:',
               formatCommits(commits),
               '',
+
               'Pull request description:',
               prDescription,
             ];
@@ -278,7 +276,7 @@ jobs:
             core.setOutput('comment_body', commentBodyRaw || '');
 
       - uses: google-github-actions/run-gemini-cli@v0
-        if: ${{ env.GEMINI_API_KEY != '' }}
+        if: env.KEY_PRESENT == 'true'
         id: gemini
         continue-on-error: true
         env:
@@ -290,19 +288,18 @@ jobs:
           REPOSITORY: ${{ github.repository }}
           ADDITIONAL_CONTEXT: ${{ steps.prepare-prompt.outputs.comment_body }}
         with:
-          gemini_api_key: ${{ env.GEMINI_API_KEY }}
+          gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
           gemini_debug: 'false'
-          gemini_model: ${{ env.GEMINI_MODEL }}
+          gemini_model: ${{ vars.GEMINI_MODEL || 'gemini-2.5-flash' }}
           prompt: ${{ steps.prepare-prompt.outputs.prompt }}
 
       - name: Post Gemini response as comment
-        if: ${{ always() && env.GEMINI_API_KEY != '' }}
+        if: always() && env.KEY_PRESENT == 'true'
         uses: actions/github-script@v7
         env:
           GEMINI_SUMMARY: ${{ steps.gemini.outputs.summary }}
           GEMINI_ERROR: ${{ steps.gemini.outputs.error }}
           GEMINI_STATUS: ${{ steps.gemini.outcome }}
-          EVENT_PAYLOAD: ${{ env.EVENT_PAYLOAD }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -336,7 +333,7 @@ jobs:
             });
 
       - name: Fail workflow if Gemini step failed
-        if: ${{ env.GEMINI_API_KEY != '' && steps.gemini.outcome == 'failure' }}
+        if: env.KEY_PRESENT == 'true' && steps.gemini.outcome == 'failure'
         run: |
           echo "Gemini CLI step failed"
           exit 1

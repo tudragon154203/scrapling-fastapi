@@ -1,9 +1,26 @@
+# dispatcher_filter.py
+# This script determines which bots (Aider, Claude, Gemini, Opencode) should run based on GitHub event triggers
+# and active bot filters. It outputs GitHub Action variables for conditional workflow execution.
+# It reads environment variables set by the main.yml workflow:
+# - ACTIVE_BOTS_VAR or ACTIVE_BOTS_ENV: Comma-separated or JSON list of active bots (e.g., "claude,gemini")
+# - EVENT_NAME: The GitHub event name (e.g., "pull_request", "issue_comment")
+# - EVENT_PAYLOAD: JSON string of the full event payload
+#
+# Outputs:
+# - run_aider: "true" or "false"
+# - run_claude: "true" or "false"
+# - run_gemini: "true" or "false"
+# - run_opencode: "true" or "false"
+# - target_id: PR or issue number
+# - target_type: "pull_request" or "issue"
+
 import json
 import os
 from typing import Iterable, Optional, Set
 
 
 def _normalize_candidates(items: Iterable[object]) -> Set[str]:
+    # Normalize a list of items to lowercase, stripped strings, removing empty ones
     normalized = set()
     for item in items:
         text = str(item).strip().lower()
@@ -13,6 +30,8 @@ def _normalize_candidates(items: Iterable[object]) -> Set[str]:
 
 
 def parse_active_filter(raw_value: str) -> Optional[Set[str]]:
+    # Parse the active bots filter from environment variable.
+    # Supports comma-separated strings or JSON lists/objects.
     if not raw_value:
         return None
 
@@ -23,6 +42,7 @@ def parse_active_filter(raw_value: str) -> Optional[Set[str]]:
     try:
         parsed = json.loads(raw_value)
     except json.JSONDecodeError:
+        # Fallback to comma-separated parsing
         return _normalize_candidates(part for part in raw_value.split(","))
 
     if isinstance(parsed, list):
@@ -31,24 +51,29 @@ def parse_active_filter(raw_value: str) -> Optional[Set[str]]:
     if isinstance(parsed, str):
         return _normalize_candidates([parsed])
 
+    # For other types, treat as single item
     return _normalize_candidates([parsed])
 
 
 def is_allowed(bot: str, active_filter: Optional[Set[str]]) -> bool:
+    # Check if a bot is allowed to run based on the active filter
     if active_filter is None:
         return True
     return bot in active_filter
 
 
+# Trusted user roles for triggering bots
 TRUSTED_MEMBERS = {"OWNER", "COLLABORATOR", "MEMBER"}
 TRUSTED_WITH_AUTHOR = TRUSTED_MEMBERS | {"AUTHOR"}
 
+# Prefixes that trigger specific bots in comments or bodies
 CLAUDE_PREFIXES = ("@claude", "CLAUDE", "/claude")
-GEMINI_PREFIXES = ("Gemini", "GEMINI", "@gemini", "@gemini-cli", "/gemini")
+GEMINI_PREFIXES = ("GEMINI", "@gemini", "@gemini-cli", "/gemini")
 OPENCODE_PREFIXES = ("@opencode", "OPENCODE", "/opencode")
 
 
 def get(payload: dict, *keys):
+    # Safely get nested value from payload dict
     data = payload
     for key in keys:
         if not isinstance(data, dict):
@@ -58,18 +83,22 @@ def get(payload: dict, *keys):
 
 
 def text(value) -> str:
+    # Convert value to string or empty string
     return value or ""
 
 
 def startswith_any(value: str, prefixes) -> bool:
+    # Check if value starts with any prefix
     return any(value.startswith(prefix) for prefix in prefixes)
 
 
 def contains_any(value: str, substrings) -> bool:
+    # Check if value contains any substring
     return any(sub in value for sub in substrings)
 
 
 def write_output(name: str, value: str) -> None:
+    # Write output variable for GitHub Actions
     github_output = os.environ.get("GITHUB_OUTPUT")
     if not github_output:
         return
@@ -78,6 +107,7 @@ def write_output(name: str, value: str) -> None:
 
 
 def decide() -> None:
+    # Main logic to decide which bots run and extract target info
     active_var = (os.environ.get("ACTIVE_BOTS_VAR") or "").strip()
     active_env = (os.environ.get("ACTIVE_BOTS_ENV") or "").strip()
     active_filter = parse_active_filter(active_var or active_env)
@@ -85,11 +115,13 @@ def decide() -> None:
     event_name = os.environ.get("EVENT_NAME") or ""
     payload = json.loads(os.environ.get("EVENT_PAYLOAD") or "{}")
 
+    # Determine if Aider should run (only for pull requests from trusted members)
     aider_should_run = False
     if is_allowed("aider", active_filter) and event_name == "pull_request":
         assoc = text(get(payload, "pull_request", "author_association"))
         aider_should_run = assoc in TRUSTED_MEMBERS
 
+    # Determine if Claude should run
     claude_should_run = False
     if is_allowed("claude", active_filter):
         if event_name == "pull_request":
@@ -127,6 +159,7 @@ def decide() -> None:
                 )
             )
 
+    # Determine if Gemini should run
     gemini_should_run = False
     if is_allowed("gemini", active_filter):
         if event_name == "pull_request":
@@ -146,6 +179,7 @@ def decide() -> None:
                 and startswith_any(body, GEMINI_PREFIXES)
             )
 
+    # Determine if Opencode should run
     opencode_should_run = False
     if is_allowed("opencode", active_filter):
         if event_name == "issue_comment":
@@ -192,11 +226,13 @@ def decide() -> None:
                 )
             )
 
+    # Output the decisions for GitHub Actions to use in conditional jobs
     write_output("run_aider", "true" if aider_should_run else "false")
     write_output("run_claude", "true" if claude_should_run else "false")
     write_output("run_gemini", "true" if gemini_should_run else "false")
     write_output("run_opencode", "true" if opencode_should_run else "false")
 
+    # Extract target ID and type for the event (PR or issue number)
     target_id = ""
     target_type = ""
 
