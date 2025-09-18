@@ -6,7 +6,7 @@ import pytest
 
 
 DISPATCHER_PATH = (
-    Path(__file__).resolve().parents[1] / "scripts" / "common" / "python" / "dispatcher_filter.py"
+    Path(__file__).resolve().parents[2] / "scripts" / "common" / "python" / "dispatcher_filter.py"
 )
 
 
