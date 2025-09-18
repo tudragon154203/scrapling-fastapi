@@ -31,7 +31,7 @@ jobs:
 
       # When running locally with 'act' on Windows, use the host's pyenv Python 3.10.8
       - name: Use pyenv Python 3.10.8 (ACT Windows only)
-        if: "runner.os == 'Windows' && env.ACT == 'true'"
+        if: runner.os == 'Windows' && env.ACT == 'true'
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
@@ -47,7 +47,7 @@ jobs:
           pip --version
 
       - name: Set up Python ${{ matrix.python }}
-        if: "!(runner.os == 'Windows' && env.ACT == 'true')"
+        if: runner.os != 'Windows' || env.ACT != 'true'
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
@@ -58,11 +58,11 @@ jobs:
             **/requirements*.txt
 
       - name: Use preinstalled deps (ACT Windows)
-        if: "runner.os == 'Windows' && env.ACT == 'true'"
+        if: runner.os == 'Windows' && env.ACT == 'true'
         run: echo "Using local pyenv 3.10.8 with preinstalled dependencies"
 
       - name: Install dependencies
-        if: "!(runner.os == 'Windows' && env.ACT == 'true')"
+        if: runner.os != 'Windows' || env.ACT != 'true'
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt -r requirements-test.txt
@@ -77,7 +77,7 @@ jobs:
           CAMOUFOX_RETRY_DELAY: 10
         run: |
           $scriptPath = Join-Path $env:GITHUB_WORKSPACE '.github/workflows/scripts/systems/camoufox/fetch_camoufox.ps1'
-          & $scriptPath
+          & $scriptPath -ExecutionPolicy Bypass
 
       - name: Update root certificates
         if: runner.os == 'Windows'
