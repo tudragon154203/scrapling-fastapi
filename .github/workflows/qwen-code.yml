@@ -155,13 +155,18 @@ jobs:
       - name: "Assemble review inputs"
         id: review_inputs
         if: ${{ env.QWEN_CODE_API_KEY != '' && env.QWEN_CODE_BASE_URL != '' && env.QWEN_CODE_MODEL != '' && (steps.context_pr.outputs.pr_number != '' || steps.context_comment.outputs.pr_number != '') }}
+        env:
+          PR_NUMBER_INPUT: ${{ steps.context_pr.outputs.pr_number || steps.context_comment.outputs.pr_number }}
+          PR_DATA_INPUT: ${{ steps.context_pr.outputs.pr_data || steps.context_comment.outputs.pr_data }}
+          ADDITIONAL_INSTRUCTIONS_INPUT: ${{ steps.context_pr.outputs.additional_instructions || steps.context_comment.outputs.additional_instructions }}
+          CHANGED_FILES_INPUT: ${{ steps.context_pr.outputs.changed_files || steps.context_comment.outputs.changed_files }}
         run: |
           set -euo pipefail
 
-          pr_number="${{ steps.context_pr.outputs.pr_number || steps.context_comment.outputs.pr_number }}"
-          pr_data="${{ steps.context_pr.outputs.pr_data || steps.context_comment.outputs.pr_data }}"
-          additional_instructions="${{ steps.context_pr.outputs.additional_instructions || steps.context_comment.outputs.additional_instructions }}"
-          changed_files="${{ steps.context_pr.outputs.changed_files || steps.context_comment.outputs.changed_files }}"
+          pr_number="${PR_NUMBER_INPUT}"
+          pr_data="${PR_DATA_INPUT}"
+          additional_instructions="${ADDITIONAL_INSTRUCTIONS_INPUT}"
+          changed_files="${CHANGED_FILES_INPUT}"
 
           if [[ -z "${pr_number}" ]]; then
             echo "No pull request identified for review."
