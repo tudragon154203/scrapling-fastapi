@@ -52,7 +52,7 @@ jobs:
           contains(github.event.issue.title, '/opencode')
         )
       )
-    runs-on: ubuntu-22.04
+    runs-on: ${{ vars.OS || 'ubuntu-latest' }}
     environment: 'Agents/Bots'
     permissions:
       id-token: write

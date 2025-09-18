@@ -61,7 +61,7 @@ jobs:
           contains(github.event.issue.title, '/claude')
         )
       )
-    runs-on: ubuntu-22.04
+    runs-on: ${{ vars.OS || 'ubuntu-latest' }}
     environment: 'Agents/Bots'
     permissions:
       contents: write
