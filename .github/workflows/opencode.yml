@@ -102,12 +102,13 @@ jobs:
           fetch-depth: 1
 
       - name: Install opencode CLI
-        run: curl -fsSL https://opencode.ai/install | bash
+        run: |
+          curl -fsSL https://opencode.ai/install | bash
+          echo "$HOME/.opencode/bin" >> "$GITHUB_PATH"
 
       - name: Run opencode CLI
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           MODEL: openrouter/${{ vars.OPENROUTER_MODEL || 'glm-4.5-air' }}
-          OPENROUTER_MODEL: ${{ vars.OPENROUTER_MODEL || 'glm-4.5-air' }}
         run: |
           opencode github run --model "${MODEL}"
