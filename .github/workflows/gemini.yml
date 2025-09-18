@@ -88,7 +88,7 @@ jobs:
         id: gemini
         continue-on-error: true
         env:
-          NODE_OPTIONS: "--require ${{ github.workspace }}/.github/workflows/scripts/common/javascript/set_node_max_listeners.cjs"
+          NODE_OPTIONS: "--require ${{ github.workspace }}/.github/workflows/scripts/bots/common/javascript/set_node_max_listeners.cjs"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ISSUE_TITLE: ${{ steps.prepare-prompt.outputs.issue_title }}
           ISSUE_BODY: ${{ steps.prepare-prompt.outputs.issue_body }}
