@@ -38,35 +38,25 @@ jobs:
       GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-2.5-flash' }}
       KEY_PRESENT: ${{ secrets.GEMINI_API_KEY != '' }}
     steps:
+      - name: Skip when Gemini API key is unavailable
+        if: ${{ env.KEY_PRESENT == 'false' }}
+        run: echo 'GEMINI_API_KEY is not configured. Skipping Gemini workflow.'
+
+      - name: Checkout repository
+        if: ${{ env.KEY_PRESENT == 'true' }}
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: React with 👀 to show Gemini is running
         if: ${{ env.KEY_PRESENT == 'true' }}
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const path = '.github/workflows/scripts/react-with-eyes.cjs';
-            const { data } = await github.rest.repos.getContent({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              path,
-              ref: context.sha,
-            });
-
-            if (!('content' in data)) {
-              throw new Error(`Expected ${path} to be a file, but received a directory response.`);
-            }
-
-            const source = Buffer.from(data.content, data.encoding).toString();
-            const module = { exports: {} };
-            const evaluateModule = new Function('module', 'exports', 'require', source);
-            evaluateModule(module, module.exports, require);
-
-            const reactWithEyes = module.exports;
+            const { join } = require('node:path');
+            const reactWithEyes = require(join(process.cwd(), '.github/workflows/scripts/react-with-eyes.cjs'));
             await reactWithEyes({ github, context, core });
-
-      - name: Skip when Gemini API key is unavailable
-        if: ${{ env.KEY_PRESENT == 'false' }}
-        run: echo 'GEMINI_API_KEY is not configured. Skipping Gemini workflow.'
 
       - name: Use Node.js 20
         if: ${{ env.KEY_PRESENT == 'true' }}
@@ -74,12 +64,6 @@ jobs:
         with:
           node-version: '20'
           check-latest: true
-
-      - name: Checkout repository
-        if: ${{ env.KEY_PRESENT == 'true' }}
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Prepare prompt
         if: ${{ env.KEY_PRESENT == 'true' }}
