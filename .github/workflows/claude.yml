@@ -43,7 +43,24 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const reactWithEyes = require('./.github/workflows/scripts/react-with-eyes.cjs');
+            const path = '.github/workflows/scripts/react-with-eyes.cjs';
+            const { data } = await github.rest.repos.getContent({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              path,
+              ref: context.sha,
+            });
+
+            if (!('content' in data)) {
+              throw new Error(`Expected ${path} to be a file, but received a directory response.`);
+            }
+
+            const source = Buffer.from(data.content, data.encoding).toString();
+            const module = { exports: {} };
+            const evaluateModule = new Function('module', 'exports', 'require', source);
+            evaluateModule(module, module.exports, require);
+
+            const reactWithEyes = module.exports;
             await reactWithEyes({ github, context, core });
 
       - name: Checkout repository
