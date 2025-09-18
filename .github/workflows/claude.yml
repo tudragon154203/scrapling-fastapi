@@ -156,7 +156,8 @@ jobs:
                   "qwen/qwen3-coder:free",
                   "z-ai/glm-4.5-air:free",
                   "moonshotai/kimi-k2:free",
-                  "deepseek/deepseek-chat-v3.1:free"
+                  "deepseek/deepseek-chat-v3.1:free",
+                  "openrouter/sonoma-sky-alpha"
                 ],
                 "transformer": {
                   "use": [
