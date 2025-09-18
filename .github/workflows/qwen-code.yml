@@ -1,259 +1,120 @@
-name: "🧐 Qwen-Code"
+name: '🧐 Qwen-Code'
 
 on:
-  pull_request:
-    types:
-      - opened
-      - reopened
-      - synchronize
-      - ready_for_review
+  pull_request_target:
+    types: ['opened']
   issue_comment:
-    types:
-      - created
+    types: ['created']
   pull_request_review_comment:
-    types:
-      - created
+    types: ['created']
   pull_request_review:
-    types:
-      - submitted
-
-permissions:
-  contents: read
-  issues: write
-  pull-requests: write
-  id-token: write
+    types: ['submitted']
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to review'
+        required: true
+        type: 'number'
 
 jobs:
   review-pr:
-    if: |
-      (
-        github.event_name == 'pull_request' &&
-        contains(fromJson('["opened","reopened","synchronize","ready_for_review"]'), github.event.action) &&
-        (
-          github.event.pull_request.author_association == 'OWNER' ||
-          github.event.pull_request.author_association == 'MEMBER' ||
-          github.event.pull_request.author_association == 'COLLABORATOR'
-        )
-      ) ||
-      (
-        github.event_name == 'issue_comment' &&
+    if: |-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request_target' &&
+       github.event.action == 'opened' &&
+       (github.event.pull_request.author_association == 'OWNER' ||
+        github.event.pull_request.author_association == 'MEMBER' ||
+        github.event.pull_request.author_association == 'COLLABORATOR')) ||
+      (github.event_name == 'issue_comment' &&
         github.event.issue.pull_request &&
         contains(github.event.comment.body, '@qwen /review') &&
-        (
-          github.event.comment.author_association == 'OWNER' ||
-          github.event.comment.author_association == 'MEMBER' ||
-          github.event.comment.author_association == 'COLLABORATOR'
-        )
-      ) ||
-      (
-        github.event_name == 'pull_request_review_comment' &&
+        (github.event.comment.author_association == 'OWNER' ||
+         github.event.comment.author_association == 'MEMBER' ||
+         github.event.comment.author_association == 'COLLABORATOR')) ||
+      (github.event_name == 'pull_request_review_comment' &&
         contains(github.event.comment.body, '@qwen /review') &&
-        (
-          github.event.comment.author_association == 'OWNER' ||
-          github.event.comment.author_association == 'MEMBER' ||
-          github.event.comment.author_association == 'COLLABORATOR'
-        )
-      ) ||
-      (
-        github.event_name == 'pull_request_review' &&
+        (github.event.comment.author_association == 'OWNER' ||
+         github.event.comment.author_association == 'MEMBER' ||
+         github.event.comment.author_association == 'COLLABORATOR')) ||
+      (github.event_name == 'pull_request_review' &&
         contains(github.event.review.body, '@qwen /review') &&
-        (
-          github.event.review.author_association == 'OWNER' ||
-          github.event.review.author_association == 'MEMBER' ||
-          github.event.review.author_association == 'COLLABORATOR'
-        )
-      )
-    runs-on: ubuntu-latest
+        (github.event.review.author_association == 'OWNER' ||
+         github.event.review.author_association == 'MEMBER' ||
+         github.event.review.author_association == 'COLLABORATOR'))
     timeout-minutes: 15
-    environment: "Agents/Bots"
-    env:
-      QWEN_CODE_API_KEY: ${{ secrets.OPENROUTER_API_KEY_2 }}
-      QWEN_CODE_BASE_URL: ${{ vars.QWEN_CODE_BASE_URL || '' }}
-      QWEN_CODE_MODEL: ${{ vars.QWEN_CODE_MODEL || '' }}
+    runs-on: 'ubuntu-latest'
+    environment: 'Agents/Bots'
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+      pull-requests: 'write'
+      issues: 'write'
     steps:
-      - name: "Qwen credentials not configured"
-        if: ${{ env.QWEN_CODE_API_KEY == '' || env.QWEN_CODE_BASE_URL == '' || env.QWEN_CODE_MODEL == '' }}
-        run: |
-          echo "OPENROUTER_API_KEY_2 secret and QWEN_CODE_BASE_URL, QWEN_CODE_MODEL variables must be configured to run Qwen Code review."
-          echo "Skipping automated review."
-
-      - name: Checkout repository
-        if: ${{ env.QWEN_CODE_API_KEY != '' && env.QWEN_CODE_BASE_URL != '' && env.QWEN_CODE_MODEL != '' }}
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # ratchet:actions/checkout@v5
+      - name: 'Checkout PR code'
+        uses: 'actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8' # ratchet:actions/checkout@v5
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: '${{ secrets.GITHUB_TOKEN }}'
           fetch-depth: 0
 
-      - name: Gather pull request context (pull_request)
-        id: context_pr
-        if: ${{ env.QWEN_CODE_API_KEY != '' && env.QWEN_CODE_BASE_URL != '' && env.QWEN_CODE_MODEL != '' && github.event_name == 'pull_request' }}
+      - name: 'Get PR details (pull_request_target & workflow_dispatch)'
+        id: 'get_pr'
+        if: |-
+          ${{ github.event_name == 'pull_request_target' || github.event_name == 'workflow_dispatch' }}
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
+          GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN }}'
+        run: |-
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            PR_NUMBER=${{ github.event.inputs.pr_number }}
+          else
+            PR_NUMBER=${{ github.event.pull_request.number }}
+          fi
+          echo "pr_number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
+          echo "additional_instructions=" >> "$GITHUB_OUTPUT"
+          # Get PR details
+          PR_DATA=$(gh pr view $PR_NUMBER --json title,body,additions,deletions,changedFiles,baseRefName,headRefName)
+          echo "pr_data=$PR_DATA" >> "$GITHUB_OUTPUT"
+          # Get file changes
+          CHANGED_FILES=$(gh pr diff $PR_NUMBER --name-only)
+          echo "changed_files<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$CHANGED_FILES" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
 
-          pr_number="${{ github.event.pull_request.number }}"
-          echo "pr_number=${pr_number}" >> "${GITHUB_OUTPUT}"
-          echo "additional_instructions=" >> "${GITHUB_OUTPUT}"
-
-          pr_data=$(gh pr view "${pr_number}" --json title,body,additions,deletions,changedFiles,baseRefName,headRefName)
-          echo "pr_data=${pr_data}" >> "${GITHUB_OUTPUT}"
-
-          changed_files=$(gh pr diff "${pr_number}" --name-only)
-          {
-            echo "changed_files<<EOF"
-            echo "${changed_files}"
-            echo "EOF"
-          } >> "${GITHUB_OUTPUT}"
-
-      - name: Gather pull request context (comments)
-        id: context_comment
-        if: ${{ env.QWEN_CODE_API_KEY != '' && env.QWEN_CODE_BASE_URL != '' && env.QWEN_CODE_MODEL != '' && (github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment' || github.event_name == 'pull_request_review') }}
+      - name: 'Get PR details (issue_comment)'
+        id: 'get_pr_comment'
+        if: |-
+          ${{ github.event_name == 'issue_comment' }}
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          EVENT_NAME: ${{ github.event_name }}
-        run: |
-          set -euo pipefail
+          GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN }}'
+          COMMENT_BODY: '${{ github.event.comment.body }}'
+        run: |-
+          PR_NUMBER=${{ github.event.issue.number }}
+          echo "pr_number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
+          # Extract additional instructions from comment
+          ADDITIONAL_INSTRUCTIONS=$(echo "$COMMENT_BODY" | sed 's/.*@qwen \/review//' | xargs)
+          echo "additional_instructions=$ADDITIONAL_INSTRUCTIONS" >> "$GITHUB_OUTPUT"
+          # Get PR details
+          PR_DATA=$(gh pr view $PR_NUMBER --json title,body,additions,deletions,changedFiles,baseRefName,headRefName)
+          echo "pr_data=$PR_DATA" >> "$GITHUB_OUTPUT"
+          # Get file changes
+          CHANGED_FILES=$(gh pr diff $PR_NUMBER --name-only)
+          echo "changed_files<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$CHANGED_FILES" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
 
-          python <<'PY'
-          import json
-          import os
-          import subprocess
-          import sys
-
-          event_name = os.environ.get("EVENT_NAME", "")
-
-          with open(os.environ["GITHUB_EVENT_PATH"], encoding="utf-8") as payload_file:
-              payload = json.load(payload_file)
-
-          if event_name == "issue_comment":
-              pr_number = payload["issue"]["number"]
-              raw_body = payload.get("comment", {}).get("body", "")
-          elif event_name == "pull_request_review_comment":
-              pr_number = payload["pull_request"]["number"]
-              raw_body = payload.get("comment", {}).get("body", "")
-          elif event_name == "pull_request_review":
-              pr_number = payload["pull_request"]["number"]
-              raw_body = payload.get("review", {}).get("body", "")
-          else:
-              print("Unsupported event", file=sys.stderr)
-              sys.exit(1)
-
-          trigger = "@qwen /review"
-          additional_instructions = ""
-          if raw_body and trigger in raw_body:
-              additional_instructions = raw_body.split(trigger, 1)[1].strip()
-
-          pr_number_str = str(pr_number)
-
-          pr_data = subprocess.check_output(
-              [
-                  "gh",
-                  "pr",
-                  "view",
-                  pr_number_str,
-                  "--json",
-                  "title,body,additions,deletions,changedFiles,baseRefName,headRefName",
-              ],
-              text=True,
-          ).rstrip("\n")
-
-          changed_files = subprocess.check_output(
-              ["gh", "pr", "diff", pr_number_str, "--name-only"],
-              text=True,
-          ).rstrip("\n")
-
-          output_path = os.environ["GITHUB_OUTPUT"]
-
-          with open(output_path, "a", encoding="utf-8") as github_output:
-              github_output.write(f"pr_number={pr_number_str}\n")
-              if "\n" in additional_instructions:
-                  github_output.write("additional_instructions<<EOF\n")
-                  github_output.write(f"{additional_instructions}\nEOF\n")
-              else:
-                  github_output.write(f"additional_instructions={additional_instructions}\n")
-
-              if "\n" in pr_data:
-                  github_output.write("pr_data<<EOF\n")
-                  github_output.write(f"{pr_data}\nEOF\n")
-              else:
-                  github_output.write(f"pr_data={pr_data}\n")
-
-              github_output.write("changed_files<<EOF\n")
-              if changed_files:
-                  github_output.write(f"{changed_files}\n")
-              github_output.write("EOF\n")
-          PY
-
-      - name: "Assemble review inputs"
-        id: review_inputs
-        if: ${{ env.QWEN_CODE_API_KEY != '' && env.QWEN_CODE_BASE_URL != '' && env.QWEN_CODE_MODEL != '' && (steps.context_pr.outputs.pr_number != '' || steps.context_comment.outputs.pr_number != '') }}
+      - name: 'Run Qwen PR Review'
+        uses: 'QwenLM/qwen-code-action@5fd6818d04d64e87d255ee4d5f77995e32fbf4c2'
         env:
-          PR_NUMBER_INPUT: ${{ steps.context_pr.outputs.pr_number || steps.context_comment.outputs.pr_number }}
-          PR_DATA_INPUT: ${{ steps.context_pr.outputs.pr_data || steps.context_comment.outputs.pr_data }}
-          ADDITIONAL_INSTRUCTIONS_INPUT: ${{ steps.context_pr.outputs.additional_instructions || steps.context_comment.outputs.additional_instructions }}
-          CHANGED_FILES_INPUT: ${{ steps.context_pr.outputs.changed_files || steps.context_comment.outputs.changed_files }}
-        run: |
-          set -euo pipefail
-
-          python <<'PY'
-          import os
-          import sys
-
-          pr_number = os.environ.get("PR_NUMBER_INPUT", "").strip()
-          pr_data = os.environ.get("PR_DATA_INPUT", "")
-          additional_instructions = os.environ.get("ADDITIONAL_INSTRUCTIONS_INPUT", "")
-          changed_files = os.environ.get("CHANGED_FILES_INPUT", "")
-
-          if not pr_number:
-              print("No pull request identified for review.")
-              sys.exit(1)
-
-          output_path = os.environ["GITHUB_OUTPUT"]
-
-          with open(output_path, "a", encoding="utf-8") as github_output:
-              github_output.write(f"pr_number={pr_number}\n")
-
-              if "\n" in pr_data:
-                  github_output.write("pr_data<<EOF\n")
-                  github_output.write(f"{pr_data}\nEOF\n")
-              else:
-                  github_output.write(f"pr_data={pr_data}\n")
-
-              if "\n" in additional_instructions:
-                  github_output.write("additional_instructions<<EOF\n")
-                  github_output.write(f"{additional_instructions}\nEOF\n")
-              else:
-                  github_output.write(f"additional_instructions={additional_instructions}\n")
-
-              github_output.write("changed_files<<EOF\n")
-              if changed_files:
-                  github_output.write(f"{changed_files}\n")
-              github_output.write("EOF\n")
-          PY
-
-      - name: Run Qwen PR review
-        id: qwen
-        if: ${{ env.QWEN_CODE_API_KEY != '' && env.QWEN_CODE_BASE_URL != '' && env.QWEN_CODE_MODEL != '' && steps.review_inputs.outputs.pr_number != '' }}
-        uses: QwenLM/qwen-code-action@5fd6818d04d64e87d255ee4d5f77995e32fbf4c2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PAGER: cat
-          GH_PAGER: cat
-          GIT_PAGER: cat
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ steps.review_inputs.outputs.pr_number }}
-          PR_DATA: ${{ steps.review_inputs.outputs.pr_data }}
-          CHANGED_FILES: ${{ steps.review_inputs.outputs.changed_files }}
-          ADDITIONAL_INSTRUCTIONS: ${{ steps.review_inputs.outputs.additional_instructions }}
-          REPOSITORY: ${{ github.repository }}
+          GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN }}'
+          PR_NUMBER: '${{ steps.get_pr.outputs.pr_number || steps.get_pr_comment.outputs.pr_number }}'
+          PR_DATA: '${{ steps.get_pr.outputs.pr_data || steps.get_pr_comment.outputs.pr_data }}'
+          CHANGED_FILES: '${{ steps.get_pr.outputs.changed_files || steps.get_pr_comment.outputs.changed_files }}'
+          ADDITIONAL_INSTRUCTIONS: '${{ steps.get_pr.outputs.additional_instructions || steps.get_pr_comment.outputs.additional_instructions }}'
+          REPOSITORY: '${{ github.repository }}'
         with:
-          OPENAI_API_KEY: ${{ env.QWEN_CODE_API_KEY }}
-          OPENAI_BASE_URL: ${{ env.QWEN_CODE_BASE_URL }}
-          OPENAI_MODEL: ${{ env.QWEN_CODE_MODEL }}
-          settings_json: |
+          OPENAI_API_KEY: '${{ secrets.OPENAI_API_KEY }}'
+          OPENAI_BASE_URL: '${{ vars.OPENAI_BASE_URL }}'
+          OPENAI_MODEL: '${{ vars.OPENAI_MODEL }}'
+          settings_json: |-
             {
               "coreTools": [
                 "run_shell_command",
@@ -261,47 +122,73 @@ jobs:
               ],
               "sandbox": false
             }
-          prompt: |
-            You are an expert Qwen code reviewer running inside a GitHub Actions workflow for $REPOSITORY.
+          prompt: |-
+            You are an expert code reviewer. You have access to shell commands to gather PR information and perform the review.
 
-            IMPORTANT: Use the available shell commands to gather all necessary information about the pull request. Do not ask anyone for data—run the commands yourself.
+            IMPORTANT: Use the available shell commands to gather information. Do not ask for information to be provided.
 
-            Start by running these commands to collect the required context:
-            1. echo "$PR_DATA"  # PR metadata (JSON)
-            2. echo "$CHANGED_FILES"  # changed file list
-            3. echo "$PR_NUMBER"  # pull request number
-            4. echo "$ADDITIONAL_INSTRUCTIONS"  # optional reviewer instructions
-            5. gh --no-pager pr diff $PR_NUMBER  # full diff without an interactive pager
-            6. Inspect any relevant files using commands like: cat path/to/file, head -n 50 path/to/file, tail -n 50 path/to/file
+            Start by running these commands to gather the required data:
+            1. Run: echo "$PR_DATA" to get PR details (JSON format)
+            2. Run: echo "$CHANGED_FILES" to get the list of changed files
+            3. Run: echo "$PR_NUMBER" to get the PR number
+            4. Run: echo "$ADDITIONAL_INSTRUCTIONS" to see any specific review instructions from the user
+            5. Run: gh pr diff $PR_NUMBER to see the full diff
+            6. For any specific files, use: cat filename, head -50 filename, or tail -50 filename
 
-            If ADDITIONAL_INSTRUCTIONS is empty, there are no extra reviewer requests.
+            Additional Review Instructions:
+            If ADDITIONAL_INSTRUCTIONS contains text, prioritize those specific areas or focus points in your review.
+            Common instruction examples: "focus on security", "check performance", "review error handling", "check for breaking changes"
 
-            Once you have gathered the context and reviewed the changes, prepare your feedback:
-            1. Write the review to a markdown file using write_file("review.md", "<detailed review>").
-            2. Post the review comment with gh pr comment $PR_NUMBER --body-file review.md --repo $REPOSITORY.
+            Once you have the information, provide a comprehensive code review by:
+            1. Writing your review to a file: write_file("review.md", "<your detailed review feedback here>")
+            2. Posting the review: gh pr comment $PR_NUMBER --body-file review.md --repo $REPOSITORY
 
-            Structure the review using this exact template:
+            Review Areas:
+            - **Security**: Authentication, authorization, input validation, data sanitization
+            - **Performance**: Algorithms, database queries, caching, resource usage
+            - **Reliability**: Error handling, logging, testing coverage, edge cases
+            - **Maintainability**: Code structure, documentation, naming conventions
+            - **Functionality**: Logic correctness, requirements fulfillment
+
+            Output Format:
+            Structure your review using this exact format with markdown:
+
             ## 📋 Review Summary
-            - Provide a concise 2-3 sentence overview of the pull request and your overall impression.
+            Provide a brief 2-3 sentence overview of the PR and overall assessment.
 
             ## 🔍 General Feedback
-            - Share high-level observations about code quality, architecture, and positive aspects.
+            - List general observations about code quality
+            - Mention overall patterns or architectural decisions
+            - Highlight positive aspects of the implementation
+            - Note any recurring themes across files
 
             ## 🎯 Specific Feedback
-            - Add the following subsections only when issues exist. If no items for a subsection, omit it entirely.
+            Only include sections below that have actual issues. If there are no issues in a priority category, omit that entire section.
+
             ### 🔴 Critical
-            - **File: `path:line`** - Describe any must-fix problems (security, correctness, breaking changes).
+            (Only include this section if there are critical issues)
+            Issues that must be addressed before merging (security vulnerabilities, breaking changes, major bugs):
+            - **File: `filename:line`** - Description of critical issue with specific recommendation
+
             ### 🟡 High
-            - **File: `path:line`** - Call out important issues that should be addressed soon (performance, design flaws).
+            (Only include this section if there are high priority issues)
+            Important issues that should be addressed (performance problems, design flaws, significant bugs):
+            - **File: `filename:line`** - Description of high priority issue with suggested fix
+
             ### 🟢 Medium
-            - **File: `path:line`** - Note medium-priority improvements (readability, maintainability).
+            (Only include this section if there are medium priority issues)
+            Improvements that would enhance code quality (style issues, minor optimizations, better practices):
+            - **File: `filename:line`** - Description of medium priority improvement
+
             ### 🔵 Low
-            - **File: `path:line`** - Suggest optional refinements or polish.
+            (Only include this section if there are suggestions)
+            Nice-to-have improvements and suggestions (documentation, naming, minor refactoring):
+            - **File: `filename:line`** - Description of suggestion or enhancement
+
+            **Note**: If no specific issues are found in any category, simply state "No specific issues identified in this review."
 
             ## ✅ Highlights
-            - Recognize specific improvements or well-executed pieces of the implementation.
-
-            ## 🧪 Testing
-            - State which tests were run or recommend tests that should be added.
-
-            End the review with a line that begins with either APPROVED or REVISIONS_REQUIRED.
+            (Only include this section if there are positive aspects to highlight)
+            - Mention specific good practices or implementations
+            - Acknowledge well-written code sections
+            - Note improvements from previous versions
