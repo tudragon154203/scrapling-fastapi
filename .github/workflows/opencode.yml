@@ -20,7 +20,7 @@ jobs:
     if: |
       (
         vars.ACTIVE_BOTS == '' ||
-        contains(fromJSON(vars.ACTIVE_BOTS), 'opencode')
+        contains(fromJSON(vars.ACTIVE_BOTS || '[]'), 'opencode')
       ) &&
       (
         (
