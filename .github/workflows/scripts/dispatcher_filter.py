@@ -109,7 +109,11 @@ def write_output(name: str, value: str) -> None:
 def decide() -> None:
     # Main logic to decide which bots run and extract target info
     active_var = (os.environ.get("ACTIVE_BOTS_VAR") or "").strip()
-    active_env = (os.environ.get("ACTIVE_BOTS_ENV") or "").strip()
+    active_env = (
+        os.environ.get("ACTIVE_BOTS_ENV")
+        or os.environ.get("ACTIVE_BOTS")
+        or ""
+    ).strip()
     active_filter = parse_active_filter(active_var or active_env)
 
     event_name = os.environ.get("EVENT_NAME") or ""
