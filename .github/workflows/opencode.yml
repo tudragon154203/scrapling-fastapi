@@ -101,9 +101,13 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Run opencode
-        uses: sst/opencode/github@latest
+      - name: Install opencode CLI
+        run: curl -fsSL https://opencode.ai/install | bash
+
+      - name: Run opencode CLI
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-        with:
-          model: openrouter/tngtech/deepseek-r1t2-chimera:free
+          MODEL: openrouter/${{ vars.OPENROUTER_MODEL || 'glm-4.5-air' }}
+          OPENROUTER_MODEL: ${{ vars.OPENROUTER_MODEL || 'glm-4.5-air' }}
+        run: |
+          opencode github run --model "${MODEL}"
