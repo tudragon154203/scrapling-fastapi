@@ -192,6 +192,43 @@ jobs:
           success = os.environ.get("AIDER_SUCCESS") == "true"
           truncated = os.environ.get("DIFF_TRUNCATED") == "true"
 
+          def normalize_spacing(text: str) -> str:
+              if not text:
+                  return ""
+
+              text = text.replace("\r\n", "\n").replace("\r", "\n")
+              lines = text.split("\n")
+              normalized: list[str] = []
+              prev_was_heading = False
+
+              for line in lines:
+                  stripped = line.strip()
+                  is_heading = stripped.startswith("### ")
+
+                  if is_heading:
+                      if normalized and normalized[-1] != "":
+                          normalized.append("")
+                      normalized.append(stripped)
+                      prev_was_heading = True
+                      continue
+
+                  if not stripped:
+                      if normalized and normalized[-1] == "":
+                          continue
+                      normalized.append("")
+                      prev_was_heading = False
+                      continue
+
+                  if prev_was_heading and normalized and normalized[-1] != "":
+                      normalized.append("")
+                  prev_was_heading = False
+                  normalized.append(line.rstrip())
+
+              while normalized and normalized[-1] == "":
+                  normalized.pop()
+
+              return "\n".join(normalized)
+
           def extract_review(raw: str) -> str:
               if not raw:
                   return ""
@@ -329,6 +366,8 @@ jobs:
           if truncated:
               body += "\n\n_Note: The diff was truncated to approximately 60k characters for analysis._"
 
+          body = body.replace("\r\n", "\n").replace("\r", "\n")
+
           content = body.lstrip()
           lowered = content.lower()
           if lowered.startswith("### 📝 aider review"):
@@ -339,11 +378,12 @@ jobs:
               content = content.lstrip()
 
           if content:
+              content = normalize_spacing(content)
               final_body = f"{heading}\n\n{content}"
           else:
               final_body = heading
 
-          pathlib.Path("review_comment.md").write_text(final_body)
+          pathlib.Path("review_comment.md").write_text(final_body + "\n")
           PY
           if [ -s review_comment.md ]; then
             echo "comment_empty=false" >> "$GITHUB_OUTPUT"
