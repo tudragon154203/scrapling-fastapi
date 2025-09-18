@@ -19,7 +19,7 @@ jobs:
     if: >-
       (
         vars.ACTIVE_BOTS == '' ||
-        contains(fromJSON(vars.ACTIVE_BOTS), 'aider')
+        contains(fromJSON(vars.ACTIVE_BOTS || '[]'), 'aider')
       ) &&
       contains(fromJSON('["OWNER","COLLABORATOR","MEMBER"]'), github.event.pull_request.author_association)
     runs-on: ${{ vars.OS || 'ubuntu-latest' }}

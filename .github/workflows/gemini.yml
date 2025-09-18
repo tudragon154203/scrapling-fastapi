@@ -17,7 +17,7 @@ jobs:
     if: >-
       (
         vars.ACTIVE_BOTS == '' ||
-        contains(fromJSON(vars.ACTIVE_BOTS), 'gemini')
+        contains(fromJSON(vars.ACTIVE_BOTS || '[]'), 'gemini')
       ) &&
       (
         github.event_name == 'pull_request' ||

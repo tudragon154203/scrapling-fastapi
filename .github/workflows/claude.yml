@@ -21,7 +21,7 @@ jobs:
     if: |
       (
         vars.ACTIVE_BOTS == '' ||
-        contains(fromJSON(vars.ACTIVE_BOTS), 'claude')
+        contains(fromJSON(vars.ACTIVE_BOTS || '[]'), 'claude')
       ) &&
       (
         (
