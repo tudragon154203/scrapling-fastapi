@@ -36,6 +36,7 @@ class TestCamoufoxArgsBuilder:
         request = Mock(spec=CrawlRequest)
         request.force_user_data = False
         request.url = 'https://example.com'
+        request.configure_mock(force_mute_audio=False)
         return request
 
     @pytest.fixture
@@ -46,6 +47,7 @@ class TestCamoufoxArgsBuilder:
         settings.camoufox_window = None
         settings.camoufox_disable_coop = False
         settings.camoufox_virtual_display = None
+        settings._camoufox_force_mute_audio = False
         return settings
 
     def test_build_no_user_data(self, builder, mock_request, mock_settings, mock_caps):
@@ -140,6 +142,34 @@ class TestCamoufoxArgsBuilder:
 
         # Assert
         assert additional_args['virtual_display'] == 'xvfb:99'
+
+    def test_build_force_mute_from_payload(self, builder, mock_request, mock_settings, mock_caps):
+        # Arrange
+        mock_request.configure_mock(force_mute_audio=True)
+
+        # Act
+        additional_args, _ = builder.build(mock_request, mock_settings, mock_caps)
+
+        # Assert
+        prefs = additional_args.get('firefox_user_prefs')
+        assert prefs is not None
+        assert prefs['media.volume_scale'] == 0.0
+        assert prefs['media.default_volume'] == 0.0
+        assert prefs['dom.audiochannel.mutedByDefault'] is True
+
+    def test_build_force_mute_from_settings(self, builder, mock_request, mock_settings, mock_caps):
+        # Arrange
+        setattr(mock_settings, '_camoufox_force_mute_audio', True)
+
+        # Act
+        additional_args, _ = builder.build(mock_request, mock_settings, mock_caps)
+
+        # Assert
+        prefs = additional_args.get('firefox_user_prefs')
+        assert prefs is not None
+        assert prefs['media.volume_scale'] == 0.0
+        assert prefs['media.default_volume'] == 0.0
+        assert prefs['dom.audiochannel.mutedByDefault'] is True
 
     def test_build_no_camoufox_user_data_dir(self, builder, mock_request, mock_settings, mock_caps):
         # Arrange

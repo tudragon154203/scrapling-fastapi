@@ -43,42 +43,56 @@ class BrowseCrawler:
             settings = app_config.get_settings()
             user_data_dir = getattr(settings, 'camoufox_user_data_dir', 'data/camoufox_profiles')
 
-            with user_data_context(user_data_dir, 'write') as (effective_dir, cleanup):
-                try:
-                    # Signal write-mode to CamoufoxArgsBuilder via settings (runtime-only flags)
+            mute_flag_set = False
+            try:
+                setattr(settings, '_camoufox_force_mute_audio', True)
+                mute_flag_set = True
+            except Exception:
+                pass
+
+            try:
+                with user_data_context(user_data_dir, 'write') as (effective_dir, cleanup):
                     try:
-                        setattr(settings, '_camoufox_user_data_mode', 'write')
-                        setattr(settings, '_camoufox_effective_user_data_dir', effective_dir)
+                        # Signal write-mode to CamoufoxArgsBuilder via settings (runtime-only flags)
+                        try:
+                            setattr(settings, '_camoufox_user_data_mode', 'write')
+                            setattr(settings, '_camoufox_effective_user_data_dir', effective_dir)
+                        except Exception:
+                            pass
+
+                        # Update crawl request with user-data enablement
+                        crawl_request.force_user_data = True
+
+                        # Create wait for user close action
+                        page_action = WaitForUserCloseAction()
+
+                        # Execute browse session
+                        self.engine.run(crawl_request, page_action)
+
+                        # Return success response
+                        return BrowseResponse(
+                            status="success",
+                            message="Browser session completed successfully"
+                        )
+
+                    finally:
+                        # Ensure cleanup is called
+                        try:
+                            # Remove runtime flags to avoid leaking into subsequent requests
+                            if hasattr(settings, '_camoufox_user_data_mode'):
+                                delattr(settings, '_camoufox_user_data_mode')
+                            if hasattr(settings, '_camoufox_effective_user_data_dir'):
+                                delattr(settings, '_camoufox_effective_user_data_dir')
+                        except Exception:
+                            pass
+                        if callable(cleanup):
+                            cleanup()
+            finally:
+                if mute_flag_set and hasattr(settings, '_camoufox_force_mute_audio'):
+                    try:
+                        delattr(settings, '_camoufox_force_mute_audio')
                     except Exception:
                         pass
-
-                    # Update crawl request with user-data enablement
-                    crawl_request.force_user_data = True
-
-                    # Create wait for user close action
-                    page_action = WaitForUserCloseAction()
-
-                    # Execute browse session
-                    self.engine.run(crawl_request, page_action)
-
-                    # Return success response
-                    return BrowseResponse(
-                        status="success",
-                        message="Browser session completed successfully"
-                    )
-
-                finally:
-                    # Ensure cleanup is called
-                    try:
-                        # Remove runtime flags to avoid leaking into subsequent requests
-                        if hasattr(settings, '_camoufox_user_data_mode'):
-                            delattr(settings, '_camoufox_user_data_mode')
-                        if hasattr(settings, '_camoufox_effective_user_data_dir'):
-                            delattr(settings, '_camoufox_effective_user_data_dir')
-                    except Exception:
-                        pass
-                    if callable(cleanup):
-                        cleanup()
 
         except Exception as e:
             logger.error(f"Browse session failed: {e}")
