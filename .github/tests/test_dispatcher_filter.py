@@ -20,6 +20,43 @@ def dispatcher_module():
     return module
 
 
+def run_dispatcher(
+    dispatcher_module,
+    monkeypatch,
+    tmp_path,
+    *,
+    event_name: str,
+    payload: dict,
+    active_var: str | None = "",
+    active_env: str | None = "",
+):
+    github_output = tmp_path / "out.txt"
+    if github_output.exists():
+        github_output.unlink()
+
+    monkeypatch.setenv("GITHUB_OUTPUT", str(github_output))
+
+    if active_var is None:
+        monkeypatch.delenv("ACTIVE_BOTS_VAR", raising=False)
+    else:
+        monkeypatch.setenv("ACTIVE_BOTS_VAR", active_var)
+
+    if active_env is None:
+        monkeypatch.delenv("ACTIVE_BOTS_ENV", raising=False)
+    else:
+        monkeypatch.setenv("ACTIVE_BOTS_ENV", active_env)
+
+    monkeypatch.setenv("EVENT_NAME", event_name)
+    monkeypatch.setenv("EVENT_PAYLOAD", json.dumps(payload))
+
+    dispatcher_module.decide()
+
+    output = github_output.read_text(encoding="utf-8").strip()
+    if not output:
+        return {}
+    return dict(line.split("=", 1) for line in output.splitlines())
+
+
 def test_parse_active_filter_handles_multiple_formats(dispatcher_module):
     parse_active_filter = dispatcher_module.parse_active_filter
 
@@ -124,3 +161,80 @@ def test_decide_for_issue_with_opencode_keyword(monkeypatch, tmp_path, dispatche
     assert result["run_opencode"] == "true"
     assert result["target_id"] == "7"
     assert result["target_type"] == "issue"
+
+
+def test_claude_runs_for_pull_request_review(monkeypatch, tmp_path, dispatcher_module):
+    payload = {
+        "review": {
+            "author_association": "MEMBER",
+            "body": "@claude take a look",
+        },
+        "pull_request": {"number": 13, "author_association": "MEMBER"},
+    }
+    result = run_dispatcher(
+        dispatcher_module,
+        monkeypatch,
+        tmp_path,
+        event_name="pull_request_review",
+        payload=payload,
+        active_var="claude,gemini",
+    )
+
+    assert result["run_claude"] == "true"
+    assert result["run_gemini"] == "false"
+    assert result["run_opencode"] == "false"
+    assert result["run_aider"] == "false"
+
+
+@pytest.mark.parametrize(
+    "bot_name", ["claude", "gemini"],
+)
+def test_pull_request_review_comment_prefixes(monkeypatch, tmp_path, dispatcher_module, bot_name):
+    prefix = "@claude" if bot_name == "claude" else "@gemini"
+    payload = {
+        "comment": {
+            "author_association": "COLLABORATOR",
+            "body": f"{prefix} please review",
+        },
+        "pull_request": {"number": 99, "author_association": "MEMBER"},
+    }
+    result = run_dispatcher(
+        dispatcher_module,
+        monkeypatch,
+        tmp_path,
+        event_name="pull_request_review_comment",
+        payload=payload,
+        active_var="claude,gemini",
+    )
+
+    expected_key = f"run_{bot_name}"
+    other_key = "run_claude" if bot_name == "gemini" else "run_gemini"
+
+    assert result[expected_key] == "true"
+    assert result[other_key] == "false"
+    assert result["run_opencode"] == "false"
+    assert result["run_aider"] == "false"
+
+
+def test_active_bots_var_takes_precedence(monkeypatch, tmp_path, dispatcher_module):
+    payload = {
+        "pull_request": {
+            "number": 5,
+            "author_association": "MEMBER",
+            "title": "Testing precedence",
+            "body": "",
+        }
+    }
+    result = run_dispatcher(
+        dispatcher_module,
+        monkeypatch,
+        tmp_path,
+        event_name="pull_request",
+        payload=payload,
+        active_var="claude",
+        active_env="claude,gemini",
+    )
+
+    assert result["run_claude"] == "true"
+    assert result["run_gemini"] == "false"
+    assert result["run_opencode"] == "false"
