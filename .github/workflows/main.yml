@@ -29,6 +29,8 @@ jobs:
       run_opencode: ${{ steps.filter.outputs.run_opencode }}
       target_id: ${{ steps.filter.outputs.target_id }}
       target_type: ${{ steps.filter.outputs.target_type }}
+      active_filter: ${{ steps.filter.outputs.active_filter }}
+      active_filter_json: ${{ steps.filter.outputs.active_filter_json }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -41,6 +43,19 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           EVENT_PAYLOAD: ${{ toJSON(github.event) }}
         run: python .github/workflows/scripts/dispatcher_filter.py
+
+      - name: Summarize active bots filter
+        shell: bash
+        env:
+          ACTIVE_FILTER_JSON: ${{ steps.filter.outputs.active_filter_json }}
+        run: |
+          if [ -z "$ACTIVE_FILTER_JSON" ]; then
+            echo "Active bots filter: all (no restrictions)." >> "$GITHUB_STEP_SUMMARY"
+          elif [ "$ACTIVE_FILTER_JSON" = "[]" ]; then
+            echo "Active bots filter: none (all bots disabled)." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Active bots filter: $ACTIVE_FILTER_JSON" >> "$GITHUB_STEP_SUMMARY"
+          fi
 
   aider:
     needs: determine

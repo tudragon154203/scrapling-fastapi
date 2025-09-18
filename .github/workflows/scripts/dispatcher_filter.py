@@ -16,7 +16,11 @@
 
 import json
 import os
+import re
 from typing import Iterable, Optional, Set
+
+
+KNOWN_BOTS = {"aider", "claude", "gemini", "opencode"}
 
 
 def _normalize_candidates(items: Iterable[object]) -> Set[str]:
@@ -24,9 +28,24 @@ def _normalize_candidates(items: Iterable[object]) -> Set[str]:
     normalized = set()
     for item in items:
         text = str(item).strip().lower()
-        if text:
+        text = text.strip("[]{}()\"' ")
+        if not text:
+            continue
+        if text == "all":
+            return set(KNOWN_BOTS)
+        if text in KNOWN_BOTS:
             normalized.add(text)
     return normalized
+
+
+def _is_truthy(value) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return value != 0
+    if isinstance(value, str):
+        return value.strip().lower() in {"1", "true", "yes", "on"}
+    return bool(value)
 
 
 def parse_active_filter(raw_value: str) -> Optional[Set[str]]:
@@ -39,11 +58,32 @@ def parse_active_filter(raw_value: str) -> Optional[Set[str]]:
     if not raw_value:
         return None
 
+    lowered = raw_value.lower()
+    if lowered in {"none", "'none'", '"none"'}:
+        return set()
+    if lowered in {"all", "'all'", '"all"'}:
+        return None
+
     try:
         parsed = json.loads(raw_value)
     except json.JSONDecodeError:
         # Fallback to comma-separated parsing
-        return _normalize_candidates(part for part in raw_value.split(","))
+        normalized = _normalize_candidates(part for part in raw_value.split(","))
+        if normalized:
+            return normalized
+
+        # As an extra fallback, extract tokens using regex to handle space separated lists
+        normalized = _normalize_candidates(re.findall(r"[A-Za-z0-9_-]+", raw_value))
+        if normalized:
+            return normalized
+
+        # If nothing matched, return empty set to disable all bots explicitly
+        return set()
+
+    if isinstance(parsed, dict):
+        return _normalize_candidates(
+            key for key, value in parsed.items() if _is_truthy(value)
+        )
 
     if isinstance(parsed, list):
         return _normalize_candidates(parsed)
@@ -255,6 +295,14 @@ def decide() -> None:
 
     write_output("target_id", target_id)
     write_output("target_type", target_type)
+
+    if active_filter is None:
+        write_output("active_filter", "")
+        write_output("active_filter_json", "")
+    else:
+        active_list = sorted(active_filter)
+        write_output("active_filter", ",".join(active_list))
+        write_output("active_filter_json", json.dumps(active_list))
 
 
 if __name__ == "__main__":
