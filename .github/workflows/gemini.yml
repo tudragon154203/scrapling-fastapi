@@ -42,6 +42,9 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Make key check script executable
+        run: chmod +x ./.github/workflows/scripts/common/shell/check_gemini_keys.sh
+
       - name: Check Gemini keys
         id: check_key
         env:
