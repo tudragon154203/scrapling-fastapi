@@ -1,11 +1,8 @@
-name: '🤖 Main (Dispatcher)'
+name: '🏹 Main (Dispatcher)'
 
 on:
   pull_request:
-    types:
-      - opened
-      - synchronize
-      - ready_for_review
+    types: [opened, synchronize, ready_for_review]
   issue_comment:
     types: [created, edited]
   pull_request_review_comment:
@@ -41,7 +38,7 @@ jobs:
           ACTIVE_BOTS_VAR: ${{ vars.ACTIVE_BOTS }}
           ACTIVE_BOTS_ENV: ${{ env.ACTIVE_BOTS }}
           EVENT_NAME: ${{ github.event_name }}
-          EVENT_PAYLOAD: ${{ toJson(github.event) }}
+          EVENT_PAYLOAD: ${{ toJSON(github.event) }}
         run: python .github/workflows/scripts/dispatcher_filter.py
 
   aider:
@@ -51,7 +48,7 @@ jobs:
     secrets: inherit
     with:
       event-name: ${{ github.event_name }}
-      event: ${{ toJson(github.event) }}
+      event: ${{ toJSON(github.event) }}
       target-id: ${{ needs.determine.outputs.target_id }}
       target-type: ${{ needs.determine.outputs.target_type }}
 
@@ -62,7 +59,7 @@ jobs:
     secrets: inherit
     with:
       event-name: ${{ github.event_name }}
-      event: ${{ toJson(github.event) }}
+      event: ${{ toJSON(github.event) }}
       target-id: ${{ needs.determine.outputs.target_id }}
       target-type: ${{ needs.determine.outputs.target_type }}
 
@@ -73,7 +70,7 @@ jobs:
     secrets: inherit
     with:
       event-name: ${{ github.event_name }}
-      event: ${{ toJson(github.event) }}
+      event: ${{ toJSON(github.event) }}
       target-id: ${{ needs.determine.outputs.target_id }}
       target-type: ${{ needs.determine.outputs.target_type }}
 
@@ -84,6 +81,6 @@ jobs:
     secrets: inherit
     with:
       event-name: ${{ github.event_name }}
-      event: ${{ toJson(github.event) }}
+      event: ${{ toJSON(github.event) }}
       target-id: ${{ needs.determine.outputs.target_id }}
       target-type: ${{ needs.determine.outputs.target_type }}
