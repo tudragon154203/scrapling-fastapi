@@ -63,6 +63,8 @@ jobs:
       )
     runs-on: ${{ vars.OS || 'ubuntu-latest' }}
     environment: 'Agents/Bots'
+    env:
+      GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-2.5-flash' }}
     permissions:
       contents: write
       pull-requests: write
@@ -181,7 +183,7 @@ jobs:
                 "api_base_url": "https://generativelanguage.googleapis.com/v1beta/models/",
                 "api_key": "${GEMINI_API_KEY}",
                 "models": [
-                  "gemini-2.5-flash"
+                  "${GEMINI_MODEL}"
                 ],
                 "transformer": {
                   "use": [
@@ -230,7 +232,7 @@ jobs:
               "default": "openrouter,${OPENROUTER_MODEL}",
               "background": "openrouter,moonshotai/kimi-k2:free",
               "think": "openrouter,deepseek/deepseek-chat-v3.1:free",
-              "longContext": "gemini,gemini-2.5-flash",
+              "longContext": "gemini,${GEMINI_MODEL}",
               "longContextThreshold": 100000,
               "webSearch": "openrouter,moonshotai/kimi-k2:free"
             }

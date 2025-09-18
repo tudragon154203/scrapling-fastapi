@@ -23,6 +23,8 @@ jobs:
       cancel-in-progress: true
     environment: 'Agents/Bots'
     timeout-minutes: 30
+    env:
+      GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-2.5-flash' }}
 
     steps:
       - name: Check Gemini keys
@@ -147,7 +149,7 @@ jobs:
             export AIDER_GEMINI_API_KEY="$key"
             echo "::notice::Starting Gemini credential attempt $((index + 1)) of $max_attempts"
             if aider \
-               --model gemini/gemini-2.5-flash \
+               --model "gemini/${GEMINI_MODEL}" \
                --max-chat-history-tokens 120000 \
                --dry-run \
                --no-auto-commits \
