@@ -33,6 +33,9 @@ jobs:
       target_id: ${{ steps.filter.outputs.target_id }}
       target_type: ${{ steps.filter.outputs.target_type }}
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - id: filter
         env:
           ACTIVE_BOTS_VAR: ${{ vars.ACTIVE_BOTS }}

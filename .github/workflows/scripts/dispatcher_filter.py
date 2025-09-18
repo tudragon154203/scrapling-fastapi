@@ -97,21 +97,34 @@ def decide() -> None:
         elif event_name == "issue_comment":
             assoc = text(get(payload, "comment", "author_association"))
             body = text(get(payload, "comment", "body"))
-            claude_should_run = assoc in TRUSTED_MEMBERS and startswith_any(body, CLAUDE_PREFIXES)
+            claude_should_run = bool(
+                assoc in TRUSTED_MEMBERS
+                and startswith_any(body, CLAUDE_PREFIXES)
+            )
         elif event_name == "pull_request_review_comment":
             assoc = text(get(payload, "comment", "author_association"))
             body = text(get(payload, "comment", "body"))
-            claude_should_run = assoc in TRUSTED_MEMBERS and startswith_any(body, CLAUDE_PREFIXES)
+            claude_should_run = bool(
+                assoc in TRUSTED_MEMBERS
+                and startswith_any(body, CLAUDE_PREFIXES)
+            )
         elif event_name == "pull_request_review":
             assoc = text(get(payload, "review", "author_association"))
             body = text(get(payload, "review", "body"))
-            claude_should_run = assoc in TRUSTED_MEMBERS and startswith_any(body, CLAUDE_PREFIXES)
+            claude_should_run = bool(
+                assoc in TRUSTED_MEMBERS
+                and startswith_any(body, CLAUDE_PREFIXES)
+            )
         elif event_name == "issues":
             assoc = text(get(payload, "issue", "author_association"))
             issue_body = text(get(payload, "issue", "body"))
             title = text(get(payload, "issue", "title"))
-            claude_should_run = assoc in TRUSTED_MEMBERS and (
-                contains_any(issue_body, CLAUDE_PREFIXES) or contains_any(title, CLAUDE_PREFIXES)
+            claude_should_run = bool(
+                assoc in TRUSTED_MEMBERS
+                and (
+                    contains_any(issue_body, CLAUDE_PREFIXES)
+                    or contains_any(title, CLAUDE_PREFIXES)
+                )
             )
 
     gemini_should_run = False
@@ -121,39 +134,62 @@ def decide() -> None:
         elif event_name == "issue_comment":
             assoc = text(get(payload, "comment", "author_association"))
             body = text(get(payload, "comment", "body"))
-            gemini_should_run = assoc in TRUSTED_MEMBERS and startswith_any(body, GEMINI_PREFIXES)
+            gemini_should_run = bool(
+                assoc in TRUSTED_MEMBERS
+                and startswith_any(body, GEMINI_PREFIXES)
+            )
         elif event_name == "pull_request_review_comment":
             assoc = text(get(payload, "comment", "author_association"))
             body = text(get(payload, "comment", "body"))
-            gemini_should_run = assoc in TRUSTED_MEMBERS and startswith_any(body, GEMINI_PREFIXES)
+            gemini_should_run = bool(
+                assoc in TRUSTED_MEMBERS
+                and startswith_any(body, GEMINI_PREFIXES)
+            )
 
     opencode_should_run = False
     if is_allowed("opencode", active_filter):
         if event_name == "issue_comment":
             assoc = text(get(payload, "comment", "author_association"))
             body = text(get(payload, "comment", "body"))
-            opencode_should_run = assoc in TRUSTED_WITH_AUTHOR and startswith_any(body, OPENCODE_PREFIXES)
+            opencode_should_run = bool(
+                assoc in TRUSTED_WITH_AUTHOR
+                and startswith_any(body, OPENCODE_PREFIXES)
+            )
         elif event_name == "pull_request_review_comment":
             assoc = text(get(payload, "comment", "author_association"))
             body = text(get(payload, "comment", "body"))
-            opencode_should_run = assoc in TRUSTED_WITH_AUTHOR and startswith_any(body, OPENCODE_PREFIXES)
+            opencode_should_run = bool(
+                assoc in TRUSTED_WITH_AUTHOR
+                and startswith_any(body, OPENCODE_PREFIXES)
+            )
         elif event_name == "pull_request_review":
             assoc = text(get(payload, "review", "author_association"))
             body = text(get(payload, "review", "body"))
-            opencode_should_run = assoc in TRUSTED_WITH_AUTHOR and startswith_any(body, OPENCODE_PREFIXES)
+            opencode_should_run = bool(
+                assoc in TRUSTED_WITH_AUTHOR
+                and startswith_any(body, OPENCODE_PREFIXES)
+            )
         elif event_name == "pull_request":
             assoc = text(get(payload, "pull_request", "author_association"))
             pr_body = text(get(payload, "pull_request", "body"))
             title = text(get(payload, "pull_request", "title"))
-            opencode_should_run = assoc in TRUSTED_WITH_AUTHOR and (
-                contains_any(pr_body, OPENCODE_PREFIXES) or contains_any(title, OPENCODE_PREFIXES)
+            opencode_should_run = bool(
+                assoc in TRUSTED_WITH_AUTHOR
+                and (
+                    contains_any(pr_body, OPENCODE_PREFIXES)
+                    or contains_any(title, OPENCODE_PREFIXES)
+                )
             )
         elif event_name == "issues":
             assoc = text(get(payload, "issue", "author_association"))
             issue_body = text(get(payload, "issue", "body"))
             title = text(get(payload, "issue", "title"))
-            opencode_should_run = assoc in TRUSTED_WITH_AUTHOR and (
-                contains_any(issue_body, OPENCODE_PREFIXES) or contains_any(title, OPENCODE_PREFIXES)
+            opencode_should_run = bool(
+                assoc in TRUSTED_WITH_AUTHOR
+                and (
+                    contains_any(issue_body, OPENCODE_PREFIXES)
+                    or contains_any(title, OPENCODE_PREFIXES)
+                )
             )
 
     write_output("run_aider", "true" if aider_should_run else "false")
