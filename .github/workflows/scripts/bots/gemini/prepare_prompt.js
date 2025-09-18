@@ -1,5 +1,6 @@
-const core = require('@actions/core');
-const { context, getOctokit } = require('@actions/github');
+import core from '@actions/core';
+import { context, getOctokit } from '@actions/github';
+
 const github = getOctokit(process.env.GITHUB_TOKEN);
 
 const eventName = process.env.EVENT_NAME;
@@ -36,7 +37,7 @@ async function loadPullRequestContext(number) {
     });
     return { pr: prResponse.data, files, commits };
   } catch (error) {
-    core.warning(`Failed to load pull request context: ${error.message}`);
+    core.warning(`Failed to load pull request context: ${error instanceof Error ? error.message : String(error)}`);
     return { pr: null, files: [], commits: [] };
   }
 }
@@ -75,90 +76,99 @@ function formatCommits(commits) {
     .join('\n');
 }
 
-const { pr, files, commits } = await loadPullRequestContext(prNumber);
+async function main() {
+  const { pr, files, commits } = await loadPullRequestContext(prNumber);
 
-const descriptionSource =
-  pr?.body ??
-  payload.pull_request?.body ??
-  payload.issue?.body ??
-  '';
-const description = descriptionSource?.trim();
-const prDescription = description && description.length > 0 ? description : '_No description provided._';
+  const descriptionSource =
+    pr?.body ??
+    payload.pull_request?.body ??
+    payload.issue?.body ??
+    '';
+  const description = descriptionSource?.trim();
+  const prDescription = description && description.length > 0 ? description : '_No description provided._';
 
-const commentBody = payload.comment?.body?.trim();
-const userRequest = commentBody && commentBody.length > 0 ? commentBody : null;
+  const commentBody = payload.comment?.body?.trim();
+  const userRequest = commentBody && commentBody.length > 0 ? commentBody : null;
 
-const prTitle =
-  pr?.title ??
-  payload.pull_request?.title ??
-  payload.issue?.title ??
-  'unknown';
+  const prTitle =
+    pr?.title ??
+    payload.pull_request?.title ??
+    payload.issue?.title ??
+    'unknown';
 
-const prAuthor =
-  pr?.user?.login ??
-  payload.pull_request?.user?.login ??
-  payload.issue?.user?.login ??
-  'unknown';
+  const prAuthor =
+    pr?.user?.login ??
+    payload.pull_request?.user?.login ??
+    payload.issue?.user?.login ??
+    'unknown';
 
-const prUrl =
-  pr?.html_url ??
-  payload.pull_request?.html_url ??
-  payload.issue?.pull_request?.html_url ??
-  payload.comment?.html_url ??
-  '';
+  const prUrl =
+    pr?.html_url ??
+    payload.pull_request?.html_url ??
+    payload.issue?.pull_request?.html_url ??
+    payload.comment?.html_url ??
+    '';
 
-const rawIssueNumber = payload.pull_request?.number ?? payload.issue?.number ?? '';
-const rawIssueTitle = payload.pull_request?.title ?? payload.issue?.title ?? '';
-const rawIssueBody = payload.pull_request?.body ?? payload.issue?.body ?? '';
-const commentBodyRaw = payload.comment?.body ?? '';
+  const rawIssueNumber = payload.pull_request?.number ?? payload.issue?.number ?? '';
+  const rawIssueTitle = payload.pull_request?.title ?? payload.issue?.title ?? '';
+  const rawIssueBody = payload.pull_request?.body ?? payload.issue?.body ?? '';
+  const commentBodyRaw = payload.comment?.body ?? '';
 
-const sections = [
-  'You are a meticulous senior engineer reviewing the following pull request. Provide a thorough analysis of the changes, highlighting intent, quality, and potential issues.',
-  'Follow the Markdown response template exactly. Use concise bullet points under each heading, and write `- None noted.` when a section does not apply. Prioritize actionable feedback, missing tests, and blockers.',
-  '',
+  const sections = [
+    "You are a meticulous senior engineer reviewing the following pull request. Provide a thorough analysis of the changes, highlighting intent, quality, and potential issues.",
+    "Follow the Markdown response template exactly. Use concise bullet points under each heading, and write `- None noted.` when a section does not apply. Prioritize actionable feedback, missing tests, and blockers.",
+    '',
 
-  'Response template:',
-  '📝 **Summary**',
-  '✅ **Tests & Coverage**',
-  '⚠️ **Risks & Regressions**',
-  '💡 **Suggestions & Improvements**',
-  '📌 **Follow-ups**',
-  '🚫 **Blocking Issues**',
-  '',
+    'Response template:',
+    '**Summary**',
+    '**Tests & Coverage**',
+    '**Risks & Regressions**',
+    '**Suggestions & Improvements**',
+    '**Follow-ups**',
+    '**Blocking Issues**',
+    '',
 
-  'Guidelines:',
-  '- Reference specific files, commits, or behaviors when possible.',
-  '- Explicitly call out missing or insufficient tests.',
-  '- Separate blocking issues (must fix before merge) from optional suggestions.',
-  '',
+    'Guidelines:',
+    '- Reference specific files, commits, or behaviors when possible.',
+    '- Explicitly call out missing or insufficient tests.',
+    '- Separate blocking issues (must fix before merge) from optional suggestions.',
+    '',
 
-  `Repository: ${repoOwner}/${repoName}`,
-  `Pull Request: #${pr?.number ?? prNumber ?? 'unknown'}`,
-  `Title: ${prTitle}`,
-  `Author: ${prAuthor}`,
-  `URL: ${prUrl}`,
-  '',
+    `Repository: ${repoOwner}/${repoName}`,
+    `Pull Request: #${pr?.number ?? prNumber ?? 'unknown'}`,
+    `Title: ${prTitle}`,
+    `Author: ${prAuthor}`,
+    `URL: ${prUrl}`,
+    '',
 
-  'Changed files:',
-  formatFiles(files),
-  '',
+    'Changed files:',
+    formatFiles(files),
+    '',
 
-  'Recent commits:',
-  formatCommits(commits),
-  '',
+    'Recent commits:',
+    formatCommits(commits),
+    '',
 
-  'Pull request description:',
-  prDescription,
-];
+    'Pull request description:',
+    prDescription,
+  ];
 
-if (userRequest) {
-  sections.push('', 'Additional request from comment:', userRequest);
+  if (userRequest) {
+    sections.push('', 'Additional request from comment:', userRequest);
+  }
+
+  const prompt = sections.join('\n');
+
+  core.setOutput('prompt', prompt);
+  core.setOutput('issue_number', `${rawIssueNumber || ''}`);
+  core.setOutput('issue_title', rawIssueTitle || '');
+  core.setOutput('issue_body', rawIssueBody || '');
+  core.setOutput('comment_body', commentBodyRaw || '');
 }
 
-const prompt = sections.join('\n');
-
-core.setOutput('prompt', prompt);
-core.setOutput('issue_number', `${rawIssueNumber || ''}`);
-core.setOutput('issue_title', rawIssueTitle || '');
-core.setOutput('issue_body', rawIssueBody || '');
-core.setOutput('comment_body', commentBodyRaw || '');
+try {
+  await main();
+} catch (error) {
+  const message = error instanceof Error ? error.message : String(error);
+  core.setFailed(`prepare_prompt failed: ${message}`);
+}
