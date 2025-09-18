@@ -1,14 +1,13 @@
 const fs = require('fs');
-const core = require('@actions/core');
 
 async function postComment(github, context, body, issueNumber) {
   if (!body.trim()) {
-    core.info('Comment body is empty, skipping post.');
+    console.log('Comment body is empty, skipping post.');
     return;
   }
 
   if (!issueNumber) {
-    core.warning('Unable to determine issue or PR number for comment.');
+    console.warn('Unable to determine issue or PR number for comment.');
     return;
   }
 
@@ -19,9 +18,9 @@ async function postComment(github, context, body, issueNumber) {
       issue_number: issueNumber,
       body: body,
     });
-    core.info(`Successfully posted comment to issue/PR #${issueNumber}`);
+    console.log(`Successfully posted comment to issue/PR #${issueNumber}`);
   } catch (error) {
-    core.error(`Failed to post comment: ${error.message}`);
+    console.error(`Failed to post comment: ${error.message}`);
     throw error;
   }
 }
