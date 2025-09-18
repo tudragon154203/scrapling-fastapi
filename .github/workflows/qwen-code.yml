@@ -183,6 +183,9 @@ jobs:
         uses: QwenLM/qwen-code-action@5fd6818d04d64e87d255ee4d5f77995e32fbf4c2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PAGER: cat
+          GH_PAGER: cat
+          GIT_PAGER: cat
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ steps.review_inputs.outputs.pr_number }}
           PR_DATA: ${{ steps.review_inputs.outputs.pr_data }}
@@ -211,7 +214,7 @@ jobs:
             2. echo "$CHANGED_FILES"  # changed file list
             3. echo "$PR_NUMBER"  # pull request number
             4. echo "$ADDITIONAL_INSTRUCTIONS"  # optional reviewer instructions
-            5. gh pr diff $PR_NUMBER  # full diff
+            5. gh --no-pager pr diff $PR_NUMBER  # full diff without an interactive pager
             6. Inspect any relevant files using commands like: cat path/to/file, head -n 50 path/to/file, tail -n 50 path/to/file
 
             If ADDITIONAL_INSTRUCTIONS is empty, there are no extra reviewer requests.
