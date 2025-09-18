@@ -1,6 +1,8 @@
-async function reactWithEyes({ github, context, core }) {
+async function reactWithEmoji({ github, context, core, reaction }) {
   const eventName = process.env.EVENT_NAME;
   let payload = {};
+
+  const emoji = typeof reaction === 'string' && reaction.trim().length > 0 ? reaction.trim() : 'eyes';
 
   try {
     payload = JSON.parse(process.env.EVENT_PAYLOAD || '{}');
@@ -22,7 +24,7 @@ async function reactWithEyes({ github, context, core }) {
       owner,
       repo: repository,
       issue_number: issueNumber,
-      content: 'eyes',
+      content: emoji,
     });
   }
 
@@ -32,7 +34,7 @@ async function reactWithEyes({ github, context, core }) {
       return;
     }
 
-    const params = { owner, repo: repository, comment_id: commentId, content: 'eyes' };
+    const params = { owner, repo: repository, comment_id: commentId, content: emoji };
     if (type === 'issue') {
       await github.rest.reactions.createForIssueComment(params);
     } else if (type === 'review') {
@@ -53,8 +55,8 @@ async function reactWithEyes({ github, context, core }) {
       core.warning(`Unsupported event "${eventName}" for reaction step.`);
     }
   } catch (error) {
-    core.warning(`Failed to add 👀 reaction: ${error.message}`);
+    core.warning(`Failed to add ${emoji} reaction: ${error.message}`);
   }
 }
 
-module.exports = reactWithEyes;
+module.exports = reactWithEmoji;
