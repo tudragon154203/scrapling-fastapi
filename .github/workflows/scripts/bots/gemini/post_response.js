@@ -29,13 +29,13 @@ async function run() {
     parts.push(`${statusEmoji} **Status:** \`${status}\``);
 
     if (summary) {
-      parts.push('### 📝 Summary\\n\\n' + summary);
+      parts.push('### 📝 Summary\n\n' + summary);
     }
     if (error) {
-      parts.push('### ❗ Error\\n\\n```\\n' + error + '\\n```');
+      parts.push('### ❗ Error\n\n```\n' + error + '\n```');
     }
 
-    const body = parts.join('\\n\\n').trim();
+    const body = parts.join('\n\n').trim();
     if (!body) {
       core.info('No Gemini output to post.');
       return;
