@@ -88,7 +88,7 @@ jobs:
           AIDER_CHECK_UPDATE: "0"
           AIDER_SHOW_RELEASE_NOTES: "0"
           GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-2.5-flash' }}
-        run: ./.github/workflows/scripts/bots/aider/run_review.sh
+        run: bash ./.github/workflows/scripts/bots/aider/run_review.sh
 
       - name: Prepare review comment
         if: steps.check_key.outputs.key_present == 'true' && steps.diff.outputs.no_diff != 'true'

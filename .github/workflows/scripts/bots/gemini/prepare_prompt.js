@@ -1,3 +1,7 @@
+const core = require('@actions/core');
+const { context, getOctokit } = require('@actions/github');
+const github = getOctokit(process.env.GITHUB_TOKEN);
+
 const eventName = process.env.EVENT_NAME;
 const payload = JSON.parse(process.env.EVENT_PAYLOAD || '{}');
 const repoOwner = context.repo.owner;

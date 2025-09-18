@@ -1,5 +1,5 @@
 const core = require('@actions/core');
-const { getOctokit } = require('@actions/github');
+const { getOctokit, context } = require('@actions/github');
 const github = getOctokit(process.env.GITHUB_TOKEN);
 
 async function run() {
@@ -19,8 +19,8 @@ async function run() {
     }
     const body = parts.join('\n\n').trim();
     await github.rest.issues.createComment({
-      owner: github.context.repo.owner,
-      repo: github.context.repo.repo,
+      owner: context.repo.owner,
+      repo: context.repo.repo,
       issue_number: issueNumber,
       body: body
     });
