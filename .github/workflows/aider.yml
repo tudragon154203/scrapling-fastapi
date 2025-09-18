@@ -196,33 +196,34 @@ jobs:
               if not text:
                   return ""
 
-              text = text.replace("\r\n", "\n").replace("\r", "\n")
-              lines = text.split("\n")
+              lines = text.replace("\r\n", "\n").replace("\r", "\n").split("\n")
               normalized: list[str] = []
-              prev_was_heading = False
+              just_emitted_heading = False
 
               for line in lines:
                   stripped = line.strip()
-                  is_heading = stripped.startswith("### ")
 
-                  if is_heading:
-                      if normalized and normalized[-1] != "":
+                  if stripped.startswith("### "):
+                      while normalized and normalized[-1] == "":
+                          normalized.pop()
+                      if normalized:
                           normalized.append("")
                       normalized.append(stripped)
-                      prev_was_heading = True
+                      just_emitted_heading = True
                       continue
 
                   if not stripped:
+                      if just_emitted_heading:
+                          just_emitted_heading = False
+                          continue
                       if normalized and normalized[-1] == "":
                           continue
                       normalized.append("")
-                      prev_was_heading = False
+                      just_emitted_heading = False
                       continue
 
-                  if prev_was_heading and normalized and normalized[-1] != "":
-                      normalized.append("")
-                  prev_was_heading = False
                   normalized.append(line.rstrip())
+                  just_emitted_heading = False
 
               while normalized and normalized[-1] == "":
                   normalized.pop()
