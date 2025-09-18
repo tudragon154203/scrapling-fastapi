@@ -36,26 +36,26 @@ jobs:
           fetch-depth: 1
 
       - name: Install opencode CLI
-        run: ./.github/workflows/scripts/opencode/install-opencode.sh
+        run: ./.github/workflows/scripts/bots/opencode/install-opencode.sh
 
       - name: Determine opencode version
         id: opencode_version
-        run: ./.github/workflows/scripts/opencode/get-opencode-version.sh
+        run: ./.github/workflows/scripts/bots/opencode/get-opencode-version.sh
 
       - name: Prepare opencode GitHub runner
         env:
           OPC_VERSION: ${{ steps.opencode_version.outputs.version }}
-        run: ./.github/workflows/scripts/opencode/prepare-runner.sh
+        run: ./.github/workflows/scripts/bots/opencode/prepare-runner.sh
 
       - name: Install bun
-        run: ./.github/workflows/scripts/opencode/install-bun.sh
+        run: ./.github/workflows/scripts/bots/opencode/install-bun.sh
 
       - name: Install GitHub runner dependencies
         working-directory: ${{ env.RUNNER_DIR }}
-        run: ./.github/workflows/scripts/opencode/install-runner-deps.sh
+        run: ./.github/workflows/scripts/bots/opencode/install-runner-deps.sh
 
       - name: Run opencode GitHub agent
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           MODEL: openrouter/${{ vars.OPENROUTER_MODEL != '' && vars.OPENROUTER_MODEL || 'glm-4.5-air' }}
-        run: ./.github/workflows/scripts/opencode/run-agent.sh
+        run: ./.github/workflows/scripts/bots/opencode/run-agent.sh

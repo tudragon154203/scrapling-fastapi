@@ -76,7 +76,7 @@ jobs:
           CAMOUFOX_MAX_RETRIES: 3
           CAMOUFOX_RETRY_DELAY: 10
         run: |
-          $scriptPath = Join-Path $env:GITHUB_WORKSPACE '.github/workflows/scripts/fetch-camoufox.ps1'
+          $scriptPath = Join-Path $env:GITHUB_WORKSPACE '.github/workflows/scripts/systems/camoufox/fetch_camoufox.ps1'
           & $scriptPath
 
       - name: Update root certificates

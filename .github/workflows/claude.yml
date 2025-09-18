@@ -49,7 +49,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const { join } = require('node:path');
-            const reactWithEmoji = require(join(process.cwd(), '.github/workflows/scripts/react-with-emoji.cjs'));
+            const reactWithEmoji = require(join(process.cwd(), '.github/workflows/scripts/common/javascript/react_with_emoji.cjs'));
             await reactWithEmoji({ github, context, core, reaction: 'eyes' });
 
       - name: Setup Bun runtime
