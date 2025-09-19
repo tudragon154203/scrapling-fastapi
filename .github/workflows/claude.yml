@@ -60,9 +60,18 @@ jobs:
         with:
           bun-version: latest
 
-      - name: Start Claude Code Router
+      - name: Select OpenRouter API key
+        id: select_openrouter_key
+        run: python .github/workflows/scripts/rotate_openrouter_key.py --output-selected-name openrouter_secret_name
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          OPENROUTER_API_KEY_2: ${{ secrets.OPENROUTER_API_KEY_2 }}
+          OPENROUTER_API_KEY_3: ${{ secrets.OPENROUTER_API_KEY_3 }}
+          OPENROUTER_API_KEY_4: ${{ secrets.OPENROUTER_API_KEY_4 }}
+          OPENROUTER_API_KEY_5: ${{ secrets.OPENROUTER_API_KEY_5 }}
+
+      - name: Start Claude Code Router
+        env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           OPENROUTER_MODEL: ${{ vars.OPENROUTER_MODEL || 'z-ai/glm-4.5-air:free' }}
           GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-2.5-flash' }}
