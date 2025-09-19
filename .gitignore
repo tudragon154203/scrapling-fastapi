@@ -77,6 +77,9 @@ logs/
 *.temp
 temp/
 
+# Node.js
+node_modules/
+
 # Docs
 AGENTS.md
 CLAUDE.md
