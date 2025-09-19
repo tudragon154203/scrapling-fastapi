@@ -113,7 +113,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const fs = require('fs');
-            const { postComment } = require('./.github/workflows/scripts/bots/common/javascript/post_comment.js');
+            const { postComment } = require('./.github/workflows/scripts/bots/common/post_comment.js');
             const body = fs.readFileSync('review_comment.md', 'utf8').trim();
             const payload = JSON.parse(process.env.EVENT_PAYLOAD || '{}');
             const issueNumber = payload.pull_request?.number;

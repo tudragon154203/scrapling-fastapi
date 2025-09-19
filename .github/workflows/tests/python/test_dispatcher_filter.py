@@ -18,7 +18,7 @@ def read_github_output(github_env):
 
 
 DISPATCHER_PATH = (
-    Path(__file__).resolve().parents[2] / "scripts" / "common" / "python" / "dispatcher_filter.py"
+    Path(__file__).resolve().parents[2] / "scripts" / "bots" / "common" / "dispatcher_filter.py"
 )
 
 

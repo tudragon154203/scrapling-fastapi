@@ -7,7 +7,7 @@ import path from 'node:path';
 const require = createRequire(import.meta.url);
 const postCommentModulePath = path.join(
   path.dirname(fileURLToPath(import.meta.url)),
-  '../../scripts/bots/common/post_comment.js',
+  '../../scripts/bots/common/javascript/post_comment.js',
 );
 const { postComment } = require(postCommentModulePath);
 

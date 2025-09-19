@@ -42,7 +42,7 @@ jobs:
           ACTIVE_BOTS_ENV: ${{ env.ACTIVE_BOTS_ENV || env.ACTIVE_BOTS || '' }}
           EVENT_NAME: ${{ github.event_name }}
           EVENT_PAYLOAD: ${{ toJSON(github.event) }}
-        run: python .github/workflows/scripts/common/python/dispatcher_filter.py
+        run: python .github/workflows/scripts/bots/common/dispatcher_filter.py
 
       - name: Summarize active bots filter
         shell: bash
