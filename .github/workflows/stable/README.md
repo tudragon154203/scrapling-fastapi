@@ -20,7 +20,7 @@ These YAML files are self-contained and can be copied to `.github/workflows/` to
 - Pull request: `opened`, `synchronize`, `reopened`, `ready_for_review`
 
 **Requirements**:
-- **Secrets**: At least one of `GEMINI_API_KEY`, `GEMINI_API_KEY_2`, or `GEMINI_API_KEY_LEGACY`
+- **Secrets**: At least one of `GEMINI_API_KEY`, `GEMINI_API_KEY_2`
 - **Environment**: `Agents/Bots`
 - **Permissions**: `contents: read`, `pull-requests: write`, `issues: write`
 - **Runtime**: Ubuntu Latest, Python 3.11, Aider installed via pip

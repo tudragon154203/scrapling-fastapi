@@ -30,11 +30,10 @@ jobs:
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GEMINI_API_KEY_2: ${{ secrets.GEMINI_API_KEY_2 }}
-          GEMINI_API_KEY_LEGACY: ${{ secrets.GEMINI_API_KEY_LEGACY }}
         run: |
-          if [ -z "$GEMINI_API_KEY" ] && [ -z "$GEMINI_API_KEY_2" ] && [ -z "$GEMINI_API_KEY_LEGACY" ]; then
+          if [ -z "$GEMINI_API_KEY" ] && [ -z "$GEMINI_API_KEY_2" ]; then
             echo "key_present=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::Skipping review because no Gemini API key secret (GEMINI_API_KEY, GEMINI_API_KEY_2, or legacy GEMINI_API_KEY_LEGACY) is set."
+            echo "::notice::Skipping review because no Gemini API key secret (GEMINI_API_KEY, GEMINI_API_KEY_2) is set."
           else
             echo "key_present=true" >> "$GITHUB_OUTPUT"
           fi
