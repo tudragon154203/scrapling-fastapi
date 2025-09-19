@@ -99,7 +99,6 @@ jobs:
 
       - name: Build GitHub comment body
         id: build_comment
-        if: always()
         run: |
           python ./.github/workflows/scripts/bots/opencode/build-comment.py \
             --meta "$RUNNER_TEMP/opencode-meta.json" \
@@ -110,7 +109,6 @@ jobs:
             --outputs "$GITHUB_OUTPUT"
 
       - name: Post GitHub comment
-        if: always()
         env:
           TARGET_TYPE: ${{ env.TARGET_TYPE }}
           TARGET_ID: ${{ env.TARGET_ID }}
@@ -123,7 +121,7 @@ jobs:
             "$RUNNER_TEMP/opencode-comment.md"
 
       - name: Fail workflow if opencode CLI failed
-        if: always() && steps.run_cli.outputs.exit_code != '0'
+        if: steps.run_cli.outputs.exit_code != '0'
         run: |
           echo "::error::opencode CLI exited with status ${{ steps.run_cli.outputs.exit_code }}." >&2
           exit 1

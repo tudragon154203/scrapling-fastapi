@@ -5,8 +5,22 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 from pathlib import Path
 from typing import Any, Dict
+
+ANSI_ESCAPE_RE = re.compile(r"\x1B\[[0-9;?]*[ -/]*[@-~]")
+CONTROL_CHAR_RE = re.compile(r"[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F]")
+MAX_STREAM_SECTION = 2000
+
+def clean_stream(text: str) -> str:
+    if not text:
+        return ""
+    cleaned = text.replace("\r", "")
+    cleaned = ANSI_ESCAPE_RE.sub("", cleaned)
+    cleaned = CONTROL_CHAR_RE.sub("", cleaned)
+    return cleaned.strip()
+
 
 
 def read_text(path: Path) -> str:
@@ -26,6 +40,8 @@ def format_comment(
     stderr: str,
     exit_code: int,
 ) -> str:
+    stdout_clean = clean_stream(stdout)
+    stderr_clean = clean_stream(stderr)
     sections = ["#### dY opencode CLI"]
 
     summary = metadata.get("summary")
@@ -34,15 +50,15 @@ def format_comment(
 
     command_text = metadata.get("command_text")
     if isinstance(command_text, str) and command_text.strip():
-        safe_command = command_text.replace("\n", "<br>")
+        safe_command = command_text.replace("\r\n", "\n").replace("\n", "<br>")
         sections.append(f"> **Command:** {safe_command}")
 
-    if stdout:
-        sections.append(stdout)
+    if stdout_clean:
+        sections.append(stdout_clean)
     else:
         sections.append("_The opencode CLI did not return any output._")
 
-    meta_lines = []
+    meta_lines: list[str] = []
     model = metadata.get("model") or "unknown"
     meta_lines.append(f"Model: `{model}`")
     event_name = metadata.get("event_name") or "unknown"
@@ -52,11 +68,24 @@ def format_comment(
         meta_lines.append(
             "The CLI exited with a non-zero status. Review the stderr output for additional details."
         )
-    if stderr:
-        meta_lines.append("CLI stderr:\n```\n" + stderr + "\n```")
+
+    if stderr_clean and stderr_clean != stdout_clean:
+        display = stderr_clean
+        truncated = False
+        if len(display) > MAX_STREAM_SECTION:
+            truncated = True
+            display = display[-MAX_STREAM_SECTION:]
+        block_lines = ["CLI stderr:", "```text", display]
+        if truncated:
+            block_lines.append("...(truncated)")
+        block_lines.append("```")
+        meta_lines.append("\n".join(block_lines))
+    elif stderr and stderr.strip():
+        meta_lines.append("CLI stderr contained only formatting codes and was omitted.")
 
     sections.append("\n".join(meta_lines))
     return "\n\n".join(sections).strip()
+
 
 
 def parse_args() -> argparse.Namespace:

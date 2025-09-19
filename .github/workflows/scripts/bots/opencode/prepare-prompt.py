@@ -102,8 +102,15 @@ def build_prompt(
         if body:
             sections.append("Pull request description:\n" + body.strip())
         sections.append(
-            "Evaluate the proposed changes, point out potential issues, and suggest follow-up actions. "
-            "Share the results as Markdown that can be posted back to the pull request."
+            dedent(
+                """
+                Return a GitHub-ready review comment with:
+                - **Findings:** call out blockers, risks, or explicitly state there are none, and cite file paths when possible.
+                - **Suggestions:** optional follow-up actions or tests.
+                - **Confidence:** 0-10 rating.
+                If context is missing to complete the review, explain what additional information is required instead of guessing.
+                """
+            ).strip()
         )
         return PromptContext(
             prompt="\n\n".join(sections).strip(),
