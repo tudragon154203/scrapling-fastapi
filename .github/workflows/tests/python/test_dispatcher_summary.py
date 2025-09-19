@@ -50,20 +50,20 @@ def test_build_summary_lines_groups_triggered_and_skipped() -> None:
     )
 
     assert lines == [
-        "Active bots filter: [\"gemini\"]",
+        "## Bot workflow dispatch summary",
         "",
-        "### Workflow dispatch results",
+        "**Active bots filter: [\"gemini\"]**",
+        "**Decisions:** 2 triggered · 2 skipped",
         "",
-        "#### Triggered workflows",
-        "- ✅ Claude",
-        "- ✅ Gemini",
+        "| Workflow | Decision |",
+        "| --- | --- |",
+        "| ✅ Claude | Triggered |",
+        "| ✅ Gemini | Triggered |",
+        "| ⛔ Aider | Skipped |",
+        "| ⛔ Opencode | Skipped |",
         "",
-        "#### Skipped workflows",
-        "- ⛔ Aider",
-        "- ⛔ Opencode",
-        "",
-        "Target: pull_request #123",
-        "Event: pull_request",
+        "**Target:** pull_request #123",
+        "**Event:** pull_request",
     ]
 
 
@@ -81,16 +81,17 @@ def test_build_summary_lines_handles_all_skipped() -> None:
     )
 
     assert lines == [
-        "Active bots filter: all (no restrictions).",
+        "## Bot workflow dispatch summary",
         "",
-        "### Workflow dispatch results",
+        "**Active bots filter: all (no restrictions).**",
+        "**Decisions:** 0 triggered · 2 skipped",
         "",
-        "No workflows were triggered.",
+        "| Workflow | Decision |",
+        "| --- | --- |",
+        "| ⛔ Aider | Skipped |",
+        "| ⛔ Claude | Skipped |",
         "",
-        "#### Skipped workflows",
-        "- ⛔ Aider",
-        "- ⛔ Claude",
-        "Event: issue_comment",
+        "**Event:** issue_comment",
     ]
 
 
@@ -110,21 +111,39 @@ def test_main_writes_summary_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
     MODULE["main"]()
 
     assert summary_file.read_text(encoding="utf-8") == (
-        "Active bots filter: all (no restrictions).\n"
+        "## Bot workflow dispatch summary\n"
         "\n"
-        "### Workflow dispatch results\n"
+        "**Active bots filter: all (no restrictions).**\n"
+        "**Decisions:** 2 triggered · 2 skipped\n"
         "\n"
-        "#### Triggered workflows\n"
-        "- ✅ Aider\n"
-        "- ✅ Opencode\n"
+        "| Workflow | Decision |\n"
+        "| --- | --- |\n"
+        "| ✅ Aider | Triggered |\n"
+        "| ✅ Opencode | Triggered |\n"
+        "| ⛔ Claude | Skipped |\n"
+        "| ⛔ Gemini | Skipped |\n"
         "\n"
-        "#### Skipped workflows\n"
-        "- ⛔ Claude\n"
-        "- ⛔ Gemini\n"
-        "\n"
-        "Target: issue #77\n"
-        "Event: issues\n"
+        "**Target:** issue #77\n"
+        "**Event:** issues\n"
     )
+
+
+def test_build_summary_lines_handles_no_statuses() -> None:
+    build_lines = MODULE["build_summary_lines"]
+    lines = build_lines(
+        active_filter_json="",
+        statuses=[],
+        target_type="",
+        target_id="",
+        event_name="",
+    )
+
+    assert lines == [
+        "## Bot workflow dispatch summary",
+        "",
+        "**Active bots filter: all (no restrictions).**",
+        "**No workflows evaluated.**",
+    ]
 
 
 def test_write_summary_handles_missing_path() -> None:

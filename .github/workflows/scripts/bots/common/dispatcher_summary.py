@@ -40,33 +40,39 @@ def build_summary_lines(
 ) -> List[str]:
     """Build the list of summary lines for the dispatcher job."""
 
-    lines: List[str] = [
-        summarize_active_filter(active_filter_json),
-        "",
-        "### Workflow dispatch results",
-        "",
-    ]
+    lines: List[str] = ["## Bot workflow dispatch summary", ""]
+
+    lines.append(f"**{summarize_active_filter(active_filter_json)}**")
 
     triggered = [name for name, should_run in statuses if should_run]
     skipped = [name for name, should_run in statuses if not should_run]
+    triggered_count = len(triggered)
+    skipped_count = len(skipped)
+    triggered_set = set(triggered)
+    total_count = len(statuses)
 
-    if triggered:
-        lines.append("#### Triggered workflows")
-        lines.extend(f"- ✅ {name}" for name in triggered)
+    if total_count:
+        lines.append(
+            f"**Decisions:** {triggered_count} triggered · {skipped_count} skipped"
+        )
+        lines.append("")
+        lines.extend(["| Workflow | Decision |", "| --- | --- |"])
+
+        for name in triggered + skipped:
+            decision = "Triggered" if name in triggered_set else "Skipped"
+            emoji = "✅" if decision == "Triggered" else "⛔"
+            lines.append(f"| {emoji} {name} | {decision} |")
     else:
-        lines.append("No workflows were triggered.")
+        lines.append("**No workflows evaluated.**")
 
-    if skipped:
-        if triggered or (lines and lines[-1] != ""):
-            lines.append("")
-        lines.append("#### Skipped workflows")
-        lines.extend(f"- ⛔ {name}" for name in skipped)
-
+    metadata: List[str] = []
     if target_type and target_id:
-        lines.extend(["", f"Target: {target_type} #{target_id}"])
-
+        metadata.append(f"**Target:** {target_type} #{target_id}")
     if event_name:
-        lines.append(f"Event: {event_name}")
+        metadata.append(f"**Event:** {event_name}")
+
+    if metadata:
+        lines.extend(["", *metadata])
 
     return lines
 
