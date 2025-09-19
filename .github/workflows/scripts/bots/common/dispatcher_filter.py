@@ -2,7 +2,7 @@
 # This script determines which bots (Aider, Claude, Gemini, Opencode) should run based on GitHub event triggers
 # and active bot filters. It outputs GitHub Action variables for conditional workflow execution.
 # It reads environment variables set by the main.yml workflow:
-# - ACTIVE_BOTS_VAR or ACTIVE_BOTS: Comma-separated or JSON list of active bots (e.g., "claude,gemini")
+# - ACTIVE_BOTS_VAR: Comma-separated or JSON list of active bots (e.g., "claude,gemini")
 # - EVENT_NAME: The GitHub event name (e.g., "pull_request", "issue_comment")
 # - EVENT_PAYLOAD: JSON string of the full event payload
 #
@@ -167,7 +167,6 @@ def decide() -> None:
     aider_should_run = False
     if is_allowed("aider", active_filter) and event_name == "pull_request":
         assoc = text(get(payload, "pull_request", "author_association"))
-        # print(f"DEBUG: assoc: '{assoc}'")
         aider_should_run = assoc in TRUSTED_MEMBERS
 
     # Determine if Claude should run
@@ -272,6 +271,23 @@ def decide() -> None:
     write_output("run_claude", "true" if claude_should_run else "false")
     write_output("run_gemini", "true" if gemini_should_run else "false")
     write_output("run_opencode", "true" if opencode_should_run else "false")
+
+    # Export active filter outputs
+    if active_filter is None:
+        active_filter_str = "all (no restrictions)"
+        active_filter_json_str = json.dumps([])
+    else:
+        active_filter_list = sorted(active_filter)
+        active_filter_str = ",".join(active_filter_list)
+        active_filter_json_str = json.dumps(active_filter_list)
+
+    write_output("active_filter", active_filter_str)
+    write_output("active_filter_json", active_filter_json_str)
+
+    print(f"  - run_aider: {'true' if aider_should_run else 'false'}")
+    print(f"  - run_claude: {'true' if claude_should_run else 'false'}")
+    print(f"  - run_gemini: {'true' if gemini_should_run else 'false'}")
+    print(f"  - run_opencode: {'true' if opencode_should_run else 'false'}")
 
     # Extract target ID and type for the event (PR or issue number)
     target_id = ""
