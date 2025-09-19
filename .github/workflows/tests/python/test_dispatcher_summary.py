@@ -146,6 +146,29 @@ def test_build_summary_lines_handles_no_statuses() -> None:
     ]
 
 
+def test_build_summary_lines_trims_and_partially_renders_metadata() -> None:
+    build_lines = MODULE["build_summary_lines"]
+    lines = build_lines(
+        active_filter_json="",
+        statuses=[("Claude", True)],
+        target_type="  issue  ",
+        target_id="  ",
+        event_name=" comment ",
+    )
+
+    assert lines[-2:] == ["**Target:** issue", "**Event:** comment"]
+
+    lines = build_lines(
+        active_filter_json="",
+        statuses=[("Claude", True)],
+        target_type=None,
+        target_id="123",
+        event_name=None,
+    )
+
+    assert lines[-1:] == ["**Target ID:** #123"]
+
+
 def test_write_summary_handles_missing_path() -> None:
     write_summary = MODULE["write_summary"]
     # Should not raise when the path is empty and the iterator is consumed lazily

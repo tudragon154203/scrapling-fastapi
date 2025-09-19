@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from typing import Iterable, List, Mapping, Sequence, Tuple
+from typing import Iterable, List, Mapping, Optional, Sequence, Tuple
 
 BOT_ENV_VARS = (
     ("Aider", "RUN_AIDER"),
@@ -14,7 +14,14 @@ BOT_ENV_VARS = (
 
 
 def normalize_bool(value: str) -> bool:
-    """Return ``True`` when ``value`` represents a truthy dispatcher flag."""
+    """Interpret dispatcher flag values coming from environment variables.
+
+    GitHub Actions exposes all environment variables as strings, so the
+    dispatcher-specific flags arrive as stringified booleans such as ``"true"``
+    or ``"false"``.  This helper normalizes those values (case- and
+    whitespace-insensitively) so the rest of the module can reason about them as
+    plain ``bool`` objects.
+    """
 
     return str(value).strip().lower() == "true"
 
@@ -34,11 +41,16 @@ def summarize_active_filter(raw_filter: str) -> str:
 def build_summary_lines(
     active_filter_json: str,
     statuses: Sequence[Tuple[str, bool]],
-    target_type: str,
-    target_id: str,
-    event_name: str,
+    target_type: Optional[str],
+    target_id: Optional[str],
+    event_name: Optional[str],
 ) -> List[str]:
-    """Build the list of summary lines for the dispatcher job."""
+    """Build the list of summary lines for the dispatcher job.
+
+    ``target_type``, ``target_id`` and ``event_name`` may not be available for
+    every triggering event, so the formatter is defensive about absent values
+    and only renders metadata that is both present and meaningful.
+    """
 
     lines: List[str] = ["## Bot workflow dispatch summary", ""]
 
@@ -73,10 +85,19 @@ def build_summary_lines(
         lines.append("**No workflows evaluated.**")
 
     metadata: List[str] = []
-    if target_type and target_id:
-        metadata.append(f"**Target:** {target_type} #{target_id}")
-    if event_name:
-        metadata.append(f"**Event:** {event_name}")
+    clean_target_type = (target_type or "").strip()
+    clean_target_id = (target_id or "").strip()
+    clean_event_name = (event_name or "").strip()
+
+    if clean_target_type and clean_target_id:
+        metadata.append(f"**Target:** {clean_target_type} #{clean_target_id}")
+    elif clean_target_type:
+        metadata.append(f"**Target:** {clean_target_type}")
+    elif clean_target_id:
+        metadata.append(f"**Target ID:** #{clean_target_id}")
+
+    if clean_event_name:
+        metadata.append(f"**Event:** {clean_event_name}")
 
     if metadata:
         lines.extend(["", *metadata])
