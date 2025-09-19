@@ -132,13 +132,17 @@ def derive_seed(user_seed: Optional[int]) -> int:
             base_seed = parsed
             break
 
-    # Add workflow-specific offset
-    workflow_name = os.environ.get("GITHUB_WORKFLOW", "")
-    if workflow_name:
-        workflow_hash = parse_seed(workflow_name)
-        base_seed = (base_seed + workflow_hash) % (2**64)  # Prevent overflow
+    # Add job-specific offset
+    job_name = os.environ.get("GITHUB_JOB", "")
+    if job_name:
+        job_hash = parse_seed(job_name)
+        base_seed = (base_seed + job_hash) % (2**64)  # Prevent overflow
 
-    return base_seed
+    # Add random component for each script invocation
+    import random
+    random.seed(base_seed)
+    random_offset = random.randint(0, 1000000)
+    return (base_seed + random_offset) % (2**64)
 
 
 def parse_seed(raw_seed: str) -> Optional[int]:
