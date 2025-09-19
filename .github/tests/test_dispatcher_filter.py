@@ -1,60 +1,6 @@
 from __future__ import annotations
 
-import importlib.util
-import json
-import pathlib
-
 import pytest
-
-MODULE_PATH = pathlib.Path(
-    ".github/workflows/scripts/common/python/dispatcher_filter.py"
-)
-
-
-@pytest.fixture(scope="session")
-def dispatcher_module():
-    spec = importlib.util.spec_from_file_location("dispatcher_filter", MODULE_PATH)
-    module = importlib.util.module_from_spec(spec)
-    assert spec.loader is not None
-    spec.loader.exec_module(module)
-    return module
-
-
-def run_dispatcher(
-    dispatcher_module,
-    monkeypatch,
-    tmp_path,
-    *,
-    event_name: str,
-    payload: dict,
-    active_var: str | None = "",
-    active_env: str | None = "",
-):
-    github_output = tmp_path / "out.txt"
-    if github_output.exists():
-        github_output.unlink()
-
-    monkeypatch.setenv("GITHUB_OUTPUT", str(github_output))
-
-    if active_var is None:
-        monkeypatch.delenv("ACTIVE_BOTS_VAR", raising=False)
-    else:
-        monkeypatch.setenv("ACTIVE_BOTS_VAR", active_var)
-
-    if active_env is None:
-        monkeypatch.delenv("ACTIVE_BOTS_ENV", raising=False)
-    else:
-        monkeypatch.setenv("ACTIVE_BOTS_ENV", active_env)
-
-    monkeypatch.setenv("EVENT_NAME", event_name)
-    monkeypatch.setenv("EVENT_PAYLOAD", json.dumps(payload))
-
-    dispatcher_module.decide()
-
-    output = github_output.read_text(encoding="utf-8").strip()
-    if not output:
-        return {}
-    return dict(line.split("=", 1) for line in output.splitlines())
 
 
 def test_parse_active_filter_handles_multiple_formats(dispatcher_module):
@@ -74,13 +20,7 @@ def test_is_allowed_respects_active_filter(dispatcher_module):
     assert is_allowed("gemini", None)
 
 
-def test_decide_for_pull_request_trusted_member(monkeypatch, tmp_path, dispatcher_module):
-    decide = dispatcher_module.decide
-
-    github_output = tmp_path / "out.txt"
-    monkeypatch.setenv("GITHUB_OUTPUT", str(github_output))
-    monkeypatch.setenv("ACTIVE_BOTS_VAR", "aider,claude,gemini,opencode")
-    monkeypatch.setenv("EVENT_NAME", "pull_request")
+def test_decide_for_pull_request_trusted_member(run_dispatcher):
     payload = {
         "pull_request": {
             "number": 42,
@@ -89,12 +29,11 @@ def test_decide_for_pull_request_trusted_member(monkeypatch, tmp_path, dispatche
             "body": "Please review",
         }
     }
-    monkeypatch.setenv("EVENT_PAYLOAD", json.dumps(payload))
-
-    decide()
-
-    output = github_output.read_text(encoding="utf-8").strip().splitlines()
-    result = dict(line.split("=", 1) for line in output)
+    result = run_dispatcher(
+        event_name="pull_request",
+        payload=payload,
+        active_var="aider,claude,gemini,opencode",
+    )
 
     assert result["run_aider"] == "true"
     assert result["run_claude"] == "true"
@@ -104,13 +43,7 @@ def test_decide_for_pull_request_trusted_member(monkeypatch, tmp_path, dispatche
     assert result["target_type"] == "pull_request"
 
 
-def test_decide_for_issue_comment_with_claude_prefix(monkeypatch, tmp_path, dispatcher_module):
-    decide = dispatcher_module.decide
-
-    github_output = tmp_path / "out.txt"
-    monkeypatch.setenv("GITHUB_OUTPUT", str(github_output))
-    monkeypatch.setenv("ACTIVE_BOTS_ENV", "claude,opencode")
-    monkeypatch.setenv("EVENT_NAME", "issue_comment")
+def test_decide_for_issue_comment_with_claude_prefix(run_dispatcher):
     payload = {
         "issue": {"number": 101},
         "comment": {
@@ -118,12 +51,11 @@ def test_decide_for_issue_comment_with_claude_prefix(monkeypatch, tmp_path, disp
             "body": "@claude please help",
         },
     }
-    monkeypatch.setenv("EVENT_PAYLOAD", json.dumps(payload))
-
-    decide()
-
-    output = github_output.read_text(encoding="utf-8").strip().splitlines()
-    result = dict(line.split("=", 1) for line in output)
+    result = run_dispatcher(
+        event_name="issue_comment",
+        payload=payload,
+        active_env="claude,opencode",
+    )
 
     assert result["run_aider"] == "false"
     assert result["run_claude"] == "true"
@@ -133,13 +65,7 @@ def test_decide_for_issue_comment_with_claude_prefix(monkeypatch, tmp_path, disp
     assert result["target_type"] == "issue"
 
 
-def test_decide_for_issue_with_opencode_keyword(monkeypatch, tmp_path, dispatcher_module):
-    decide = dispatcher_module.decide
-
-    github_output = tmp_path / "out.txt"
-    monkeypatch.setenv("GITHUB_OUTPUT", str(github_output))
-    monkeypatch.setenv("ACTIVE_BOTS_ENV", "opencode")
-    monkeypatch.setenv("EVENT_NAME", "issues")
+def test_decide_for_issue_with_opencode_keyword(run_dispatcher):
     payload = {
         "issue": {
             "number": 7,
@@ -148,12 +74,11 @@ def test_decide_for_issue_with_opencode_keyword(monkeypatch, tmp_path, dispatche
             "body": "This issue mentions @opencode for assistance.",
         }
     }
-    monkeypatch.setenv("EVENT_PAYLOAD", json.dumps(payload))
-
-    decide()
-
-    output = github_output.read_text(encoding="utf-8").strip().splitlines()
-    result = dict(line.split("=", 1) for line in output)
+    result = run_dispatcher(
+        event_name="issues",
+        payload=payload,
+        active_env="opencode",
+    )
 
     assert result["run_aider"] == "false"
     assert result["run_claude"] == "false"
@@ -163,7 +88,7 @@ def test_decide_for_issue_with_opencode_keyword(monkeypatch, tmp_path, dispatche
     assert result["target_type"] == "issue"
 
 
-def test_claude_runs_for_pull_request_review(monkeypatch, tmp_path, dispatcher_module):
+def test_claude_runs_for_pull_request_review(run_dispatcher):
     payload = {
         "review": {
             "author_association": "MEMBER",
@@ -172,9 +97,6 @@ def test_claude_runs_for_pull_request_review(monkeypatch, tmp_path, dispatcher_m
         "pull_request": {"number": 13, "author_association": "MEMBER"},
     }
     result = run_dispatcher(
-        dispatcher_module,
-        monkeypatch,
-        tmp_path,
         event_name="pull_request_review",
         payload=payload,
         active_var="claude,gemini",
@@ -186,10 +108,8 @@ def test_claude_runs_for_pull_request_review(monkeypatch, tmp_path, dispatcher_m
     assert result["run_aider"] == "false"
 
 
-@pytest.mark.parametrize(
-    "bot_name", ["claude", "gemini"],
-)
-def test_pull_request_review_comment_prefixes(monkeypatch, tmp_path, dispatcher_module, bot_name):
+@pytest.mark.parametrize("bot_name", ["claude", "gemini"])
+def test_pull_request_review_comment_prefixes(run_dispatcher, bot_name):
     prefix = "@claude" if bot_name == "claude" else "@gemini"
     payload = {
         "comment": {
@@ -199,9 +119,6 @@ def test_pull_request_review_comment_prefixes(monkeypatch, tmp_path, dispatcher_
         "pull_request": {"number": 99, "author_association": "MEMBER"},
     }
     result = run_dispatcher(
-        dispatcher_module,
-        monkeypatch,
-        tmp_path,
         event_name="pull_request_review_comment",
         payload=payload,
         active_var="claude,gemini",
@@ -216,7 +133,7 @@ def test_pull_request_review_comment_prefixes(monkeypatch, tmp_path, dispatcher_
     assert result["run_aider"] == "false"
 
 
-def test_active_bots_var_takes_precedence(monkeypatch, tmp_path, dispatcher_module):
+def test_active_bots_var_takes_precedence(run_dispatcher):
     payload = {
         "pull_request": {
             "number": 5,
@@ -226,9 +143,6 @@ def test_active_bots_var_takes_precedence(monkeypatch, tmp_path, dispatcher_modu
         }
     }
     result = run_dispatcher(
-        dispatcher_module,
-        monkeypatch,
-        tmp_path,
         event_name="pull_request",
         payload=payload,
         active_var="claude",
@@ -238,3 +152,23 @@ def test_active_bots_var_takes_precedence(monkeypatch, tmp_path, dispatcher_modu
     assert result["run_claude"] == "true"
     assert result["run_gemini"] == "false"
     assert result["run_opencode"] == "false"
+
+
+def test_issue_comment_without_issue_payload(run_dispatcher):
+    payload = {
+        "comment": {
+            "author_association": "COLLABORATOR",
+            "body": "@claude can you review this snippet?",
+        }
+    }
+    result = run_dispatcher(
+        event_name="issue_comment",
+        payload=payload,
+        active_var="claude",
+    )
+
+    assert result["run_claude"] == "true"
+    assert result["run_gemini"] == "false"
+    assert result["run_opencode"] == "false"
+    assert result.get("target_id", "") == ""
+    assert result.get("target_type", "") == ""
