@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 
 SCRIPT_PATH = (
-    Path(__file__).resolve().parents[2] / "scripts" / "rotate_openrouter_key.py"
+    Path(__file__).resolve().parents[2] / "scripts" / "bots" / "common" / "rotate_openrouter_key.py"
 )
 
 spec = util.spec_from_file_location("rotate_openrouter_key", SCRIPT_PATH)

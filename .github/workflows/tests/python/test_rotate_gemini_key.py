@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-SCRIPT_PATH = Path(__file__).resolve().parents[2] / "scripts" / "rotate_gemini_key.py"
+SCRIPT_PATH = Path(__file__).resolve().parents[2] / "scripts" / "bots" / "common" / "rotate_gemini_key.py"
 
 spec = util.spec_from_file_location("rotate_gemini_key", SCRIPT_PATH)
 rotate_key = util.module_from_spec(spec)

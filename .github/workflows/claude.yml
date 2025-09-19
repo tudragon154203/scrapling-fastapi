@@ -62,7 +62,7 @@ jobs:
 
       - name: Select OpenRouter API key
         id: select_openrouter_key
-        run: python .github/workflows/scripts/rotate_openrouter_key.py --output-selected-name openrouter_secret_name
+        run: python .github/workflows/scripts/bots/common/rotate_openrouter_key.py --output-selected-name openrouter_secret_name
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           OPENROUTER_API_KEY_2: ${{ secrets.OPENROUTER_API_KEY_2 }}
@@ -72,7 +72,7 @@ jobs:
 
       - name: Select Gemini API key
         id: select_gemini_key
-        run: python .github/workflows/scripts/rotate_gemini_key.py --output-selected-name gemini_secret_name
+        run: python .github/workflows/scripts/bots/common/rotate_gemini_key.py --output-selected-name gemini_secret_name
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GEMINI_API_KEY_2: ${{ secrets.GEMINI_API_KEY_2 }}

@@ -11,7 +11,7 @@ Add a step before starting the Claude router that invokes the script:
 ```yaml
     - name: Select OpenRouter API key
       id: select_openrouter_key
-      run: python .github/workflows/scripts/rotate_openrouter_key.py \
+      run: python .github/workflows/scripts/bots/common/rotate_openrouter_key.py \
         --output-selected-name openrouter_secret_name
       env:
         OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
@@ -26,7 +26,7 @@ Add a step before starting any workflow that uses the Gemini API:
 ```yaml
     - name: Select Gemini API key
       id: select_gemini_key
-      run: python .github/workflows/scripts/rotate_gemini_key.py \
+      run: python .github/workflows/scripts/bots/common/rotate_gemini_key.py \
         --output-selected-name gemini_secret_name \
         --presence-output key_present
       env:
