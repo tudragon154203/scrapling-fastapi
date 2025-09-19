@@ -26,7 +26,7 @@ def format_comment(
     stderr: str,
     exit_code: int,
 ) -> str:
-    sections = ["#### 🤖 opencode CLI"]
+    sections = ["#### dY opencode CLI"]
 
     summary = metadata.get("summary")
     if isinstance(summary, str) and summary.strip():

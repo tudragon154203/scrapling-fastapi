@@ -41,14 +41,14 @@ jobs:
         with:
           fetch-depth: 1
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
       - name: Install opencode CLI
         run: |
-          tmp_dir="$(mktemp -d)"
-          archive="opencode-linux-x64.zip"
-          curl -L "https://github.com/sst/opencode/releases/download/v${OPENCODE_VERSION}/${archive}" -o "${tmp_dir}/${archive}"
-          unzip -q "${tmp_dir}/${archive}" -d "${tmp_dir}"
-          install -m 755 "${tmp_dir}/opencode/opencode" /usr/local/bin/opencode
-          rm -rf "${tmp_dir}"
+          curl -fsSL https://opencode.ai/install | bash
 
       - name: Determine opencode version
         id: opencode_version
