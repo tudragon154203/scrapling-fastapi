@@ -14,9 +14,12 @@
 # - target_id: PR or issue number
 # - target_type: "pull_request" or "issue"
 
+import csv
 import json
 import os
-from typing import Iterable, Optional, Set
+import re
+from io import StringIO
+from typing import Iterable, Optional, Sequence, Set
 
 
 def _normalize_candidates(items: Iterable[object]) -> Set[str]:
@@ -27,6 +30,52 @@ def _normalize_candidates(items: Iterable[object]) -> Set[str]:
         if text:
             normalized.add(text)
     return normalized
+
+
+def _strip_enclosing_quotes(value: str) -> str:
+    """Remove matching single or double quotes surrounding a value."""
+
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in {'"', "'"}:
+        return value[1:-1]
+    return value
+
+
+def _parse_sequence_from_string(raw_value: str) -> Sequence[str]:
+    """Parse a non-JSON string into a sequence of candidate names."""
+
+    if not raw_value:
+        return []
+
+    replaced = raw_value.replace(";", ",")
+    reader = csv.reader(StringIO(replaced))
+    tokens = []
+    for row in reader:
+        tokens.extend(row)
+
+    cleaned = []
+    for token in tokens:
+        if not token:
+            continue
+        stripped = token.strip()
+        if not stripped:
+            continue
+        normalized = _strip_enclosing_quotes(stripped)
+        if normalized:
+            cleaned.append(normalized)
+
+    if cleaned:
+        return cleaned
+
+    fallback = []
+    for token in re.split(r"[\s,;]+", raw_value):
+        stripped = token.strip()
+        if not stripped:
+            continue
+        normalized = _strip_enclosing_quotes(stripped)
+        if normalized:
+            fallback.append(normalized)
+
+    return fallback
 
 
 def parse_active_filter(raw_value: str) -> Optional[Set[str]]:
@@ -42,8 +91,8 @@ def parse_active_filter(raw_value: str) -> Optional[Set[str]]:
     try:
         parsed = json.loads(raw_value)
     except json.JSONDecodeError:
-        # Fallback to comma-separated parsing
-        return _normalize_candidates(part for part in raw_value.split(","))
+        # Fallback to parsing with CSV/regex heuristics
+        return _normalize_candidates(_parse_sequence_from_string(raw_value))
 
     if isinstance(parsed, list):
         return _normalize_candidates(parsed)

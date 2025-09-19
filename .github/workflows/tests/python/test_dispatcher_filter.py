@@ -44,6 +44,20 @@ def test_parse_active_filter_variants():
 
 
 @pytest.mark.parametrize(
+    "raw_value, expected",
+    [
+        ("claude,gemini,opencode", {"claude", "gemini", "opencode"}),
+        ("claude; gemini; opencode", {"claude", "gemini", "opencode"}),
+        ('"claude","gemini"', {"claude", "gemini"}),
+        ('  "claude" ; "gemini" , aider  ', {"claude", "gemini", "aider"}),
+        ("claude,,gemini; ; \n opencode\t", {"claude", "gemini", "opencode"}),
+    ],
+)
+def test_parse_active_filter_non_json_variants(raw_value, expected):
+    assert dispatcher_filter.parse_active_filter(raw_value) == expected
+
+
+@pytest.mark.parametrize(
     "active_filter, bot, expected",
     [
         (None, "aider", True),
