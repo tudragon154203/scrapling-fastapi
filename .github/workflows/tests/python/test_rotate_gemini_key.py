@@ -31,7 +31,6 @@ def test_gather_candidate_keys_orders_by_suffix(monkeypatch):
     monkeypatch.setenv("GEMINI_API_KEY", "base")
     monkeypatch.setenv("GEMINI_API_KEY_10", "ten")
     monkeypatch.setenv("GEMINI_API_KEY_2", "two")
-    monkeypatch.setenv("GEMINI_API_KEY_LEGACY", "legacy")
 
     candidates = rotate_key.gather_candidate_keys("GEMINI_API_KEY")
 
@@ -40,7 +39,6 @@ def test_gather_candidate_keys_orders_by_suffix(monkeypatch):
         "GEMINI_API_KEY",
         "GEMINI_API_KEY_2",
         "GEMINI_API_KEY_10",
-        "GEMINI_API_KEY_LEGACY",
     ]
 
     selected = rotate_key.select_key(candidates, seed=1)

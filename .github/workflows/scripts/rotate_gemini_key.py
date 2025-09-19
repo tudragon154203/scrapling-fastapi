@@ -124,6 +124,8 @@ def derive_seed(user_seed: Optional[int]) -> int:
         if parsed is not None:
             return parsed
 
+    # Base seed from GitHub run metadata
+    base_seed = 0
     for candidate_env in (
         "GITHUB_RUN_ATTEMPT",
         "GITHUB_RUN_NUMBER",
@@ -135,9 +137,16 @@ def derive_seed(user_seed: Optional[int]) -> int:
             continue
         parsed = parse_seed(candidate_value)
         if parsed is not None:
-            return parsed
+            base_seed = parsed
+            break
 
-    return 0
+    # Add workflow-specific offset
+    workflow_name = os.environ.get("GITHUB_WORKFLOW", "")
+    if workflow_name:
+        workflow_hash = parse_seed(workflow_name)
+        base_seed = (base_seed + workflow_hash) % (2**64)  # Prevent overflow
+
+    return base_seed
 
 
 def parse_seed(raw_seed: str) -> Optional[int]:
