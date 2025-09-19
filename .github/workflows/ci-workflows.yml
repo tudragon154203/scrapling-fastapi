@@ -1,4 +1,4 @@
-name: CI - Workflows
+name: '🧪 CI - Workflows'
 
 on:
   push:
