@@ -20,7 +20,7 @@ permissions:
   actions: read
 
 jobs:
-  determine:
+  dispatcher:
     runs-on: ${{ vars.OS || 'ubuntu-latest' }}
     environment: 'Agents/Bots'
     outputs:
@@ -58,45 +58,45 @@ jobs:
           fi
 
   aider:
-    needs: determine
-    if: needs.determine.outputs.run_aider == 'true'
+    needs: dispatcher
+    if: needs.dispatcher.outputs.run_aider == 'true'
     uses: ./.github/workflows/aider.yml
     secrets: inherit
     with:
       event-name: ${{ github.event_name }}
       event: ${{ toJSON(github.event) }}
-      target-id: ${{ needs.determine.outputs.target_id }}
-      target-type: ${{ needs.determine.outputs.target_type }}
+      target-id: ${{ needs.dispatcher.outputs.target_id }}
+      target-type: ${{ needs.dispatcher.outputs.target_type }}
 
   claude:
-    needs: determine
-    if: needs.determine.outputs.run_claude == 'true'
+    needs: dispatcher
+    if: needs.dispatcher.outputs.run_claude == 'true'
     uses: ./.github/workflows/claude.yml
     secrets: inherit
     with:
       event-name: ${{ github.event_name }}
       event: ${{ toJSON(github.event) }}
-      target-id: ${{ needs.determine.outputs.target_id }}
-      target-type: ${{ needs.determine.outputs.target_type }}
+      target-id: ${{ needs.dispatcher.outputs.target_id }}
+      target-type: ${{ needs.dispatcher.outputs.target_type }}
 
   gemini:
-    needs: determine
-    if: needs.determine.outputs.run_gemini == 'true'
+    needs: dispatcher
+    if: needs.dispatcher.outputs.run_gemini == 'true'
     uses: ./.github/workflows/gemini.yml
     secrets: inherit
     with:
       event-name: ${{ github.event_name }}
       event: ${{ toJSON(github.event) }}
-      target-id: ${{ needs.determine.outputs.target_id }}
-      target-type: ${{ needs.determine.outputs.target_type }}
+      target-id: ${{ needs.dispatcher.outputs.target_id }}
+      target-type: ${{ needs.dispatcher.outputs.target_type }}
 
   opencode:
-    needs: determine
-    if: needs.determine.outputs.run_opencode == 'true'
+    needs: dispatcher
+    if: needs.dispatcher.outputs.run_opencode == 'true'
     uses: ./.github/workflows/opencode.yml
     secrets: inherit
     with:
       event-name: ${{ github.event_name }}
       event: ${{ toJSON(github.event) }}
-      target-id: ${{ needs.determine.outputs.target_id }}
-      target-type: ${{ needs.determine.outputs.target_type }}
+      target-id: ${{ needs.dispatcher.outputs.target_id }}
+      target-type: ${{ needs.dispatcher.outputs.target_type }}
