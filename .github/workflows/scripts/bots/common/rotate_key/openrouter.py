@@ -1,8 +1,15 @@
-"""OpenRouter API key rotation implementation."""
+﻿"""OpenRouter API key rotation implementation."""
 
 from __future__ import annotations
 
-from .base_rotator import BaseKeyRotator
+import pathlib
+import sys
+
+if __package__ in {None, ''}:
+    sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+    from base_rotator import BaseKeyRotator  # type: ignore
+else:
+    from .base_rotator import BaseKeyRotator
 
 
 class OpenRouterKeyRotator(BaseKeyRotator):
