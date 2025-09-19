@@ -52,7 +52,7 @@ jobs:
 
       - name: Install GitHub runner dependencies
         working-directory: ${{ env.RUNNER_DIR }}
-        run: ./.github/workflows/scripts/bots/opencode/install-runner-deps.sh
+        run: bash "$GITHUB_WORKSPACE/.github/workflows/scripts/bots/opencode/install-runner-deps.sh"
 
       - name: Run opencode GitHub agent
         env:

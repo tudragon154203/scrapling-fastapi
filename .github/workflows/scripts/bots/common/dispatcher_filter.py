@@ -239,8 +239,7 @@ def decide() -> None:
     opencode_should_run = False
     if is_allowed("opencode", active_filter):
         if event_name == "pull_request":
-            assoc = text(get(payload, "pull_request", "author_association"))
-            opencode_should_run = assoc in TRUSTED_MEMBERS
+            opencode_should_run = True
         elif event_name == "issue_comment":
             assoc = text(get(payload, "comment", "author_association"))
             body = text(get(payload, "comment", "body"))

@@ -106,7 +106,7 @@ def test_decide_for_pull_request_trusted_member(monkeypatch, set_dispatch_event,
     ],
     indirect=True,
 )
-def test_opencode_pull_request_requires_trusted_author(
+def test_opencode_runs_for_pull_request_regardless_of_author(
     monkeypatch, set_dispatch_event, github_env
 ):
     monkeypatch.setenv("ACTIVE_BOTS_VAR", '["claude", "gemini", "opencode"]')
@@ -115,7 +115,7 @@ def test_opencode_pull_request_requires_trusted_author(
 
     assert outputs["run_claude"] == "true"
     assert outputs["run_gemini"] == "true"
-    assert outputs["run_opencode"] == "false"
+    assert outputs["run_opencode"] == "true"
 
 
 @pytest.mark.parametrize("set_dispatch_event", [{"event_name": "pull_request", "payload": {"pull_request": {"author_association": "MEMBER", "number": 1, "title": "", "body": ""}}}], indirect=True)
