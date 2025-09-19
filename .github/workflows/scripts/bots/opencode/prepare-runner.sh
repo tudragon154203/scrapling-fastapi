@@ -7,6 +7,7 @@ base_url="https://raw.githubusercontent.com/sst/opencode/v${OPC_VERSION}/github"
 curl -fsSL "${base_url}/package.json" -o "$runner_dir/package.json"
 curl -fsSL "${base_url}/bun.lock" -o "$runner_dir/bun.lock"
 curl -fsSL "${base_url}/index.ts" -o "$runner_dir/index.ts"
+sed -i 's/assertContextEvent("issue_comment")/assertContextEvent("issue_comment", "pull_request", "pull_request_target")/' "$runner_dir/index.ts"
 if jq -e '.devDependencies["@types/bun"] == "catalog:"' "$runner_dir/package.json" > /dev/null; then
   temp_file=$(mktemp)
   jq '.devDependencies["@types/bun"] = "^1.2.21"' "$runner_dir/package.json" > "$temp_file"
