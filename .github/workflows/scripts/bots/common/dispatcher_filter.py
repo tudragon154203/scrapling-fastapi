@@ -238,7 +238,9 @@ def decide() -> None:
     # Determine if Opencode should run
     opencode_should_run = False
     if is_allowed("opencode", active_filter):
-        if event_name == "issue_comment":
+        if event_name == "pull_request":
+            opencode_should_run = True
+        elif event_name == "issue_comment":
             assoc = text(get(payload, "comment", "author_association"))
             body = text(get(payload, "comment", "body"))
             opencode_should_run = bool(
@@ -258,17 +260,6 @@ def decide() -> None:
             opencode_should_run = bool(
                 assoc in TRUSTED_WITH_AUTHOR
                 and startswith_any(body, OPENCODE_PREFIXES)
-            )
-        elif event_name == "pull_request":
-            assoc = text(get(payload, "pull_request", "author_association"))
-            pr_body = text(get(payload, "pull_request", "body"))
-            title = text(get(payload, "pull_request", "title"))
-            opencode_should_run = bool(
-                assoc in TRUSTED_WITH_AUTHOR
-                and (
-                    contains_any(pr_body, OPENCODE_PREFIXES)
-                    or contains_any(title, OPENCODE_PREFIXES)
-                )
             )
         elif event_name == "issues":
             assoc = text(get(payload, "issue", "author_association"))
