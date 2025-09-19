@@ -59,7 +59,8 @@ jobs:
 
       - name: Log selected Gemini secret
         if: steps.select_gemini_key.outputs.key_present == 'true'
-        run: echo "::notice::Selected Gemini secret: ${{ steps.select_gemini_key.outputs.gemini_secret_name }}"
+        run: >-
+          echo "::notice::Selected Gemini secret: ${{ steps.select_gemini_key.outputs.gemini_secret_name }}"
 
       - name: React with 😄 to show Gemini is running
         if: steps.select_gemini_key.outputs.key_present == 'true'

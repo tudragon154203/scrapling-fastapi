@@ -82,7 +82,8 @@ jobs:
           GEMINI_API_KEY_LEGACY: ${{ secrets.GEMINI_API_KEY_LEGACY }}
 
       - name: Log selected Gemini secret
-        run: echo "::notice::Selected Gemini secret: ${{ steps.select_gemini_key.outputs.gemini_secret_name }}"
+        run: >-
+          echo "::notice::Selected Gemini secret: ${{ steps.select_gemini_key.outputs.gemini_secret_name }}"
 
       - name: Start Claude Code Router
         env:
