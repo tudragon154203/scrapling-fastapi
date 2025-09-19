@@ -87,6 +87,7 @@ jobs:
               - For pull requests: review the changes for quality, bugs, security, and performance.
               - For issues: help triage or answer questions.
               - For comments or reviews: address the user's request and provide any necessary analysis.
+              - During reviews, provide feedback without running repository tests.
 
               The repository is already checked out in the working directory.
 
