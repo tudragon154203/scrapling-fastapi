@@ -121,11 +121,11 @@ def decide() -> None:
     aider_should_run = False
     if is_allowed("aider", active_filter) and event_name == "pull_request":
         assoc = text(get(payload, "pull_request", "author_association"))
+        print(f"DEBUG: assoc: '{assoc}'")
         aider_should_run = assoc in TRUSTED_MEMBERS
 
     print(f"DEBUG: is_allowed_aider: {is_allowed('aider', active_filter)}")
     print(f"DEBUG: event_name: {event_name}")
-    print(f"DEBUG: assoc: '{assoc}'")
     print(f"DEBUG: run_aider: {aider_should_run}")
 
     # Determine if Claude should run
