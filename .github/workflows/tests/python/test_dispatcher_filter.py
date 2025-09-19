@@ -84,9 +84,38 @@ def test_decide_for_pull_request_trusted_member(monkeypatch, set_dispatch_event,
     assert outputs["run_aider"] == "true"
     assert outputs["run_claude"] == "true"
     assert outputs["run_gemini"] == "true"
-    assert outputs["run_opencode"] == "false"
+    assert outputs["run_opencode"] == "true"
     assert outputs["target_id"] == "42"
     assert outputs["target_type"] == "pull_request"
+
+
+@pytest.mark.parametrize(
+    "set_dispatch_event",
+    [
+        {
+            "event_name": "pull_request",
+            "payload": {
+                "pull_request": {
+                    "author_association": "NONE",
+                    "number": 99,
+                    "title": "Update",
+                    "body": "",
+                }
+            },
+        }
+    ],
+    indirect=True,
+)
+def test_opencode_skips_pull_request_from_untrusted_author(
+    monkeypatch, set_dispatch_event, github_env
+):
+    monkeypatch.setenv("ACTIVE_BOTS_VAR", '["claude", "gemini", "opencode"]')
+    dispatcher_filter.decide()
+    outputs = read_github_output(github_env)
+
+    assert outputs["run_claude"] == "true"
+    assert outputs["run_gemini"] == "true"
+    assert outputs["run_opencode"] == "false"
 
 
 @pytest.mark.parametrize("set_dispatch_event", [{"event_name": "pull_request", "payload": {"pull_request": {"author_association": "MEMBER", "number": 1, "title": "", "body": ""}}}], indirect=True)
@@ -130,4 +159,33 @@ def test_decide_for_opencode_author_command(monkeypatch, set_dispatch_event, git
     outputs = read_github_output(github_env)
 
     assert outputs["run_opencode"] == "true"
+
+
+@pytest.mark.parametrize(
+    "set_dispatch_event",
+    [
+        {
+            "event_name": "issue_comment",
+            "payload": {
+                "comment": {
+                    "author_association": "AUTHOR",
+                    "body": "@opencode please help",
+                },
+                "issue": {"number": 15},
+            },
+        }
+    ],
+    indirect=True,
+)
+def test_only_opencode_workflow_runs_when_active_filter_is_opencode(
+    monkeypatch, set_dispatch_event, github_env
+):
+    monkeypatch.setenv("ACTIVE_BOTS_VAR", '["opencode"]')
+    dispatcher_filter.decide()
+    outputs = read_github_output(github_env)
+
+    assert outputs["run_opencode"] == "true"
+    assert outputs["run_aider"] == "false"
+    assert outputs["run_claude"] == "false"
+    assert outputs["run_gemini"] == "false"
 
