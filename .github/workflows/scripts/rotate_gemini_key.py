@@ -176,7 +176,7 @@ def append_to_file(file_path: Optional[str], content: str) -> None:
         handle.write(f"{content}\n")
 
 
-def export_selected_key(env_name: str, value: str, export_name: str) -> None:
+def export_selected_key(value: str, export_name: str) -> None:
     """Write the selected key value to the GitHub Actions environment file."""
 
     github_env = os.environ.get("GITHUB_ENV")
@@ -221,7 +221,7 @@ def main() -> None:
     selected = select_key(candidates, seed)
 
     mask_value(selected.value)
-    export_selected_key(selected.env_name, selected.value, export_name)
+    export_selected_key(selected.value, export_name)
     publish_selected_name(args.output_selected_name, selected.env_name)
     publish_presence(presence_output, True)
 

@@ -100,7 +100,7 @@ jobs:
           REPOSITORY: ${{ github.repository }}
           ADDITIONAL_CONTEXT: ${{ steps.prepare-prompt.outputs.comment_body }}
         with:
-          gemini_api_key: ${{ env.GEMINI_API_KEY }}
+          gemini_api_key: ${{ secrets[steps.select_gemini_key.outputs.gemini_secret_name] }}
           gemini_debug: 'false'
           gemini_model: ${{ vars.GEMINI_MODEL || 'gemini-2.5-flash' }}
           prompt: ${{ steps.prepare-prompt.outputs.prompt }}

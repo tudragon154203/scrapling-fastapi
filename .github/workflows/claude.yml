@@ -83,7 +83,6 @@ jobs:
 
       - name: Start Claude Code Router
         env:
-          GEMINI_API_KEY: ${{ env.GEMINI_API_KEY }}
           OPENROUTER_MODEL: ${{ vars.OPENROUTER_MODEL || 'z-ai/glm-4.5-air:free' }}
           GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-2.5-flash' }}
         run: ./.github/workflows/scripts/bots/claude/setup_router.sh
