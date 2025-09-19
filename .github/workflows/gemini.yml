@@ -48,7 +48,6 @@ jobs:
           python .github/workflows/scripts/rotate_gemini_key.py
           --output-selected-name gemini_secret_name
           --presence-output key_present
-          --allow-missing
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GEMINI_API_KEY_2: ${{ secrets.GEMINI_API_KEY_2 }}

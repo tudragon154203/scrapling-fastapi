@@ -71,14 +71,6 @@ def parse_arguments() -> argparse.Namespace:
             "selected."
         ),
     )
-    parser.add_argument(
-        "--allow-missing",
-        action="store_true",
-        help=(
-            "Exit successfully without exporting a key when no matching secrets "
-            "are provided."
-        ),
-    )
     return parser.parse_args()
 
 
