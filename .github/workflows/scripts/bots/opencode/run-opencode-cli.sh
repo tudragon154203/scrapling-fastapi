@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# Run the opencode CLI with a prompt streamed from a file.
+
+set -euo pipefail
+
+PROMPT_FILE=${1:?"Missing prompt file argument."}
+STDOUT_FILE=${2:?"Missing stdout file argument."}
+STDERR_FILE=${3:?"Missing stderr file argument."}
+OUTPUTS_FILE=${4:?"Missing outputs file argument."}
+
+if [[ -z "${MODEL:-}" ]]; then
+  echo "::error::MODEL environment variable is not set." >&2
+  exit 1
+fi
+
+mkdir -p "$(dirname "$STDOUT_FILE")" "$(dirname "$STDERR_FILE")"
+: >"$STDOUT_FILE"
+: >"$STDERR_FILE"
+
+if ! command -v opencode >/dev/null 2>&1; then
+  message="opencode CLI is not available on the PATH."
+  echo "::error::$message" >&2
+  printf '%s\n' "$message" >"$STDERR_FILE"
+  printf '%s\n' "exit_code=127" >>"$OUTPUTS_FILE"
+  printf 'stdout_file=%s\n' "$STDOUT_FILE" >>"$OUTPUTS_FILE"
+  printf 'stderr_file=%s\n' "$STDERR_FILE" >>"$OUTPUTS_FILE"
+  exit 0
+fi
+
+set +e
+opencode run --model "$MODEL" <"$PROMPT_FILE" >"$STDOUT_FILE" 2>"$STDERR_FILE"
+EXIT_CODE=$?
+set -e
+
+printf 'stdout_file=%s\n' "$STDOUT_FILE" >>"$OUTPUTS_FILE"
+printf 'stderr_file=%s\n' "$STDERR_FILE" >>"$OUTPUTS_FILE"
+printf 'exit_code=%s\n' "$EXIT_CODE" >>"$OUTPUTS_FILE"
+
+exit 0
