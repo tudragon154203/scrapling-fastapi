@@ -39,7 +39,7 @@ jobs:
       - id: filter
         shell: bash
         env:
-          ACTIVE_BOTS_VAR: ${{ vars.ACTIVE_BOTS || '[]' }}
+          ACTIVE_BOTS_VAR: ${{ vars.ACTIVE_BOTS || '["aider", "gemini", "claude"]' }}
           EVENT_NAME: ${{ github.event_name }}
           EVENT_PAYLOAD: ${{ toJSON(github.event) }}
         run: python .github/workflows/scripts/bots/common/dispatcher_filter.py
