@@ -44,18 +44,18 @@ jobs:
           EVENT_PAYLOAD: ${{ toJSON(github.event) }}
         run: python .github/workflows/scripts/bots/common/dispatcher_filter.py
 
-      - name: Summarize active bots filter
+      - name: Summarize dispatch decisions
         shell: bash
         env:
           ACTIVE_FILTER_JSON: ${{ steps.filter.outputs.active_filter_json }}
-        run: |
-          if [ -z "$ACTIVE_FILTER_JSON" ]; then
-            echo "Active bots filter: all (no restrictions)." >> "$GITHUB_STEP_SUMMARY"
-          elif [ "$ACTIVE_FILTER_JSON" = "[]" ]; then
-            echo "Active bots filter: none (all bots disabled)." >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "Active bots filter: $ACTIVE_FILTER_JSON" >> "$GITHUB_STEP_SUMMARY"
-          fi
+          RUN_AIDER: ${{ steps.filter.outputs.run_aider }}
+          RUN_CLAUDE: ${{ steps.filter.outputs.run_claude }}
+          RUN_GEMINI: ${{ steps.filter.outputs.run_gemini }}
+          RUN_OPENCODE: ${{ steps.filter.outputs.run_opencode }}
+          TARGET_ID: ${{ steps.filter.outputs.target_id }}
+          TARGET_TYPE: ${{ steps.filter.outputs.target_type }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: python .github/workflows/scripts/bots/common/dispatcher_summary.py
 
   aider:
     needs: dispatcher
