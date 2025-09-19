@@ -57,10 +57,6 @@ jobs:
           GEMINI_API_KEY_4: ${{ secrets.GEMINI_API_KEY_4 }}
           GEMINI_API_KEY_5: ${{ secrets.GEMINI_API_KEY_5 }}
 
-      - name: Log selected Gemini secret
-        if: steps.select_gemini_key.outputs.key_present == 'true'
-        run: |
-          echo "::notice::Selected Gemini secret: ${{ steps.select_gemini_key.outputs.gemini_secret_name }}"
 
       - name: Make generate_diff.sh executable
         if: steps.select_gemini_key.outputs.key_present == 'true'

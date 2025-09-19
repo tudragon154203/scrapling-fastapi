@@ -55,12 +55,7 @@ jobs:
           GEMINI_API_KEY_3: ${{ secrets.GEMINI_API_KEY_3 }}
           GEMINI_API_KEY_4: ${{ secrets.GEMINI_API_KEY_4 }}
           GEMINI_API_KEY_5: ${{ secrets.GEMINI_API_KEY_5 }}
-          GEMINI_API_KEY_LEGACY: ${{ secrets.GEMINI_API_KEY_LEGACY }}
 
-      - name: Log selected Gemini secret
-        if: steps.select_gemini_key.outputs.key_present == 'true'
-        run: >-
-          echo "::notice::Selected Gemini secret: ${{ steps.select_gemini_key.outputs.gemini_secret_name }}"
 
       - name: React with 😄 to show Gemini is running
         if: steps.select_gemini_key.outputs.key_present == 'true'
