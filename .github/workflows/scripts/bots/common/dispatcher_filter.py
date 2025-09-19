@@ -109,8 +109,10 @@ def write_output(name: str, value: str) -> None:
 def decide() -> None:
     # Main logic to decide which bots run and extract target info
     active_var = (os.environ.get("ACTIVE_BOTS_VAR") or "").strip()
-    active_env = (os.environ.get("ACTIVE_BOTS") or "").strip()
-    active_filter = parse_active_filter(active_var or active_env)
+    active_filter = parse_active_filter(active_var)
+
+    # print(f"DEBUG: Raw ACTIVE_BOTS_VAR: '{active_var}'")
+    # print(f"DEBUG: Parsed active_filter: {active_filter}")
 
     event_name = os.environ.get("EVENT_NAME") or ""
     payload = json.loads(os.environ.get("EVENT_PAYLOAD") or "{}")
@@ -119,7 +121,12 @@ def decide() -> None:
     aider_should_run = False
     if is_allowed("aider", active_filter) and event_name == "pull_request":
         assoc = text(get(payload, "pull_request", "author_association"))
+        # print(f"DEBUG: assoc: '{assoc}'")
         aider_should_run = assoc in TRUSTED_MEMBERS
+
+    # print(f"DEBUG: is_allowed_aider: {is_allowed('aider', active_filter)}")
+    # print(f"DEBUG: event_name: {event_name}")
+    # print(f"DEBUG: run_aider: {aider_should_run}")
 
     # Determine if Claude should run
     claude_should_run = False
