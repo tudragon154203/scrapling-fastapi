@@ -4,18 +4,14 @@ from __future__ import annotations
 
 import os
 import sys
-from importlib import util
 from pathlib import Path
+
+# Add the rotate_key package to the path
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts" / "bots" / "common"))
 
 import pytest
 
-SCRIPT_PATH = Path(__file__).resolve().parents[2] / "scripts" / "bots" / "common" / "rotate_gemini_key.py"
-
-spec = util.spec_from_file_location("rotate_gemini_key", SCRIPT_PATH)
-rotate_key = util.module_from_spec(spec)
-assert spec.loader is not None
-sys.modules[spec.name] = rotate_key
-spec.loader.exec_module(rotate_key)  # type: ignore[union-attr]
+from rotate_key.gemini import GeminiKeyRotator
 
 
 def _clear_gemini_env(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -32,7 +28,8 @@ def test_gather_candidate_keys_orders_by_suffix(monkeypatch):
     monkeypatch.setenv("GEMINI_API_KEY_10", "ten")
     monkeypatch.setenv("GEMINI_API_KEY_2", "two")
 
-    candidates = rotate_key.gather_candidate_keys("GEMINI_API_KEY")
+    rotator = GeminiKeyRotator()
+    candidates = rotator.gather_candidate_keys("GEMINI_API_KEY")
 
     ordered_names = [candidate.env_name for candidate in candidates]
     assert ordered_names == [
@@ -41,13 +38,14 @@ def test_gather_candidate_keys_orders_by_suffix(monkeypatch):
         "GEMINI_API_KEY_10",
     ]
 
-    selected = rotate_key.select_key(candidates, seed=1)
+    selected = rotator.select_key(candidates, seed=1)
     assert selected.env_name == "GEMINI_API_KEY_2"
 
 
 def test_select_key_requires_candidates():
+    rotator = GeminiKeyRotator()
     with pytest.raises(RuntimeError):
-        rotate_key.select_key([], seed=0)
+        rotator.select_key([], seed=0)
 
 
 def test_main_exports_to_github_files(monkeypatch, tmp_path, capfd):
@@ -64,15 +62,14 @@ def test_main_exports_to_github_files(monkeypatch, tmp_path, capfd):
         sys,
         "argv",
         [
-            "rotate_gemini_key.py",
+            "gemini.py",
             "--output-selected-name",
             "selected_key_name",
-            "--presence-output",
-            "key_present",
         ],
     )
 
-    rotate_key.main()
+    rotator = GeminiKeyRotator()
+    rotator.run()
 
     captured = capfd.readouterr().out
     assert "::add-mask::secondary" in captured
@@ -90,5 +87,3 @@ def test_main_exports_to_github_files(monkeypatch, tmp_path, capfd):
     ]
 
     monkeypatch.delenv("ROTATION_SEED", raising=False)
-
-

@@ -4,20 +4,14 @@ from __future__ import annotations
 
 import os
 import sys
-from importlib import util
 from pathlib import Path
+
+# Add the rotate_key package to the path
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts" / "bots" / "common"))
 
 import pytest
 
-SCRIPT_PATH = (
-    Path(__file__).resolve().parents[2] / "scripts" / "bots" / "common" / "rotate_openrouter_key.py"
-)
-
-spec = util.spec_from_file_location("rotate_openrouter_key", SCRIPT_PATH)
-rotate_key = util.module_from_spec(spec)
-assert spec.loader is not None
-sys.modules[spec.name] = rotate_key
-spec.loader.exec_module(rotate_key)  # type: ignore[union-attr]
+from rotate_key.openrouter import OpenRouterKeyRotator
 
 
 def _clear_openrouter_env(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -35,7 +29,8 @@ def test_gather_candidate_keys_orders_by_suffix(monkeypatch):
     monkeypatch.setenv("OPENROUTER_API_KEY_2", "two")
     monkeypatch.setenv("OPENROUTER_API_KEY_EXTRA", "extra")
 
-    candidates = rotate_key.gather_candidate_keys("OPENROUTER_API_KEY")
+    rotator = OpenRouterKeyRotator()
+    candidates = rotator.gather_candidate_keys("OPENROUTER_API_KEY")
 
     ordered_names = [candidate.env_name for candidate in candidates]
     assert ordered_names == [
@@ -45,13 +40,14 @@ def test_gather_candidate_keys_orders_by_suffix(monkeypatch):
         "OPENROUTER_API_KEY_EXTRA",
     ]
 
-    selected = rotate_key.select_key(candidates, seed=1)
+    selected = rotator.select_key(candidates, seed=1)
     assert selected.env_name == "OPENROUTER_API_KEY_2"
 
 
 def test_select_key_requires_candidates():
+    rotator = OpenRouterKeyRotator()
     with pytest.raises(RuntimeError):
-        rotate_key.select_key([], seed=0)
+        rotator.select_key([], seed=0)
 
 
 def test_main_exports_to_github_files(monkeypatch, tmp_path, capfd):
@@ -64,9 +60,10 @@ def test_main_exports_to_github_files(monkeypatch, tmp_path, capfd):
     monkeypatch.setenv("GITHUB_OUTPUT", str(tmp_path / "output"))
     monkeypatch.setenv("ROTATION_SEED", "1")
 
-    monkeypatch.setattr(sys, "argv", ["rotate_openrouter_key.py"])
+    monkeypatch.setattr(sys, "argv", ["openrouter.py"])
 
-    rotate_key.main()
+    rotator = OpenRouterKeyRotator()
+    rotator.run()
 
     captured = capfd.readouterr().out
     assert "::add-mask::secondary" in captured
@@ -82,9 +79,9 @@ def test_main_exports_to_github_files(monkeypatch, tmp_path, capfd):
         "OPENROUTER_API_KEY=secondary"
     ]
     assert output_file.read_text(encoding="utf-8").splitlines() == [
-        "selected_key_name=OPENROUTER_API_KEY_2"
+        "selected_key_name=OPENROUTER_API_KEY_2",
+        "key_present=true"
     ]
 
     # Ensure seed env var does not leak into subsequent tests.
     monkeypatch.delenv("ROTATION_SEED", raising=False)
-
