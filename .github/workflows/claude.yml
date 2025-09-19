@@ -81,6 +81,9 @@ jobs:
           GEMINI_API_KEY_5: ${{ secrets.GEMINI_API_KEY_5 }}
           GEMINI_API_KEY_LEGACY: ${{ secrets.GEMINI_API_KEY_LEGACY }}
 
+      - name: Log selected Gemini secret
+        run: echo "::notice::Selected Gemini secret: ${{ steps.select_gemini_key.outputs.gemini_secret_name }}"
+
       - name: Start Claude Code Router
         env:
           OPENROUTER_MODEL: ${{ vars.OPENROUTER_MODEL || 'z-ai/glm-4.5-air:free' }}
