@@ -22,17 +22,16 @@ async function run() {
       return;
     }
 
-    const parts = ['## 🪐 Gemini Review'];
+    const parts = ['## Gemini Review'];
 
-    const statusEmoji =
-      status === 'success' ? '✅' : status === 'failure' ? '❌' : '⚠️';
-    parts.push(`${statusEmoji} **Status:** \`${status}\``);
+    parts.push(`Gemini CLI step ended with status: **${status}**.`);
 
     if (summary) {
-      parts.push('### 📝 Summary\n\n' + summary);
+      parts.push('### Summary\n\n' + summary);
     }
+
     if (error) {
-      parts.push('### ❗ Error\n\n```\n' + error + '\n```');
+      parts.push('## Gemini Error\n\n```\n' + error + '\n```');
     }
 
     const body = parts.join('\n\n').trim();
