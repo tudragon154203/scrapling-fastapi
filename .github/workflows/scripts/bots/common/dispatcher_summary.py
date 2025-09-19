@@ -44,12 +44,14 @@ def build_summary_lines(
 
     lines.append(f"**{summarize_active_filter(active_filter_json)}**")
 
-    triggered = [name for name, should_run in statuses if should_run]
-    skipped = [name for name, should_run in statuses if not should_run]
+    triggered: List[str] = []
+    skipped: List[str] = []
+    for name, should_run in statuses:
+        (triggered if should_run else skipped).append(name)
+
     triggered_count = len(triggered)
     skipped_count = len(skipped)
-    triggered_set = set(triggered)
-    total_count = len(statuses)
+    total_count = triggered_count + skipped_count
 
     if total_count:
         lines.append(
@@ -58,9 +60,14 @@ def build_summary_lines(
         lines.append("")
         lines.extend(["| Workflow | Decision |", "| --- | --- |"])
 
-        for name in triggered + skipped:
-            decision = "Triggered" if name in triggered_set else "Skipped"
-            emoji = "✅" if decision == "Triggered" else "⛔"
+        for name in triggered:
+            decision = "Triggered"
+            emoji = "✅"
+            lines.append(f"| {emoji} {name} | {decision} |")
+
+        for name in skipped:
+            decision = "Skipped"
+            emoji = "⛔"
             lines.append(f"| {emoji} {name} | {decision} |")
     else:
         lines.append("**No workflows evaluated.**")
