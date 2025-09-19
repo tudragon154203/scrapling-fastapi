@@ -214,13 +214,7 @@ def main() -> None:
 
     candidates = gather_candidate_keys(prefix)
     if not candidates:
-        publish_presence(presence_output, False)
-        if args.allow_missing:
-            print(
-                "::notice::Skipping Gemini key rotation because no "
-                f"{prefix} secrets were provided."
-            )
-            return
+        raise RuntimeError("No Gemini API keys were provided via the environment.")
 
     seed = derive_seed(args.seed)
     selected = select_key(candidates, seed)
