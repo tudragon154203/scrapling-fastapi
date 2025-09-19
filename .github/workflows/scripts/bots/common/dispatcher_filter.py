@@ -2,7 +2,7 @@
 # This script determines which bots (Aider, Claude, Gemini, Opencode) should run based on GitHub event triggers
 # and active bot filters. It outputs GitHub Action variables for conditional workflow execution.
 # It reads environment variables set by the main.yml workflow:
-# - ACTIVE_BOTS_VAR or ACTIVE_BOTS_ENV: Comma-separated or JSON list of active bots (e.g., "claude,gemini")
+# - ACTIVE_BOTS_VAR or ACTIVE_BOTS: Comma-separated or JSON list of active bots (e.g., "claude,gemini")
 # - EVENT_NAME: The GitHub event name (e.g., "pull_request", "issue_comment")
 # - EVENT_PAYLOAD: JSON string of the full event payload
 #
@@ -109,11 +109,7 @@ def write_output(name: str, value: str) -> None:
 def decide() -> None:
     # Main logic to decide which bots run and extract target info
     active_var = (os.environ.get("ACTIVE_BOTS_VAR") or "").strip()
-    active_env = (
-        os.environ.get("ACTIVE_BOTS_ENV")
-        or os.environ.get("ACTIVE_BOTS")
-        or ""
-    ).strip()
+    active_env = (os.environ.get("ACTIVE_BOTS") or "").strip()
     active_filter = parse_active_filter(active_var or active_env)
 
     event_name = os.environ.get("EVENT_NAME") or ""

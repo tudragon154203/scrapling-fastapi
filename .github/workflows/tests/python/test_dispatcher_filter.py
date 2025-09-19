@@ -93,7 +93,7 @@ def test_decide_respects_active_filter(monkeypatch, set_dispatch_event, github_e
     indirect=True,
 )
 def test_decide_for_issue_comment_commands(monkeypatch, set_dispatch_event, github_env):
-    monkeypatch.setenv("ACTIVE_BOTS_ENV", '["claude", "opencode"]')
+    monkeypatch.setenv("ACTIVE_BOTS", '["claude", "opencode"]')
     dispatcher_filter.decide()
     outputs = read_github_output(github_env)
 
