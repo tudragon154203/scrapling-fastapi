@@ -1,15 +1,14 @@
-"""Utility for selecting an OpenRouter API key for GitHub Actions workflows.
+"""Utility for selecting a Gemini API key for GitHub Actions workflows.
 
-This script inspects environment variables named ``OPENROUTER_API_KEY`` and
-optionally ``OPENROUTER_API_KEY_<n>`` (for example ``OPENROUTER_API_KEY_2``) to
-select a key in a deterministic rotating fashion.  The chosen key is appended to
-``$GITHUB_ENV`` so that later workflow steps automatically use it.  The name of
-
+This script inspects environment variables named ``GEMINI_API_KEY`` and
+optionally ``GEMINI_API_KEY_<n>`` (for example ``GEMINI_API_KEY_2``) to
+select a key in a deterministic rotating fashion. The chosen key is appended to
+``$GITHUB_ENV`` so that later workflow steps automatically use it. The name of
 the environment variable that provided the value is published (without the
 secret itself) using ``$GITHUB_OUTPUT`` for auditability.
 
 The rotation seed defaults to standard GitHub Actions run metadata so that
-re-runs will advance to the next key.  A custom seed can be provided via the
+re-runs will advance to the next key. A custom seed can be provided via the
 ``--seed`` flag or the ``ROTATION_SEED`` environment variable.
 """
 
@@ -35,13 +34,11 @@ def parse_arguments() -> argparse.Namespace:
     """Configure and parse the command line arguments."""
 
     parser = argparse.ArgumentParser(
-        description=(
-            "Rotate between OpenRouter API keys based on a deterministic seed."
-        )
+        description="Rotate between Gemini API keys based on a deterministic seed."
     )
     parser.add_argument(
         "--prefix",
-        default="OPENROUTER_API_KEY",
+        default="GEMINI_API_KEY",
         help="Environment variable prefix that stores the API keys.",
     )
     parser.add_argument(
@@ -64,6 +61,14 @@ def parse_arguments() -> argparse.Namespace:
         help=(
             "Name of the GitHub Actions output that records which environment "
             "variable provided the key."
+        ),
+    )
+    parser.add_argument(
+        "--presence-output",
+        default=None,
+        help=(
+            "Optional GitHub Actions output that indicates whether any key was "
+            "selected."
         ),
     )
     return parser.parse_args()
@@ -154,9 +159,7 @@ def select_key(candidates: Sequence[KeyEntry], seed: int) -> KeyEntry:
     """Select a key based on the provided seed."""
 
     if not candidates:
-        raise RuntimeError(
-            "No OpenRouter API keys were provided via the environment."
-        )
+        raise RuntimeError("No Gemini API keys were provided via the environment.")
     index = seed % len(candidates)
     return candidates[index]
 
@@ -178,7 +181,7 @@ def append_to_file(file_path: Optional[str], content: str) -> None:
         handle.write(f"{content}\n")
 
 
-def export_selected_key(env_name: str, value: str, export_name: str) -> None:
+def export_selected_key(value: str, export_name: str) -> None:
     """Write the selected key value to the GitHub Actions environment file."""
 
     github_env = os.environ.get("GITHUB_ENV")
@@ -192,22 +195,36 @@ def publish_selected_name(output_name: str, selected_env: str) -> None:
     append_to_file(github_output, f"{output_name}={selected_env}")
 
 
+def publish_presence(output_name: Optional[str], present: bool) -> None:
+    """Publish whether any Gemini key was selected."""
+
+    if not output_name:
+        return
+
+    github_output = os.environ.get("GITHUB_OUTPUT")
+    value = "true" if present else "false"
+    append_to_file(github_output, f"{output_name}={value}")
+
+
 def main() -> None:
     args = parse_arguments()
     prefix: str = args.prefix
     export_name: str = args.export_name or prefix
+    presence_output: Optional[str] = args.presence_output
 
     candidates = gather_candidate_keys(prefix)
+    if not candidates:
+        raise RuntimeError("No Gemini API keys were provided via the environment.")
+
     seed = derive_seed(args.seed)
     selected = select_key(candidates, seed)
 
     mask_value(selected.value)
-    export_selected_key(selected.env_name, selected.value, export_name)
+    export_selected_key(selected.value, export_name)
     publish_selected_name(args.output_selected_name, selected.env_name)
+    publish_presence(presence_output, True)
 
-    print(
-        "Selected OpenRouter key from", selected.env_name, "->", export_name
-    )
+    print("Selected Gemini key from", selected.env_name, "->", export_name)
 
 
 if __name__ == "__main__":
