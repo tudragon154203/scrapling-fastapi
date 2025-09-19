@@ -84,7 +84,7 @@ def test_decide_for_pull_request_trusted_member(monkeypatch, set_dispatch_event,
     assert outputs["run_aider"] == "true"
     assert outputs["run_claude"] == "true"
     assert outputs["run_gemini"] == "true"
-    assert outputs["run_opencode"] == "false"
+    assert outputs["run_opencode"] == "true"
     assert outputs["target_id"] == "42"
     assert outputs["target_type"] == "pull_request"
 
