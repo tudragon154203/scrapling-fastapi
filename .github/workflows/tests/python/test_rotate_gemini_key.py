@@ -62,7 +62,17 @@ def test_main_exports_to_github_files(monkeypatch, tmp_path, capfd):
     monkeypatch.setenv("GITHUB_OUTPUT", str(tmp_path / "output"))
     monkeypatch.setenv("ROTATION_SEED", "1")
 
-    monkeypatch.setattr(sys, "argv", ["rotate_gemini_key.py"])
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "rotate_gemini_key.py",
+            "--output-selected-name",
+            "selected_key_name",
+            "--presence-output",
+            "key_present",
+        ],
+    )
 
     rotate_key.main()
 
@@ -77,7 +87,36 @@ def test_main_exports_to_github_files(monkeypatch, tmp_path, capfd):
         "GEMINI_API_KEY=secondary"
     ]
     assert output_file.read_text(encoding="utf-8").splitlines() == [
-        "selected_key_name=GEMINI_API_KEY_2"
+        "selected_key_name=GEMINI_API_KEY_2",
+        "key_present=true",
     ]
 
     monkeypatch.delenv("ROTATION_SEED", raising=False)
+
+
+def test_main_handles_missing_keys_when_allowed(monkeypatch, tmp_path, capfd):
+    """Allow missing flag should exit successfully without exporting a key."""
+
+    _clear_gemini_env(monkeypatch)
+    monkeypatch.setenv("GITHUB_OUTPUT", str(tmp_path / "output"))
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "rotate_gemini_key.py",
+            "--allow-missing",
+            "--presence-output",
+            "key_present",
+        ],
+    )
+
+    rotate_key.main()
+
+    captured = capfd.readouterr().out
+    assert "::notice::Skipping Gemini key rotation" in captured
+
+    output_file = Path(os.environ["GITHUB_OUTPUT"])
+    assert output_file.read_text(encoding="utf-8").splitlines() == [
+        "key_present=false"
+    ]

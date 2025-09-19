@@ -63,6 +63,22 @@ def parse_arguments() -> argparse.Namespace:
             "variable provided the key."
         ),
     )
+    parser.add_argument(
+        "--presence-output",
+        default=None,
+        help=(
+            "Optional GitHub Actions output that indicates whether any key was "
+            "selected."
+        ),
+    )
+    parser.add_argument(
+        "--allow-missing",
+        action="store_true",
+        help=(
+            "Exit successfully without exporting a key when no matching secrets "
+            "are provided."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -174,18 +190,40 @@ def publish_selected_name(output_name: str, selected_env: str) -> None:
     append_to_file(github_output, f"{output_name}={selected_env}")
 
 
+def publish_presence(output_name: Optional[str], present: bool) -> None:
+    """Publish whether any Gemini key was selected."""
+
+    if not output_name:
+        return
+
+    github_output = os.environ.get("GITHUB_OUTPUT")
+    value = "true" if present else "false"
+    append_to_file(github_output, f"{output_name}={value}")
+
+
 def main() -> None:
     args = parse_arguments()
     prefix: str = args.prefix
     export_name: str = args.export_name or prefix
+    presence_output: Optional[str] = args.presence_output
 
     candidates = gather_candidate_keys(prefix)
+    if not candidates:
+        publish_presence(presence_output, False)
+        if args.allow_missing:
+            print(
+                "::notice::Skipping Gemini key rotation because no "
+                f"{prefix} secrets were provided."
+            )
+            return
+
     seed = derive_seed(args.seed)
     selected = select_key(candidates, seed)
 
     mask_value(selected.value)
     export_selected_key(selected.env_name, selected.value, export_name)
     publish_selected_name(args.output_selected_name, selected.env_name)
+    publish_presence(presence_output, True)
 
     print("Selected Gemini key from", selected.env_name, "->", export_name)
 

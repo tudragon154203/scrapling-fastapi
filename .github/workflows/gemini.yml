@@ -42,24 +42,13 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Make key check script executable
-        run: chmod +x ./.github/workflows/scripts/bots/common/shell/check_gemini_keys.sh
-
-      - name: Check Gemini keys
-        id: check_key
-        env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          GEMINI_API_KEY_2: ${{ secrets.GEMINI_API_KEY_2 }}
-          GEMINI_API_KEY_3: ${{ secrets.GEMINI_API_KEY_3 }}
-          GEMINI_API_KEY_4: ${{ secrets.GEMINI_API_KEY_4 }}
-          GEMINI_API_KEY_5: ${{ secrets.GEMINI_API_KEY_5 }}
-          GEMINI_API_KEY_LEGACY: ${{ secrets.GEMINI_API_KEY_LEGACY }}
-        run: ./.github/workflows/scripts/bots/common/shell/check_gemini_keys.sh
-
       - name: Select Gemini API key
-        if: steps.check_key.outputs.key_present == 'true'
         id: select_gemini_key
-        run: python .github/workflows/scripts/rotate_gemini_key.py --output-selected-name gemini_secret_name
+        run: >-
+          python .github/workflows/scripts/rotate_gemini_key.py
+          --output-selected-name gemini_secret_name
+          --presence-output key_present
+          --allow-missing
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GEMINI_API_KEY_2: ${{ secrets.GEMINI_API_KEY_2 }}
@@ -69,7 +58,7 @@ jobs:
           GEMINI_API_KEY_LEGACY: ${{ secrets.GEMINI_API_KEY_LEGACY }}
 
       - name: React with 😄 to show Gemini is running
-        if: steps.check_key.outputs.key_present == 'true'
+        if: steps.select_gemini_key.outputs.key_present == 'true'
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -79,18 +68,18 @@ jobs:
             await reactWithEmoji({ github, context, core, reaction: 'laugh' });
 
       - name: Use Node.js 20
-        if: steps.check_key.outputs.key_present == 'true'
+        if: steps.select_gemini_key.outputs.key_present == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           check-latest: true
 
       - name: Install Node dependencies for Gemini scripts
-        if: steps.check_key.outputs.key_present == 'true'
+        if: steps.select_gemini_key.outputs.key_present == 'true'
         run: npm install @actions/core @actions/github
 
       - name: Prepare prompt
-        if: steps.check_key.outputs.key_present == 'true'
+        if: steps.select_gemini_key.outputs.key_present == 'true'
         id: prepare-prompt
         run: node ./.github/workflows/scripts/bots/gemini/prepare_prompt.js
         env:
@@ -99,7 +88,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: google-github-actions/run-gemini-cli@v0
-        if: steps.check_key.outputs.key_present == 'true'
+        if: steps.select_gemini_key.outputs.key_present == 'true'
         id: gemini
         continue-on-error: true
         env:
@@ -117,7 +106,7 @@ jobs:
           prompt: ${{ steps.prepare-prompt.outputs.prompt }}
 
       - name: Post Gemini response as comment
-        if: ${{ always() && steps.check_key.outputs.key_present == 'true' }}
+        if: ${{ always() && steps.select_gemini_key.outputs.key_present == 'true' }}
         env:
           GEMINI_SUMMARY: ${{ steps.gemini.outputs.summary }}
           GEMINI_ERROR: ${{ steps.gemini.outputs.error }}
@@ -125,9 +114,9 @@ jobs:
           EVENT_PAYLOAD: ${{ inputs.event }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: node ./.github/workflows/scripts/bots/gemini/post_response.js
-      
+
       - name: Fail workflow if Gemini step failed
-        if: ${{ steps.check_key.outputs.key_present == 'true' && steps.gemini.outcome == 'failure' }}
+        if: ${{ steps.select_gemini_key.outputs.key_present == 'true' && steps.gemini.outcome == 'failure' }}
         run: |
           echo "Gemini CLI step failed"
           exit 1
