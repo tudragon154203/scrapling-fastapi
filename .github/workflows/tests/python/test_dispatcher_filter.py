@@ -131,3 +131,32 @@ def test_decide_for_opencode_author_command(monkeypatch, set_dispatch_event, git
 
     assert outputs["run_opencode"] == "true"
 
+
+@pytest.mark.parametrize(
+    "set_dispatch_event",
+    [
+        {
+            "event_name": "issue_comment",
+            "payload": {
+                "comment": {
+                    "author_association": "AUTHOR",
+                    "body": "@opencode please help",
+                },
+                "issue": {"number": 15},
+            },
+        }
+    ],
+    indirect=True,
+)
+def test_only_opencode_workflow_runs_when_active_filter_is_opencode(
+    monkeypatch, set_dispatch_event, github_env
+):
+    monkeypatch.setenv("ACTIVE_BOTS_VAR", '["opencode"]')
+    dispatcher_filter.decide()
+    outputs = read_github_output(github_env)
+
+    assert outputs["run_opencode"] == "true"
+    assert outputs["run_aider"] == "false"
+    assert outputs["run_claude"] == "false"
+    assert outputs["run_gemini"] == "false"
+
