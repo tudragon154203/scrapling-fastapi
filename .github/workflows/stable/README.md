@@ -123,6 +123,16 @@ These YAML files are self-contained and can be copied to `.github/workflows/` to
 
 **Customization**: Edit the dispatcher YAML for routing logic. See extracted files for details.
 
+### dispatcher_stable_v1.1.zip vs dispatcher_stable_v1.zip
+
+Use v1.1 when you need the richer automation shipped after v1. Key upgrades include:
+- **Key rotation & secrets handling**: v1.1 replaces the shell-based `check_gemini_keys.sh` with the reusable Python rotators in `scripts/bots/common/rotate_key/`, unlocks up to five Gemini/OpenRouter keys, and propagates the chosen secret name to downstream steps.
+- **Dispatcher insights**: v1.1 extends `dispatcher_filter.py` to parse CSV/JSON inputs, exports the active filter as text/JSON, captures the target ID/type, and feeds a new `dispatcher_summary.py` job summary so you can see which bots triggered.
+- **Default dispatch behaviour**: v1.1 sets the default `ACTIVE_BOTS_VAR` to `["aider", "gemini", "claude"]`, refines Opencode pull-request rules to rely on author trust, and adds emoji reactions that surface when a bot picks up the event.
+- **Workflow coverage**: v1.1 bundles fresh `ci-pull-request.yml` and `ci-push.yml` entry points, refreshes `ci-workflows.yml`, and adds authored docs under `docs/` for agent-selection, API key rotation, and emoji conventions.
+- **Opencode agent overhaul**: v1.1 introduces a Python prompt builder, CLI runner wrappers, comment formatter, and cross-platform launchers under `scripts/bots/opencode/`; v1 only shipped installer/runner shell scripts.
+- **Quality checks**: v1.1 ships Jest/pytest suites in `tests/` (JavaScript emoji helpers and prompt generators, Python dispatchers/key rotators/opencode formatters, CLI integration harness stubs) that were absent from v1.
+
 ## Setup Instructions
 
 1. **Copy Standalone Workflows**:

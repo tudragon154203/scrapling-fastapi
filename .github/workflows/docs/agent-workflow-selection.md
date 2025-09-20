@@ -48,6 +48,30 @@ to the default list shown above.
   because the dispatcher evaluates the JSON list against the original event
   payload before deciding which reusable workflows to invoke.
 
+## Standardised bot triggers
+
+All four bots now follow the same triggering rules, modelled after the
+Opencode workflow. The dispatcher enforces the following behaviour:
+
+- **Pull requests:** a workflow only runs when the pull-request author has the
+  `OWNER`, `COLLABORATOR`, or `MEMBER` association.
+- **Interactive events** (`issue_comment`, `pull_request_review_comment`,
+  `pull_request_review`, and `issues`): trusted members can trigger a workflow
+  by using the bot-specific prefixes listed below.
+- **Command handling:** comments and reviews must start with the prefix
+  (for example, `@claude`), while issues trigger when the prefix appears in the
+  title or the body.
+
+| Bot      | Accepted prefixes                         |
+|----------|-------------------------------------------|
+| Aider    | `@aider`, `AIDER`, `/aider`               |
+| Claude   | `@claude`, `CLAUDE`, `/claude`            |
+| Gemini   | `@gemini`, `@gemini-cli`, `GEMINI`, `/gemini` |
+| Opencode | `@opencode`, `OPENCODE`, `/opencode`      |
+
+These rules ensure consistent expectations for contributors regardless of the
+agent they choose.
+
 ## Troubleshooting
 
 - Make sure the value is valid JSON. Invalid JSON causes GitHub Actions to

@@ -1,4 +1,4 @@
-name: 'dY" Opencode'
+name: '💬 Opencode'
 
 on:
   workflow_call:
@@ -29,6 +29,7 @@ jobs:
     env:
       OPENCODE_VERSION: ${{ vars.OPENCODE_VERSION != '' && vars.OPENCODE_VERSION || '0.10.1' }}
       EVENT_NAME: ${{ inputs.event-name }}
+      EVENT_PAYLOAD: ${{ inputs.event }}
       TARGET_ID: ${{ inputs.target-id || '' }}
       TARGET_TYPE: ${{ inputs.target-type || '' }}
       MODEL: 'openrouter/qwen/qwen3-235b-a22b:free'
@@ -40,6 +41,25 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Select OpenRouter API key
+        id: select_openrouter_key
+        run: python .github/workflows/scripts/bots/common/rotate_key/openrouter.py --output-selected-name openrouter_secret_name
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          OPENROUTER_API_KEY_2: ${{ secrets.OPENROUTER_API_KEY_2 }}
+          OPENROUTER_API_KEY_3: ${{ secrets.OPENROUTER_API_KEY_3 }}
+          OPENROUTER_API_KEY_4: ${{ secrets.OPENROUTER_API_KEY_4 }}
+          OPENROUTER_API_KEY_5: ${{ secrets.OPENROUTER_API_KEY_5 }}
+
+      - name: React with 🎆 to show Opencode is running
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { join } = require('node:path');
+            const reactWithEmoji = require(join(process.cwd(), '.github/workflows/scripts/bots/common/javascript/react_with_emoji.cjs'));
+            await reactWithEmoji({ github, context, core, reaction: 'hooray' });
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -53,16 +73,6 @@ jobs:
       - name: Determine opencode version
         id: opencode_version
         run: ./.github/workflows/scripts/bots/opencode/get-opencode-version.sh
-
-      - name: Select OpenRouter API key
-        id: select_openrouter_key
-        run: python .github/workflows/scripts/bots/common/rotate_key/openrouter.py --output-selected-name openrouter_secret_name
-        env:
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-          OPENROUTER_API_KEY_2: ${{ secrets.OPENROUTER_API_KEY_2 }}
-          OPENROUTER_API_KEY_3: ${{ secrets.OPENROUTER_API_KEY_3 }}
-          OPENROUTER_API_KEY_4: ${{ secrets.OPENROUTER_API_KEY_4 }}
-          OPENROUTER_API_KEY_5: ${{ secrets.OPENROUTER_API_KEY_5 }}
 
       - name: Persist event payload
         run: |
