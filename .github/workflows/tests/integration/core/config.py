@@ -17,11 +17,9 @@ class Config:
         
         # API Keys
         self.openrouter_api_key: Optional[str] = os.environ.get("OPENROUTER_API_KEY")
-        print(f"DEBUG(config.py): OPENROUTER_API_KEY from os.environ: {'*' * (len(self.openrouter_api_key)-4) + self.openrouter_api_key[-4:] if self.openrouter_api_key else None}")
         
         # Model Configuration
         self.test_model: str = os.environ.get("OPENCODE_TEST_MODEL", "openrouter/z-ai/glm-4.5-air:free")
-        print(f"DEBUG(config.py): OPENCODE_TEST_MODEL from os.environ: {self.test_model}")
         
     def _load_env_file(self) -> None:
         """Load environment variables from .env file if it exists."""
