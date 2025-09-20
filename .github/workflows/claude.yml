@@ -43,15 +43,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: React with 👀 to show Claude is running
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const { join } = require('node:path');
-            const reactWithEmoji = require(join(process.cwd(), '.github/workflows/scripts/bots/common/javascript/react_with_emoji.cjs'));
-            await reactWithEmoji({ github, context, core, reaction: 'eyes' });
-
       - name: Select OpenRouter API key
         id: select_openrouter_key
         run: python .github/workflows/scripts/bots/common/rotate_key/openrouter.py --output-selected-name openrouter_secret_name
@@ -71,6 +62,15 @@ jobs:
           GEMINI_API_KEY_3: ${{ secrets.GEMINI_API_KEY_3 }}
           GEMINI_API_KEY_4: ${{ secrets.GEMINI_API_KEY_4 }}
           GEMINI_API_KEY_5: ${{ secrets.GEMINI_API_KEY_5 }}
+
+      - name: React with 👀 to show Claude is running
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { join } = require('node:path');
+            const reactWithEmoji = require(join(process.cwd(), '.github/workflows/scripts/bots/common/javascript/react_with_emoji.cjs'));
+            await reactWithEmoji({ github, context, core, reaction: 'eyes' });
 
       - name: Make setup_router.sh executable
         run: chmod +x ./.github/workflows/scripts/bots/claude/setup_router.sh
