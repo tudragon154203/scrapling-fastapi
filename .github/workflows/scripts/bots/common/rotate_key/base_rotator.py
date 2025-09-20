@@ -145,8 +145,8 @@ class BaseKeyRotator(ABC):
             candidate_value = os.environ.get(candidate_env)
             if not candidate_value:
                 continue
-            base_seed = self.parse_seed(candidate_value)
-            break
+            candidate_seed = self.parse_seed(candidate_value)
+            base_seed = (base_seed + candidate_seed) % modulus
 
         # Mix in the run attempt so retries within a run can select different keys
         attempt_value = os.environ.get("GITHUB_RUN_ATTEMPT")

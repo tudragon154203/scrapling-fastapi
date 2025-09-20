@@ -189,3 +189,57 @@ def test_derive_seed_from_github_metadata(rotator):
         # Should be based on GITHUB_RUN_ID + job hash + random offset
         assert isinstance(seed, int)
         assert seed > 0
+
+
+def test_derive_seed_includes_all_metadata(rotator):
+    """Seeds must incorporate all configured GitHub metadata."""
+
+    env = {
+        "GITHUB_RUN_ID": "123456",
+        "GITHUB_RUN_NUMBER": "78",
+        "GITHUB_SHA": "abc123def456",
+        "GITHUB_RUN_ATTEMPT": "2",
+        "GITHUB_WORKFLOW": "rotate-key-workflow",
+        "GITHUB_JOB": "rotate-key-job",
+    }
+
+    with patch.dict(os.environ, env, clear=True):
+        with patch.object(random, "randint", return_value=0):
+            seed = rotator.derive_seed(None)
+
+    modulus = 2**64
+    expected = 0
+    for key in ("GITHUB_RUN_ID", "GITHUB_RUN_NUMBER", "GITHUB_SHA"):
+        expected = (expected + rotator.parse_seed(env[key])) % modulus
+
+    expected = (expected + rotator.parse_seed(env["GITHUB_RUN_ATTEMPT"])) % modulus
+    expected = (expected + rotator.parse_seed(env["GITHUB_WORKFLOW"])) % modulus
+    expected = (expected + rotator.parse_seed(env["GITHUB_JOB"])) % modulus
+
+    assert seed == expected
+
+
+def test_derive_seed_varies_with_metadata(rotator):
+    """Changing run metadata should alter the derived seed."""
+
+    base_env = {
+        "GITHUB_RUN_ID": "111",
+        "GITHUB_RUN_NUMBER": "222",
+        "GITHUB_SHA": "fffaaa",
+        "GITHUB_RUN_ATTEMPT": "1",
+        "GITHUB_WORKFLOW": "workflow-a",
+        "GITHUB_JOB": "job-a",
+    }
+
+    def compute_seed(**overrides):
+        env = {**base_env, **overrides}
+        with patch.dict(os.environ, env, clear=True):
+            with patch.object(random, "randint", return_value=0):
+                return rotator.derive_seed(None)
+
+    base_seed = compute_seed()
+
+    assert compute_seed(GITHUB_RUN_ID="112") != base_seed
+    assert compute_seed(GITHUB_RUN_NUMBER="333") != base_seed
+    assert compute_seed(GITHUB_RUN_ATTEMPT="2") != base_seed
+    assert compute_seed(GITHUB_WORKFLOW="workflow-b") != base_seed
