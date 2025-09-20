@@ -130,6 +130,29 @@ Suggestions."""
         assert result.strip() == expected.strip()
         assert extracted
 
+    def test_emoji_headings(self):
+        text = """Progress update
+
+### ✅ Findings
+Everything looks good.
+
+### 💡 Suggestions
+Consider adding more tests.
+
+### 🔒 Confidence
+High."""
+        expected = """### ✅ Findings
+Everything looks good.
+
+### 💡 Suggestions
+Consider adding more tests.
+
+### 🔒 Confidence
+High."""
+        result, extracted = extract_review_section(text)
+        assert result.strip() == expected.strip()
+        assert extracted
+
     def test_malformed_review(self):
         text = """**Findings:**
 Incomplete."""
@@ -221,6 +244,18 @@ High."""
         assert "**Suggestions:**" in comment
         assert "**Confidence:**" in comment
         assert "_The opencode CLI did not return any output._" not in comment
+
+    def test_review_with_emoji_headings_preserved(self):
+        metadata: Dict[str, Any] = {"model": "gpt-4", "event_name": "pull_request"}
+        stdout = (
+            "<think>### ✅ Findings\nAll good.\n\n### 💡 Suggestions\nNone.\n\n"
+            "### 🔒 Confidence\nHigh.</think>"
+        )
+        comment = format_comment(metadata, stdout, "", 0)
+
+        assert "### ✅ Findings" in comment
+        assert "### 💡 Suggestions" in comment
+        assert "### 🔒 Confidence" in comment
 
     def test_non_zero_exit_code(self):
         metadata: Dict[str, Any] = {"model": "gpt-4"}

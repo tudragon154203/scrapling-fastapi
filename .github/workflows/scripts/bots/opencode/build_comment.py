@@ -14,14 +14,6 @@ ANSI_ESCAPE_RE = re.compile(r"\x1B\[[0-9;?]*[ -/]*[@-~]")
 CONTROL_CHAR_RE = re.compile(r"[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F]")
 MAX_STREAM_SECTION = 2000
 
-_FINDINGS_MARKERS = ("**findings:**", "findings:", "## findings")
-_SUGGESTIONS_MARKERS = ("**suggestions:**", "suggestions:", "## suggestions")
-_CONFIDENCE_MARKERS = ("**confidence:**", "confidence:", "## confidence")
-_REVIEW_MARKERS = tuple(
-    marker
-    for markers in (_FINDINGS_MARKERS, _SUGGESTIONS_MARKERS, _CONFIDENCE_MARKERS)
-    for marker in markers
-)
 _HTML_TAG_RE = re.compile(r"<([^>\n]+)>")
 _TOOL_MARKUP_RE = re.compile(r"<(Tool\s+use|/Tool)>", re.IGNORECASE)
 _THINKING_MARKUP_RE = re.compile(r"<(thinking|/thinking)>", re.IGNORECASE)
@@ -29,11 +21,49 @@ _THINK_TAG_RE = re.compile(
     r"<(?P<closing>/)?(?P<tag>think|thinking)\b[^>]*>",
     re.IGNORECASE,
 )
+_SECTION_KEYWORDS = ("findings", "suggestions", "confidence")
+_LEADING_SECTION_JUNK_RE = re.compile(r"^(?:\d+[).:]\s*|[\W_]+)+")
+
+
+def _normalize_line_for_section(line: str) -> str:
+    """Return a lowercase line stripped of leading markup before detection."""
+
+    lowered = line.lower().strip()
+    if not lowered:
+        return ""
+    lowered = lowered.replace("**", "").replace("__", "")
+    lowered = lowered.replace("`", "").replace("~", "")
+    return _LEADING_SECTION_JUNK_RE.sub("", lowered)
+
+
+def _line_matches_section(line: str, keyword: str) -> bool:
+    """Return True when the line appears to introduce the given section."""
+
+    normalized = _normalize_line_for_section(line)
+    if not normalized.startswith(keyword):
+        return False
+    if len(normalized) == len(keyword):
+        return True
+    next_char = normalized[len(keyword)]
+    return not next_char.isalnum()
+
+
+def _detect_section_presence(text: str) -> dict[str, bool]:
+    presence = {key: False for key in _SECTION_KEYWORDS}
+    for line in text.splitlines():
+        for keyword in _SECTION_KEYWORDS:
+            if presence[keyword]:
+                continue
+            if _line_matches_section(line, keyword):
+                presence[keyword] = True
+    return presence
 
 
 def _contains_review_markers(text: str) -> bool:
-    lowered = text.lower()
-    return any(marker in lowered for marker in _REVIEW_MARKERS)
+    if not text:
+        return False
+    presence = _detect_section_presence(text)
+    return any(presence.values())
 
 
 def _strip_think_blocks(text: str) -> str:
@@ -132,10 +162,10 @@ def extract_review_section(text: str) -> tuple[str, bool]:
     start_index: int | None = None
 
     for index, line in enumerate(lines):
-        stripped = line.strip().lower()
+        stripped = line.strip()
         if not stripped:
             continue
-        if any(marker in stripped for marker in _FINDINGS_MARKERS):
+        if _line_matches_section(stripped, "findings"):
             start_index = index
             break
 
@@ -154,18 +184,18 @@ def extract_review_section(text: str) -> tuple[str, bool]:
 
     full_review_lines = lines[start_i:]
     review_lines = []
-    sections_seen = 0
+    sections_seen: set[str] = set()
     previous_empty = False
     for line in full_review_lines:
-        stripped = line.strip().lower()
+        stripped = line.strip()
         is_empty = not stripped
-        if any(marker in stripped for marker in _FINDINGS_MARKERS):
-            sections_seen += 1
-        if any(marker in stripped for marker in _SUGGESTIONS_MARKERS):
-            sections_seen += 1
-        if any(marker in stripped for marker in _CONFIDENCE_MARKERS):
-            sections_seen += 1
-        if is_empty and previous_empty and sections_seen >= 2:
+        if _line_matches_section(stripped, "findings"):
+            sections_seen.add("findings")
+        if _line_matches_section(stripped, "suggestions"):
+            sections_seen.add("suggestions")
+        if _line_matches_section(stripped, "confidence"):
+            sections_seen.add("confidence")
+        if is_empty and previous_empty and len(sections_seen) >= 2:
             break
         review_lines.append(line)
         previous_empty = is_empty
@@ -174,12 +204,9 @@ def extract_review_section(text: str) -> tuple[str, bool]:
     if not review_text:
         return text, False
 
-    lowered = review_text.lower()
-    has_findings = any(marker in lowered for marker in _FINDINGS_MARKERS)
-    has_other_section = any(
-        any(marker in lowered for marker in markers)
-        for markers in (_SUGGESTIONS_MARKERS, _CONFIDENCE_MARKERS)
-    )
+    presence = _detect_section_presence(review_text)
+    has_findings = presence["findings"]
+    has_other_section = presence["suggestions"] or presence["confidence"]
 
     if not has_findings or not has_other_section:
         return text, False
@@ -204,12 +231,9 @@ def _has_expected_review_sections(text: str) -> bool:
     if not text:
         return False
 
-    lowered = text.lower()
-    has_findings = any(marker in lowered for marker in _FINDINGS_MARKERS)
-    has_other_section = any(
-        any(marker in lowered for marker in markers)
-        for markers in (_SUGGESTIONS_MARKERS, _CONFIDENCE_MARKERS)
-    )
+    presence = _detect_section_presence(text)
+    has_findings = presence["findings"]
+    has_other_section = presence["suggestions"] or presence["confidence"]
     return has_findings and has_other_section
 
 
