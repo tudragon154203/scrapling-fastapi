@@ -12,6 +12,7 @@ from typing import Any, Dict
 
 ANSI_ESCAPE_RE = re.compile(r"\x1B\[[0-9;?]*[ -/]*[@-~]")
 CONTROL_CHAR_RE = re.compile(r"[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F]")
+_THINK_CLOSING_TAG_RE = re.compile(r"</think>", re.IGNORECASE)
 MAX_STREAM_SECTION = 2000
 
 _FINDINGS_MARKERS = ("**findings:**", "findings:", "## findings")
@@ -26,6 +27,7 @@ def clean_stream(text: str) -> str:
     if not text:
         return ""
     cleaned = _collapse_carriage_returns(text)
+    cleaned = _strip_leading_think_content(cleaned)
     cleaned = ANSI_ESCAPE_RE.sub("", cleaned)
     cleaned = CONTROL_CHAR_RE.sub("", cleaned)
     # Remove thinking and tool markup from the stream
@@ -129,6 +131,15 @@ def _summarize_tool_calls(streams: Dict[str, str]) -> list[str]:
             tag = match.group(1)
             summaries.append(f"<{tag}> in {name}")
     return summaries
+
+
+def _strip_leading_think_content(text: str) -> str:
+    """Remove any content before and including a closing </think> tag."""
+
+    match = _THINK_CLOSING_TAG_RE.search(text)
+    if not match:
+        return text
+    return text[match.end():]
 
 
 def _has_expected_review_sections(text: str) -> bool:

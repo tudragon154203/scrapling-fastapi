@@ -276,3 +276,8 @@ class TestCleanStream:
 
     def test_empty(self):
         assert clean_stream("") == ""
+
+    def test_strip_leading_think_content(self):
+        text = "irrelevant details</THINK>\nFinal output"
+        cleaned = clean_stream(text)
+        assert cleaned == "Final output"
