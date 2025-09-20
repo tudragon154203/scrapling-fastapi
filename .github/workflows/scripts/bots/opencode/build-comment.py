@@ -13,6 +13,10 @@ ANSI_ESCAPE_RE = re.compile(r"\x1B\[[0-9;?]*[ -/]*[@-~]")
 CONTROL_CHAR_RE = re.compile(r"[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F]")
 MAX_STREAM_SECTION = 2000
 
+_FINDINGS_MARKERS = ("**findings:**", "findings:", "## findings")
+_SUGGESTIONS_MARKERS = ("**suggestions:**", "suggestions:", "## suggestions")
+_CONFIDENCE_MARKERS = ("**confidence:**", "confidence:", "## confidence")
+
 def clean_stream(text: str) -> str:
     if not text:
         return ""
@@ -20,6 +24,60 @@ def clean_stream(text: str) -> str:
     cleaned = ANSI_ESCAPE_RE.sub("", cleaned)
     cleaned = CONTROL_CHAR_RE.sub("", cleaned)
     return cleaned.strip()
+
+
+def extract_review_section(text: str) -> tuple[str, bool]:
+    """Return the review portion of the CLI output when available.
+
+    The opencode CLI streams progress updates before emitting the final
+    review. We try to detect the structured review by looking for the
+    "Findings" section the workflow asks the model to produce. If we find a
+    likely review block we return it and signal that progress updates were
+    removed. Otherwise we fall back to the original text.
+    """
+
+    if not text:
+        return "", False
+
+    lines = text.splitlines()
+    start_index: int | None = None
+
+    for index, line in enumerate(lines):
+        stripped = line.strip().lower()
+        if not stripped:
+            continue
+        if any(marker in stripped for marker in _FINDINGS_MARKERS):
+            start_index = index
+            break
+
+    if start_index is None:
+        return text, False
+
+    review_lines = lines[start_index:]
+    if start_index > 0:
+        header_index = start_index - 1
+        while header_index >= 0 and not lines[header_index].strip():
+            header_index -= 1
+        if header_index >= 0:
+            header = lines[header_index].strip()
+            if header.startswith("#") or "review" in header.lower():
+                review_lines = lines[header_index:]
+
+    review_text = "\n".join(review_lines).strip()
+    if not review_text:
+        return text, False
+
+    lowered = review_text.lower()
+    has_findings = any(marker in lowered for marker in _FINDINGS_MARKERS)
+    has_other_section = any(
+        any(marker in lowered for marker in markers)
+        for markers in (_SUGGESTIONS_MARKERS, _CONFIDENCE_MARKERS)
+    )
+
+    if not has_findings or not has_other_section:
+        return text, False
+
+    return review_text, True
 
 
 def _collapse_carriage_returns(text: str) -> str:
@@ -63,6 +121,7 @@ def format_comment(
 ) -> str:
     stdout_clean = clean_stream(stdout)
     stderr_clean = clean_stream(stderr)
+    stdout_display, extracted = extract_review_section(stdout_clean)
     sections = ["#### dY opencode CLI"]
 
     summary = metadata.get("summary")
@@ -74,8 +133,8 @@ def format_comment(
         safe_command = command_text.replace("\r\n", "\n").replace("\n", "<br>")
         sections.append(f"> **Command:** {safe_command}")
 
-    if stdout_clean:
-        sections.append(stdout_clean)
+    if stdout_display:
+        sections.append(stdout_display)
     else:
         sections.append("_The opencode CLI did not return any output._")
 
@@ -85,6 +144,8 @@ def format_comment(
     event_name = metadata.get("event_name") or "unknown"
     meta_lines.append(f"Event: `{event_name}`")
     meta_lines.append(f"Exit code: `{exit_code}`")
+    if extracted:
+        meta_lines.append("Progress output from the CLI was omitted to highlight the final review.")
     if exit_code != 0:
         meta_lines.append(
             "The CLI exited with a non-zero status. Review the stderr output for additional details."
