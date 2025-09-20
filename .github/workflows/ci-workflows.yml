@@ -71,6 +71,7 @@ jobs:
   opencode_cli_integration_tests:
     name: Opencode CLI Integration Tests
     runs-on: ubuntu-22.04
+    environment: 'Agents/Bots'
     permissions:
       contents: read
     steps:
@@ -95,10 +96,6 @@ jobs:
         run: |
           curl -fsSL https://opencode.ai/install | bash
           echo "$HOME/.opencode/bin" >> $GITHUB_PATH
-
-      - name: Debug Secret Length
-        run: |
-          echo "Length of OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY && secrets.OPENROUTER_API_KEY.length || '0' }}"
 
       - name: Run Opencode CLI Integration Tests
         env:
