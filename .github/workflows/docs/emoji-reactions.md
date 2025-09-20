@@ -14,7 +14,7 @@ appropriate object. When no explicit emoji is supplied, the helper falls back to
 | `.github/workflows/aider.yml` | ❤️ | `heart` | Signals that the Aider reviewer picked up the event. |
 | `.github/workflows/claude.yml` | 👀 | `eyes` | Highlights that the Claude Code workflow is now watching the thread. |
 | `.github/workflows/gemini.yml` | 😄 | `laugh` | Indicates that the Gemini workflow has started processing. |
-| `.github/workflows/opencode.yml` | 🎆 | `hooray` | Shows that the Opencode CLI workflow is running. |
+| `.github/workflows/opencode.yml` | 🎉 | `hooray` | Shows that the Opencode CLI workflow is running. |
 | `codex` (planned) | 👀 / 👍 | `eyes` while the Codex workflow runs. Switch to `+1` ("like") when the PR is ready to merge. | Signals how a future Codex workflow should communicate its status even though it is not yet in the repository. |
 
 ## Adding or updating reactions
