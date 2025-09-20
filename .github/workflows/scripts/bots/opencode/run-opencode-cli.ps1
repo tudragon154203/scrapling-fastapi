@@ -82,8 +82,26 @@ try {
 
     $promptContent = Get-Content -Path $PromptFile -Raw
 
-    & $opencode.Source run --model $env:MODEL --prompt $promptContent 1> $StdoutFile 2> $StderrFile
-    $exitCode = $LASTEXITCODE
+    function Invoke-Opencode {
+        param([string]$Strategy)
+
+        if ($Strategy -eq 'flag') {
+            & $opencode.Source run --model $env:MODEL --prompt $promptContent 1> $StdoutFile 2> $StderrFile
+        }
+        else {
+            & $opencode.Source run --model $env:MODEL -- $promptContent 1> $StdoutFile 2> $StderrFile
+        }
+
+        return $LASTEXITCODE
+    }
+
+    $exitCode = Invoke-Opencode -Strategy 'flag'
+
+    if ($exitCode -ne 0 -and (Test-Path -Path $StderrFile) -and (Select-String -Path $StderrFile -SimpleMatch 'Usage:' -Quiet)) {
+        Clear-Content -Path $StdoutFile
+        Clear-Content -Path $StderrFile
+        $exitCode = Invoke-Opencode -Strategy 'positional'
+    }
 }
 finally {
     if ($previousEnv['NO_COLOR']) {

@@ -42,14 +42,37 @@ fi
 
 PROMPT_CONTENT=$(<"$PROMPT_FILE")
 
-set +e
-NO_COLOR=1 \
-  XDG_CONFIG_HOME="$CONFIG_HOME" \
-  XDG_DATA_HOME="$DATA_HOME" \
-  opencode run --model "$MODEL" --prompt "$PROMPT_CONTENT" \
-  >"$STDOUT_FILE" 2>"$STDERR_FILE"
-EXIT_CODE=$?
-set -e
+run_opencode() {
+  local strategy=$1
+  local exit_code
+
+  set +e
+  if [[ "$strategy" == 'flag' ]]; then
+    NO_COLOR=1 \
+      XDG_CONFIG_HOME="$CONFIG_HOME" \
+      XDG_DATA_HOME="$DATA_HOME" \
+      opencode run --model "$MODEL" --prompt "$PROMPT_CONTENT" \
+      >"$STDOUT_FILE" 2>"$STDERR_FILE"
+  else
+    NO_COLOR=1 \
+      XDG_CONFIG_HOME="$CONFIG_HOME" \
+      XDG_DATA_HOME="$DATA_HOME" \
+      opencode run --model "$MODEL" -- "$PROMPT_CONTENT" \
+      >"$STDOUT_FILE" 2>"$STDERR_FILE"
+  fi
+  exit_code=$?
+  set -e
+
+  printf '%s' "$exit_code"
+}
+
+EXIT_CODE=$(run_opencode flag)
+
+if [[ "$EXIT_CODE" -ne 0 ]] && grep -q "Usage:" "$STDERR_FILE"; then
+  : >"$STDOUT_FILE"
+  : >"$STDERR_FILE"
+  EXIT_CODE=$(run_opencode positional)
+fi
 
 printf 'stdout_file=%s\n' "$STDOUT_FILE" >>"$OUTPUTS_FILE"
 printf 'stderr_file=%s\n' "$STDERR_FILE" >>"$OUTPUTS_FILE"
