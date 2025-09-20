@@ -66,9 +66,25 @@ run_opencode() {
   printf '%s' "$exit_code"
 }
 
+contains_prompt_flag_error() {
+  local file=$1
+  [[ -s "$file" ]] || return 1
+  if grep -Eiq '(unrecognized (argument|arguments|option|options): *--prompt|no such option: *--prompt|unknown (argument|option): *--prompt)' "$file"; then
+    return 0
+  fi
+  return 1
+}
+
+should_retry_with_positional() {
+  [[ "$EXIT_CODE" -ne 0 ]] || return 1
+  contains_prompt_flag_error "$STDERR_FILE" && return 0
+  contains_prompt_flag_error "$STDOUT_FILE" && return 0
+  return 1
+}
+
 EXIT_CODE=$(run_opencode flag)
 
-if [[ "$EXIT_CODE" -ne 0 ]] && grep -q "Usage:" "$STDERR_FILE"; then
+if should_retry_with_positional; then
   : >"$STDOUT_FILE"
   : >"$STDERR_FILE"
   EXIT_CODE=$(run_opencode positional)

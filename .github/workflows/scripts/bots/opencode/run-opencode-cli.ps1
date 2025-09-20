@@ -95,9 +95,47 @@ try {
         return $LASTEXITCODE
     }
 
+    function Contains-PromptFlagError {
+        param([string]$Path)
+
+        if (-not (Test-Path -Path $Path) -or (Get-Item -Path $Path).Length -eq 0) {
+            return $false
+        }
+
+        $patterns = @(
+            '(?i)unrecognized arguments?:\s*--prompt',
+            '(?i)no such option:\s*--prompt',
+            '(?i)unknown (?:argument|option):\s*--prompt'
+        )
+
+        foreach ($pattern in $patterns) {
+            if (Select-String -Path $Path -Pattern $pattern -Quiet) {
+                return $true
+            }
+        }
+
+        return $false
+    }
+
+    function Should-RetryWithPositional {
+        if ($exitCode -eq 0) {
+            return $false
+        }
+
+        if (Contains-PromptFlagError -Path $StderrFile) {
+            return $true
+        }
+
+        if (Contains-PromptFlagError -Path $StdoutFile) {
+            return $true
+        }
+
+        return $false
+    }
+
     $exitCode = Invoke-Opencode -Strategy 'flag'
 
-    if ($exitCode -ne 0 -and (Test-Path -Path $StderrFile) -and (Select-String -Path $StderrFile -SimpleMatch 'Usage:' -Quiet)) {
+    if (Should-RetryWithPositional) {
         Clear-Content -Path $StdoutFile
         Clear-Content -Path $StderrFile
         $exitCode = Invoke-Opencode -Strategy 'positional'
