@@ -83,9 +83,8 @@ try {
     $env:XDG_DATA_HOME = $dataHome
 
     $promptContent = Get-Content -Path $PromptFile -Raw
-    # Supply the prompt as a positional argument and insert "--" so leading
-    # dashes are treated as content instead of additional flags.
-    & $opencode.Source run --model $env:MODEL -- $promptContent 1> $StdoutFile 2> $StderrFile
+    # Supply the prompt as the final positional argument in accordance with the CLI docs.
+    & $opencode.Source run --model $env:MODEL $promptContent 1> $StdoutFile 2> $StderrFile
     $exitCode = $LASTEXITCODE
 }
 finally {
