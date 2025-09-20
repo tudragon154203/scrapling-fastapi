@@ -16,13 +16,42 @@ if str(COMMON_DIR) not in sys.path:
 
 import pytest
 
+from rotate_key.base_rotator import BaseKeyRotator
 from rotate_key.openrouter import OpenRouterKeyRotator
+
+
+class _DummyRotator(BaseKeyRotator):
+    """Test-specific rotator that exposes BaseKeyRotator helpers."""
+
+    @property
+    def default_prefix(self) -> str:
+        return "DUMMY"
+
+    @property
+    def error_message(self) -> str:
+        return ""
+
+    @property
+    def success_message(self) -> str:
+        return ""
 
 
 def _clear_openrouter_env(monkeypatch: pytest.MonkeyPatch) -> None:
     for env_name in list(os.environ):
         if env_name.startswith("OPENROUTER_API_KEY"):
             monkeypatch.delenv(env_name, raising=False)
+
+
+def _clear_seed_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    for env_name in [
+        "ROTATION_SEED",
+        "GITHUB_RUN_ID",
+        "GITHUB_RUN_NUMBER",
+        "GITHUB_RUN_ATTEMPT",
+        "GITHUB_SHA",
+        "GITHUB_JOB",
+    ]:
+        monkeypatch.delenv(env_name, raising=False)
 
 
 def test_gather_candidate_keys_orders_by_suffix(monkeypatch):
@@ -85,8 +114,40 @@ def test_main_exports_to_github_files(monkeypatch, tmp_path, capfd):
     ]
     assert output_file.read_text(encoding="utf-8").splitlines() == [
         "selected_key_name=OPENROUTER_API_KEY_2",
-        "key_present=true"
+        "key_present=true",
     ]
 
     # Ensure seed env var does not leak into subsequent tests.
     monkeypatch.delenv("ROTATION_SEED", raising=False)
+
+
+def test_derive_seed_changes_with_attempt(monkeypatch):
+    """Retries within the same run should lead to different seeds."""
+
+    _clear_seed_env(monkeypatch)
+    rotator = _DummyRotator()
+
+    monkeypatch.setenv("GITHUB_RUN_ID", "123456")
+    monkeypatch.setenv("GITHUB_JOB", "claude")
+    monkeypatch.setenv("GITHUB_RUN_ATTEMPT", "1")
+    first_seed = rotator.derive_seed(None)
+
+    monkeypatch.setenv("GITHUB_RUN_ATTEMPT", "2")
+    second_seed = rotator.derive_seed(None)
+
+    assert first_seed != second_seed
+
+
+def test_derive_seed_uses_attempt_when_primary_missing(monkeypatch):
+    """Run attempt should still influence the seed when run metadata is absent."""
+
+    _clear_seed_env(monkeypatch)
+    rotator = _DummyRotator()
+
+    monkeypatch.setenv("GITHUB_RUN_ATTEMPT", "7")
+    seed_one = rotator.derive_seed(None)
+
+    monkeypatch.setenv("GITHUB_RUN_ATTEMPT", "8")
+    seed_two = rotator.derive_seed(None)
+
+    assert seed_one != seed_two

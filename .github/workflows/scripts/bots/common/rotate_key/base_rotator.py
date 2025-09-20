@@ -135,31 +135,35 @@ class BaseKeyRotator(ABC):
                 return parsed
 
         # Base seed from GitHub run metadata
+        modulus = 2**64
         base_seed = 0
         for candidate_env in (
             "GITHUB_RUN_ID",
             "GITHUB_RUN_NUMBER",
-            "GITHUB_RUN_ATTEMPT",
             "GITHUB_SHA",
         ):
             candidate_value = os.environ.get(candidate_env)
             if not candidate_value:
                 continue
-            parsed = self.parse_seed(candidate_value)
-            if parsed is not None:
-                base_seed = parsed
-                break
+            base_seed = self.parse_seed(candidate_value)
+            break
+
+        # Mix in the run attempt so retries within a run can select different keys
+        attempt_value = os.environ.get("GITHUB_RUN_ATTEMPT")
+        if attempt_value:
+            attempt_seed = self.parse_seed(attempt_value)
+            base_seed = (base_seed + attempt_seed) % modulus
 
         # Add job-specific offset
         job_name = os.environ.get("GITHUB_JOB", "")
         if job_name:
             job_hash = self.parse_seed(job_name)
-            base_seed = (base_seed + job_hash) % (2**64)  # Prevent overflow
+            base_seed = (base_seed + job_hash) % modulus  # Prevent overflow
 
         # Add random component for each script invocation
         random.seed(base_seed)
         random_offset = random.randint(0, 1000000)
-        return (base_seed + random_offset) % (2**64)
+        return (base_seed + random_offset) % modulus
 
     def parse_seed(self, raw_seed: str) -> Optional[int]:
         """Convert a raw seed value to an integer if possible."""
