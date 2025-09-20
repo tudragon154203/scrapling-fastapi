@@ -34,8 +34,8 @@ def _run_script(script_path: Path, args: list[str], env: dict) -> subprocess.Com
             # If bash is not available, try to run directly (might work with WSL or git bash)
             try:
                 return subprocess.run([str(script_path)] + args, env=env, capture_output=True, text=True, shell=True)
-            except FileNotFoundError:
-                # If that fails, raise the original error
+            except (subprocess.CalledProcessError, FileNotFoundError):
+                # If that fails, skip the test
                 raise FileNotFoundError("Cannot execute shell script on Windows. Please install bash (Git Bash, WSL, or Cygwin).")
     else:
         # On Unix-like systems, run directly
@@ -88,7 +88,7 @@ def test_opencode_cli_integration() -> None:
         env["OPENROUTER_API_KEY"] = api_key
         
         # Run the script
-        script_path = Path(__file__).resolve().parents[3] / ".github/workflows/scripts/bots/opencode/run-opencode-cli.sh"
+        script_path = Path(__file__).resolve().parents[2] / "scripts/bots/opencode/run-opencode-cli.sh"
         try:
             result = _run_script(script_path, [str(prompt_file), str(stdout_file), str(stderr_file), str(outputs_file)], env)
         except FileNotFoundError as e:
@@ -159,7 +159,7 @@ def test_opencode_cli_with_custom_model() -> None:
         env["OPENROUTER_API_KEY"] = api_key
         
         # Run the script
-        script_path = Path(__file__).resolve().parents[3] / ".github/workflows/scripts/bots/opencode/run-opencode-cli.sh"
+        script_path = Path(__file__).resolve().parents[2] / "scripts/bots/opencode/run-opencode-cli.sh"
         try:
             result = _run_script(script_path, [str(prompt_file), str(stdout_file), str(stderr_file), str(outputs_file)], env)
         except FileNotFoundError as e:
@@ -219,7 +219,7 @@ def test_opencode_cli_error_handling() -> None:
         env["OPENROUTER_API_KEY"] = "invalid-api-key"
         
         # Run the script
-        script_path = Path(__file__).resolve().parents[3] / ".github/workflows/scripts/bots/opencode/run-opencode-cli.sh"
+        script_path = Path(__file__).resolve().parents[2] / "scripts/bots/opencode/run-opencode-cli.sh"
         try:
             result = _run_script(script_path, [str(prompt_file), str(stdout_file), str(stderr_file), str(outputs_file)], env)
         except FileNotFoundError as e:
