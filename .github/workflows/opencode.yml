@@ -32,7 +32,7 @@ jobs:
       TARGET_ID: ${{ inputs.target-id || '' }}
       TARGET_TYPE: ${{ inputs.target-type || '' }}
       # MODEL: 'openrouter/z-ai/glm-4.5-air:free'
-      MODEL: 'openrouter/moonshotai/kimi-k2:free'
+      MODEL: 'openrouter/qwen/qwen3-coder:free'
     concurrency:
       group: opencode-${{ github.workflow }}-${{ inputs.event-name }}-${{ inputs.target-id != '' && inputs.target-id || github.run_id }}
       cancel-in-progress: true
