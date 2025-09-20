@@ -1,4 +1,4 @@
-﻿name: 'ðŸ”“ Opencode'
+name: 'dY" Opencode'
 
 on:
   workflow_call:
@@ -72,7 +72,7 @@ jobs:
           TARGET_ID: ${{ env.TARGET_ID }}
           MODEL: ${{ env.MODEL }}
         run: |
-          python ./.github/workflows/scripts/bots/opencode/prepare-prompt.py \
+          python ./.github/workflows/scripts/bots/opencode/prepare_prompt.py \
             --event "$RUNNER_TEMP/opencode-event.json" \
             --prompt "$RUNNER_TEMP/opencode-prompt.txt" \
             --meta "$RUNNER_TEMP/opencode-meta.json" \
@@ -100,7 +100,7 @@ jobs:
       - name: Build GitHub comment body
         id: build_comment
         run: |
-          python ./.github/workflows/scripts/bots/opencode/build-comment.py \
+          python ./.github/workflows/scripts/bots/opencode/build_comment.py \
             --meta "$RUNNER_TEMP/opencode-meta.json" \
             --stdout "$RUNNER_TEMP/opencode-stdout.txt" \
             --stderr "$RUNNER_TEMP/opencode-stderr.txt" \
