@@ -1,0 +1,422 @@
+﻿#!/usr/bin/env python3
+"""Compose the GitHub comment body using opencode CLI output."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import re
+from pathlib import Path
+from typing import Any, Dict
+
+ANSI_ESCAPE_RE = re.compile(r"\x1B\[[0-9;?]*[ -/]*[@-~]")
+CONTROL_CHAR_RE = re.compile(r"[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F]")
+MAX_STREAM_SECTION = 2000
+
+_FINDINGS_MARKERS = ("**findings:**", "findings:", "## findings")
+_SUGGESTIONS_MARKERS = ("**suggestions:**", "suggestions:", "## suggestions")
+_CONFIDENCE_MARKERS = ("**confidence:**", "confidence:", "## confidence")
+_HTML_TAG_RE = re.compile(r"<([^>\n]+)>")
+_TOOL_MARKUP_RE = re.compile(r"<\s*(?:tool|task)[^>]*>", re.IGNORECASE)
+_TASK_BLOCK_RE = re.compile(r"<\s*task[^>]*>(.*?)<\s*/\s*task\s*>", re.IGNORECASE | re.DOTALL)
+_TASK_NAME_RE = re.compile(r"<\s*name\s*>(.*?)<\s*/\s*name\s*>", re.IGNORECASE | re.DOTALL)
+_TASK_PARAMS_RE = re.compile(
+    r"<\s*parameters\s*>(.*?)<\s*/\s*parameters\s*>",
+    re.IGNORECASE | re.DOTALL,
+)
+
+def clean_stream(text: str) -> str:
+    if not text:
+        return ""
+    cleaned = _collapse_carriage_returns(text)
+    cleaned = ANSI_ESCAPE_RE.sub("", cleaned)
+    cleaned = CONTROL_CHAR_RE.sub("", cleaned)
+    return cleaned.strip()
+
+
+def extract_review_section(text: str) -> tuple[str, bool]:
+    """Return the review portion of the CLI output when available.
+
+    The opencode CLI streams progress updates before emitting the final
+    review. We try to detect the structured review by looking for the
+    "Findings" section the workflow asks the model to produce. If we find a
+    likely review block we return it and signal that progress updates were
+    removed. Otherwise we fall back to the original text.
+    """
+
+    if not text:
+        return "", False
+
+    lines = text.splitlines()
+    start_index: int | None = None
+
+    for index, line in enumerate(lines):
+        stripped = line.strip().lower()
+        if not stripped:
+            continue
+        if any(marker in stripped for marker in _FINDINGS_MARKERS):
+            start_index = index
+            break
+
+    if start_index is None:
+        return text, False
+
+    review_lines = lines[start_index:]
+    if start_index > 0:
+        header_index = start_index - 1
+        while header_index >= 0 and not lines[header_index].strip():
+            header_index -= 1
+        if header_index >= 0:
+            header = lines[header_index].strip()
+            if header.startswith("#") or "review" in header.lower():
+                review_lines = lines[header_index:]
+
+    review_text = "\n".join(review_lines).strip()
+    if not review_text:
+        return text, False
+
+    lowered = review_text.lower()
+    has_findings = any(marker in lowered for marker in _FINDINGS_MARKERS)
+    has_other_section = any(
+        any(marker in lowered for marker in markers)
+        for markers in (_SUGGESTIONS_MARKERS, _CONFIDENCE_MARKERS)
+    )
+
+    if not has_findings or not has_other_section:
+        return text, False
+
+    return review_text, True
+
+
+def _escape_html_like_tags(text: str) -> str:
+    """Escape angle-bracket tags so GitHub does not treat them as HTML."""
+
+    if "<" not in text or ">" not in text:
+        return text
+
+    def _replace(match: re.Match[str]) -> str:
+        content = match.group(1)
+        return f"&lt;{content}&gt;"
+
+    return _HTML_TAG_RE.sub(_replace, text)
+
+
+def _contains_tool_markup(*texts: str) -> bool:
+    """Return True when the CLI output appears to contain tool markup."""
+
+    for text in texts:
+        if text and _TOOL_MARKUP_RE.search(text):
+            return True
+    return False
+
+
+def _parse_tool_tasks(text: str) -> list[dict[str, str]]:
+    """Extract tool task details from tool invocation markup."""
+
+    if not text or "<" not in text or ">" not in text:
+        return []
+
+    tasks: list[dict[str, str]] = []
+    for block in _TASK_BLOCK_RE.finditer(text):
+        content = block.group(1)
+        if not content:
+            continue
+        name_match = _TASK_NAME_RE.search(content)
+        if not name_match:
+            continue
+        name = name_match.group(1).strip()
+        if not name:
+            continue
+        params_match = _TASK_PARAMS_RE.search(content)
+        params_raw = params_match.group(1).strip() if params_match else ""
+        if params_raw:
+            try:
+                parsed = json.loads(params_raw)
+            except json.JSONDecodeError:
+                params_text = params_raw
+            else:
+                if isinstance(parsed, dict):
+                    params_text = json.dumps(parsed, ensure_ascii=False, sort_keys=True)
+                else:
+                    params_text = json.dumps(parsed, ensure_ascii=False)
+        else:
+            params_text = ""
+        tasks.append({"name": name, "parameters": params_text})
+    return tasks
+
+
+def _summarize_tool_calls(streams: dict[str, str]) -> list[str]:
+    """Return human-readable summaries of tool calls per stream."""
+
+    summaries: list[str] = []
+    for label, text in streams.items():
+        if not text:
+            continue
+        for task in _parse_tool_tasks(text):
+            name = task["name"]
+            params = task["parameters"]
+            if params:
+                if len(params) > 300:
+                    params = params[:297] + "..."
+                detail = f"Tool `{name}` requested in {label} with parameters: {params}"
+            else:
+                detail = f"Tool `{name}` requested in {label} with no parameters."
+            summaries.append(_escape_html_like_tags(detail))
+    return summaries
+
+
+def _has_expected_review_sections(text: str) -> bool:
+    """Return True when the text looks like a structured opencode review."""
+
+    if not text:
+        return False
+
+    lowered = text.lower()
+    return all(
+        any(marker in lowered for marker in markers)
+        for markers in (
+            _FINDINGS_MARKERS,
+            _SUGGESTIONS_MARKERS,
+            _CONFIDENCE_MARKERS,
+        )
+    )
+
+
+def _diagnose_missing_review(
+    stdout_clean: str,
+    stdout_display: str,
+    metadata: Dict[str, Any],
+    tool_markup_detected: bool,
+) -> list[str]:
+    """Return explanatory notes when the CLI output lacks a review."""
+
+    diagnostics: list[str] = []
+    if _has_expected_review_sections(stdout_display or stdout_clean):
+        return diagnostics
+
+    if not (stdout_clean or stdout_display):
+        return diagnostics
+
+    diagnostics.append(
+        "No structured review (findings/suggestions/confidence) was detected in the "
+        "CLI output, so the run likely stopped before the model returned its review."
+    )
+
+    thinking_mode = metadata.get("thinking_mode")
+    if tool_markup_detected:
+        if isinstance(thinking_mode, str) and thinking_mode.strip().lower().startswith(
+            "tool"
+        ):
+            diagnostics.append(
+                "The run is using tool-calling mode, but the workflow never executed "
+                "the requested tool. Disable tool-calling or ensure the workflow "
+                "handles tool invocations so the review can complete."
+            )
+        else:
+            diagnostics.append(
+                "Tool invocation markup like `&lt;Tool use&gt;` appeared in the output; "
+                "make sure your workflow can respond to tool calls or re-run in "
+                "standard thinking mode."
+            )
+
+    return diagnostics
+
+
+def _build_troubleshooting_section(exit_code: int, appended_stderr: bool) -> str | None:
+    """Return additional debugging guidance when the CLI fails."""
+
+    if exit_code == 0:
+        return None
+
+    tips = [
+        "- Expand the **Run opencode CLI** step in the workflow run to inspect the raw stdout/stderr captured on the runner.",
+        "- Re-run the workflow with the repository secret `ACTIONS_STEP_DEBUG` set to `true` to enable verbose shell logging.",
+    ]
+
+    if appended_stderr:
+        tips.append(
+            "- The CLI stderr stream is already attached above because `INCLUDE_OPENCODE_STDERR=1`. "
+            "Re-run with the same variable set if you need an updated capture."
+        )
+    else:
+        tips.append(
+            "- Set `INCLUDE_OPENCODE_STDERR=1` before re-running to embed the CLI stderr stream in this comment."
+        )
+
+    lines = ["#### Troubleshooting the opencode CLI", ""]
+    lines.extend(tips)
+    return "\n".join(lines)
+
+
+def _collapse_carriage_returns(text: str) -> str:
+    text = text.replace("\r\n", "\n")
+    lines: list[str] = []
+    current: list[str] = []
+
+    for char in text:
+        if char == "\r":
+            current = []
+            continue
+        if char == "\n":
+            lines.append("".join(current))
+            current = []
+            continue
+        current.append(char)
+
+    if current:
+        lines.append("".join(current))
+
+    return "\n".join(lines)
+
+
+
+def read_text(path: Path) -> str:
+    if not path.exists():
+        return ""
+    return path.read_text(encoding="utf-8").strip()
+
+
+def load_metadata(path: Path) -> Dict[str, Any]:
+    with path.open("r", encoding="utf-8") as handle:
+        return json.load(handle)
+
+
+def format_comment(
+    metadata: Dict[str, Any],
+    stdout: str,
+    stderr: str,
+    exit_code: int,
+) -> str:
+    stdout_clean = clean_stream(stdout)
+    stderr_clean = clean_stream(stderr)
+    stdout_display, extracted = extract_review_section(stdout_clean)
+    tool_markup_detected = _contains_tool_markup(stdout_clean, stderr_clean)
+    sections = ["#### dY opencode CLI"]
+
+    summary = metadata.get("summary")
+    if isinstance(summary, str) and summary.strip():
+        sections.append(summary.strip())
+
+    command_text = metadata.get("command_text")
+    if isinstance(command_text, str) and command_text.strip():
+        safe_command = command_text.replace("\r\n", "\n").replace("\n", "<br>")
+        sections.append(f"> **Command:** {safe_command}")
+
+    if stdout_display:
+        sections.append(_escape_html_like_tags(stdout_display))
+    else:
+        sections.append("_The opencode CLI did not return any output._")
+
+    meta_lines: list[str] = []
+    model = metadata.get("model") or "unknown"
+    meta_lines.append(f"Model: `{model}`")
+    event_name = metadata.get("event_name") or "unknown"
+    meta_lines.append(f"Event: `{event_name}`")
+    thinking_mode = metadata.get("thinking_mode")
+    if isinstance(thinking_mode, str) and thinking_mode.strip():
+        meta_lines.append(f"Thinking mode: `{thinking_mode.strip()}`")
+
+    diagnostics = _diagnose_missing_review(
+        stdout_clean=stdout_clean,
+        stdout_display=stdout_display,
+        metadata=metadata,
+        tool_markup_detected=tool_markup_detected,
+    )
+    if diagnostics:
+        meta_lines.extend(diagnostics)
+    meta_lines.append(f"Exit code: `{exit_code}`")
+    if extracted:
+        meta_lines.append("Progress output from the CLI was omitted to highlight the final review.")
+    if exit_code != 0:
+        meta_lines.append(
+            "The CLI exited with a non-zero status. Review the stderr output for additional details."
+        )
+    elif tool_markup_detected:
+        meta_lines.append(
+            "The CLI response includes tool invocation markup (for example `&lt;Tool use&gt;`), "
+            "which suggests the model attempted to call a tool instead of returning a review."
+        )
+        tool_summaries = _summarize_tool_calls(
+            {"stdout": stdout_clean, "stderr": stderr_clean}
+        )
+        if tool_summaries:
+            meta_lines.append("Tool call requests observed before the run stopped:")
+            meta_lines.extend(f"- {summary}" for summary in tool_summaries)
+
+    include_stderr = os.getenv("INCLUDE_OPENCODE_STDERR") == "1"
+    appended_stderr = False
+
+    if include_stderr:
+        display = stderr_clean or (stderr.strip() if stderr else "")
+        truncated = False
+        if display:
+            if len(display) > MAX_STREAM_SECTION:
+                truncated = True
+                display = display[-MAX_STREAM_SECTION:]
+            block_lines = ["CLI stderr (debug mode):", "```text", display]
+            if truncated:
+                block_lines.append("...(truncated)")
+            block_lines.append("```")
+            meta_lines.append("\n".join(block_lines))
+            meta_lines.append("Debug: stderr output included because INCLUDE_OPENCODE_STDERR=1.")
+            appended_stderr = True
+
+    if not appended_stderr and stderr_clean and stderr_clean != stdout_clean:
+        display = stderr_clean
+        truncated = False
+        if len(display) > MAX_STREAM_SECTION:
+            truncated = True
+            display = display[-MAX_STREAM_SECTION:]
+        block_lines = ["CLI stderr:", "```text", display]
+        if truncated:
+            block_lines.append("...(truncated)")
+        block_lines.append("```")
+        meta_lines.append("\n".join(block_lines))
+    elif not appended_stderr and stderr and stderr.strip():
+        meta_lines.append("CLI stderr contained only formatting codes and was omitted.")
+
+    sections.append("\n".join(meta_lines))
+
+    troubleshooting = _build_troubleshooting_section(exit_code, appended_stderr)
+    if troubleshooting:
+        sections.append(troubleshooting)
+
+    return "\n\n".join(sections).strip()
+
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--meta", required=True, help="Path to the metadata JSON file created earlier.")
+    parser.add_argument("--stdout", required=True, help="File containing opencode stdout output.")
+    parser.add_argument("--stderr", required=True, help="File containing opencode stderr output.")
+    parser.add_argument("--exit-code", required=True, type=int, help="Exit code returned by the opencode CLI.")
+    parser.add_argument("--output", required=True, help="Where to write the formatted GitHub comment body.")
+    parser.add_argument("--outputs", help="Path to write GitHub Actions step outputs.")
+    return parser.parse_args()
+
+
+def main() -> int:
+    args = parse_args()
+    metadata = load_metadata(Path(args.meta))
+    summary = metadata.get("summary")
+    thinking_mode = metadata.get("thinking_mode")
+    print(f"[debug] summary: {summary!r}")
+    print(f"[debug] thinking_mode: {thinking_mode!r}")
+    stdout = read_text(Path(args.stdout))
+    stderr = read_text(Path(args.stderr))
+    comment = format_comment(metadata, stdout, stderr, args.exit_code)
+    output_path = Path(args.output)
+    output_path.write_text(comment, encoding="utf-8")
+
+    if args.outputs:
+        outputs_path = Path(args.outputs)
+        with outputs_path.open("a", encoding="utf-8") as handle:
+            handle.write(f"comment_file={output_path}\n")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+
