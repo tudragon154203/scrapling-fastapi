@@ -31,7 +31,7 @@ jobs:
       EVENT_NAME: ${{ inputs.event-name }}
       TARGET_ID: ${{ inputs.target-id || '' }}
       TARGET_TYPE: ${{ inputs.target-type || '' }}
-      MODEL: 'openrouter.deepseek-r1-free'
+      MODEL: 'openrouter/deepseek/deepseek-r1:free'
     concurrency:
       group: opencode-${{ github.workflow }}-${{ inputs.event-name }}-${{ inputs.target-id != '' && inputs.target-id || github.run_id }}
       cancel-in-progress: true
