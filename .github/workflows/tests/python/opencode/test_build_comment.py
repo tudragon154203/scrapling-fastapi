@@ -137,6 +137,30 @@ Incomplete."""
         assert result == text
         assert not extracted
 
+    def test_heading_variations(self):
+        text = """Progress update
+
+### Findings
+Details here.
+
+### Suggestions
+Try another approach.
+
+### Confidence
+Medium."""
+        expected = """### Findings
+Details here.
+
+### Suggestions
+Try another approach.
+
+### Confidence
+Medium."""
+
+        result, extracted = extract_review_section(text)
+        assert result.strip() == expected.strip()
+        assert extracted
+
 
 class TestFormatComment:
     def test_with_review(self):
@@ -310,6 +334,32 @@ High."""
 
         assert "&lt;b&gt;Bold&lt;/b&gt;" in comment  # Escaped in review
 
+    def test_review_with_hash_headings_inside_think_block(self):
+        metadata: Dict[str, Any] = {
+            "summary": "Review uses markdown headings",
+            "thinking_mode": "standard",
+        }
+        stdout = (
+            "Progress output\n"
+            "<think>\n"
+            "### Findings\n"
+            "Heading variation.\n"
+            "\n"
+            "### Suggestions\n"
+            "Adjust tests.\n"
+            "\n"
+            "### Confidence\n"
+            "Reasonable.\n"
+            "</think>"
+        )
+
+        comment = format_comment(metadata, stdout, stderr="", exit_code=0)
+
+        assert "Heading variation." in comment
+        assert "Adjust tests." in comment
+        assert "Reasonable." in comment
+        assert "_The opencode CLI did not return any output._" not in comment
+
 
 class TestCleanStream:
     def test_ansi_removal(self):
@@ -345,3 +395,20 @@ class TestCleanStream:
         cleaned = clean_stream(text)
         assert "Issue found." in cleaned
         assert "Fix it." in cleaned
+
+    def test_think_block_with_heading_markers_kept(self):
+        text = (
+            "<think>\n"
+            "### Findings\n"
+            "Issue found.\n"
+            "- Suggestions\n"
+            "Do better.\n"
+            "\n"
+            "### Confidence\n"
+            "High\n"
+            "</think>"
+        )
+        cleaned = clean_stream(text)
+        assert "Issue found." in cleaned
+        assert "Do better." in cleaned
+        assert "High" in cleaned

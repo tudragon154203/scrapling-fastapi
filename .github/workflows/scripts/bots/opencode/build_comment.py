@@ -14,9 +14,6 @@ ANSI_ESCAPE_RE = re.compile(r"\x1B\[[0-9;?]*[ -/]*[@-~]")
 CONTROL_CHAR_RE = re.compile(r"[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F]")
 MAX_STREAM_SECTION = 2000
 
-_FINDINGS_MARKERS = ("**findings:**", "findings:", "## findings")
-_SUGGESTIONS_MARKERS = ("**suggestions:**", "suggestions:", "## suggestions")
-_CONFIDENCE_MARKERS = ("**confidence:**", "confidence:", "## confidence")
 _HTML_TAG_RE = re.compile(r"<([^>\n]+)>")
 _TOOL_MARKUP_RE = re.compile(r"<(Tool\s+use|/Tool)>", re.IGNORECASE)
 _THINKING_MARKUP_RE = re.compile(r"<(/?think(?:ing)?)>", re.IGNORECASE)
@@ -26,22 +23,61 @@ _THINK_BLOCK_RE = re.compile(
 )
 _THINK_SECTION_START_RE = re.compile(r"<(think|thinking)>", re.IGNORECASE)
 _THINK_SECTION_END_RE = re.compile(r"</(think|thinking)>", re.IGNORECASE)
-_REVIEW_SECTION_MARKERS = tuple(
-    marker.lower()
-    for marker in (
-        *_FINDINGS_MARKERS,
-        *_SUGGESTIONS_MARKERS,
-        *_CONFIDENCE_MARKERS,
-    )
-)
+_SECTION_KEYWORD_RE = re.compile(r"\b(findings|suggestions|confidence)\b", re.IGNORECASE)
+_SECTION_PREFIX_CHARS = "#>*-+0123456789.)("
+
+
+def _normalize_section_header(line: str) -> str:
+    """Return a normalized version of a potential section header."""
+
+    normalized = line.lower().strip()
+    if not normalized:
+        return ""
+
+    while normalized and normalized[0] in _SECTION_PREFIX_CHARS:
+        normalized = normalized[1:].lstrip()
+
+    while normalized.startswith("*"):
+        normalized = normalized[1:].lstrip()
+
+    return normalized
+
+
+def _match_section_keyword(line: str) -> str | None:
+    normalized = _normalize_section_header(line)
+    if not normalized:
+        return None
+
+    for keyword in ("findings", "suggestions", "confidence"):
+        if normalized.startswith(keyword):
+            boundary_index = len(keyword)
+            if boundary_index == len(normalized):
+                return keyword
+            next_char = normalized[boundary_index]
+            if next_char in {":", "-", " ", "\t", "\n", "."}:
+                return keyword
+    return None
 
 
 def _contains_review_markers(text: str) -> bool:
     if not text:
         return False
 
-    lowered = text.lower()
-    return any(marker in lowered for marker in _REVIEW_SECTION_MARKERS)
+    return any(
+        _match_section_keyword(line) in {"findings", "suggestions", "confidence"}
+        for line in text.splitlines()
+    )
+
+
+def _collect_section_keywords(text: str) -> set[str]:
+    return {
+        keyword
+        for keyword in (
+            _match_section_keyword(line)
+            for line in text.splitlines()
+        )
+        if keyword
+    }
 
 
 def _strip_closed_think_blocks(text: str) -> str:
@@ -79,17 +115,16 @@ def _strip_think_sections(text: str) -> str:
             continue
 
         remainder = text[start.end():]
-        remainder_lower = remainder.lower()
-        next_index: int | None = None
-        for marker in _REVIEW_SECTION_MARKERS:
-            position = remainder_lower.find(marker)
-            if position != -1 and (next_index is None or position < next_index):
-                next_index = position
+        marker_match = _SECTION_KEYWORD_RE.search(remainder)
 
-        if next_index is None:
+        if marker_match is None:
             return "".join(parts)
 
-        cursor = start.end() + next_index
+        line_start = remainder.rfind("\n", 0, marker_match.start())
+        if line_start == -1:
+            cursor = start.end()
+        else:
+            cursor = start.end() + line_start + 1
         while cursor < len(text) and text[cursor] in "\r\n ":
             cursor += 1
 
@@ -127,10 +162,8 @@ def extract_review_section(text: str) -> tuple[str, bool]:
     start_index: int | None = None
 
     for index, line in enumerate(lines):
-        stripped = line.strip().lower()
-        if not stripped:
-            continue
-        if any(marker in stripped for marker in _FINDINGS_MARKERS):
+        keyword = _match_section_keyword(line)
+        if keyword == "findings":
             start_index = index
             break
 
@@ -149,18 +182,20 @@ def extract_review_section(text: str) -> tuple[str, bool]:
 
     full_review_lines = lines[start_i:]
     review_lines = []
-    sections_seen = 0
+    sections_seen: set[str] = set()
     previous_empty = False
     for line in full_review_lines:
-        stripped = line.strip().lower()
+        stripped = line.strip()
         is_empty = not stripped
-        if any(marker in stripped for marker in _FINDINGS_MARKERS):
-            sections_seen += 1
-        if any(marker in stripped for marker in _SUGGESTIONS_MARKERS):
-            sections_seen += 1
-        if any(marker in stripped for marker in _CONFIDENCE_MARKERS):
-            sections_seen += 1
-        if is_empty and previous_empty and sections_seen >= 2:
+        keyword = _match_section_keyword(line)
+        if keyword:
+            sections_seen.add(keyword)
+        if (
+            is_empty
+            and previous_empty
+            and "findings" in sections_seen
+            and len(sections_seen) >= 2
+        ):
             break
         review_lines.append(line)
         previous_empty = is_empty
@@ -169,11 +204,11 @@ def extract_review_section(text: str) -> tuple[str, bool]:
     if not review_text:
         return text, False
 
-    lowered = review_text.lower()
-    has_findings = any(marker in lowered for marker in _FINDINGS_MARKERS)
-    has_other_section = any(
-        any(marker in lowered for marker in markers)
-        for markers in (_SUGGESTIONS_MARKERS, _CONFIDENCE_MARKERS)
+    section_keywords = _collect_section_keywords(review_text)
+
+    has_findings = "findings" in section_keywords
+    has_other_section = bool(
+        {"suggestions", "confidence"}.intersection(section_keywords)
     )
 
     if not has_findings or not has_other_section:
@@ -213,11 +248,10 @@ def _has_expected_review_sections(text: str) -> bool:
     if not text:
         return False
 
-    lowered = text.lower()
-    has_findings = any(marker in lowered for marker in _FINDINGS_MARKERS)
-    has_other_section = any(
-        any(marker in lowered for marker in markers)
-        for markers in (_SUGGESTIONS_MARKERS, _CONFIDENCE_MARKERS)
+    section_keywords = _collect_section_keywords(text)
+    has_findings = "findings" in section_keywords
+    has_other_section = bool(
+        {"suggestions", "confidence"}.intersection(section_keywords)
     )
     return has_findings and has_other_section
 
