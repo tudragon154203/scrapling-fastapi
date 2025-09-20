@@ -168,11 +168,10 @@ High."""
         assert "**Findings:**" in comment
         assert "**Suggestions:**" in comment
         assert "**Confidence:**" in comment
-        assert "Model: `gpt-4`" in comment
-        assert "Event: `pull_request`" in comment
-        assert "Thinking mode: `standard`" in comment
-        assert "Exit code: `0`" in comment
-        assert "Progress output from the CLI was omitted to highlight the final review." in comment
+        assert "Model:" not in comment
+        assert "Event:" not in comment
+        assert "Thinking mode:" not in comment
+        assert "Exit code:" not in comment
 
     def test_without_review(self):
         metadata: Dict[str, Any] = {"model": "gpt-4", "event_name": "pull_request"}
@@ -187,8 +186,8 @@ High."""
         assert "Only progress, no review." in comment
         assert "```" in comment
         assert "No structured review (findings/suggestions/confidence) was detected" in comment
-        assert "Model: `gpt-4`" in comment
-        assert "Exit code: `0`" in comment
+        assert "Model:" not in comment
+        assert "Exit code:" not in comment
 
     def test_with_stderr(self):
         metadata: Dict[str, Any] = {"model": "gpt-4"}
@@ -202,6 +201,26 @@ High."""
         assert "```text" in comment
         assert "Some error message." in comment
         assert "```" in comment
+
+    def test_tool_markup_warning_when_no_review(self):
+        metadata: Dict[str, Any] = {"model": "gpt-4"}
+        stdout = "<Tool use>call</Tool>"
+        comment = format_comment(metadata, stdout, "", 0)
+
+        assert "Tool invocation markup" in comment
+        assert "CLI response includes" in comment
+
+    def test_review_inside_think_block_preserved(self):
+        metadata: Dict[str, Any] = {"model": "gpt-4", "event_name": "pull_request"}
+        stdout = (
+            "<think>## Findings\nIssue\n\n**Suggestions:**\nFix\n\n**Confidence:**\nMedium</think>"
+        )
+        comment = format_comment(metadata, stdout, "", 0)
+
+        assert "## Findings" in comment
+        assert "**Suggestions:**" in comment
+        assert "**Confidence:**" in comment
+        assert "_The opencode CLI did not return any output._" not in comment
 
     def test_non_zero_exit_code(self):
         metadata: Dict[str, Any] = {"model": "gpt-4"}
@@ -251,9 +270,9 @@ High."""
         comment = format_comment(metadata, stdout, stderr, exit_code)
 
         assert "_The opencode CLI did not return any output._" in comment
-        assert "Model: `unknown`" in comment
-        assert "Event: `unknown`" in comment
-        assert "Exit code: `0`" in comment
+        assert "Model:" not in comment
+        assert "Event:" not in comment
+        assert "Exit code:" not in comment
 
     def test_html_like_tags_escaped(self):
         metadata: Dict[str, Any] = {"model": "gpt-4"}
@@ -305,3 +324,15 @@ class TestCleanStream:
         text = "Start <think>hidden"
         cleaned = clean_stream(text)
         assert cleaned == "Start"
+
+    def test_think_block_with_review_preserved(self):
+        text = (
+            "Intro <think>## Findings\nIssue details\n\n**Suggestions:**\nFix it\n\n"
+            "**Confidence:**\nHigh</think> Outro"
+        )
+        cleaned = clean_stream(text)
+        assert "Intro" in cleaned
+        assert "Outro" in cleaned
+        assert "## Findings" in cleaned
+        assert "**Suggestions:**" in cleaned
+        assert "**Confidence:**" in cleaned
