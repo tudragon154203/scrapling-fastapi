@@ -96,10 +96,8 @@ jobs:
           curl -fsSL https://opencode.ai/install | bash
           echo "$HOME/.opencode/bin" >> $GITHUB_PATH
 
-      - name: Set OPENROUTER_API_KEY and OPENCODE_TEST_MODEL
-        run: |
-          echo "OPENROUTER_API_KEY=${{ secrets.OPENROUTER_API_KEY }}" >> $GITHUB_ENV
-          echo "OPENCODE_TEST_MODEL=openrouter/z-ai/glm-4.5-air:free" >> $GITHUB_ENV
-
       - name: Run Opencode CLI Integration Tests
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          OPENCODE_TEST_MODEL: "openrouter/z-ai/glm-4.5-air:free"
         run: python -m pytest -m integration .github/workflows/tests/integration/test_opencode_cli.py
