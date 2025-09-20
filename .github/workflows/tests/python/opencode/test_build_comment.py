@@ -174,6 +174,29 @@ High."""
         assert "Exit code:" not in comment
         assert "Progress output from the CLI was omitted" not in comment
 
+    def test_with_review_inside_think_block(self):
+        metadata: Dict[str, Any] = {
+            "summary": "Model returned review inside think block",
+            "thinking_mode": "standard",
+        }
+        stdout = (
+            "Progress output\n"
+            "<think>\n"
+            "**Findings:** Hidden but real.\n"
+            "\n"
+            "**Suggestions:** Still valid.\n"
+            "\n"
+            "**Confidence:** Medium.\n"
+            "</think>"
+        )
+
+        comment = format_comment(metadata, stdout, stderr="", exit_code=0)
+
+        assert "Hidden but real." in comment
+        assert "Still valid." in comment
+        assert "Medium." in comment
+        assert "_The opencode CLI did not return any output._" not in comment
+
     def test_without_review(self):
         metadata: Dict[str, Any] = {"model": "gpt-4", "event_name": "pull_request"}
         stdout = "Only progress, no review."
@@ -311,3 +334,14 @@ class TestCleanStream:
         text = "<think>secret reasoning that should be removed"
         cleaned = clean_stream(text)
         assert cleaned == ""
+
+    def test_think_block_with_review_markers_kept(self):
+        text = (
+            "<think>\n"
+            "**Findings:** Issue found.\n"
+            "**Suggestions:** Fix it.\n"
+            "</think>"
+        )
+        cleaned = clean_stream(text)
+        assert "Issue found." in cleaned
+        assert "Fix it." in cleaned

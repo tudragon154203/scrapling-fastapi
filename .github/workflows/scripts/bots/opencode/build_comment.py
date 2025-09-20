@@ -20,7 +20,10 @@ _CONFIDENCE_MARKERS = ("**confidence:**", "confidence:", "## confidence")
 _HTML_TAG_RE = re.compile(r"<([^>\n]+)>")
 _TOOL_MARKUP_RE = re.compile(r"<(Tool\s+use|/Tool)>", re.IGNORECASE)
 _THINKING_MARKUP_RE = re.compile(r"<(/?think(?:ing)?)>", re.IGNORECASE)
-_THINK_BLOCK_RE = re.compile(r"<think>.*?</think>", re.IGNORECASE | re.DOTALL)
+_THINK_BLOCK_RE = re.compile(
+    r"<(?P<tag>think(?:ing)?)>(?P<content>.*?)</(?P=tag)>",
+    re.IGNORECASE | re.DOTALL,
+)
 _THINK_SECTION_START_RE = re.compile(r"<(think|thinking)>", re.IGNORECASE)
 _THINK_SECTION_END_RE = re.compile(r"</(think|thinking)>", re.IGNORECASE)
 _REVIEW_SECTION_MARKERS = tuple(
@@ -31,6 +34,29 @@ _REVIEW_SECTION_MARKERS = tuple(
         *_CONFIDENCE_MARKERS,
     )
 )
+
+
+def _contains_review_markers(text: str) -> bool:
+    if not text:
+        return False
+
+    lowered = text.lower()
+    return any(marker in lowered for marker in _REVIEW_SECTION_MARKERS)
+
+
+def _strip_closed_think_blocks(text: str) -> str:
+    """Remove hidden reasoning wrapped in <think>/<thinking> pairs."""
+
+    if "<" not in text:
+        return text
+
+    def _replace(match: re.Match[str]) -> str:
+        content = match.group("content")
+        if _contains_review_markers(content):
+            return content
+        return ""
+
+    return _THINK_BLOCK_RE.sub(_replace, text)
 
 
 def _strip_think_sections(text: str) -> str:
@@ -74,7 +100,7 @@ def clean_stream(text: str) -> str:
     if not text:
         return ""
     cleaned = _collapse_carriage_returns(text)
-    cleaned = _THINK_BLOCK_RE.sub("", cleaned)
+    cleaned = _strip_closed_think_blocks(cleaned)
     cleaned = _strip_think_sections(cleaned)
     cleaned = ANSI_ESCAPE_RE.sub("", cleaned)
     cleaned = CONTROL_CHAR_RE.sub("", cleaned)
