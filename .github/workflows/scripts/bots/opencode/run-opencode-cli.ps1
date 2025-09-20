@@ -80,15 +80,8 @@ try {
     $env:XDG_CONFIG_HOME = $configHome
     $env:XDG_DATA_HOME = $dataHome
 
-    try {
-        Get-Content -Raw -Path $PromptFile |
-            & $opencode.Source run --model $env:MODEL 1> $StdoutFile 2> $StderrFile
-        $exitCode = $LASTEXITCODE
-    } catch {
-        $exitCode = $LASTEXITCODE
-        # Capture any additional error details if needed
-        Add-Content -Path $StderrFile -Value $_.Exception.Message
-    }
+    cmd /c "type `"$PromptFile`" | `"$($opencode.Source)`" run --model `"$env:MODEL`" 1> `"$StdoutFile`" 2> `"$StderrFile`""
+    $exitCode = $LASTEXITCODE
 }
 finally {
     if ($previousEnv['NO_COLOR']) {

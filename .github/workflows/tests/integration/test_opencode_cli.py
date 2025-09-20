@@ -134,6 +134,8 @@ def test_opencode_cli_integration() -> None:
         outputs_content = outputs_file.read_text()
         print(f"DEBUG: outputs_content: '{outputs_content}'")
         print(f"DEBUG: runner result: returncode={result.returncode}, stdout='{result.stdout}', stderr='{result.stderr}'")
+        print(f"DEBUG: stdout_content: '{stdout_content}'")
+        print(f"DEBUG: stderr_content: '{stderr_content}'")
         
         # Parse outputs
         outputs = {}
@@ -209,6 +211,8 @@ def test_opencode_cli_with_custom_model() -> None:
         outputs_content = outputs_file.read_text()
         print(f"DEBUG: outputs_content (custom): '{outputs_content}'")
         print(f"DEBUG: runner result (custom): returncode={result.returncode}, stdout='{result.stdout}', stderr='{result.stderr}'")
+        print(f"DEBUG: stdout_content (custom): '{stdout_content}'")
+        print(f"DEBUG: stderr_content (custom): '{stderr_content}'")
         
         # Parse outputs
         outputs = {}
