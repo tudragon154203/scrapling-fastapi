@@ -137,9 +137,9 @@ class BaseKeyRotator(ABC):
         # Base seed from GitHub run metadata
         base_seed = 0
         for candidate_env in (
-            "GITHUB_RUN_ATTEMPT",
-            "GITHUB_RUN_NUMBER",
             "GITHUB_RUN_ID",
+            "GITHUB_RUN_NUMBER",
+            "GITHUB_RUN_ATTEMPT",
             "GITHUB_SHA",
         ):
             candidate_value = os.environ.get(candidate_env)
