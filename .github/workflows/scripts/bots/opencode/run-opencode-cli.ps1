@@ -80,7 +80,9 @@ try {
     $env:XDG_CONFIG_HOME = $configHome
     $env:XDG_DATA_HOME = $dataHome
 
-    cmd /c "type `"$PromptFile`" | `"$($opencode.Source)`" run --model `"$env:MODEL`" 1> `"$StdoutFile`" 2> `"$StderrFile`""
+    $promptContent = Get-Content -Path $PromptFile -Raw
+
+    & $opencode.Source run --model $env:MODEL --prompt $promptContent 1> $StdoutFile 2> $StderrFile
     $exitCode = $LASTEXITCODE
 }
 finally {
