@@ -7,7 +7,12 @@ import sys
 from pathlib import Path
 
 # Add the rotate_key package to the path
-sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts" / "bots" / "common"))
+WORKFLOWS_DIR = next(
+    parent for parent in Path(__file__).resolve().parents if parent.name == "workflows"
+)
+COMMON_DIR = WORKFLOWS_DIR / "scripts" / "bots" / "common"
+if str(COMMON_DIR) not in sys.path:
+    sys.path.insert(0, str(COMMON_DIR))
 
 import pytest
 
