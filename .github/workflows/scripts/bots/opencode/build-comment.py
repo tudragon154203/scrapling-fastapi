@@ -1,10 +1,11 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """Compose the GitHub comment body using opencode CLI output."""
 
 from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 from pathlib import Path
 from typing import Any, Dict
@@ -151,7 +152,25 @@ def format_comment(
             "The CLI exited with a non-zero status. Review the stderr output for additional details."
         )
 
-    if stderr_clean and stderr_clean != stdout_clean:
+    include_stderr = os.getenv("INCLUDE_OPENCODE_STDERR") == "1"
+    appended_stderr = False
+
+    if include_stderr:
+        display = stderr_clean or (stderr.strip() if stderr else "")
+        truncated = False
+        if display:
+            if len(display) > MAX_STREAM_SECTION:
+                truncated = True
+                display = display[-MAX_STREAM_SECTION:]
+            block_lines = ["CLI stderr (debug mode):", "```text", display]
+            if truncated:
+                block_lines.append("...(truncated)")
+            block_lines.append("```")
+            meta_lines.append("\n".join(block_lines))
+            meta_lines.append("Debug: stderr output included because INCLUDE_OPENCODE_STDERR=1.")
+            appended_stderr = True
+
+    if not appended_stderr and stderr_clean and stderr_clean != stdout_clean:
         display = stderr_clean
         truncated = False
         if len(display) > MAX_STREAM_SECTION:
@@ -162,7 +181,7 @@ def format_comment(
             block_lines.append("...(truncated)")
         block_lines.append("```")
         meta_lines.append("\n".join(block_lines))
-    elif stderr and stderr.strip():
+    elif not appended_stderr and stderr and stderr.strip():
         meta_lines.append("CLI stderr contained only formatting codes and was omitted.")
 
     sections.append("\n".join(meta_lines))
@@ -199,3 +218,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
