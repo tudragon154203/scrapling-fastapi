@@ -75,71 +75,18 @@ $previousEnv = @{
     'XDG_DATA_HOME' = $env:XDG_DATA_HOME
 }
 
+[int]$exitCode = 0
+
 try {
     $env:NO_COLOR = '1'
     $env:XDG_CONFIG_HOME = $configHome
     $env:XDG_DATA_HOME = $dataHome
 
     $promptContent = Get-Content -Path $PromptFile -Raw
-
-    function Invoke-Opencode {
-        param([string]$Strategy)
-
-        if ($Strategy -eq 'flag') {
-            & $opencode.Source run --model $env:MODEL --prompt $promptContent 1> $StdoutFile 2> $StderrFile
-        }
-        else {
-            & $opencode.Source run --model $env:MODEL -- $promptContent 1> $StdoutFile 2> $StderrFile
-        }
-
-        return $LASTEXITCODE
-    }
-
-    function Contains-PromptFlagError {
-        param([string]$Path)
-
-        if (-not (Test-Path -Path $Path) -or (Get-Item -Path $Path).Length -eq 0) {
-            return $false
-        }
-
-        $patterns = @(
-            '(?i)unrecognized arguments?:\s*--prompt',
-            '(?i)no such option:\s*--prompt',
-            '(?i)unknown (?:argument|option):\s*--prompt'
-        )
-
-        foreach ($pattern in $patterns) {
-            if (Select-String -Path $Path -Pattern $pattern -Quiet) {
-                return $true
-            }
-        }
-
-        return $false
-    }
-
-    function Should-RetryWithPositional {
-        if ($exitCode -eq 0) {
-            return $false
-        }
-
-        if (Contains-PromptFlagError -Path $StderrFile) {
-            return $true
-        }
-
-        if (Contains-PromptFlagError -Path $StdoutFile) {
-            return $true
-        }
-
-        return $false
-    }
-
-    $exitCode = Invoke-Opencode -Strategy 'flag'
-
-    if (Should-RetryWithPositional) {
-        Clear-Content -Path $StdoutFile
-        Clear-Content -Path $StderrFile
-        $exitCode = Invoke-Opencode -Strategy 'positional'
-    }
+    # The opencode CLI expects the prompt as a positional argument per
+    # https://docs.sst.dev/opencode/cli#run.
+    & $opencode.Source run --model $env:MODEL -- $promptContent 1> $StdoutFile 2> $StderrFile
+    $exitCode = $LASTEXITCODE
 }
 finally {
     if ($previousEnv['NO_COLOR']) {

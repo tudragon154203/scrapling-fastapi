@@ -42,53 +42,16 @@ fi
 
 PROMPT_CONTENT=$(<"$PROMPT_FILE")
 
-run_opencode() {
-  local strategy=$1
-  local exit_code
-
-  set +e
-  if [[ "$strategy" == 'flag' ]]; then
-    NO_COLOR=1 \
-      XDG_CONFIG_HOME="$CONFIG_HOME" \
-      XDG_DATA_HOME="$DATA_HOME" \
-      opencode run --model "$MODEL" --prompt "$PROMPT_CONTENT" \
-      >"$STDOUT_FILE" 2>"$STDERR_FILE"
-  else
-    NO_COLOR=1 \
-      XDG_CONFIG_HOME="$CONFIG_HOME" \
-      XDG_DATA_HOME="$DATA_HOME" \
-      opencode run --model "$MODEL" -- "$PROMPT_CONTENT" \
-      >"$STDOUT_FILE" 2>"$STDERR_FILE"
-  fi
-  exit_code=$?
-  set -e
-
-  printf '%s' "$exit_code"
-}
-
-contains_prompt_flag_error() {
-  local file=$1
-  [[ -s "$file" ]] || return 1
-  if grep -Eiq '(unrecognized (argument|arguments|option|options): *--prompt|no such option: *--prompt|unknown (argument|option): *--prompt)' "$file"; then
-    return 0
-  fi
-  return 1
-}
-
-should_retry_with_positional() {
-  [[ "$EXIT_CODE" -ne 0 ]] || return 1
-  contains_prompt_flag_error "$STDERR_FILE" && return 0
-  contains_prompt_flag_error "$STDOUT_FILE" && return 0
-  return 1
-}
-
-EXIT_CODE=$(run_opencode flag)
-
-if should_retry_with_positional; then
-  : >"$STDOUT_FILE"
-  : >"$STDERR_FILE"
-  EXIT_CODE=$(run_opencode positional)
-fi
+set +e
+# The opencode CLI expects the prompt as a positional argument per
+# https://docs.sst.dev/opencode/cli#run.
+NO_COLOR=1 \
+  XDG_CONFIG_HOME="$CONFIG_HOME" \
+  XDG_DATA_HOME="$DATA_HOME" \
+  opencode run --model "$MODEL" -- "$PROMPT_CONTENT" \
+  >"$STDOUT_FILE" 2>"$STDERR_FILE"
+EXIT_CODE=$?
+set -e
 
 printf 'stdout_file=%s\n' "$STDOUT_FILE" >>"$OUTPUTS_FILE"
 printf 'stderr_file=%s\n' "$STDERR_FILE" >>"$OUTPUTS_FILE"
