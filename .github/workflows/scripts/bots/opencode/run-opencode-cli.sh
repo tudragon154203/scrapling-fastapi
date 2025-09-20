@@ -40,11 +40,14 @@ if [[ ! -s "$PROMPT_FILE" ]]; then
   exit 0
 fi
 
+PROMPT_CONTENT=$(<"$PROMPT_FILE")
+
 set +e
-cat "$PROMPT_FILE" | NO_COLOR=1 \
+# The opencode CLI accepts the prompt as the final positional argument.
+NO_COLOR=1 \
   XDG_CONFIG_HOME="$CONFIG_HOME" \
   XDG_DATA_HOME="$DATA_HOME" \
-  opencode run --model "$MODEL" \
+  opencode run --model "$MODEL" "$PROMPT_CONTENT" \
   >"$STDOUT_FILE" 2>"$STDERR_FILE"
 EXIT_CODE=$?
 set -e

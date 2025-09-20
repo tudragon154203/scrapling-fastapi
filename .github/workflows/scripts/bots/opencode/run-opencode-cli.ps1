@@ -75,12 +75,16 @@ $previousEnv = @{
     'XDG_DATA_HOME' = $env:XDG_DATA_HOME
 }
 
+[int]$exitCode = 0
+
 try {
     $env:NO_COLOR = '1'
     $env:XDG_CONFIG_HOME = $configHome
     $env:XDG_DATA_HOME = $dataHome
 
-    cmd /c "type `"$PromptFile`" | `"$($opencode.Source)`" run --model `"$env:MODEL`" 1> `"$StdoutFile`" 2> `"$StderrFile`""
+    $promptContent = Get-Content -Path $PromptFile -Raw
+    # Supply the prompt as the final positional argument in accordance with the CLI docs.
+    & $opencode.Source run --model $env:MODEL $promptContent 1> $StdoutFile 2> $StderrFile
     $exitCode = $LASTEXITCODE
 }
 finally {
