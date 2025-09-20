@@ -8,8 +8,12 @@ from pathlib import Path
 import pytest
 
 
-MODULE_PATH = Path(__file__).resolve().parents[4] / \
-    ".github/workflows/scripts/bots/aider/aider_review_formatter.py"
+WORKFLOWS_DIR = next(
+    parent for parent in Path(__file__).resolve().parents if parent.name == "workflows"
+)
+MODULE_PATH = (
+    WORKFLOWS_DIR / "scripts" / "bots" / "aider" / "aider_review_formatter.py"
+)
 
 
 @pytest.fixture(scope="module")

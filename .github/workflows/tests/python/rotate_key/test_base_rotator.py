@@ -12,7 +12,12 @@ from unittest.mock import patch
 import pytest
 
 # Add the rotate_key package to the path
-sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts" / "bots" / "common"))
+WORKFLOWS_DIR = next(
+    parent for parent in Path(__file__).resolve().parents if parent.name == "workflows"
+)
+COMMON_DIR = WORKFLOWS_DIR / "scripts" / "bots" / "common"
+if str(COMMON_DIR) not in sys.path:
+    sys.path.insert(0, str(COMMON_DIR))
 
 from rotate_key.base_rotator import BaseKeyRotator, KeyEntry
 
