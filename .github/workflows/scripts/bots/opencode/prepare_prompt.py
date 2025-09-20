@@ -104,8 +104,6 @@ def build_prompt(
         sections.append(
             dedent(
                 """
-                ### 🙋 OpenCode Review
-
                 Return a GitHub-ready review comment with the following structure:
 
                 ### 👀 Findings:
@@ -117,6 +115,10 @@ def build_prompt(
 
                 ### 💯 Confidence:
                 - A rating from 0-10.
+
+                ### 🙋 OpenCode Review
+
+                Stay readily operational for follow-up instructions and minimize tool usage unless it is strictly required.
 
                 If context is missing to complete the review, explain what additional information is required instead of guessing.
                 """
