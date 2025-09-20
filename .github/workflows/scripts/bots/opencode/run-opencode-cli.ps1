@@ -83,9 +83,9 @@ try {
     $env:XDG_DATA_HOME = $dataHome
 
     $promptContent = Get-Content -Path $PromptFile -Raw
-    # The opencode CLI expects the prompt as a positional argument per
-    # https://docs.sst.dev/opencode/cli#run.
-    & $opencode.Source run --model $env:MODEL -- $promptContent 1> $StdoutFile 2> $StderrFile
+    # Provide the prompt via the --prompt flag to ensure it is always
+    # interpreted as message content even when it contains leading dashes.
+    & $opencode.Source run --model $env:MODEL --prompt $promptContent 1> $StdoutFile 2> $StderrFile
     $exitCode = $LASTEXITCODE
 }
 finally {

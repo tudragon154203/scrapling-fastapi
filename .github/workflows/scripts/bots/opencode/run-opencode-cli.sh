@@ -43,12 +43,13 @@ fi
 PROMPT_CONTENT=$(<"$PROMPT_FILE")
 
 set +e
-# The opencode CLI expects the prompt as a positional argument per
-# https://docs.sst.dev/opencode/cli#run.
+# The opencode CLI expects the prompt as input. Provide it via the
+# documented --prompt flag so the message is always forwarded even when it
+# contains leading dashes.
 NO_COLOR=1 \
   XDG_CONFIG_HOME="$CONFIG_HOME" \
   XDG_DATA_HOME="$DATA_HOME" \
-  opencode run --model "$MODEL" -- "$PROMPT_CONTENT" \
+  opencode run --model "$MODEL" --prompt "$PROMPT_CONTENT" \
   >"$STDOUT_FILE" 2>"$STDERR_FILE"
 EXIT_CODE=$?
 set -e
