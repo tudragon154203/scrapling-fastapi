@@ -105,6 +105,63 @@ def _contains_tool_markup(*texts: str) -> bool:
     return False
 
 
+def _has_expected_review_sections(text: str) -> bool:
+    """Return True when the text looks like a structured opencode review."""
+
+    if not text:
+        return False
+
+    lowered = text.lower()
+    return all(
+        any(marker in lowered for marker in markers)
+        for markers in (
+            _FINDINGS_MARKERS,
+            _SUGGESTIONS_MARKERS,
+            _CONFIDENCE_MARKERS,
+        )
+    )
+
+
+def _diagnose_missing_review(
+    stdout_clean: str,
+    stdout_display: str,
+    metadata: Dict[str, Any],
+    tool_markup_detected: bool,
+) -> list[str]:
+    """Return explanatory notes when the CLI output lacks a review."""
+
+    diagnostics: list[str] = []
+    if _has_expected_review_sections(stdout_display or stdout_clean):
+        return diagnostics
+
+    if not (stdout_clean or stdout_display):
+        return diagnostics
+
+    diagnostics.append(
+        "No structured review (findings/suggestions/confidence) was detected in the "
+        "CLI output, so the run likely stopped before the model returned its review."
+    )
+
+    thinking_mode = metadata.get("thinking_mode")
+    if tool_markup_detected:
+        if isinstance(thinking_mode, str) and thinking_mode.strip().lower().startswith(
+            "tool"
+        ):
+            diagnostics.append(
+                "The run is using tool-calling mode, but the workflow never executed "
+                "the requested tool. Disable tool-calling or ensure the workflow "
+                "handles tool invocations so the review can complete."
+            )
+        else:
+            diagnostics.append(
+                "Tool invocation markup like `&lt;Tool use&gt;` appeared in the output; "
+                "make sure your workflow can respond to tool calls or re-run in "
+                "standard thinking mode."
+            )
+
+    return diagnostics
+
+
 def _build_troubleshooting_section(exit_code: int, appended_stderr: bool) -> str | None:
     """Return additional debugging guidance when the CLI fails."""
 
@@ -198,6 +255,15 @@ def format_comment(
     thinking_mode = metadata.get("thinking_mode")
     if isinstance(thinking_mode, str) and thinking_mode.strip():
         meta_lines.append(f"Thinking mode: `{thinking_mode.strip()}`")
+
+    diagnostics = _diagnose_missing_review(
+        stdout_clean=stdout_clean,
+        stdout_display=stdout_display,
+        metadata=metadata,
+        tool_markup_detected=tool_markup_detected,
+    )
+    if diagnostics:
+        meta_lines.extend(diagnostics)
     meta_lines.append(f"Exit code: `{exit_code}`")
     if extracted:
         meta_lines.append("Progress output from the CLI was omitted to highlight the final review.")

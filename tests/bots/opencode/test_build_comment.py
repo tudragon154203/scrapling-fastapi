@@ -48,6 +48,25 @@ def test_extract_review_section_falls_back_without_markers():
     assert review == text
 
 
+def test_format_comment_skips_missing_review_diagnostic_when_sections_present():
+    module = load_module()
+    metadata = {
+        "summary": "Automated review",
+        "model": "test-model",
+        "event_name": "pull_request",
+    }
+    stdout = (
+        "## Review Summary\n"
+        "**Findings:** Looks good.\n"
+        "**Suggestions:** None.\n"
+        "**Confidence:** 9/10"
+    )
+
+    comment = module.format_comment(metadata, stdout, "", 0)
+
+    assert "No structured review" not in comment
+
+
 def test_format_comment_escapes_html_like_sequences():
     module = load_module()
     metadata = {
@@ -63,7 +82,8 @@ def test_format_comment_escapes_html_like_sequences():
     assert "<Tool use>" not in comment
     assert "Thinking mode: `tool-calling`" in comment
     assert "tool invocation markup" in comment
-    assert "&lt;Tool use&gt;" in comment
+    assert "No structured review" in comment
+    assert "Disable tool-calling" in comment
 
 
 def test_format_comment_includes_troubleshooting_guidance_when_cli_fails():
@@ -90,4 +110,19 @@ def test_format_comment_does_not_flag_when_markup_absent():
 
     comment = module.format_comment(metadata, "All good!", "", 0)
 
+    assert "tool invocation markup" not in comment
+    assert "Disable tool-calling" not in comment
+
+
+def test_format_comment_adds_non_tool_diagnostic():
+    module = load_module()
+    metadata = {
+        "summary": "Automated review",
+        "model": "test-model",
+        "event_name": "pull_request",
+    }
+
+    comment = module.format_comment(metadata, "Thinking...", "", 0)
+
+    assert "No structured review" in comment
     assert "tool invocation markup" not in comment
