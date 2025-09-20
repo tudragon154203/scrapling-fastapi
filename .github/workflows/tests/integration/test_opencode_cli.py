@@ -21,24 +21,40 @@ except ImportError:
 # Mark all tests in this module as integration tests
 pytestmark = pytest.mark.integration
 
+IS_WINDOWS = platform.system() == "Windows"
+
+
+def _get_script_path() -> Path:
+    """Return the platform-specific path to the runner script."""
+    script_dir = Path(__file__).resolve().parents[2] / "scripts/bots/opencode"
+    script_name = "run-opencode-cli.ps1" if IS_WINDOWS else "run-opencode-cli.sh"
+    script_path = script_dir / script_name
+    if not script_path.exists():
+        raise FileNotFoundError(f"Script not found: {script_path}")
+    return script_path
+
+
+
 def _run_script(script_path: Path, args: list[str], env: dict) -> subprocess.CompletedProcess:
     """Run a script with appropriate shell settings for the platform."""
-    if platform.system() == "Windows":
-        # On Windows, we need to run shell scripts through bash
-        # Check if bash is available
+    if IS_WINDOWS:
+        if script_path.suffix.lower() == ".ps1":
+            command = ["powershell", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", str(script_path)] + args
+            return subprocess.run(command, env=env, capture_output=True, text=True)
+        # Fallback for environments where only bash scripts are available
         try:
             subprocess.run(["bash", "--version"], check=True, capture_output=True)
             cmd = ["bash", str(script_path)] + args
             return subprocess.run(cmd, env=env, capture_output=True, text=True)
         except (subprocess.CalledProcessError, FileNotFoundError):
-            # If bash is not available, try to run directly (might work with WSL or git bash)
             try:
                 return subprocess.run([str(script_path)] + args, env=env, capture_output=True, text=True, shell=True)
-            except (subprocess.CalledProcessError, FileNotFoundError):
-                # If that fails, skip the test
-                raise FileNotFoundError("Cannot execute shell script on Windows. Please install bash (Git Bash, WSL, or Cygwin).")
+            except (subprocess.CalledProcessError, FileNotFoundError) as exc:
+                raise FileNotFoundError("Cannot execute shell script on Windows. Please install bash (Git Bash, WSL, or Cygwin).") from exc
     else:
-        # On Unix-like systems, run directly
+        if script_path.suffix.lower() == ".sh":
+            cmd = ["bash", str(script_path)] + args
+            return subprocess.run(cmd, env=env, capture_output=True, text=True)
         return subprocess.run([str(script_path)] + args, env=env, capture_output=True, text=True)
 
 
@@ -88,8 +104,8 @@ def test_opencode_cli_integration() -> None:
         env["OPENROUTER_API_KEY"] = api_key
         
         # Run the script
-        script_path = Path(__file__).resolve().parents[2] / "scripts/bots/opencode/run-opencode-cli.sh"
         try:
+            script_path = _get_script_path()
             result = _run_script(script_path, [str(prompt_file), str(stdout_file), str(stderr_file), str(outputs_file)], env)
         except FileNotFoundError as e:
             pytest.skip(str(e))
@@ -159,8 +175,8 @@ def test_opencode_cli_with_custom_model() -> None:
         env["OPENROUTER_API_KEY"] = api_key
         
         # Run the script
-        script_path = Path(__file__).resolve().parents[2] / "scripts/bots/opencode/run-opencode-cli.sh"
         try:
+            script_path = _get_script_path()
             result = _run_script(script_path, [str(prompt_file), str(stdout_file), str(stderr_file), str(outputs_file)], env)
         except FileNotFoundError as e:
             pytest.skip(str(e))
@@ -219,8 +235,8 @@ def test_opencode_cli_error_handling() -> None:
         env["OPENROUTER_API_KEY"] = "invalid-api-key"
         
         # Run the script
-        script_path = Path(__file__).resolve().parents[2] / "scripts/bots/opencode/run-opencode-cli.sh"
         try:
+            script_path = _get_script_path()
             result = _run_script(script_path, [str(prompt_file), str(stdout_file), str(stderr_file), str(outputs_file)], env)
         except FileNotFoundError as e:
             pytest.skip(str(e))
