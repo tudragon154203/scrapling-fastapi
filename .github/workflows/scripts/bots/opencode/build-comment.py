@@ -16,10 +16,31 @@ MAX_STREAM_SECTION = 2000
 def clean_stream(text: str) -> str:
     if not text:
         return ""
-    cleaned = text.replace("\r", "")
+    cleaned = _collapse_carriage_returns(text)
     cleaned = ANSI_ESCAPE_RE.sub("", cleaned)
     cleaned = CONTROL_CHAR_RE.sub("", cleaned)
     return cleaned.strip()
+
+
+def _collapse_carriage_returns(text: str) -> str:
+    text = text.replace("\r\n", "\n")
+    lines: list[str] = []
+    current: list[str] = []
+
+    for char in text:
+        if char == "\r":
+            current = []
+            continue
+        if char == "\n":
+            lines.append("".join(current))
+            current = []
+            continue
+        current.append(char)
+
+    if current:
+        lines.append("".join(current))
+
+    return "\n".join(lines)
 
 
 
