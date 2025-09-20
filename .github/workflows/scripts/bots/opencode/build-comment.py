@@ -17,6 +17,7 @@ MAX_STREAM_SECTION = 2000
 _FINDINGS_MARKERS = ("**findings:**", "findings:", "## findings")
 _SUGGESTIONS_MARKERS = ("**suggestions:**", "suggestions:", "## suggestions")
 _CONFIDENCE_MARKERS = ("**confidence:**", "confidence:", "## confidence")
+_HTML_TAG_RE = re.compile(r"<([^>\n]+)>")
 
 def clean_stream(text: str) -> str:
     if not text:
@@ -81,6 +82,19 @@ def extract_review_section(text: str) -> tuple[str, bool]:
     return review_text, True
 
 
+def _escape_html_like_tags(text: str) -> str:
+    """Escape angle-bracket tags so GitHub does not treat them as HTML."""
+
+    if "<" not in text or ">" not in text:
+        return text
+
+    def _replace(match: re.Match[str]) -> str:
+        content = match.group(1)
+        return f"&lt;{content}&gt;"
+
+    return _HTML_TAG_RE.sub(_replace, text)
+
+
 def _collapse_carriage_returns(text: str) -> str:
     text = text.replace("\r\n", "\n")
     lines: list[str] = []
@@ -135,7 +149,7 @@ def format_comment(
         sections.append(f"> **Command:** {safe_command}")
 
     if stdout_display:
-        sections.append(stdout_display)
+        sections.append(_escape_html_like_tags(stdout_display))
     else:
         sections.append("_The opencode CLI did not return any output._")
 

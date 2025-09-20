@@ -46,3 +46,17 @@ def test_extract_review_section_falls_back_without_markers():
 
     assert extracted is False
     assert review == text
+
+
+def test_format_comment_escapes_html_like_sequences():
+    module = load_module()
+    metadata = {
+        "summary": "Automated review",
+        "model": "test-model",
+        "event_name": "pull_request",
+    }
+
+    comment = module.format_comment(metadata, "<Tool use>\nAll good!", "", 0)
+
+    assert "&lt;Tool use&gt;" in comment
+    assert "<Tool use>" not in comment
