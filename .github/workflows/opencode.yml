@@ -54,6 +54,16 @@ jobs:
         id: opencode_version
         run: ./.github/workflows/scripts/bots/opencode/get-opencode-version.sh
 
+      - name: Select OpenRouter API key
+        id: select_openrouter_key
+        run: python .github/workflows/scripts/bots/common/rotate_key/openrouter.py --output-selected-name openrouter_secret_name
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          OPENROUTER_API_KEY_2: ${{ secrets.OPENROUTER_API_KEY_2 }}
+          OPENROUTER_API_KEY_3: ${{ secrets.OPENROUTER_API_KEY_3 }}
+          OPENROUTER_API_KEY_4: ${{ secrets.OPENROUTER_API_KEY_4 }}
+          OPENROUTER_API_KEY_5: ${{ secrets.OPENROUTER_API_KEY_5 }}
+
       - name: Persist event payload
         run: |
           cat <<'JSON' > "$RUNNER_TEMP/opencode-event.json"
@@ -87,7 +97,7 @@ jobs:
         id: run_cli
         env:
           MODEL: ${{ steps.prepare_prompt.outputs.model || env.MODEL }}
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          OPENROUTER_API_KEY: ${{ env.OPENROUTER_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
