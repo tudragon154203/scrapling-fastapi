@@ -14,129 +14,18 @@ ANSI_ESCAPE_RE = re.compile(r"\x1B\[[0-9;?]*[ -/]*[@-~]")
 CONTROL_CHAR_RE = re.compile(r"[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F]")
 MAX_STREAM_SECTION = 2000
 
+_FINDINGS_MARKERS = ("**findings:**", "findings:", "## findings")
+_SUGGESTIONS_MARKERS = ("**suggestions:**", "suggestions:", "## suggestions")
+_CONFIDENCE_MARKERS = ("**confidence:**", "confidence:", "## confidence")
 _HTML_TAG_RE = re.compile(r"<([^>\n]+)>")
 _TOOL_MARKUP_RE = re.compile(r"<(Tool\s+use|/Tool)>", re.IGNORECASE)
 _THINKING_MARKUP_RE = re.compile(r"<(thinking|/thinking)>", re.IGNORECASE)
-_THINK_TAG_RE = re.compile(
-    r"<(?P<closing>/)?(?P<tag>think|thinking)\b[^>]*>",
-    re.IGNORECASE,
-)
-_SECTION_KEYWORDS = ("findings", "suggestions", "confidence")
-_LEADING_SECTION_JUNK_RE = re.compile(r"^(?:\d+[).:]\s*|[\W_]+)+")
-
-
-def _normalize_line_for_section(line: str) -> str:
-    """Return a lowercase line stripped of leading markup before detection."""
-
-    lowered = line.lower().strip()
-    if not lowered:
-        return ""
-    lowered = lowered.replace("**", "").replace("__", "")
-    lowered = lowered.replace("`", "").replace("~", "")
-    return _LEADING_SECTION_JUNK_RE.sub("", lowered)
-
-
-def _line_matches_section(line: str, keyword: str) -> bool:
-    """Return True when the line appears to introduce the given section."""
-
-    normalized = _normalize_line_for_section(line)
-    if not normalized.startswith(keyword):
-        return False
-    if len(normalized) == len(keyword):
-        return True
-    next_char = normalized[len(keyword)]
-    return not next_char.isalnum()
-
-
-def _detect_section_presence(text: str) -> dict[str, bool]:
-    presence = {key: False for key in _SECTION_KEYWORDS}
-    for line in text.splitlines():
-        for keyword in _SECTION_KEYWORDS:
-            if presence[keyword]:
-                continue
-            if _line_matches_section(line, keyword):
-                presence[keyword] = True
-    return presence
-
-
-def _contains_review_markers(text: str) -> bool:
-    if not text:
-        return False
-    presence = _detect_section_presence(text)
-    return any(presence.values())
-
-
-def _strip_think_blocks(text: str) -> str:
-    """Remove hidden reasoning enclosed in think/thinking tags."""
-
-    if "<" not in text:
-        return text
-
-    blocks: list[dict[str, int]] = []
-    stack: list[dict[str, int]] = []
-
-    for match in _THINK_TAG_RE.finditer(text):
-        start, end = match.span()
-        is_closing = bool(match.group("closing"))
-
-        if not is_closing:
-            stack.append({"start": start, "content_start": end})
-            continue
-
-        if not stack:
-            continue
-
-        opener = stack.pop()
-        if stack:
-            continue
-
-        blocks.append(
-            {
-                "start": opener["start"],
-                "content_start": opener["content_start"],
-                "content_end": start,
-                "end": end,
-            }
-        )
-
-    result: list[str] = []
-    index = 0
-    for block in blocks:
-        start = block["start"]
-        end = block["end"]
-        content_start = block["content_start"]
-        content_end = block["content_end"]
-
-        if start > index:
-            result.append(text[index:start])
-
-        content = text[content_start:content_end]
-        if _contains_review_markers(content):
-            cleaned_content = _strip_think_blocks(content)
-            if cleaned_content:
-                result.append(cleaned_content)
-
-        index = end
-
-    if stack:
-        earliest_unclosed = min(item["start"] for item in stack)
-        if index < earliest_unclosed:
-            result.append(text[index:earliest_unclosed])
-    elif index < len(text):
-        result.append(text[index:])
-
-    stripped = "".join(result)
-    if not stripped and (stack or blocks):
-        return ""
-
-    return re.sub(r"[ \t]{2,}", " ", stripped)
 
 
 def clean_stream(text: str) -> str:
     if not text:
         return ""
     cleaned = _collapse_carriage_returns(text)
-    cleaned = _strip_think_blocks(cleaned)
     cleaned = ANSI_ESCAPE_RE.sub("", cleaned)
     cleaned = CONTROL_CHAR_RE.sub("", cleaned)
     # Remove thinking and tool markup from the stream
@@ -162,10 +51,10 @@ def extract_review_section(text: str) -> tuple[str, bool]:
     start_index: int | None = None
 
     for index, line in enumerate(lines):
-        stripped = line.strip()
+        stripped = line.strip().lower()
         if not stripped:
             continue
-        if _line_matches_section(stripped, "findings"):
+        if any(marker in stripped for marker in _FINDINGS_MARKERS):
             start_index = index
             break
 
@@ -184,18 +73,18 @@ def extract_review_section(text: str) -> tuple[str, bool]:
 
     full_review_lines = lines[start_i:]
     review_lines = []
-    sections_seen: set[str] = set()
+    sections_seen = 0
     previous_empty = False
     for line in full_review_lines:
-        stripped = line.strip()
+        stripped = line.strip().lower()
         is_empty = not stripped
-        if _line_matches_section(stripped, "findings"):
-            sections_seen.add("findings")
-        if _line_matches_section(stripped, "suggestions"):
-            sections_seen.add("suggestions")
-        if _line_matches_section(stripped, "confidence"):
-            sections_seen.add("confidence")
-        if is_empty and previous_empty and len(sections_seen) >= 2:
+        if any(marker in stripped for marker in _FINDINGS_MARKERS):
+            sections_seen += 1
+        if any(marker in stripped for marker in _SUGGESTIONS_MARKERS):
+            sections_seen += 1
+        if any(marker in stripped for marker in _CONFIDENCE_MARKERS):
+            sections_seen += 1
+        if is_empty and previous_empty and sections_seen >= 2:
             break
         review_lines.append(line)
         previous_empty = is_empty
@@ -204,9 +93,12 @@ def extract_review_section(text: str) -> tuple[str, bool]:
     if not review_text:
         return text, False
 
-    presence = _detect_section_presence(review_text)
-    has_findings = presence["findings"]
-    has_other_section = presence["suggestions"] or presence["confidence"]
+    lowered = review_text.lower()
+    has_findings = any(marker in lowered for marker in _FINDINGS_MARKERS)
+    has_other_section = any(
+        any(marker in lowered for marker in markers)
+        for markers in (_SUGGESTIONS_MARKERS, _CONFIDENCE_MARKERS)
+    )
 
     if not has_findings or not has_other_section:
         return text, False
@@ -225,15 +117,32 @@ def _escape_html_like_tags(text: str) -> str:
         return f"&lt;{content}&gt;"
 
     return _HTML_TAG_RE.sub(_replace, text)
+
+
+
+
+def _summarize_tool_calls(streams: Dict[str, str]) -> list[str]:
+    """Return a summary of tool calls in the output streams."""
+    summaries = []
+    for name, stream in streams.items():
+        for match in _TOOL_MARKUP_RE.finditer(stream):
+            tag = match.group(1)
+            summaries.append(f"<{tag}> in {name}")
+    return summaries
+
+
 def _has_expected_review_sections(text: str) -> bool:
     """Return True when the text looks like a structured opencode review."""
 
     if not text:
         return False
 
-    presence = _detect_section_presence(text)
-    has_findings = presence["findings"]
-    has_other_section = presence["suggestions"] or presence["confidence"]
+    lowered = text.lower()
+    has_findings = any(marker in lowered for marker in _FINDINGS_MARKERS)
+    has_other_section = any(
+        any(marker in lowered for marker in markers)
+        for markers in (_SUGGESTIONS_MARKERS, _CONFIDENCE_MARKERS)
+    )
     return has_findings and has_other_section
 
 
@@ -319,9 +228,7 @@ def format_comment(
     stdout_clean = clean_stream(stdout)
     stderr_clean = clean_stream(stderr)
     stdout_display, extracted = extract_review_section(stdout_clean)
-    tool_markup_detected = bool(
-        _TOOL_MARKUP_RE.search(stdout or "") or _TOOL_MARKUP_RE.search(stderr or "")
-    )
+    tool_markup_detected = bool(_TOOL_MARKUP_RE.search(stdout_clean) or _TOOL_MARKUP_RE.search(stderr_clean))
     sections = ["#### dY opencode CLI"]
 
     summary = metadata.get("summary")
@@ -347,26 +254,44 @@ def format_comment(
     else: # if there's absolutely no output
         sections.append("_The opencode CLI did not return any output._")
 
+    meta_lines: list[str] = []
+    model = metadata.get("model") or "unknown"
+    meta_lines.append(f"Model: `{model}`")
+    event_name = metadata.get("event_name") or "unknown"
+    meta_lines.append(f"Event: `{event_name}`")
+    thinking_mode = metadata.get("thinking_mode")
+    if isinstance(thinking_mode, str) and thinking_mode.strip():
+        meta_lines.append(f"Thinking mode: `{thinking_mode.strip()}`")
+
     diagnostics = _diagnose_missing_review(
         stdout_clean=stdout_clean,
         stdout_display=stdout_display,
         metadata=metadata,
         tool_markup_detected=tool_markup_detected,
     )
-    sections.extend(diagnostics)
-
+    if diagnostics:
+        meta_lines.extend(diagnostics)
+    meta_lines.append(f"Exit code: `{exit_code}`")
+    if extracted:
+        meta_lines.append("Progress output from the CLI was omitted to highlight the final review.")
     if exit_code != 0:
-        sections.append(
+        meta_lines.append(
             "The CLI exited with a non-zero status. Review the stderr output for additional details."
         )
-    elif tool_markup_detected and not extracted:
-        sections.append(
+    elif tool_markup_detected:
+        meta_lines.append(
             "The CLI response includes tool invocation markup (for example `&lt;Tool use&gt;`), "
             "which suggests the model attempted to call a tool instead of returning a review."
         )
+        tool_summaries = _summarize_tool_calls(
+            {"stdout": stdout_clean, "stderr": stderr_clean}
+        )
+        if tool_summaries:
+            meta_lines.append("Tool call requests observed before the run stopped:")
+            meta_lines.extend(f"- {summary}" for summary in tool_summaries)
 
     include_stderr = os.getenv("INCLUDE_OPENCODE_STDERR") == "1"
-    stderr_sections: list[str] = []
+    appended_stderr = False
 
     if include_stderr:
         display = stderr_clean or (stderr.strip() if stderr else "")
@@ -379,9 +304,11 @@ def format_comment(
             if truncated:
                 block_lines.append("...(truncated)")
             block_lines.append("```")
-            stderr_sections.append("\n".join(block_lines))
+            meta_lines.append("\n".join(block_lines))
+            meta_lines.append("Debug: stderr output included because INCLUDE_OPENCODE_STDERR=1.")
+            appended_stderr = True
 
-    if not stderr_sections and stderr_clean and stderr_clean != stdout_clean:
+    if not appended_stderr and stderr_clean and stderr_clean != stdout_clean:
         display = stderr_clean
         truncated = False
         if len(display) > MAX_STREAM_SECTION:
@@ -391,9 +318,11 @@ def format_comment(
         if truncated:
             block_lines.append("...(truncated)")
         block_lines.append("```")
-        stderr_sections.append("\n".join(block_lines))
+        meta_lines.append("\n".join(block_lines))
+    elif not appended_stderr and stderr and stderr.strip():
+        meta_lines.append("CLI stderr contained only formatting codes and was omitted.")
 
-    sections.extend(stderr_sections)
+    sections.append("\n".join(meta_lines))
 
     troubleshooting = _build_troubleshooting_section(exit_code)
     if troubleshooting:

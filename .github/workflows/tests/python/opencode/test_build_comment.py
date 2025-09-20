@@ -130,29 +130,6 @@ Suggestions."""
         assert result.strip() == expected.strip()
         assert extracted
 
-    def test_emoji_headings(self):
-        text = """Progress update
-
-### ✅ Findings
-Everything looks good.
-
-### 💡 Suggestions
-Consider adding more tests.
-
-### 🔒 Confidence
-High."""
-        expected = """### ✅ Findings
-Everything looks good.
-
-### 💡 Suggestions
-Consider adding more tests.
-
-### 🔒 Confidence
-High."""
-        result, extracted = extract_review_section(text)
-        assert result.strip() == expected.strip()
-        assert extracted
-
     def test_malformed_review(self):
         text = """**Findings:**
 Incomplete."""
@@ -191,10 +168,11 @@ High."""
         assert "**Findings:**" in comment
         assert "**Suggestions:**" in comment
         assert "**Confidence:**" in comment
-        assert "Model:" not in comment
-        assert "Event:" not in comment
-        assert "Thinking mode:" not in comment
-        assert "Exit code:" not in comment
+        assert "Model: `gpt-4`" in comment
+        assert "Event: `pull_request`" in comment
+        assert "Thinking mode: `standard`" in comment
+        assert "Exit code: `0`" in comment
+        assert "Progress output from the CLI was omitted to highlight the final review." in comment
 
     def test_without_review(self):
         metadata: Dict[str, Any] = {"model": "gpt-4", "event_name": "pull_request"}
@@ -209,8 +187,8 @@ High."""
         assert "Only progress, no review." in comment
         assert "```" in comment
         assert "No structured review (findings/suggestions/confidence) was detected" in comment
-        assert "Model:" not in comment
-        assert "Exit code:" not in comment
+        assert "Model: `gpt-4`" in comment
+        assert "Exit code: `0`" in comment
 
     def test_with_stderr(self):
         metadata: Dict[str, Any] = {"model": "gpt-4"}
@@ -224,38 +202,6 @@ High."""
         assert "```text" in comment
         assert "Some error message." in comment
         assert "```" in comment
-
-    def test_tool_markup_warning_when_no_review(self):
-        metadata: Dict[str, Any] = {"model": "gpt-4"}
-        stdout = "<Tool use>call</Tool>"
-        comment = format_comment(metadata, stdout, "", 0)
-
-        assert "Tool invocation markup" in comment
-        assert "CLI response includes" in comment
-
-    def test_review_inside_think_block_preserved(self):
-        metadata: Dict[str, Any] = {"model": "gpt-4", "event_name": "pull_request"}
-        stdout = (
-            "<think>## Findings\nIssue\n\n**Suggestions:**\nFix\n\n**Confidence:**\nMedium</think>"
-        )
-        comment = format_comment(metadata, stdout, "", 0)
-
-        assert "## Findings" in comment
-        assert "**Suggestions:**" in comment
-        assert "**Confidence:**" in comment
-        assert "_The opencode CLI did not return any output._" not in comment
-
-    def test_review_with_emoji_headings_preserved(self):
-        metadata: Dict[str, Any] = {"model": "gpt-4", "event_name": "pull_request"}
-        stdout = (
-            "<think>### ✅ Findings\nAll good.\n\n### 💡 Suggestions\nNone.\n\n"
-            "### 🔒 Confidence\nHigh.</think>"
-        )
-        comment = format_comment(metadata, stdout, "", 0)
-
-        assert "### ✅ Findings" in comment
-        assert "### 💡 Suggestions" in comment
-        assert "### 🔒 Confidence" in comment
 
     def test_non_zero_exit_code(self):
         metadata: Dict[str, Any] = {"model": "gpt-4"}
@@ -272,14 +218,7 @@ High."""
     def test_no_unwanted_elements(self):
         # Test cleaning: ANSI, control chars, thinking blocks, tool uses, errors
         metadata: Dict[str, Any] = {"model": "gpt-4"}
-        stdout = (
-            "\x1B[31mRed text\x1B[0m\n"
-            "Thinking: <thinking>stuff</thinking>\n"
-            "Hidden: <think>secret</think>\n"
-            "<Tool use> call </Tool>\n"
-            "Error: boom\n"
-            "**Findings:** Clean."
-        )
+        stdout = "\x1B[31mRed text\x1B[0m\nThinking: <thinking>stuff</thinking>\n<Tool use> call </Tool>\nError: boom\n**Findings:** Clean."
         stderr = "stderr with \r\n carriage."
         exit_code = 0
 
@@ -288,7 +227,6 @@ High."""
         # Should clean ANSI, control, but extract review
         assert "\x1B" not in comment  # No ANSI
         assert "<thinking>" not in comment  # Thinking block in progress, removed by extract
-        assert "secret" not in comment  # Think block content removed
         assert "<Tool" not in comment  # Tool markup in progress, removed; if in review, would be escaped to <Tool
         # But since in prefix, removed
         assert "Error: boom" in comment  # In progress, not removed by clean_stream
@@ -305,9 +243,9 @@ High."""
         comment = format_comment(metadata, stdout, stderr, exit_code)
 
         assert "_The opencode CLI did not return any output._" in comment
-        assert "Model:" not in comment
-        assert "Event:" not in comment
-        assert "Exit code:" not in comment
+        assert "Model: `unknown`" in comment
+        assert "Event: `unknown`" in comment
+        assert "Exit code: `0`" in comment
 
     def test_html_like_tags_escaped(self):
         metadata: Dict[str, Any] = {"model": "gpt-4"}
@@ -338,36 +276,3 @@ class TestCleanStream:
 
     def test_empty(self):
         assert clean_stream("") == ""
-
-    def test_think_blocks_removed(self):
-        text = "Start <think>hidden</think> End"
-        cleaned = clean_stream(text)
-        assert cleaned == "Start End"
-        assert "hidden" not in cleaned
-
-    def test_think_blocks_with_attributes_removed(self):
-        text = "Start <think role='analysis'>hidden</think> End"
-        cleaned = clean_stream(text)
-        assert cleaned == "Start End"
-
-    def test_nested_think_blocks_removed(self):
-        text = "Start <think>outer <think>inner</think> still outer</think> End"
-        cleaned = clean_stream(text)
-        assert cleaned == "Start End"
-
-    def test_unterminated_think_blocks_removed(self):
-        text = "Start <think>hidden"
-        cleaned = clean_stream(text)
-        assert cleaned == "Start"
-
-    def test_think_block_with_review_preserved(self):
-        text = (
-            "Intro <think>## Findings\nIssue details\n\n**Suggestions:**\nFix it\n\n"
-            "**Confidence:**\nHigh</think> Outro"
-        )
-        cleaned = clean_stream(text)
-        assert "Intro" in cleaned
-        assert "Outro" in cleaned
-        assert "## Findings" in cleaned
-        assert "**Suggestions:**" in cleaned
-        assert "**Confidence:**" in cleaned
