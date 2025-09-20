@@ -5,6 +5,8 @@ This directory contains tests for the opencode GitHub workflow scripts.
 ## Test Structure
 
 - `python/` - Python unit tests
+  - `bots/` - Tests for workflow bot helpers, grouped by dispatcher, formatter, and opencode utilities
+  - `rotate_key/` - Tests for the shared rotate_key helpers and rotation scripts
 - `js/` - JavaScript unit tests
 - `integration/` - Integration tests that require external services
 

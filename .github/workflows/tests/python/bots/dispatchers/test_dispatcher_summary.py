@@ -7,12 +7,11 @@ from pathlib import Path
 
 import pytest
 
+WORKFLOWS_DIR = next(
+    parent for parent in Path(__file__).resolve().parents if parent.name == "workflows"
+)
 SCRIPT_PATH = (
-    Path(__file__).resolve().parents[2]
-    / "scripts"
-    / "bots"
-    / "common"
-    / "dispatcher_summary.py"
+    WORKFLOWS_DIR / "scripts" / "bots" / "common" / "dispatcher_summary.py"
 )
 MODULE = runpy.run_path(str(SCRIPT_PATH))
 

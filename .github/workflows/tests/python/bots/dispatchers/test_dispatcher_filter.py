@@ -17,8 +17,11 @@ def read_github_output(github_env):
     return result
 
 
+WORKFLOWS_DIR = next(
+    parent for parent in Path(__file__).resolve().parents if parent.name == "workflows"
+)
 DISPATCHER_PATH = (
-    Path(__file__).resolve().parents[2] / "scripts" / "bots" / "common" / "dispatcher_filter.py"
+    WORKFLOWS_DIR / "scripts" / "bots" / "common" / "dispatcher_filter.py"
 )
 
 
