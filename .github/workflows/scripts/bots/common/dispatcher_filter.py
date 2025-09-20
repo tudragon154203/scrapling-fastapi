@@ -18,8 +18,9 @@ import csv
 import json
 import os
 import re
+from dataclasses import dataclass
 from io import StringIO
-from typing import Iterable, Optional, Sequence, Set
+from typing import Callable, Iterable, Optional, Sequence, Set
 
 
 def _normalize_candidates(items: Iterable[object]) -> Set[str]:
@@ -111,14 +112,23 @@ def is_allowed(bot: str, active_filter: Optional[Set[str]]) -> bool:
     return bot in active_filter
 
 
-# Trusted user roles for triggering bots
+# Trusted user roles for triggering bots. All bots follow the Opencode
+# standard: pull requests and interactive events are limited to trusted
+# members.
 TRUSTED_MEMBERS = {"OWNER", "COLLABORATOR", "MEMBER"}
-TRUSTED_WITH_AUTHOR = TRUSTED_MEMBERS | {"AUTHOR"}
 
 # Prefixes that trigger specific bots in comments or bodies
+AIDER_PREFIXES = ("@aider", "AIDER", "/aider")
 CLAUDE_PREFIXES = ("@claude", "CLAUDE", "/claude")
 GEMINI_PREFIXES = ("GEMINI", "@gemini", "@gemini-cli", "/gemini")
 OPENCODE_PREFIXES = ("@opencode", "OPENCODE", "/opencode")
+
+BOT_PREFIXES = {
+    "aider": AIDER_PREFIXES,
+    "claude": CLAUDE_PREFIXES,
+    "gemini": GEMINI_PREFIXES,
+    "opencode": OPENCODE_PREFIXES,
+}
 
 
 def get(payload: dict, *keys):
@@ -133,7 +143,9 @@ def get(payload: dict, *keys):
 
 def text(value) -> str:
     # Convert value to string or empty string
-    return value or ""
+    if value is None:
+        return ""
+    return str(value)
 
 
 def startswith_any(value: str, prefixes) -> bool:
@@ -144,6 +156,70 @@ def startswith_any(value: str, prefixes) -> bool:
 def contains_any(value: str, substrings) -> bool:
     # Check if value contains any substring
     return any(sub in value for sub in substrings)
+
+
+@dataclass(frozen=True)
+class InteractionDetails:
+    association: str
+    texts: Sequence[str]
+    matcher: Callable[[str, Sequence[str]], bool]
+
+
+def _build_interaction_details(
+    event_name: str, payload: dict
+) -> Optional[InteractionDetails]:
+    """Build details for interactive events that may trigger bots."""
+
+    if event_name == "issue_comment":
+        return InteractionDetails(
+            association=text(get(payload, "comment", "author_association")),
+            texts=[text(get(payload, "comment", "body"))],
+            matcher=startswith_any,
+        )
+
+    if event_name == "pull_request_review_comment":
+        return InteractionDetails(
+            association=text(get(payload, "comment", "author_association")),
+            texts=[text(get(payload, "comment", "body"))],
+            matcher=startswith_any,
+        )
+
+    if event_name == "pull_request_review":
+        return InteractionDetails(
+            association=text(get(payload, "review", "author_association")),
+            texts=[text(get(payload, "review", "body"))],
+            matcher=startswith_any,
+        )
+
+    if event_name == "issues":
+        return InteractionDetails(
+            association=text(get(payload, "issue", "author_association")),
+            texts=[
+                text(get(payload, "issue", "body")),
+                text(get(payload, "issue", "title")),
+            ],
+            matcher=contains_any,
+        )
+
+    return None
+
+
+def _should_run_interactive_bot(
+    prefixes: Sequence[str], details: Optional[InteractionDetails]
+) -> bool:
+    """Return True when an interactive event should trigger a bot."""
+
+    if details is None:
+        return False
+
+    if details.association not in TRUSTED_MEMBERS:
+        return False
+
+    return any(
+        details.matcher(candidate, prefixes)
+        for candidate in details.texts
+        if candidate
+    )
 
 
 def write_output(name: str, value: str) -> None:
@@ -163,114 +239,27 @@ def decide() -> None:
     event_name = os.environ.get("EVENT_NAME") or ""
     payload = json.loads(os.environ.get("EVENT_PAYLOAD") or "{}")
 
-    # Determine if Aider should run (only for pull requests from trusted members)
-    aider_should_run = False
-    if is_allowed("aider", active_filter) and event_name == "pull_request":
-        assoc = text(get(payload, "pull_request", "author_association"))
-        aider_should_run = assoc in TRUSTED_MEMBERS
+    interactive_details = _build_interaction_details(event_name, payload)
 
-    # Determine if Claude should run
-    claude_should_run = False
-    if is_allowed("claude", active_filter):
-        if event_name == "pull_request":
-            claude_should_run = True
-        elif event_name == "issue_comment":
-            assoc = text(get(payload, "comment", "author_association"))
-            body = text(get(payload, "comment", "body"))
-            claude_should_run = bool(
-                assoc in TRUSTED_MEMBERS
-                and startswith_any(body, CLAUDE_PREFIXES)
-            )
-        elif event_name == "pull_request_review_comment":
-            assoc = text(get(payload, "comment", "author_association"))
-            body = text(get(payload, "comment", "body"))
-            claude_should_run = bool(
-                assoc in TRUSTED_MEMBERS
-                and startswith_any(body, CLAUDE_PREFIXES)
-            )
-        elif event_name == "pull_request_review":
-            assoc = text(get(payload, "review", "author_association"))
-            body = text(get(payload, "review", "body"))
-            claude_should_run = bool(
-                assoc in TRUSTED_MEMBERS
-                and startswith_any(body, CLAUDE_PREFIXES)
-            )
-        elif event_name == "issues":
-            assoc = text(get(payload, "issue", "author_association"))
-            issue_body = text(get(payload, "issue", "body"))
-            title = text(get(payload, "issue", "title"))
-            claude_should_run = bool(
-                assoc in TRUSTED_MEMBERS
-                and (
-                    contains_any(issue_body, CLAUDE_PREFIXES)
-                    or contains_any(title, CLAUDE_PREFIXES)
+    should_run_flags = {bot: False for bot in BOT_PREFIXES}
+
+    if event_name == "pull_request":
+        pr_association = text(get(payload, "pull_request", "author_association"))
+        for bot in should_run_flags:
+            if is_allowed(bot, active_filter):
+                should_run_flags[bot] = pr_association in TRUSTED_MEMBERS
+    else:
+        for bot, prefixes in BOT_PREFIXES.items():
+            if is_allowed(bot, active_filter):
+                should_run_flags[bot] = _should_run_interactive_bot(
+                    prefixes, interactive_details
                 )
-            )
-
-    # Determine if Gemini should run
-    gemini_should_run = False
-    if is_allowed("gemini", active_filter):
-        if event_name == "pull_request":
-            gemini_should_run = True
-        elif event_name == "issue_comment":
-            assoc = text(get(payload, "comment", "author_association"))
-            body = text(get(payload, "comment", "body"))
-            gemini_should_run = bool(
-                assoc in TRUSTED_MEMBERS
-                and startswith_any(body, GEMINI_PREFIXES)
-            )
-        elif event_name == "pull_request_review_comment":
-            assoc = text(get(payload, "comment", "author_association"))
-            body = text(get(payload, "comment", "body"))
-            gemini_should_run = bool(
-                assoc in TRUSTED_MEMBERS
-                and startswith_any(body, GEMINI_PREFIXES)
-            )
-
-    # Determine if Opencode should run
-    opencode_should_run = False
-    if is_allowed("opencode", active_filter):
-        if event_name == "pull_request":
-            assoc = text(get(payload, "pull_request", "author_association"))
-            opencode_should_run = assoc in TRUSTED_MEMBERS
-        elif event_name == "issue_comment":
-            assoc = text(get(payload, "comment", "author_association"))
-            body = text(get(payload, "comment", "body"))
-            opencode_should_run = bool(
-                assoc in TRUSTED_WITH_AUTHOR
-                and startswith_any(body, OPENCODE_PREFIXES)
-            )
-        elif event_name == "pull_request_review_comment":
-            assoc = text(get(payload, "comment", "author_association"))
-            body = text(get(payload, "comment", "body"))
-            opencode_should_run = bool(
-                assoc in TRUSTED_WITH_AUTHOR
-                and startswith_any(body, OPENCODE_PREFIXES)
-            )
-        elif event_name == "pull_request_review":
-            assoc = text(get(payload, "review", "author_association"))
-            body = text(get(payload, "review", "body"))
-            opencode_should_run = bool(
-                assoc in TRUSTED_WITH_AUTHOR
-                and startswith_any(body, OPENCODE_PREFIXES)
-            )
-        elif event_name == "issues":
-            assoc = text(get(payload, "issue", "author_association"))
-            issue_body = text(get(payload, "issue", "body"))
-            title = text(get(payload, "issue", "title"))
-            opencode_should_run = bool(
-                assoc in TRUSTED_WITH_AUTHOR
-                and (
-                    contains_any(issue_body, OPENCODE_PREFIXES)
-                    or contains_any(title, OPENCODE_PREFIXES)
-                )
-            )
 
     # Output the decisions for GitHub Actions to use in conditional jobs
-    write_output("run_aider", "true" if aider_should_run else "false")
-    write_output("run_claude", "true" if claude_should_run else "false")
-    write_output("run_gemini", "true" if gemini_should_run else "false")
-    write_output("run_opencode", "true" if opencode_should_run else "false")
+    write_output("run_aider", "true" if should_run_flags["aider"] else "false")
+    write_output("run_claude", "true" if should_run_flags["claude"] else "false")
+    write_output("run_gemini", "true" if should_run_flags["gemini"] else "false")
+    write_output("run_opencode", "true" if should_run_flags["opencode"] else "false")
 
     # Export active filter outputs
     if active_filter is None:
@@ -284,10 +273,10 @@ def decide() -> None:
     write_output("active_filter", active_filter_str)
     write_output("active_filter_json", active_filter_json_str)
 
-    print(f"  - run_aider: {'true' if aider_should_run else 'false'}")
-    print(f"  - run_claude: {'true' if claude_should_run else 'false'}")
-    print(f"  - run_gemini: {'true' if gemini_should_run else 'false'}")
-    print(f"  - run_opencode: {'true' if opencode_should_run else 'false'}")
+    print(f"  - run_aider: {'true' if should_run_flags['aider'] else 'false'}")
+    print(f"  - run_claude: {'true' if should_run_flags['claude'] else 'false'}")
+    print(f"  - run_gemini: {'true' if should_run_flags['gemini'] else 'false'}")
+    print(f"  - run_opencode: {'true' if should_run_flags['opencode'] else 'false'}")
 
     # Extract target ID and type for the event (PR or issue number)
     target_id = ""
