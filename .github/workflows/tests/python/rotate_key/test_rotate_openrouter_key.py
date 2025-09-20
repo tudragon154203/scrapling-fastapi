@@ -50,6 +50,7 @@ def _clear_seed_env(monkeypatch: pytest.MonkeyPatch) -> None:
         "GITHUB_RUN_ATTEMPT",
         "GITHUB_SHA",
         "GITHUB_JOB",
+        "GITHUB_WORKFLOW",
     ]:
         monkeypatch.delenv(env_name, raising=False)
 
@@ -151,3 +152,20 @@ def test_derive_seed_uses_attempt_when_primary_missing(monkeypatch):
     seed_two = rotator.derive_seed(None)
 
     assert seed_one != seed_two
+
+
+def test_derive_seed_varies_by_workflow(monkeypatch):
+    """Different workflows within the same run should not share seeds."""
+
+    _clear_seed_env(monkeypatch)
+    rotator = _DummyRotator()
+
+    monkeypatch.setenv("GITHUB_RUN_ID", "13579")
+    monkeypatch.setenv("GITHUB_JOB", "shared")
+    monkeypatch.setenv("GITHUB_WORKFLOW", "🤖 Claude")
+    claude_seed = rotator.derive_seed(None)
+
+    monkeypatch.setenv("GITHUB_WORKFLOW", "🪐 Gemini")
+    gemini_seed = rotator.derive_seed(None)
+
+    assert claude_seed != gemini_seed

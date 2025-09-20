@@ -154,6 +154,12 @@ class BaseKeyRotator(ABC):
             attempt_seed = self.parse_seed(attempt_value)
             base_seed = (base_seed + attempt_seed) % modulus
 
+        # Add workflow-specific entropy so different workflows avoid sharing seeds
+        workflow_name = os.environ.get("GITHUB_WORKFLOW", "")
+        if workflow_name:
+            workflow_hash = self.parse_seed(workflow_name)
+            base_seed = (base_seed + workflow_hash) % modulus
+
         # Add job-specific offset
         job_name = os.environ.get("GITHUB_JOB", "")
         if job_name:
