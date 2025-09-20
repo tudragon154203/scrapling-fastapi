@@ -41,11 +41,11 @@ if [[ ! -s "$PROMPT_FILE" ]]; then
 fi
 
 set +e
-NO_COLOR=1 \
+cat "$PROMPT_FILE" | NO_COLOR=1 \
   XDG_CONFIG_HOME="$CONFIG_HOME" \
   XDG_DATA_HOME="$DATA_HOME" \
   opencode run --model "$MODEL" \
-  >"$STDOUT_FILE" 2>"$STDERR_FILE" <"$PROMPT_FILE"
+  >"$STDOUT_FILE" 2>"$STDERR_FILE"
 EXIT_CODE=$?
 set -e
 
