@@ -104,9 +104,13 @@ def build_prompt(
         sections.append(
             dedent(
                 """
-                ### 🙋 OpenCode Review
+                ### 🛑 Operational guidelines:
+                - Treat this workflow as read-only; do not attempt to modify the repository or perform write operations.
+                - Minimize shell or tool usage; rely on reasoning over execution and only run commands when indispensable for inspecting the code.
 
                 Return a GitHub-ready review comment with the following structure:
+
+                ### 🙋 OpenCode Review
 
                 ### 👀 Findings:
                 - Call out blockers, risks, or explicitly state there are none.
