@@ -96,6 +96,10 @@ jobs:
           curl -fsSL https://opencode.ai/install | bash
           echo "$HOME/.opencode/bin" >> $GITHUB_PATH
 
+      - name: Debug Secret Value
+        run: |
+          echo "Raw OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}"
+
       - name: Run Opencode CLI Integration Tests
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
