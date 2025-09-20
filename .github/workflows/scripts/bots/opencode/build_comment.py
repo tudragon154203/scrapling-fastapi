@@ -18,13 +18,9 @@ _FINDINGS_MARKERS = ("**findings:**", "findings:", "## findings")
 _SUGGESTIONS_MARKERS = ("**suggestions:**", "suggestions:", "## suggestions")
 _CONFIDENCE_MARKERS = ("**confidence:**", "confidence:", "## confidence")
 _HTML_TAG_RE = re.compile(r"<([^>\n]+)>")
-_TOOL_MARKUP_RE = re.compile(r"<\s*(?:tool|task)[^>]*>", re.IGNORECASE)
-_TASK_BLOCK_RE = re.compile(r"<\s*task[^>]*>(.*?)<\s*/\s*task\s*>", re.IGNORECASE | re.DOTALL)
-_TASK_NAME_RE = re.compile(r"<\s*name\s*>(.*?)<\s*/\s*name\s*>", re.IGNORECASE | re.DOTALL)
-_TASK_PARAMS_RE = re.compile(
-    r"<\s*parameters\s*>(.*?)<\s*/\s*parameters\s*>",
-    re.IGNORECASE | re.DOTALL,
-)
+_TOOL_MARKUP_RE = re.compile(r"<(Tool\s+use|/Tool)>", re.IGNORECASE)
+_THINKING_MARKUP_RE = re.compile(r"<(thinking|/thinking)>", re.IGNORECASE)
+
 
 def clean_stream(text: str) -> str:
     if not text:
@@ -32,6 +28,9 @@ def clean_stream(text: str) -> str:
     cleaned = _collapse_carriage_returns(text)
     cleaned = ANSI_ESCAPE_RE.sub("", cleaned)
     cleaned = CONTROL_CHAR_RE.sub("", cleaned)
+    # Remove thinking and tool markup from the stream
+    cleaned = _THINKING_MARKUP_RE.sub("", cleaned)
+    cleaned = _TOOL_MARKUP_RE.sub("", cleaned)
     return cleaned.strip()
 
 
@@ -62,7 +61,7 @@ def extract_review_section(text: str) -> tuple[str, bool]:
     if start_index is None:
         return text, False
 
-    review_lines = lines[start_index:]
+    start_i = start_index
     if start_index > 0:
         header_index = start_index - 1
         while header_index >= 0 and not lines[header_index].strip():
@@ -70,9 +69,27 @@ def extract_review_section(text: str) -> tuple[str, bool]:
         if header_index >= 0:
             header = lines[header_index].strip()
             if header.startswith("#") or "review" in header.lower():
-                review_lines = lines[header_index:]
+                start_i = header_index
 
-    review_text = "\n".join(review_lines).strip()
+    full_review_lines = lines[start_i:]
+    review_lines = []
+    sections_seen = 0
+    previous_empty = False
+    for line in full_review_lines:
+        stripped = line.strip().lower()
+        is_empty = not stripped
+        if any(marker in stripped for marker in _FINDINGS_MARKERS):
+            sections_seen += 1
+        if any(marker in stripped for marker in _SUGGESTIONS_MARKERS):
+            sections_seen += 1
+        if any(marker in stripped for marker in _CONFIDENCE_MARKERS):
+            sections_seen += 1
+        if is_empty and previous_empty and sections_seen >= 2:
+            break
+        review_lines.append(line)
+        previous_empty = is_empty
+
+    review_text = "\n".join(review_lines).rstrip()
     if not review_text:
         return text, False
 
@@ -104,6 +121,16 @@ def _escape_html_like_tags(text: str) -> str:
 
 
 
+def _summarize_tool_calls(streams: Dict[str, str]) -> list[str]:
+    """Return a summary of tool calls in the output streams."""
+    summaries = []
+    for name, stream in streams.items():
+        for match in _TOOL_MARKUP_RE.finditer(stream):
+            tag = match.group(1)
+            summaries.append(f"<{tag}> in {name}")
+    return summaries
+
+
 def _has_expected_review_sections(text: str) -> bool:
     """Return True when the text looks like a structured opencode review."""
 
@@ -111,14 +138,12 @@ def _has_expected_review_sections(text: str) -> bool:
         return False
 
     lowered = text.lower()
-    return all(
+    has_findings = any(marker in lowered for marker in _FINDINGS_MARKERS)
+    has_other_section = any(
         any(marker in lowered for marker in markers)
-        for markers in (
-            _FINDINGS_MARKERS,
-            _SUGGESTIONS_MARKERS,
-            _CONFIDENCE_MARKERS,
-        )
+        for markers in (_SUGGESTIONS_MARKERS, _CONFIDENCE_MARKERS)
     )
+    return has_findings and has_other_section
 
 
 def _diagnose_missing_review(
@@ -178,24 +203,8 @@ def _build_troubleshooting_section(exit_code: int) -> str | None:
 
 
 def _collapse_carriage_returns(text: str) -> str:
-    text = text.replace("\r\n", "\n")
-    lines: list[str] = []
-    current: list[str] = []
-
-    for char in text:
-        if char == "\r":
-            current = []
-            continue
-        if char == "\n":
-            lines.append("".join(current))
-            current = []
-            continue
-        current.append(char)
-
-    if current:
-        lines.append("".join(current))
-
-    return "\n".join(lines)
+    text = text.replace("\r\n", "\n").replace("\r", "\n")
+    return text
 
 
 
@@ -219,6 +228,7 @@ def format_comment(
     stdout_clean = clean_stream(stdout)
     stderr_clean = clean_stream(stderr)
     stdout_display, extracted = extract_review_section(stdout_clean)
+    tool_markup_detected = bool(_TOOL_MARKUP_RE.search(stdout_clean) or _TOOL_MARKUP_RE.search(stderr_clean))
     sections = ["#### dY opencode CLI"]
 
     summary = metadata.get("summary")
@@ -230,9 +240,18 @@ def format_comment(
         safe_command = command_text.replace("\r\n", "\n").replace("\n", "<br>")
         sections.append(f"> **Command:** {safe_command}")
 
-    if stdout_display:
-        sections.append(_escape_html_like_tags(stdout_display))
-    else:
+    if extracted: # if a review was successfully extracted
+        # Clean tool markup from the extracted review section as well
+        cleaned_stdout_display = _TOOL_MARKUP_RE.sub("", stdout_display)
+        sections.append(_escape_html_like_tags(cleaned_stdout_display))
+    elif stdout_clean: # if no review was extracted but there's some output
+        sections.append("#### Raw CLI Output (no structured review detected)")
+        sections.append("```text")
+        # Ensure raw output is also clean of tool markup
+        cleaned_stdout_for_display = _TOOL_MARKUP_RE.sub("", stdout_clean)
+        sections.append(_escape_html_like_tags(cleaned_stdout_for_display))
+        sections.append("```")
+    else: # if there's absolutely no output
         sections.append("_The opencode CLI did not return any output._")
 
     meta_lines: list[str] = []
@@ -305,7 +324,7 @@ def format_comment(
 
     sections.append("\n".join(meta_lines))
 
-    troubleshooting = _build_troubleshooting_section(exit_code, appended_stderr)
+    troubleshooting = _build_troubleshooting_section(exit_code)
     if troubleshooting:
         sections.append(troubleshooting)
 

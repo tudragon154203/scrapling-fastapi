@@ -104,7 +104,7 @@ def build_prompt(
         sections.append(
             dedent(
                 """
-                ### OpenCode Review
+                ### 🙋 OpenCode Review
 
                 Return a GitHub-ready review comment with the following structure:
 
