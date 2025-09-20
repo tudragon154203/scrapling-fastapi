@@ -137,30 +137,6 @@ Incomplete."""
         assert result == text
         assert not extracted
 
-    def test_heading_variations(self):
-        text = """Progress update
-
-### Findings
-Details here.
-
-### Suggestions
-Try another approach.
-
-### Confidence
-Medium."""
-        expected = """### Findings
-Details here.
-
-### Suggestions
-Try another approach.
-
-### Confidence
-Medium."""
-
-        result, extracted = extract_review_section(text)
-        assert result.strip() == expected.strip()
-        assert extracted
-
 
 class TestFormatComment:
     def test_with_review(self):
@@ -192,34 +168,11 @@ High."""
         assert "**Findings:**" in comment
         assert "**Suggestions:**" in comment
         assert "**Confidence:**" in comment
-        assert "Model:" not in comment
-        assert "Event:" not in comment
-        assert "Thinking mode:" not in comment
-        assert "Exit code:" not in comment
-        assert "Progress output from the CLI was omitted" not in comment
-
-    def test_with_review_inside_think_block(self):
-        metadata: Dict[str, Any] = {
-            "summary": "Model returned review inside think block",
-            "thinking_mode": "standard",
-        }
-        stdout = (
-            "Progress output\n"
-            "<think>\n"
-            "**Findings:** Hidden but real.\n"
-            "\n"
-            "**Suggestions:** Still valid.\n"
-            "\n"
-            "**Confidence:** Medium.\n"
-            "</think>"
-        )
-
-        comment = format_comment(metadata, stdout, stderr="", exit_code=0)
-
-        assert "Hidden but real." in comment
-        assert "Still valid." in comment
-        assert "Medium." in comment
-        assert "_The opencode CLI did not return any output._" not in comment
+        assert "Model: `gpt-4`" in comment
+        assert "Event: `pull_request`" in comment
+        assert "Thinking mode: `standard`" in comment
+        assert "Exit code: `0`" in comment
+        assert "Progress output from the CLI was omitted to highlight the final review." in comment
 
     def test_without_review(self):
         metadata: Dict[str, Any] = {"model": "gpt-4", "event_name": "pull_request"}
@@ -234,8 +187,8 @@ High."""
         assert "Only progress, no review." in comment
         assert "```" in comment
         assert "No structured review (findings/suggestions/confidence) was detected" in comment
-        assert "Model:" not in comment
-        assert "Exit code: `0`" not in comment
+        assert "Model: `gpt-4`" in comment
+        assert "Exit code: `0`" in comment
 
     def test_with_stderr(self):
         metadata: Dict[str, Any] = {"model": "gpt-4"}
@@ -245,7 +198,7 @@ High."""
 
         comment = format_comment(metadata, stdout, stderr, exit_code)
 
-        assert "#### CLI stderr" in comment
+        assert "CLI stderr:" in comment
         assert "```text" in comment
         assert "Some error message." in comment
         assert "```" in comment
@@ -268,7 +221,7 @@ High."""
         stdout = (
             "\x1B[31mRed text\x1B[0m\n"
             "Thinking: <thinking>stuff</thinking>\n"
-            "Reasoning: <think>hidden</think>\n"
+            "Hidden: <think>secret</think>\n"
             "<Tool use> call </Tool>\n"
             "Error: boom\n"
             "**Findings:** Clean."
@@ -281,35 +234,13 @@ High."""
         # Should clean ANSI, control, but extract review
         assert "\x1B" not in comment  # No ANSI
         assert "<thinking>" not in comment  # Thinking block in progress, removed by extract
-        assert "hidden" not in comment  # <think> reasoning removed entirely
+        assert "secret" not in comment  # Think block content removed
         assert "<Tool" not in comment  # Tool markup in progress, removed; if in review, would be escaped to <Tool
         # But since in prefix, removed
         assert "Error: boom" in comment  # In progress, not removed by clean_stream
         assert "**Findings:** Clean." in comment
-        assert "#### CLI stderr" in comment
+        assert "CLI stderr:" in comment
         assert "carriage" in comment  # Cleaned but present in stderr block
-
-    def test_unterminated_think_block_removed(self):
-        metadata: Dict[str, Any] = {
-            "summary": "Hidden reasoning should be stripped",
-            "thinking_mode": "standard",
-        }
-        stdout = (
-            "<think>Deliberate reasoning that should stay hidden.\n"
-            "More hidden lines continuing the thought.\n"
-            "**Findings:** Visible content.\n"
-            "\n"
-            "**Suggestions:** Ship it.\n"
-            "\n"
-            "**Confidence:** High."
-        )
-        comment = format_comment(metadata, stdout, stderr="", exit_code=0)
-
-        assert "Deliberate reasoning" not in comment
-        assert "More hidden lines" not in comment
-        assert "**Findings:** Visible content." in comment
-        assert "**Suggestions:** Ship it." in comment
-        assert "**Confidence:** High." in comment
 
     def test_empty_inputs(self):
         metadata: Dict[str, Any] = {}
@@ -320,9 +251,9 @@ High."""
         comment = format_comment(metadata, stdout, stderr, exit_code)
 
         assert "_The opencode CLI did not return any output._" in comment
-        assert "Model:" not in comment
-        assert "Event:" not in comment
-        assert "Exit code:" not in comment
+        assert "Model: `unknown`" in comment
+        assert "Event: `unknown`" in comment
+        assert "Exit code: `0`" in comment
 
     def test_html_like_tags_escaped(self):
         metadata: Dict[str, Any] = {"model": "gpt-4"}
@@ -333,32 +264,6 @@ High."""
         comment = format_comment(metadata, stdout, stderr, exit_code)
 
         assert "&lt;b&gt;Bold&lt;/b&gt;" in comment  # Escaped in review
-
-    def test_review_with_hash_headings_inside_think_block(self):
-        metadata: Dict[str, Any] = {
-            "summary": "Review uses markdown headings",
-            "thinking_mode": "standard",
-        }
-        stdout = (
-            "Progress output\n"
-            "<think>\n"
-            "### Findings\n"
-            "Heading variation.\n"
-            "\n"
-            "### Suggestions\n"
-            "Adjust tests.\n"
-            "\n"
-            "### Confidence\n"
-            "Reasonable.\n"
-            "</think>"
-        )
-
-        comment = format_comment(metadata, stdout, stderr="", exit_code=0)
-
-        assert "Heading variation." in comment
-        assert "Adjust tests." in comment
-        assert "Reasonable." in comment
-        assert "_The opencode CLI did not return any output._" not in comment
 
 
 class TestCleanStream:
@@ -380,35 +285,8 @@ class TestCleanStream:
     def test_empty(self):
         assert clean_stream("") == ""
 
-    def test_unterminated_think_block(self):
-        text = "<think>secret reasoning that should be removed"
+    def test_think_blocks_removed(self):
+        text = "Start <think>hidden</think> End"
         cleaned = clean_stream(text)
-        assert cleaned == ""
-
-    def test_think_block_with_review_markers_kept(self):
-        text = (
-            "<think>\n"
-            "**Findings:** Issue found.\n"
-            "**Suggestions:** Fix it.\n"
-            "</think>"
-        )
-        cleaned = clean_stream(text)
-        assert "Issue found." in cleaned
-        assert "Fix it." in cleaned
-
-    def test_think_block_with_heading_markers_kept(self):
-        text = (
-            "<think>\n"
-            "### Findings\n"
-            "Issue found.\n"
-            "- Suggestions\n"
-            "Do better.\n"
-            "\n"
-            "### Confidence\n"
-            "High\n"
-            "</think>"
-        )
-        cleaned = clean_stream(text)
-        assert "Issue found." in cleaned
-        assert "Do better." in cleaned
-        assert "High" in cleaned
+        assert cleaned == "Start End"
+        assert "hidden" not in cleaned
