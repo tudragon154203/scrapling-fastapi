@@ -100,8 +100,6 @@ jobs:
 
       - name: Build GitHub comment body
         id: build_comment
-        env:
-          INCLUDE_OPENCODE_STDERR: '1'
         run: |
           python ./.github/workflows/scripts/bots/opencode/build-comment.py \
             --meta "$RUNNER_TEMP/opencode-meta.json" \

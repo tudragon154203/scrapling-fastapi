@@ -102,68 +102,6 @@ def _escape_html_like_tags(text: str) -> str:
     return _HTML_TAG_RE.sub(_replace, text)
 
 
-def _contains_tool_markup(*texts: str) -> bool:
-    """Return True when the CLI output appears to contain tool markup."""
-
-    for text in texts:
-        if text and _TOOL_MARKUP_RE.search(text):
-            return True
-    return False
-
-
-def _parse_tool_tasks(text: str) -> list[dict[str, str]]:
-    """Extract tool task details from tool invocation markup."""
-
-    if not text or "<" not in text or ">" not in text:
-        return []
-
-    tasks: list[dict[str, str]] = []
-    for block in _TASK_BLOCK_RE.finditer(text):
-        content = block.group(1)
-        if not content:
-            continue
-        name_match = _TASK_NAME_RE.search(content)
-        if not name_match:
-            continue
-        name = name_match.group(1).strip()
-        if not name:
-            continue
-        params_match = _TASK_PARAMS_RE.search(content)
-        params_raw = params_match.group(1).strip() if params_match else ""
-        if params_raw:
-            try:
-                parsed = json.loads(params_raw)
-            except json.JSONDecodeError:
-                params_text = params_raw
-            else:
-                if isinstance(parsed, dict):
-                    params_text = json.dumps(parsed, ensure_ascii=False, sort_keys=True)
-                else:
-                    params_text = json.dumps(parsed, ensure_ascii=False)
-        else:
-            params_text = ""
-        tasks.append({"name": name, "parameters": params_text})
-    return tasks
-
-
-def _summarize_tool_calls(streams: dict[str, str]) -> list[str]:
-    """Return human-readable summaries of tool calls per stream."""
-
-    summaries: list[str] = []
-    for label, text in streams.items():
-        if not text:
-            continue
-        for task in _parse_tool_tasks(text):
-            name = task["name"]
-            params = task["parameters"]
-            if params:
-                if len(params) > 300:
-                    params = params[:297] + "..."
-                detail = f"Tool `{name}` requested in {label} with parameters: {params}"
-            else:
-                detail = f"Tool `{name}` requested in {label} with no parameters."
-            summaries.append(_escape_html_like_tags(detail))
-    return summaries
 
 
 def _has_expected_review_sections(text: str) -> bool:
@@ -223,7 +161,7 @@ def _diagnose_missing_review(
     return diagnostics
 
 
-def _build_troubleshooting_section(exit_code: int, appended_stderr: bool) -> str | None:
+def _build_troubleshooting_section(exit_code: int) -> str | None:
     """Return additional debugging guidance when the CLI fails."""
 
     if exit_code == 0:
@@ -233,16 +171,6 @@ def _build_troubleshooting_section(exit_code: int, appended_stderr: bool) -> str
         "- Expand the **Run opencode CLI** step in the workflow run to inspect the raw stdout/stderr captured on the runner.",
         "- Re-run the workflow with the repository secret `ACTIONS_STEP_DEBUG` set to `true` to enable verbose shell logging.",
     ]
-
-    if appended_stderr:
-        tips.append(
-            "- The CLI stderr stream is already attached above because `INCLUDE_OPENCODE_STDERR=1`. "
-            "Re-run with the same variable set if you need an updated capture."
-        )
-    else:
-        tips.append(
-            "- Set `INCLUDE_OPENCODE_STDERR=1` before re-running to embed the CLI stderr stream in this comment."
-        )
 
     lines = ["#### Troubleshooting the opencode CLI", ""]
     lines.extend(tips)
@@ -291,7 +219,6 @@ def format_comment(
     stdout_clean = clean_stream(stdout)
     stderr_clean = clean_stream(stderr)
     stdout_display, extracted = extract_review_section(stdout_clean)
-    tool_markup_detected = _contains_tool_markup(stdout_clean, stderr_clean)
     sections = ["#### dY opencode CLI"]
 
     summary = metadata.get("summary")
