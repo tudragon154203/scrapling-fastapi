@@ -54,12 +54,16 @@ def test_format_comment_escapes_html_like_sequences():
         "summary": "Automated review",
         "model": "test-model",
         "event_name": "pull_request",
+        "thinking_mode": "tool-calling",
     }
 
     comment = module.format_comment(metadata, "<Tool use>\nAll good!", "", 0)
 
     assert "&lt;Tool use&gt;" in comment
     assert "<Tool use>" not in comment
+    assert "Thinking mode: `tool-calling`" in comment
+    assert "tool invocation markup" in comment
+    assert "&lt;Tool use&gt;" in comment
 
 
 def test_format_comment_includes_troubleshooting_guidance_when_cli_fails():
@@ -74,3 +78,16 @@ def test_format_comment_includes_troubleshooting_guidance_when_cli_fails():
 
     assert "Troubleshooting the opencode CLI" in comment
     assert "ACTIONS_STEP_DEBUG" in comment
+
+
+def test_format_comment_does_not_flag_when_markup_absent():
+    module = load_module()
+    metadata = {
+        "summary": "Automated review",
+        "model": "test-model",
+        "event_name": "pull_request",
+    }
+
+    comment = module.format_comment(metadata, "All good!", "", 0)
+
+    assert "tool invocation markup" not in comment

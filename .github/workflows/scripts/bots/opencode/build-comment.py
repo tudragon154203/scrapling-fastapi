@@ -18,6 +18,7 @@ _FINDINGS_MARKERS = ("**findings:**", "findings:", "## findings")
 _SUGGESTIONS_MARKERS = ("**suggestions:**", "suggestions:", "## suggestions")
 _CONFIDENCE_MARKERS = ("**confidence:**", "confidence:", "## confidence")
 _HTML_TAG_RE = re.compile(r"<([^>\n]+)>")
+_TOOL_MARKUP_RE = re.compile(r"<\s*(?:tool|task)[^>]*>", re.IGNORECASE)
 
 def clean_stream(text: str) -> str:
     if not text:
@@ -95,6 +96,15 @@ def _escape_html_like_tags(text: str) -> str:
     return _HTML_TAG_RE.sub(_replace, text)
 
 
+def _contains_tool_markup(*texts: str) -> bool:
+    """Return True when the CLI output appears to contain tool markup."""
+
+    for text in texts:
+        if text and _TOOL_MARKUP_RE.search(text):
+            return True
+    return False
+
+
 def _build_troubleshooting_section(exit_code: int, appended_stderr: bool) -> str | None:
     """Return additional debugging guidance when the CLI fails."""
 
@@ -163,6 +173,7 @@ def format_comment(
     stdout_clean = clean_stream(stdout)
     stderr_clean = clean_stream(stderr)
     stdout_display, extracted = extract_review_section(stdout_clean)
+    tool_markup_detected = _contains_tool_markup(stdout_clean, stderr_clean)
     sections = ["#### dY opencode CLI"]
 
     summary = metadata.get("summary")
@@ -184,12 +195,20 @@ def format_comment(
     meta_lines.append(f"Model: `{model}`")
     event_name = metadata.get("event_name") or "unknown"
     meta_lines.append(f"Event: `{event_name}`")
+    thinking_mode = metadata.get("thinking_mode")
+    if isinstance(thinking_mode, str) and thinking_mode.strip():
+        meta_lines.append(f"Thinking mode: `{thinking_mode.strip()}`")
     meta_lines.append(f"Exit code: `{exit_code}`")
     if extracted:
         meta_lines.append("Progress output from the CLI was omitted to highlight the final review.")
     if exit_code != 0:
         meta_lines.append(
             "The CLI exited with a non-zero status. Review the stderr output for additional details."
+        )
+    elif tool_markup_detected:
+        meta_lines.append(
+            "The CLI response includes tool invocation markup (for example `&lt;Tool use&gt;`), "
+            "which suggests the model attempted to call a tool instead of returning a review."
         )
 
     include_stderr = os.getenv("INCLUDE_OPENCODE_STDERR") == "1"
