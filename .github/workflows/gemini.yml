@@ -42,6 +42,16 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: React with 😄 to show Gemini is running
+        if: ${{ secrets.GEMINI_API_KEY != '' || secrets.GEMINI_API_KEY_2 != '' || secrets.GEMINI_API_KEY_3 != '' || secrets.GEMINI_API_KEY_4 != '' || secrets.GEMINI_API_KEY_5 != '' }}
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { join } = require('node:path');
+            const reactWithEmoji = require(join(process.cwd(), '.github/workflows/scripts/bots/common/javascript/react_with_emoji.cjs'));
+            await reactWithEmoji({ github, context, core, reaction: 'laugh' });
+
       - name: Select Gemini API key
         id: select_gemini_key
         run: >-
@@ -53,17 +63,6 @@ jobs:
           GEMINI_API_KEY_3: ${{ secrets.GEMINI_API_KEY_3 }}
           GEMINI_API_KEY_4: ${{ secrets.GEMINI_API_KEY_4 }}
           GEMINI_API_KEY_5: ${{ secrets.GEMINI_API_KEY_5 }}
-
-
-      - name: React with 😄 to show Gemini is running
-        if: steps.select_gemini_key.outputs.key_present == 'true'
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const { join } = require('node:path');
-            const reactWithEmoji = require(join(process.cwd(), '.github/workflows/scripts/bots/common/javascript/react_with_emoji.cjs'));
-            await reactWithEmoji({ github, context, core, reaction: 'laugh' });
 
       - name: Use Node.js 20
         if: steps.select_gemini_key.outputs.key_present == 'true'
