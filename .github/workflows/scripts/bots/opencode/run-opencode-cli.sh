@@ -47,7 +47,7 @@ set +e
 NO_COLOR=1 \
   XDG_CONFIG_HOME="$CONFIG_HOME" \
   XDG_DATA_HOME="$DATA_HOME" \
-  opencode run --model "$MODEL" "$PROMPT_CONTENT" \
+  opencode run --model "$MODEL" --no-fallback "$PROMPT_CONTENT" \
   >"$STDOUT_FILE" 2>"$STDERR_FILE"
 EXIT_CODE=$?
 set -e
