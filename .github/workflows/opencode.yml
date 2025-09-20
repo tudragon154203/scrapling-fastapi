@@ -31,7 +31,6 @@ jobs:
       EVENT_NAME: ${{ inputs.event-name }}
       TARGET_ID: ${{ inputs.target-id || '' }}
       TARGET_TYPE: ${{ inputs.target-type || '' }}
-      # MODEL: 'openrouter/z-ai/glm-4.5-air:free' # Un-usable with current opencode funcionality
       MODEL: 'openrouter/qwen/qwen3-235b-a22b:free'
     concurrency:
       group: opencode-${{ github.workflow }}-${{ inputs.event-name }}-${{ inputs.target-id != '' && inputs.target-id || github.run_id }}

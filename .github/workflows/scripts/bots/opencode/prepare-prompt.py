@@ -104,10 +104,20 @@ def build_prompt(
         sections.append(
             dedent(
                 """
-                Return a GitHub-ready review comment with:
-                - **Findings:** call out blockers, risks, or explicitly state there are none, and cite file paths when possible.
-                - **Suggestions:** optional follow-up actions or tests.
-                - **Confidence:** 0-10 rating.
+                ### OpenCode Review
+
+                Return a GitHub-ready review comment with the following structure:
+
+                ### 👀 Findings:
+                - Call out blockers, risks, or explicitly state there are none.
+                - Cite relevant file paths when possible.
+
+                ### 💡 Suggestions:
+                - Provide optional follow-up actions or tests.
+
+                ### 💯 Confidence:
+                - A rating from 0-10.
+
                 If context is missing to complete the review, explain what additional information is required instead of guessing.
                 """
             ).strip()
