@@ -9,14 +9,22 @@ import tempfile
 from pathlib import Path
 
 import pytest
+import sys
+from pathlib import Path
+
+# Add parent directory to sys.path for import
+sys.path.insert(0, str(Path(__file__).parent))
 
 # Try to import the centralized config
 try:
-    from ....workflows.scripts.core.config import config
+    from core.config import config
     HAS_CONFIG = True
-except ImportError:
+    print(f"DEBUG: Import succeeded. HAS_CONFIG={HAS_CONFIG}, config.openrouter_api_key={getattr(config, 'openrouter_api_key', 'N/A')}")
+except ImportError as e:
     HAS_CONFIG = False
     config = None
+    print(f"DEBUG: Import failed: {e}. HAS_CONFIG={HAS_CONFIG}")
+print("Has config:", HAS_CONFIG)
 
 # Mark all tests in this module as integration tests
 pytestmark = pytest.mark.integration
@@ -74,9 +82,11 @@ def test_opencode_cli_integration() -> None:
     if HAS_CONFIG and config:
         api_key = config.openrouter_api_key
         test_model = config.test_model
+        print(f"DEBUG: Using config. api_key={'*' * (len(api_key)-4) + api_key[-4:] if api_key else None}, test_model={test_model}")
     else:
         api_key = os.environ.get("OPENROUTER_API_KEY")
         test_model = os.environ.get("OPENCODE_TEST_MODEL", "openrouter/z-ai/glm-4.5-air:free")
+        print(f"DEBUG: Using os.environ. api_key={'*' * (len(api_key)-4) + api_key[-4:] if api_key else None}, test_model={test_model}")
     
     if not api_key:
         pytest.skip("OPENROUTER_API_KEY environment variable not set")
@@ -122,6 +132,8 @@ def test_opencode_cli_integration() -> None:
         stdout_content = stdout_file.read_text()
         stderr_content = stderr_file.read_text()
         outputs_content = outputs_file.read_text()
+        print(f"DEBUG: outputs_content: '{outputs_content}'")
+        print(f"DEBUG: runner result: returncode={result.returncode}, stdout='{result.stdout}', stderr='{result.stderr}'")
         
         # Parse outputs
         outputs = {}
@@ -145,9 +157,11 @@ def test_opencode_cli_with_custom_model() -> None:
     if HAS_CONFIG and config:
         api_key = config.openrouter_api_key
         test_model = config.test_model
+        print(f"DEBUG: Using config (custom model test). api_key={'*' * (len(api_key)-4) + api_key[-4:] if api_key else None}, test_model={test_model}")
     else:
         api_key = os.environ.get("OPENROUTER_API_KEY")
         test_model = os.environ.get("OPENCODE_TEST_MODEL", "openrouter/z-ai/glm-4.5-air:free")
+        print(f"DEBUG: Using os.environ (custom model test). api_key={'*' * (len(api_key)-4) + api_key[-4:] if api_key else None}, test_model={test_model}")
     
     if not api_key:
         pytest.skip("OPENROUTER_API_KEY environment variable not set")
@@ -193,6 +207,8 @@ def test_opencode_cli_with_custom_model() -> None:
         stdout_content = stdout_file.read_text()
         stderr_content = stderr_file.read_text()
         outputs_content = outputs_file.read_text()
+        print(f"DEBUG: outputs_content (custom): '{outputs_content}'")
+        print(f"DEBUG: runner result (custom): returncode={result.returncode}, stdout='{result.stdout}', stderr='{result.stderr}'")
         
         # Parse outputs
         outputs = {}
