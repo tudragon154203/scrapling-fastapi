@@ -11,6 +11,12 @@ from pathlib import Path
 from textwrap import dedent
 from typing import Any, Dict, Optional, Tuple
 
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+from model_utils import canonicalize_model
+
 PREFIXES = (
     "/opencode",
     "@opencode",
@@ -247,13 +253,15 @@ def main() -> int:
     prompt_path = Path(args.prompt)
     prompt_path.write_text(context.prompt, encoding="utf-8")
 
+    canonical_model = canonicalize_model(args.model)
+
     metadata = {
         "summary": context.summary,
         "command_text": context.command_text,
         "event_name": args.event_name,
         "target_type": args.target_type,
         "target_id": args.target_id,
-        "model": args.model,
+        "model": canonical_model,
     }
     Path(args.meta).write_text(json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8")
 
@@ -262,6 +270,7 @@ def main() -> int:
         with outputs_path.open("a", encoding="utf-8") as handle:
             handle.write(f"prompt_file={prompt_path}\n")
             handle.write(f"meta_file={Path(args.meta)}\n")
+            handle.write(f"model={canonical_model}\n")
     return 0
 
 
