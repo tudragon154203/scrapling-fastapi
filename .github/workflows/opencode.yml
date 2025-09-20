@@ -31,7 +31,15 @@ jobs:
       EVENT_NAME: ${{ inputs.event-name }}
       TARGET_ID: ${{ inputs.target-id || '' }}
       TARGET_TYPE: ${{ inputs.target-type || '' }}
-      MODEL: openrouter/${{ vars.OPENROUTER_MODEL != '' && vars.OPENROUTER_MODEL || 'glm-4.5-air' }}
+      MODEL: ${{
+        vars.OPENROUTER_MODEL != ''
+          && (
+            startsWith(vars.OPENROUTER_MODEL, 'openrouter/')
+              && vars.OPENROUTER_MODEL
+              || format('openrouter/{0}', vars.OPENROUTER_MODEL)
+          )
+          || 'openrouter/deepseek/deepseek-r1:free'
+      }}
     concurrency:
       group: opencode-${{ github.workflow }}-${{ inputs.event-name }}-${{ inputs.target-id != '' && inputs.target-id || github.run_id }}
       cancel-in-progress: true
