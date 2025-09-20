@@ -84,7 +84,7 @@ try {
 
     $promptContent = Get-Content -Path $PromptFile -Raw
     # Supply the prompt as the final positional argument in accordance with the CLI docs.
-    & $opencode.Source run --model $env:MODEL --no-fallback $promptContent 1> $StdoutFile 2> $StderrFile
+    & $opencode.Source run --model $env:MODEL $promptContent 1> $StdoutFile 2> $StderrFile
     $exitCode = $LASTEXITCODE
 }
 finally {
