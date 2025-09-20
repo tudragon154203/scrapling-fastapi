@@ -125,6 +125,39 @@ def test_pull_request_from_untrusted_author_skips_standardised_bots(
     assert outputs["run_opencode"] == "false"
 
 
+@pytest.mark.parametrize(
+    "set_dispatch_event",
+    [
+        {
+            "event_name": "pull_request",
+            "payload": {
+                "pull_request": {
+                    "author_association": "CONTRIBUTOR",
+                    "number": 101,
+                    "title": "Update",
+                    "body": "",
+                }
+            },
+        }
+    ],
+    indirect=True,
+)
+def test_pull_request_from_contributor_skips_standardised_bots(
+    monkeypatch, set_dispatch_event, github_env
+):
+    monkeypatch.setenv(
+        "ACTIVE_BOTS_VAR",
+        '["aider", "claude", "gemini", "opencode"]',
+    )
+    dispatcher_filter.decide()
+    outputs = read_github_output(github_env)
+
+    assert outputs["run_aider"] == "false"
+    assert outputs["run_claude"] == "false"
+    assert outputs["run_gemini"] == "false"
+    assert outputs["run_opencode"] == "false"
+
+
 @pytest.mark.parametrize("set_dispatch_event", [{"event_name": "pull_request", "payload": {"pull_request": {"author_association": "MEMBER", "number": 1, "title": "", "body": ""}}}], indirect=True)
 def test_decide_respects_active_filter(monkeypatch, set_dispatch_event, github_env):
     monkeypatch.setenv("ACTIVE_BOTS_VAR", '["claude"]')
