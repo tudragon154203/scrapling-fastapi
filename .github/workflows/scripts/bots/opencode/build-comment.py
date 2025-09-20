@@ -203,6 +203,10 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     args = parse_args()
     metadata = load_metadata(Path(args.meta))
+    summary = metadata.get("summary")
+    thinking_mode = metadata.get("thinking_mode")
+    print(f"[debug] summary: {summary!r}")
+    print(f"[debug] thinking_mode: {thinking_mode!r}")
     stdout = read_text(Path(args.stdout))
     stderr = read_text(Path(args.stderr))
     comment = format_comment(metadata, stdout, stderr, args.exit_code)
