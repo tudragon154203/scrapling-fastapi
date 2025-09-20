@@ -168,11 +168,11 @@ High."""
         assert "**Findings:**" in comment
         assert "**Suggestions:**" in comment
         assert "**Confidence:**" in comment
-        assert "Model: `gpt-4`" in comment
-        assert "Event: `pull_request`" in comment
-        assert "Thinking mode: `standard`" in comment
-        assert "Exit code: `0`" in comment
-        assert "Progress output from the CLI was omitted to highlight the final review." in comment
+        assert "Model:" not in comment
+        assert "Event:" not in comment
+        assert "Thinking mode:" not in comment
+        assert "Exit code:" not in comment
+        assert "Progress output from the CLI was omitted" not in comment
 
     def test_without_review(self):
         metadata: Dict[str, Any] = {"model": "gpt-4", "event_name": "pull_request"}
@@ -187,8 +187,8 @@ High."""
         assert "Only progress, no review." in comment
         assert "```" in comment
         assert "No structured review (findings/suggestions/confidence) was detected" in comment
-        assert "Model: `gpt-4`" in comment
-        assert "Exit code: `0`" in comment
+        assert "Model:" not in comment
+        assert "Exit code: `0`" not in comment
 
     def test_with_stderr(self):
         metadata: Dict[str, Any] = {"model": "gpt-4"}
@@ -198,7 +198,7 @@ High."""
 
         comment = format_comment(metadata, stdout, stderr, exit_code)
 
-        assert "CLI stderr:" in comment
+        assert "#### CLI stderr" in comment
         assert "```text" in comment
         assert "Some error message." in comment
         assert "```" in comment
@@ -218,7 +218,14 @@ High."""
     def test_no_unwanted_elements(self):
         # Test cleaning: ANSI, control chars, thinking blocks, tool uses, errors
         metadata: Dict[str, Any] = {"model": "gpt-4"}
-        stdout = "\x1B[31mRed text\x1B[0m\nThinking: <thinking>stuff</thinking>\n<Tool use> call </Tool>\nError: boom\n**Findings:** Clean."
+        stdout = (
+            "\x1B[31mRed text\x1B[0m\n"
+            "Thinking: <thinking>stuff</thinking>\n"
+            "Reasoning: <think>hidden</think>\n"
+            "<Tool use> call </Tool>\n"
+            "Error: boom\n"
+            "**Findings:** Clean."
+        )
         stderr = "stderr with \r\n carriage."
         exit_code = 0
 
@@ -227,11 +234,12 @@ High."""
         # Should clean ANSI, control, but extract review
         assert "\x1B" not in comment  # No ANSI
         assert "<thinking>" not in comment  # Thinking block in progress, removed by extract
+        assert "hidden" not in comment  # <think> reasoning removed entirely
         assert "<Tool" not in comment  # Tool markup in progress, removed; if in review, would be escaped to <Tool
         # But since in prefix, removed
         assert "Error: boom" in comment  # In progress, not removed by clean_stream
         assert "**Findings:** Clean." in comment
-        assert "CLI stderr:" in comment
+        assert "#### CLI stderr" in comment
         assert "carriage" in comment  # Cleaned but present in stderr block
 
     def test_empty_inputs(self):
@@ -243,9 +251,9 @@ High."""
         comment = format_comment(metadata, stdout, stderr, exit_code)
 
         assert "_The opencode CLI did not return any output._" in comment
-        assert "Model: `unknown`" in comment
-        assert "Event: `unknown`" in comment
-        assert "Exit code: `0`" in comment
+        assert "Model:" not in comment
+        assert "Event:" not in comment
+        assert "Exit code:" not in comment
 
     def test_html_like_tags_escaped(self):
         metadata: Dict[str, Any] = {"model": "gpt-4"}

@@ -20,12 +20,14 @@ _CONFIDENCE_MARKERS = ("**confidence:**", "confidence:", "## confidence")
 _HTML_TAG_RE = re.compile(r"<([^>\n]+)>")
 _TOOL_MARKUP_RE = re.compile(r"<(Tool\s+use|/Tool)>", re.IGNORECASE)
 _THINKING_MARKUP_RE = re.compile(r"<(thinking|/thinking)>", re.IGNORECASE)
+_THINK_BLOCK_RE = re.compile(r"<think>.*?</think>", re.IGNORECASE | re.DOTALL)
 
 
 def clean_stream(text: str) -> str:
     if not text:
         return ""
     cleaned = _collapse_carriage_returns(text)
+    cleaned = _THINK_BLOCK_RE.sub("", cleaned)
     cleaned = ANSI_ESCAPE_RE.sub("", cleaned)
     cleaned = CONTROL_CHAR_RE.sub("", cleaned)
     # Remove thinking and tool markup from the stream
@@ -254,41 +256,30 @@ def format_comment(
     else: # if there's absolutely no output
         sections.append("_The opencode CLI did not return any output._")
 
-    meta_lines: list[str] = []
-    model = metadata.get("model") or "unknown"
-    meta_lines.append(f"Model: `{model}`")
-    event_name = metadata.get("event_name") or "unknown"
-    meta_lines.append(f"Event: `{event_name}`")
-    thinking_mode = metadata.get("thinking_mode")
-    if isinstance(thinking_mode, str) and thinking_mode.strip():
-        meta_lines.append(f"Thinking mode: `{thinking_mode.strip()}`")
-
     diagnostics = _diagnose_missing_review(
         stdout_clean=stdout_clean,
         stdout_display=stdout_display,
         metadata=metadata,
         tool_markup_detected=tool_markup_detected,
     )
-    if diagnostics:
-        meta_lines.extend(diagnostics)
-    meta_lines.append(f"Exit code: `{exit_code}`")
-    if extracted:
-        meta_lines.append("Progress output from the CLI was omitted to highlight the final review.")
+    notes: list[str] = []
+
+    if not extracted and diagnostics:
+        notes.extend(diagnostics)
+
     if exit_code != 0:
-        meta_lines.append(
+        notes.append(
             "The CLI exited with a non-zero status. Review the stderr output for additional details."
         )
-    elif tool_markup_detected:
-        meta_lines.append(
+    elif not extracted and tool_markup_detected:
+        notes.append(
             "The CLI response includes tool invocation markup (for example `&lt;Tool use&gt;`), "
             "which suggests the model attempted to call a tool instead of returning a review."
         )
-        tool_summaries = _summarize_tool_calls(
-            {"stdout": stdout_clean, "stderr": stderr_clean}
-        )
+        tool_summaries = _summarize_tool_calls({"stdout": stdout_clean, "stderr": stderr_clean})
         if tool_summaries:
-            meta_lines.append("Tool call requests observed before the run stopped:")
-            meta_lines.extend(f"- {summary}" for summary in tool_summaries)
+            notes.append("Tool call requests observed before the run stopped:")
+            notes.extend(f"- {summary}" for summary in tool_summaries)
 
     include_stderr = os.getenv("INCLUDE_OPENCODE_STDERR") == "1"
     appended_stderr = False
@@ -300,12 +291,11 @@ def format_comment(
             if len(display) > MAX_STREAM_SECTION:
                 truncated = True
                 display = display[-MAX_STREAM_SECTION:]
-            block_lines = ["CLI stderr (debug mode):", "```text", display]
+            block_lines = ["#### CLI stderr (debug mode)", "", "```text", display]
             if truncated:
                 block_lines.append("...(truncated)")
             block_lines.append("```")
-            meta_lines.append("\n".join(block_lines))
-            meta_lines.append("Debug: stderr output included because INCLUDE_OPENCODE_STDERR=1.")
+            sections.append("\n".join(block_lines))
             appended_stderr = True
 
     if not appended_stderr and stderr_clean and stderr_clean != stdout_clean:
@@ -314,15 +304,14 @@ def format_comment(
         if len(display) > MAX_STREAM_SECTION:
             truncated = True
             display = display[-MAX_STREAM_SECTION:]
-        block_lines = ["CLI stderr:", "```text", display]
+        block_lines = ["#### CLI stderr", "", "```text", display]
         if truncated:
             block_lines.append("...(truncated)")
         block_lines.append("```")
-        meta_lines.append("\n".join(block_lines))
-    elif not appended_stderr and stderr and stderr.strip():
-        meta_lines.append("CLI stderr contained only formatting codes and was omitted.")
+        sections.append("\n".join(block_lines))
 
-    sections.append("\n".join(meta_lines))
+    if notes:
+        sections.append("\n".join(notes))
 
     troubleshooting = _build_troubleshooting_section(exit_code)
     if troubleshooting:
