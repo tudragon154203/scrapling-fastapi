@@ -20,8 +20,9 @@ _CONFIDENCE_MARKERS = ("**confidence:**", "confidence:", "## confidence")
 _HTML_TAG_RE = re.compile(r"<([^>\n]+)>")
 _TOOL_MARKUP_RE = re.compile(r"<(Tool\s+use|/Tool)>", re.IGNORECASE)
 _THINKING_MARKUP_RE = re.compile(r"<(thinking|/thinking)>", re.IGNORECASE)
-_THINK_BLOCK_RE = re.compile(
-    r"<(?P<tag>think(?:ing)?)>.*?</(?P=tag)>", re.IGNORECASE | re.DOTALL
+_THINK_TAG_RE = re.compile(
+    r"<(?P<closing>/)?(?P<tag>think|thinking)\b[^>]*>",
+    re.IGNORECASE,
 )
 
 
@@ -30,7 +31,31 @@ def _strip_think_blocks(text: str) -> str:
 
     if "<" not in text:
         return text
-    stripped = _THINK_BLOCK_RE.sub(" ", text)
+
+    result: list[str] = []
+    last_index = 0
+    depth = 0
+
+    for match in _THINK_TAG_RE.finditer(text):
+        start, end = match.span()
+
+        if depth == 0 and start > last_index:
+            result.append(text[last_index:start])
+
+        if match.group("closing"):
+            if depth > 0:
+                depth -= 1
+                if depth == 0:
+                    last_index = end
+        else:
+            if depth == 0:
+                last_index = end
+            depth += 1
+
+    if depth == 0 and last_index < len(text):
+        result.append(text[last_index:])
+
+    stripped = "".join(result) if result else ("" if depth > 0 else text)
     return re.sub(r"[ \t]{2,}", " ", stripped)
 
 

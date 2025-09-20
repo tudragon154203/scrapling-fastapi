@@ -290,3 +290,18 @@ class TestCleanStream:
         cleaned = clean_stream(text)
         assert cleaned == "Start End"
         assert "hidden" not in cleaned
+
+    def test_think_blocks_with_attributes_removed(self):
+        text = "Start <think role='analysis'>hidden</think> End"
+        cleaned = clean_stream(text)
+        assert cleaned == "Start End"
+
+    def test_nested_think_blocks_removed(self):
+        text = "Start <think>outer <think>inner</think> still outer</think> End"
+        cleaned = clean_stream(text)
+        assert cleaned == "Start End"
+
+    def test_unterminated_think_blocks_removed(self):
+        text = "Start <think>hidden"
+        cleaned = clean_stream(text)
+        assert cleaned == "Start"
