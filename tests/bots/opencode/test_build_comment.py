@@ -76,7 +76,17 @@ def test_format_comment_escapes_html_like_sequences():
         "thinking_mode": "tool-calling",
     }
 
-    comment = module.format_comment(metadata, "<Tool use>\nAll good!", "", 0)
+    stdout = (
+        "<ToolUse>\n"
+        "<Task>\n"
+        "<name>Search</name>\n"
+        "<parameters>{\"query\": \"value\"}</parameters>\n"
+        "</Task>\n"
+        "</ToolUse>\n"
+        "All good!"
+    )
+
+    comment = module.format_comment(metadata, stdout, "", 0)
 
     assert "&lt;Tool use&gt;" in comment
     assert "<Tool use>" not in comment
@@ -84,6 +94,30 @@ def test_format_comment_escapes_html_like_sequences():
     assert "tool invocation markup" in comment
     assert "No structured review" in comment
     assert "Disable tool-calling" in comment
+    assert "Tool `Search` requested in stdout" in comment
+
+
+def test_format_comment_summarizes_tool_calls_from_stderr():
+    module = load_module()
+    metadata = {
+        "summary": "Automated review",
+        "model": "test-model",
+        "event_name": "pull_request",
+    }
+    stderr = (
+        "noise\n"
+        "<ToolUse>\n"
+        "<Task>\n"
+        "<name>Search</name>\n"
+        "<parameters>{\"query\": \"value\", \"path\": \"repo\"}</parameters>\n"
+        "</Task>\n"
+        "</ToolUse>"
+    )
+
+    comment = module.format_comment(metadata, "", stderr, 0)
+
+    assert "Tool call requests observed before the run stopped:" in comment
+    assert "Tool `Search` requested in stderr with parameters" in comment
 
 
 def test_format_comment_includes_troubleshooting_guidance_when_cli_fails():

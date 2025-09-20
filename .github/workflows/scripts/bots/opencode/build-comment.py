@@ -19,6 +19,12 @@ _SUGGESTIONS_MARKERS = ("**suggestions:**", "suggestions:", "## suggestions")
 _CONFIDENCE_MARKERS = ("**confidence:**", "confidence:", "## confidence")
 _HTML_TAG_RE = re.compile(r"<([^>\n]+)>")
 _TOOL_MARKUP_RE = re.compile(r"<\s*(?:tool|task)[^>]*>", re.IGNORECASE)
+_TASK_BLOCK_RE = re.compile(r"<\s*task[^>]*>(.*?)<\s*/\s*task\s*>", re.IGNORECASE | re.DOTALL)
+_TASK_NAME_RE = re.compile(r"<\s*name\s*>(.*?)<\s*/\s*name\s*>", re.IGNORECASE | re.DOTALL)
+_TASK_PARAMS_RE = re.compile(
+    r"<\s*parameters\s*>(.*?)<\s*/\s*parameters\s*>",
+    re.IGNORECASE | re.DOTALL,
+)
 
 def clean_stream(text: str) -> str:
     if not text:
@@ -103,6 +109,61 @@ def _contains_tool_markup(*texts: str) -> bool:
         if text and _TOOL_MARKUP_RE.search(text):
             return True
     return False
+
+
+def _parse_tool_tasks(text: str) -> list[dict[str, str]]:
+    """Extract tool task details from tool invocation markup."""
+
+    if not text or "<" not in text or ">" not in text:
+        return []
+
+    tasks: list[dict[str, str]] = []
+    for block in _TASK_BLOCK_RE.finditer(text):
+        content = block.group(1)
+        if not content:
+            continue
+        name_match = _TASK_NAME_RE.search(content)
+        if not name_match:
+            continue
+        name = name_match.group(1).strip()
+        if not name:
+            continue
+        params_match = _TASK_PARAMS_RE.search(content)
+        params_raw = params_match.group(1).strip() if params_match else ""
+        if params_raw:
+            try:
+                parsed = json.loads(params_raw)
+            except json.JSONDecodeError:
+                params_text = params_raw
+            else:
+                if isinstance(parsed, dict):
+                    params_text = json.dumps(parsed, ensure_ascii=False, sort_keys=True)
+                else:
+                    params_text = json.dumps(parsed, ensure_ascii=False)
+        else:
+            params_text = ""
+        tasks.append({"name": name, "parameters": params_text})
+    return tasks
+
+
+def _summarize_tool_calls(streams: dict[str, str]) -> list[str]:
+    """Return human-readable summaries of tool calls per stream."""
+
+    summaries: list[str] = []
+    for label, text in streams.items():
+        if not text:
+            continue
+        for task in _parse_tool_tasks(text):
+            name = task["name"]
+            params = task["parameters"]
+            if params:
+                if len(params) > 300:
+                    params = params[:297] + "..."
+                detail = f"Tool `{name}` requested in {label} with parameters: {params}"
+            else:
+                detail = f"Tool `{name}` requested in {label} with no parameters."
+            summaries.append(_escape_html_like_tags(detail))
+    return summaries
 
 
 def _has_expected_review_sections(text: str) -> bool:
@@ -276,6 +337,12 @@ def format_comment(
             "The CLI response includes tool invocation markup (for example `&lt;Tool use&gt;`), "
             "which suggests the model attempted to call a tool instead of returning a review."
         )
+        tool_summaries = _summarize_tool_calls(
+            {"stdout": stdout_clean, "stderr": stderr_clean}
+        )
+        if tool_summaries:
+            meta_lines.append("Tool call requests observed before the run stopped:")
+            meta_lines.extend(f"- {summary}" for summary in tool_summaries)
 
     include_stderr = os.getenv("INCLUDE_OPENCODE_STDERR") == "1"
     appended_stderr = False
