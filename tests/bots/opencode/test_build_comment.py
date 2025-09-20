@@ -60,3 +60,17 @@ def test_format_comment_escapes_html_like_sequences():
 
     assert "&lt;Tool use&gt;" in comment
     assert "<Tool use>" not in comment
+
+
+def test_format_comment_includes_troubleshooting_guidance_when_cli_fails():
+    module = load_module()
+    metadata = {
+        "summary": "Automated review",
+        "model": "test-model",
+        "event_name": "pull_request",
+    }
+
+    comment = module.format_comment(metadata, "", "error", 2)
+
+    assert "Troubleshooting the opencode CLI" in comment
+    assert "ACTIONS_STEP_DEBUG" in comment

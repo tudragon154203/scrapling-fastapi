@@ -95,6 +95,32 @@ def _escape_html_like_tags(text: str) -> str:
     return _HTML_TAG_RE.sub(_replace, text)
 
 
+def _build_troubleshooting_section(exit_code: int, appended_stderr: bool) -> str | None:
+    """Return additional debugging guidance when the CLI fails."""
+
+    if exit_code == 0:
+        return None
+
+    tips = [
+        "- Expand the **Run opencode CLI** step in the workflow run to inspect the raw stdout/stderr captured on the runner.",
+        "- Re-run the workflow with the repository secret `ACTIONS_STEP_DEBUG` set to `true` to enable verbose shell logging.",
+    ]
+
+    if appended_stderr:
+        tips.append(
+            "- The CLI stderr stream is already attached above because `INCLUDE_OPENCODE_STDERR=1`. "
+            "Re-run with the same variable set if you need an updated capture."
+        )
+    else:
+        tips.append(
+            "- Set `INCLUDE_OPENCODE_STDERR=1` before re-running to embed the CLI stderr stream in this comment."
+        )
+
+    lines = ["#### Troubleshooting the opencode CLI", ""]
+    lines.extend(tips)
+    return "\n".join(lines)
+
+
 def _collapse_carriage_returns(text: str) -> str:
     text = text.replace("\r\n", "\n")
     lines: list[str] = []
@@ -199,6 +225,11 @@ def format_comment(
         meta_lines.append("CLI stderr contained only formatting codes and was omitted.")
 
     sections.append("\n".join(meta_lines))
+
+    troubleshooting = _build_troubleshooting_section(exit_code, appended_stderr)
+    if troubleshooting:
+        sections.append(troubleshooting)
+
     return "\n\n".join(sections).strip()
 
 
