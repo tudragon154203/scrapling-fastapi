@@ -43,6 +43,15 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: React with ❤️ to show Aider is running
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { join } = require('node:path');
+            const reactWithEmoji = require(join(process.cwd(), '.github/workflows/scripts/bots/common/javascript/react_with_emoji.cjs'));
+            await reactWithEmoji({ github, context, core, reaction: 'heart' });
+
       - name: Select Gemini API key
         id: select_gemini_key
         run: >-
