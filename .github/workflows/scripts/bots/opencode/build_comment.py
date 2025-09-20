@@ -19,8 +19,55 @@ _SUGGESTIONS_MARKERS = ("**suggestions:**", "suggestions:", "## suggestions")
 _CONFIDENCE_MARKERS = ("**confidence:**", "confidence:", "## confidence")
 _HTML_TAG_RE = re.compile(r"<([^>\n]+)>")
 _TOOL_MARKUP_RE = re.compile(r"<(Tool\s+use|/Tool)>", re.IGNORECASE)
-_THINKING_MARKUP_RE = re.compile(r"<(thinking|/thinking)>", re.IGNORECASE)
+_THINKING_MARKUP_RE = re.compile(r"<(/?think(?:ing)?)>", re.IGNORECASE)
 _THINK_BLOCK_RE = re.compile(r"<think>.*?</think>", re.IGNORECASE | re.DOTALL)
+_THINK_SECTION_START_RE = re.compile(r"<(think|thinking)>", re.IGNORECASE)
+_THINK_SECTION_END_RE = re.compile(r"</(think|thinking)>", re.IGNORECASE)
+_REVIEW_SECTION_MARKERS = tuple(
+    marker.lower()
+    for marker in (
+        *_FINDINGS_MARKERS,
+        *_SUGGESTIONS_MARKERS,
+        *_CONFIDENCE_MARKERS,
+    )
+)
+
+
+def _strip_think_sections(text: str) -> str:
+    """Remove hidden reasoning enclosed in <think>/<thinking> tags."""
+
+    if "<" not in text:
+        return text
+
+    parts: list[str] = []
+    cursor = 0
+    while True:
+        start = _THINK_SECTION_START_RE.search(text, cursor)
+        if not start:
+            parts.append(text[cursor:])
+            break
+        parts.append(text[cursor:start.start()])
+        end = _THINK_SECTION_END_RE.search(text, start.end())
+        if end:
+            cursor = end.end()
+            continue
+
+        remainder = text[start.end():]
+        remainder_lower = remainder.lower()
+        next_index: int | None = None
+        for marker in _REVIEW_SECTION_MARKERS:
+            position = remainder_lower.find(marker)
+            if position != -1 and (next_index is None or position < next_index):
+                next_index = position
+
+        if next_index is None:
+            return "".join(parts)
+
+        cursor = start.end() + next_index
+        while cursor < len(text) and text[cursor] in "\r\n ":
+            cursor += 1
+
+    return "".join(parts)
 
 
 def clean_stream(text: str) -> str:
@@ -28,6 +75,7 @@ def clean_stream(text: str) -> str:
         return ""
     cleaned = _collapse_carriage_returns(text)
     cleaned = _THINK_BLOCK_RE.sub("", cleaned)
+    cleaned = _strip_think_sections(cleaned)
     cleaned = ANSI_ESCAPE_RE.sub("", cleaned)
     cleaned = CONTROL_CHAR_RE.sub("", cleaned)
     # Remove thinking and tool markup from the stream

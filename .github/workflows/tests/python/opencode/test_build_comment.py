@@ -242,6 +242,28 @@ High."""
         assert "#### CLI stderr" in comment
         assert "carriage" in comment  # Cleaned but present in stderr block
 
+    def test_unterminated_think_block_removed(self):
+        metadata: Dict[str, Any] = {
+            "summary": "Hidden reasoning should be stripped",
+            "thinking_mode": "standard",
+        }
+        stdout = (
+            "<think>Deliberate reasoning that should stay hidden.\n"
+            "More hidden lines continuing the thought.\n"
+            "**Findings:** Visible content.\n"
+            "\n"
+            "**Suggestions:** Ship it.\n"
+            "\n"
+            "**Confidence:** High."
+        )
+        comment = format_comment(metadata, stdout, stderr="", exit_code=0)
+
+        assert "Deliberate reasoning" not in comment
+        assert "More hidden lines" not in comment
+        assert "**Findings:** Visible content." in comment
+        assert "**Suggestions:** Ship it." in comment
+        assert "**Confidence:** High." in comment
+
     def test_empty_inputs(self):
         metadata: Dict[str, Any] = {}
         stdout = ""
@@ -284,3 +306,8 @@ class TestCleanStream:
 
     def test_empty(self):
         assert clean_stream("") == ""
+
+    def test_unterminated_think_block(self):
+        text = "<think>secret reasoning that should be removed"
+        cleaned = clean_stream(text)
+        assert cleaned == ""
