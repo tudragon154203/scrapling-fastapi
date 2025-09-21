@@ -16,14 +16,14 @@ def test_force_headful_overrides_default_headless():
     opts = OptionsResolver().resolve(req, settings)
 
     assert opts == {
-        "wait_for_selector": None,
-        "wait_for_selector_state": None,
+        "wait_for_selector": "body",
+        "wait_for_selector_state": "visible",
         "timeout_ms": settings.default_timeout_ms,
         "timeout_seconds": None,
         "headless": False,
         "network_idle": False,
         "disable_timeout": False,
-        "prefer_domcontentloaded": False,
+        "prefer_domcontentloaded": True,
     }
 
 
@@ -47,7 +47,7 @@ def test_wait_for_selector_state_only_when_selector_present():
         "prefer_domcontentloaded": True,
     }
 
-    req_without_selector = CrawlRequest(url="https://example.com")
+    req_without_selector = CrawlRequest(url="https://example.com", wait_for_selector=None)
     opts_without_selector = resolver.resolve(req_without_selector, settings)
 
     assert opts_without_selector == {

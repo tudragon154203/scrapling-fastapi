@@ -1,5 +1,6 @@
 from typing import Optional
-from pydantic import BaseModel, AnyUrl, Field
+
+from pydantic import AnyUrl, BaseModel, Field
 from pydantic.config import ConfigDict
 
 
@@ -8,24 +9,65 @@ class CrawlRequest(BaseModel):
 
     Simplified request model with explicit field names and no legacy compatibility.
     """
-    model_config = ConfigDict(extra='forbid')  # Reject extra fields to ensure legacy fields are rejected
+
+    model_config = ConfigDict(
+        extra="forbid",  # Reject extra fields to ensure legacy fields are rejected
+        json_schema_extra={
+            "examples": [
+                {
+                    "url": "https://example.com",
+                    "wait_for_selector": "body",
+                    "wait_for_selector_state": "visible",
+                    "timeout_seconds": None,
+                    "network_idle": False,
+                    "force_headful": False,
+                    "force_user_data": False,
+                }
+            ]
+        },
+    )
 
     url: AnyUrl = Field(..., description="The URL to crawl (required)")
 
     # Selector wait fields
-    wait_for_selector: Optional[str] = Field(None, description="CSS selector to wait for before capturing HTML (optional)")
+    wait_for_selector: Optional[str] = Field(
+        default="body",
+        description="CSS selector to wait for before capturing HTML (defaults to 'body')",
+        json_schema_extra={"example": "body"},
+    )
     wait_for_selector_state: Optional[str] = Field(
         default="visible",
-        description="State to wait for the selector: 'visible' (default), 'hidden', 'attached', 'detached', or 'any'")
+        description=(
+            "State to wait for the selector: 'visible' (default), 'hidden', "
+            "'attached', 'detached', or 'any'"
+        ),
+        json_schema_extra={"example": "visible"},
+    )
 
     # Timeout and network fields
     timeout_seconds: Optional[int] = Field(
-        None, description="Timeout in seconds for the crawl operation (optional, defaults to browser default)")
-    network_idle: Optional[bool] = Field(default=False, description="Wait for network to be idle before capturing HTML (optional)")
+        default=None,
+        description=(
+            "Timeout in seconds for the crawl operation (optional, defaults to browser configuration)"
+        ),
+    )
+    network_idle: Optional[bool] = Field(
+        default=False,
+        description="Wait for network to be idle before capturing HTML (defaults to False)",
+        json_schema_extra={"default": False, "example": False},
+    )
 
     # Force flags
-    force_headful: Optional[bool] = Field(None, description="Force headful browser mode (optional, overrides config)")
-    force_user_data: Optional[bool] = Field(None, description="Force use of persistent user data directory (optional)")
+    force_headful: Optional[bool] = Field(
+        default=False,
+        description="Force headful browser mode (defaults to False; overrides config when True)",
+        json_schema_extra={"default": False, "example": False},
+    )
+    force_user_data: Optional[bool] = Field(
+        default=False,
+        description="Force use of persistent user data directory (defaults to False)",
+        json_schema_extra={"default": False, "example": False},
+    )
 
 
 class CrawlResponse(BaseModel):
