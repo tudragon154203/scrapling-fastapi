@@ -31,6 +31,7 @@ jobs:
           python-version: ${{ matrix.python }}
 
       - name: Cache pip downloads
+        id: cache-pip
         uses: actions/cache@v4
         with:
           path: |
@@ -40,6 +41,9 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pip-${{ matrix.python }}-
             ${{ runner.os }}-pip-
+
+      - name: Log pip cache result
+        run: echo "Cache hit for pip downloads: ${{ steps.cache-pip.outputs.cache-hit }}"
 
       - name: Install dependencies
         run: |

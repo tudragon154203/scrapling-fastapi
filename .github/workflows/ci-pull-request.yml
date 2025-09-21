@@ -42,6 +42,7 @@ jobs:
           python-version: ${{ matrix.python }}
 
       - name: Cache pip downloads
+        id: cache-pip
         if: runner.os != 'Windows' || env.ACT != 'true'
         uses: actions/cache@v4
         with:
@@ -52,6 +53,10 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pip-${{ matrix.python }}-
             ${{ runner.os }}-pip-
+
+      - name: Log pip cache result
+        if: runner.os != 'Windows' || env.ACT != 'true'
+        run: echo "Cache hit for pip downloads: ${{ steps.cache-pip.outputs.cache-hit }}"
 
       - name: Use preinstalled deps (ACT Windows)
         if: runner.os == 'Windows' && env.ACT == 'true'
@@ -64,19 +69,24 @@ jobs:
           pip install -r requirements.txt -r requirements-test.txt
 
       - name: Cache Playwright browsers
+        id: cache-playwright
         uses: actions/cache@v4
         with:
           path: |
             ~/.cache/ms-playwright
             ~\AppData\Local\ms-playwright
-          key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
+          key: ${{ runner.os }}-playwright-${{ matrix.python }}-${{ hashFiles('requirements.txt', 'requirements-test.txt', '**/requirements*.txt', 'package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-playwright-
+
+      - name: Log Playwright cache result
+        run: echo "Cache hit for Playwright browsers: ${{ steps.cache-playwright.outputs.cache-hit }}"
 
       - name: Install Playwright browsers
         run: playwright install
 
       - name: Cache Camoufox resources
+        id: cache-camoufox
         uses: actions/cache@v4
         with:
           path: |
@@ -87,6 +97,9 @@ jobs:
           key: ${{ runner.os }}-camoufox-${{ hashFiles('requirements.txt', 'requirements-test.txt', '**/requirements*.txt', 'package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-camoufox-
+
+      - name: Log Camoufox cache result
+        run: echo "Cache hit for Camoufox resources: ${{ steps.cache-camoufox.outputs.cache-hit }}"
 
       - name: Fetch Camoufox resources
         shell: pwsh
