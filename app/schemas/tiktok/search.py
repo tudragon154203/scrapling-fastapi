@@ -1,6 +1,6 @@
 """TikTok search schemas."""
 
-from typing import List, Union, Literal
+from typing import List, Union, Literal, Optional
 
 from pydantic import BaseModel, Field, model_validator
 from pydantic.config import ConfigDict
@@ -33,6 +33,10 @@ class TikTokSearchRequest(BaseModel):
         default="multistep",
         description="Search strategy to use - 'direct' for URL parameters, 'multistep' for browser automation",
     )
+    force_headful: Optional[bool] = Field(
+        default=None,
+        description="Controls browser execution mode - True for headful, False/None for headless",
+    )
 
     @model_validator(mode='after')
     def validate_query(self):
@@ -61,3 +65,4 @@ class TikTokSearchResponse(BaseModel):
     results: List[TikTokVideo] = Field(..., description="List of TikTok videos")
     totalResults: int = Field(..., description="Total number of results")
     query: str = Field(..., description="Normalized query string")
+    execution_mode: str = Field(..., description="Browser execution mode used for this search")

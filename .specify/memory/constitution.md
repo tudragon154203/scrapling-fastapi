@@ -1,50 +1,41 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+<!-- 
+Sync Impact Report:
+- Version change: 1.0.0 → 1.0.1 (PATCH - added target environment specification)
+- Modified principles: Added target environment constraint to FastAPI-First Design principle
+- No added/removed sections
+- Templates requiring updates: ✅ .specify/templates/plan-template.md (constitution reference updated)
+- No follow-up TODOs - all requirements specified
+-->
+
+# Scrapling FastAPI Constitution
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### I. Layered Architecture
+Every feature must follow the layered architecture principle (API/Core/Middleware/Schemas/Services). Services must be organized by domain specificity (browser, common, crawler, tiktok). Clear separation of concerns required - no mixing of layers.
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+### II. FastAPI-First Design  
+Use FastAPI as the primary web framework with automatic OpenAPI documentation. Target environment: Python 3.10.8 on Windows. Leverage Pydantic 2.9 for data validation with Python 3.13 compatibility. Implement type hints throughout the application. Support both development and production deployment patterns.
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+### III. Test-Driven Development (NON-NEGOTIABLE)
+TDD mandatory: Tests written → Implementation → Tests pass → Refactor. Red-Green-Refactor cycle strictly enforced. Parallel test execution via pytest-xdist. Integration tests required for all network/browser-dependent functionality.
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+### IV. Scrapling-Centric Automation
+Default to Scrapling/Camoufox for browser automation tasks. Implement anti-detection measures (fingerprinting, humanized actions). Support persistent user sessions and proxy rotation. Specialized handling for different targets (websites, APIs, social platforms).
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+### V. Environment-Driven Configuration
+All configuration through environment variables (.env files). Pydantic-settings for type-safe configuration management. Development vs production deployment modes clearly defined. No hardcoded configuration values.
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+## Security & Anti-Detection Requirements
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+Browser fingerprinting integration (BrowserForge). User session persistence and management. Proxy support for distributed crawling. Rate limiting and bot detection avoidance measures. GDPR compliance considerations for data processing.
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+## Quality Gates & Review Process
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+All PRs must include test coverage and pass CI checks. Code review required for all schema changes. Integration tests must pass for web scraping endpoints. Security review required for any anti-detection features. Performance benchmarks for scraping operations.
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+Constitution is the supreme governance document. All code must comply with layered architecture principles. Amendments require documentation and migration planning. Versioning follows semantic versioning with impact assessment. Use CLAUDE.md as runtime development guidance reference.
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+**Version**: 1.0.1 | **Ratified**: 2025-09-21 | **Last Amended**: 2025-09-21

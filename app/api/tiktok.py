@@ -64,7 +64,14 @@ async def create_tiktok_session_endpoint(request: Request):
 @router.post("/tiktok/search", response_model=TikTokSearchResponse, tags=["Tiktok"])
 async def tiktok_search_endpoint(payload: TikTokSearchRequest):
     """Handle the Tiktok search workflow by delegating to the service layer."""
-    search_service = TikTokSearchService(strategy=payload.strategy)
+    # Determine browser mode based on force_headful parameter
+    from src.services.browser_mode_service import BrowserModeService
+    browser_mode = BrowserModeService.determine_mode(payload.force_headful or False)
+
+    # Log the force_headful parameter and determined mode for debugging
+    print(f"DEBUG: force_headful={payload.force_headful}, browser_mode={browser_mode.value}")
+
+    search_service = TikTokSearchService(strategy=payload.strategy, force_headful=payload.force_headful or False)
     result = await search_service.search(
         query=payload.query,
         num_videos=payload.numVideos,
@@ -98,4 +105,5 @@ async def tiktok_search_endpoint(payload: TikTokSearchRequest):
         results=result.get("results", []),
         totalResults=result.get("totalResults", 0),
         query=result.get("query", ""),
+        execution_mode=browser_mode.value,
     )

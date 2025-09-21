@@ -1,0 +1,85 @@
+openapi: 3.0.0
+info:
+  title: TikTok Search API
+  version: 1.0.0
+  description: API for TikTok search functionality with headless/headful mode control
+
+paths:
+  /tiktok/search:
+    post:
+      summary: Search TikTok content
+      description: Search TikTok content with optional control over browser execution mode
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SearchRequest'
+      responses:
+        '200':
+          description: Successful search response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchResponse'
+        '422':
+          description: Validation error for invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+
+components:
+  schemas:
+    SearchRequest:
+      type: object
+      properties:
+        query:
+          type: string
+          description: Search query string
+          example: "funny cats"
+        force_headful:
+          type: boolean
+          description: Controls browser execution mode (true = headful, false/null = headless)
+          example: false
+      required:
+        - query
+
+    SearchResponse:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            type: object
+            properties:
+              title:
+                type: string
+              url:
+                type: string
+              thumbnail:
+                type: string
+        execution_mode:
+          type: string
+          enum: [headless, headful]
+          description: Indicates which mode was used for this search
+        message:
+          type: string
+          description: Additional information about the search
+
+    ValidationError:
+      type: object
+      properties:
+        detail:
+          type: array
+          items:
+            type: object
+            properties:
+              loc:
+                type: array
+                items:
+                  type: string
+              msg:
+                type: string
+              type:
+                type: string
