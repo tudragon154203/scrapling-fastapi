@@ -26,6 +26,7 @@ jobs:
   opencode:
     runs-on: ${{ vars.OS || 'ubuntu-latest' }}
     environment: 'Agents/Bots'
+    timeout-minutes: 5
     env:
       OPENCODE_VERSION: ${{ vars.OPENCODE_VERSION != '' && vars.OPENCODE_VERSION || '0.10.1' }}
       EVENT_NAME: ${{ inputs.event-name }}
