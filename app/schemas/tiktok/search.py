@@ -1,6 +1,6 @@
 """TikTok search schemas."""
 
-from typing import List, Union, Literal, Optional
+from typing import List, Union, Literal
 
 from pydantic import BaseModel, Field, model_validator
 from pydantic.config import ConfigDict
