@@ -102,7 +102,6 @@ class TestTikTokAutoSearchAction:
         mock_search_bar = Mock()
         mock_search_bar.bounding_box.return_value = {"width": 20, "height": 20}
         mock_search_bar.is_enabled.return_value = True
-        mock_input = Mock()
 
         def wait_for_selector_side_effect(selector, *args, **kwargs):
             if "nav-search" in selector:
@@ -110,7 +109,6 @@ class TestTikTokAutoSearchAction:
             raise PlaywrightTimeoutError('not found')
 
         mock_page.wait_for_selector.side_effect = wait_for_selector_side_effect
-        mock_page.query_selector.return_value = mock_input
         mock_page.focus.return_value = None
         mock_page.keyboard = Mock()
         mock_page.keyboard.type.return_value = None
@@ -121,7 +119,6 @@ class TestTikTokAutoSearchAction:
 
         with patch('app.services.tiktok.search.actions.auto_search.human_pause'), \
                 patch('time.sleep'), \
-                patch.object(auto_search_action, '_find_search_input', return_value=mock_input), \
                 patch.object(auto_search_action, '_scan_result_selectors', return_value=True):
             try:
                 auto_search_action._execute(mock_page)
@@ -151,7 +148,6 @@ class TestTikTokAutoSearchAction:
             raise PlaywrightTimeoutError('not found')
 
         mock_page.wait_for_selector.side_effect = wait_for_selector_side_effect
-        mock_page.query_selector.return_value = None
         mock_page.focus.return_value = None
         mock_page.keyboard.type.return_value = None
         mock_page.keyboard.press.return_value = None
@@ -163,7 +159,6 @@ class TestTikTokAutoSearchAction:
         with patch('time.time', side_effect=[0, 11]), \
                 patch('time.sleep'), \
                 patch('app.services.tiktok.search.actions.auto_search.human_pause'), \
-                patch.object(auto_search_action, '_find_search_input', return_value=None), \
                 patch.object(auto_search_action, '_scan_result_selectors', return_value=True):
 
             try:
@@ -259,88 +254,25 @@ class TestTikTokAutoSearchAction:
 
     def test_prepare_search_ui_click_success(self, auto_search_action):
         """Search UI prep should not refocus body when click succeeds"""
-        sentinel = Mock()
         with patch.object(auto_search_action, '_click_search_button', return_value=True) as mock_click, \
                 patch.object(auto_search_action, '_wait_for_search_ui') as mock_wait, \
-                patch.object(auto_search_action, '_focus_page_body') as mock_focus, \
-                patch.object(auto_search_action, '_find_search_input', return_value=sentinel) as mock_find:
-            result = auto_search_action._prepare_search_ui(Mock())
+                patch.object(auto_search_action, '_focus_page_body') as mock_focus:
+            auto_search_action._prepare_search_ui(Mock())
 
         mock_click.assert_called_once()
         mock_wait.assert_called_once()
         mock_focus.assert_not_called()
-        mock_find.assert_called_once()
-        assert result is sentinel
 
     def test_prepare_search_ui_click_failure(self, auto_search_action):
         """Search UI prep should focus body when click fails"""
-        sentinel = Mock()
         with patch.object(auto_search_action, '_click_search_button', return_value=False) as mock_click, \
                 patch.object(auto_search_action, '_wait_for_search_ui') as mock_wait, \
-                patch.object(auto_search_action, '_focus_page_body') as mock_focus, \
-                patch.object(auto_search_action, '_find_search_input', return_value=sentinel) as mock_find:
-            result = auto_search_action._prepare_search_ui(Mock())
+                patch.object(auto_search_action, '_focus_page_body') as mock_focus:
+            auto_search_action._prepare_search_ui(Mock())
 
         mock_click.assert_called_once()
         mock_wait.assert_called_once()
         mock_focus.assert_called_once()
-        mock_find.assert_called_once()
-        assert result is sentinel
-
-    def test_find_search_input_returns_candidate(self, auto_search_action):
-        """Search input discovery should return the first usable candidate"""
-        mock_page = Mock()
-        mock_input = Mock()
-        mock_input.is_visible.return_value = True
-        mock_input.is_enabled.return_value = True
-        mock_input.bounding_box.return_value = {"width": 20, "height": 20}
-
-        def query_selector_side_effect(selector):
-            if selector == auto_search_action.SEARCH_INPUT_SELECTORS[0]:
-                return mock_input
-            return None
-
-        mock_page.query_selector.side_effect = query_selector_side_effect
-
-        with patch.object(auto_search_action, '_focus_search_input') as mock_focus:
-            result = auto_search_action._find_search_input(mock_page)
-
-        assert result is mock_input
-        mock_focus.assert_called_once_with(
-            mock_page, mock_input, auto_search_action.SEARCH_INPUT_SELECTORS[0]
-        )
-
-    def test_find_search_input_returns_none_when_missing(self, auto_search_action):
-        """Search input discovery should exhaust selectors and return None"""
-        mock_page = Mock()
-        mock_page.query_selector.return_value = None
-
-        result = auto_search_action._find_search_input(mock_page)
-
-        assert result is None
-        assert mock_page.query_selector.call_count == len(
-            auto_search_action.SEARCH_INPUT_SELECTORS
-        )
-
-    def test_focus_search_input_prefers_element_focus(self, auto_search_action):
-        """Focusing helper should use element focus when available"""
-        mock_page = Mock()
-        mock_input = Mock()
-
-        auto_search_action._focus_search_input(mock_page, mock_input, 'selector')
-
-        mock_input.focus.assert_called_once()
-        mock_page.focus.assert_not_called()
-
-    def test_focus_search_input_fallbacks(self, auto_search_action):
-        """Focusing helper should fall back to page focus when element focus fails"""
-        mock_page = Mock()
-        mock_input = Mock()
-        mock_input.focus.side_effect = Exception('focus failed')
-
-        auto_search_action._focus_search_input(mock_page, mock_input, 'selector')
-
-        mock_page.focus.assert_called_once_with('selector')
 
     @patch('app.services.tiktok.search.actions.auto_search.click_like_human')
     @patch('app.services.tiktok.search.actions.auto_search.move_mouse_to_locator')

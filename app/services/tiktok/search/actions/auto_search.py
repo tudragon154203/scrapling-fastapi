@@ -38,19 +38,6 @@ class TikTokAutoSearchAction(BasePageAction):
         '.css-udify9-5e6d46e3--StyledTUXSearchButton',
     ]
 
-    SEARCH_INPUT_SELECTORS = [
-        'input[data-e2e="search-input"]',
-        'input[data-e2e="nav-search-input"]',
-        'input[data-e2e="search-suggest"]',
-        'form[role="search"] input',
-        'input[placeholder*="Search"]',
-        'input[aria-label*="Search"]',
-        'input[aria-label*="search"]',
-        'input[type="search"]',
-        'input[name="q"]',
-        'input[role="combobox"]',
-    ]
-
     RESULT_SELECTORS = [
         '[data-e2e="search-result-item"]',
         '[data-e2e="search-general-item"]',
@@ -100,9 +87,9 @@ class TikTokAutoSearchAction(BasePageAction):
         """Execute the automated search process."""
         try:
             self._initialize(page)
-            search_input = self._prepare_search_ui(page)
+            self._prepare_search_ui(page)
             search_query = self._encode_search_query()
-            self._enter_search_query(page, search_input, search_query)
+            self._enter_search_query(page, None, search_query)
             self._submit_search(page)
             self._await_search_results(page)
             self._scroll_results(page)
@@ -125,7 +112,7 @@ class TikTokAutoSearchAction(BasePageAction):
         self._cleanup_functions.append(self._cleanup_browser_resources)
         self._wait_for_initial_load(page)
 
-    def _prepare_search_ui(self, page):
+    def _prepare_search_ui(self, page) -> None:
         """Ensure the search UI is visible and ready for typing."""
         clicked = self._click_search_button(page)
         if not clicked:
@@ -136,12 +123,6 @@ class TikTokAutoSearchAction(BasePageAction):
         else:
             time.sleep(self.UI_READY_PAUSE)
         self._wait_for_search_ui(page)
-        search_input = self._find_search_input(page)
-        if not search_input:
-            self.logger.warning(
-                "Search input not found; falling back to keyboard typing."
-            )
-        return search_input
 
     def _wait_for_initial_load(self, page) -> None:
         """Wait for the page to settle before interacting with it."""
@@ -153,74 +134,6 @@ class TikTokAutoSearchAction(BasePageAction):
         """Wait for the search interface to be rendered."""
         self._wait_for_network_idle(page)
         # Skipping explicit input readiness wait; rely on direct selectors instead.
-
-    def _find_search_input(self, page):
-        """Locate a likely search input element and attempt to focus it."""
-        for selector in self.SEARCH_INPUT_SELECTORS:
-            try:
-                candidate = page.query_selector(selector)
-                if not candidate:
-                    continue
-                try:
-                    if hasattr(candidate, "is_visible") and not candidate.is_visible():
-                        self.logger.debug(
-                            "Search input selector %s located hidden element; skipping",
-                            selector,
-                        )
-                        continue
-                except Exception:
-                    pass
-                try:
-                    if hasattr(candidate, "is_enabled") and not candidate.is_enabled():
-                        self.logger.debug(
-                            "Search input selector %s located disabled element; skipping",
-                            selector,
-                        )
-                        continue
-                except Exception:
-                    pass
-                try:
-                    box = candidate.bounding_box()
-                except Exception:
-                    box = None
-                if box and (box.get("width", 0) < 5 or box.get("height", 0) < 5):
-                    self.logger.debug(
-                        "Search input selector %s had unusable bounding box; skipping",
-                        selector,
-                    )
-                    continue
-
-                self.logger.info("Found search input with selector: %s", selector)
-                self._focus_search_input(page, candidate, selector)
-                return candidate
-            except Exception as exc:
-                self.logger.debug("Search input selector %s failed: %s", selector, exc)
-
-        self.logger.debug(
-            "No search input selectors matched; falling back to keyboard typing"
-        )
-        return None
-
-    def _focus_search_input(self, page, search_input, selector: str) -> None:
-        """Best-effort focusing of the discovered search input element."""
-        try:
-            if hasattr(search_input, "focus"):
-                search_input.focus()
-                return
-        except Exception as exc:
-            self.logger.debug("Direct element focus failed for %s: %s", selector, exc)
-
-        try:
-            page.focus(selector)
-            return
-        except Exception as exc:
-            self.logger.debug("page.focus failed for %s: %s", selector, exc)
-
-        try:
-            move_mouse_to_locator(page, search_input, steps_range=(10, 20))
-            click_like_human(search_input)
-        except Exception as exc:
-            self.logger.debug("Mouse focus fallback failed for %s: %s", selector, exc)
 
     def _click_search_button(self, page) -> bool:
         """Locate the search button and click it using human-like motions."""

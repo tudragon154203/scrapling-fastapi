@@ -1,12 +1,8 @@
 
-import os
-from pathlib import Path
-
 import pytest
 
 from app.services.tiktok.search.multistep import TikTokMultiStepSearchService
 from app.services.tiktok.search.service import TikTokSearchService
-from app.services.tiktok.search.url_param import TikTokURLParamSearchService
 
 
 @pytest.fixture
