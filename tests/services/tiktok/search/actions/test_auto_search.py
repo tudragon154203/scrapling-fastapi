@@ -94,12 +94,19 @@ class TestTikTokAutoSearchAction:
 
         # Mock page methods
         mock_page.wait_for_load_state.return_value = None
-        mock_page.wait_for_selector.side_effect = [Exception(), Mock()]  # First fails, second succeeds
-        mock_page.focus.return_value = None
-
-        # Mock the search bar element
         mock_search_bar = Mock()
-        mock_page.wait_for_selector.return_value = mock_search_bar
+        mock_search_input = Mock()
+        mock_page.query_selector.side_effect = [Exception(), mock_search_bar, mock_search_input]
+        mock_page.focus.return_value = None
+        mock_page.keyboard = Mock()
+        mock_page.keyboard.type.return_value = None
+        mock_page.keyboard.press.return_value = None
+        mock_page.wait_for_function.return_value = None
+        mock_page.content.return_value = "x" * 12000
+        mock_page.mouse.wheel.return_value = None
+
+        # Mock wait_for_selector for result selectors
+        mock_page.wait_for_selector.return_value = Mock()
 
         try:
             auto_search_action._execute(mock_page)
@@ -107,7 +114,8 @@ class TestTikTokAutoSearchAction:
             pass  # Expected to fail due to mocking
 
         # Should have attempted to find search selectors
-        assert mock_page.wait_for_selector.call_count >= 2
+        assert mock_page.query_selector.call_count >= 2
+        assert mock_page.wait_for_load_state.call_count >= 2
 
     @patch('app.services.tiktok.search.actions.auto_search.type_like_human')
     def test_typing_behavior(self, mock_type_like_human, auto_search_action):
@@ -117,7 +125,7 @@ class TestTikTokAutoSearchAction:
 
         # Mock page methods
         mock_page.wait_for_load_state.return_value = None
-        mock_page.wait_for_selector.return_value = mock_search_input
+        mock_page.query_selector.side_effect = [Mock(), mock_search_input]
         mock_page.focus.return_value = None
         mock_page.keyboard.type.return_value = None
         mock_page.keyboard.press.return_value = None
@@ -137,6 +145,7 @@ class TestTikTokAutoSearchAction:
 
         # Should have attempted typing
         assert mock_type_like_human.called or mock_page.keyboard.type.called
+        assert mock_page.wait_for_load_state.call_count >= 2
 
     def test_html_content_capture_direct(self, auto_search_action):
         """Test HTML content capture functionality directly"""
