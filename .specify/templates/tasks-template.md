@@ -74,6 +74,7 @@
 - [ ] T021 [P] Update docs/api.md
 - [ ] T022 Remove duplication
 - [ ] T023 Run manual-testing.md
+- [ ] T024 Remove intermediate files/folders created during implementation
 
 ## Dependencies
 - Tests (T004-T007) before implementation (T008-T014)

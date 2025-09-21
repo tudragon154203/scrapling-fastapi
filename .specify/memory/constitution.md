@@ -1,7 +1,7 @@
 <!-- 
 Sync Impact Report:
-- Version change: 1.2.1 → 1.3.0 (MINOR - updated TDD principle for test organization)
-- Modified principles: III. Test-Driven Development (NON-NEGOTIABLE)
+- Version change: 1.3.0 → 1.4.0 (MINOR - added flake8 and cleanup requirements)
+- Modified principles: Quality Gates & Review Process
 - No added/removed sections
 - Templates requiring updates: ✅ .specify/templates/plan-template.md, ✅ .specify/templates/tasks-template.md, ✅ README.md
 - No follow-up TODOs - all requirements specified
@@ -32,10 +32,10 @@ Browser fingerprinting integration (BrowserForge). User session persistence and 
 
 ## Quality Gates & Review Process
 
-All PRs must include test coverage and pass CI checks. Code review required for all schema changes. Integration tests must pass for web scraping endpoints. Security review required for any anti-detection features. Performance benchmarks for scraping operations.
+All PRs must include test coverage and pass CI checks. Code review required for all schema changes. Integration tests must pass for web scraping endpoints. Security review required for any anti-detection features. Performance benchmarks for scraping operations. All code MUST pass `flake8` linting checks for `app/` and `tests/` directories. Post-Implementation Cleanup: All intermediate files/folders created during implementation MUST be removed.
 
 ## Governance
 
 Constitution is the supreme governance document. All code must comply with layered architecture principles. Amendments require documentation and migration planning. Versioning follows semantic versioning with impact assessment. Use GEMINI.md as runtime development guidance reference.
 
-**Version**: 1.3.0 | **Ratified**: 2025-09-21 | **Last Amended**: 2025-09-21
+**Version**: 1.4.0 | **Ratified**: 2025-09-21 | **Last Amended**: 2025-09-21
