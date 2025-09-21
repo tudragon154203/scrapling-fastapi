@@ -25,6 +25,17 @@ class TestTikTokAutoSearchAction:
         assert auto_search_action.page is None
         assert hasattr(auto_search_action, 'logger')
 
+    def test_set_target_videos(self, auto_search_action):
+        """Target configuration should accept positive integers and clear invalid values"""
+        auto_search_action.set_target_videos(7)
+        assert auto_search_action.target_videos == 7
+
+        auto_search_action.set_target_videos(0)
+        assert auto_search_action.target_videos is None
+
+        auto_search_action.set_target_videos(None)
+        assert auto_search_action.target_videos is None
+
     def test_cleanup_browser_resources(self, auto_search_action):
         """Test browser resource cleanup"""
         # Mock page object

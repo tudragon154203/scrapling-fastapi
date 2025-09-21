@@ -132,7 +132,11 @@ class TikTokMultiStepSearchService(AbstractTikTokSearchService):
 
         try:
             # Use browser automation to perform the search
-            search_action = TikTokAutoSearchAction(query, save_html=False)
+            search_action = TikTokAutoSearchAction(
+                query,
+                save_html=False,
+            )
+            search_action.set_target_videos(target_count)
 
             # Execute the search using browser automation
             html_content = await self._execute_browser_search(search_action, context)
