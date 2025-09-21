@@ -91,8 +91,6 @@ class CamoufoxArgsBuilder:
         if force_mute:
             existing_prefs = additional_args.get("firefox_user_prefs")
             firefox_prefs = dict(existing_prefs) if isinstance(existing_prefs, dict) else {}
-            firefox_prefs.setdefault("media.volume_scale", 0.0)
-            firefox_prefs.setdefault("media.default_volume", 0.0)
             firefox_prefs.setdefault("dom.audiochannel.mutedByDefault", True)
             additional_args["firefox_user_prefs"] = firefox_prefs
 

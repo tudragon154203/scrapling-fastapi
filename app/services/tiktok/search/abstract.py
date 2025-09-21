@@ -121,6 +121,10 @@ class AbstractTikTokSearchService(ABC, TikTokSearchInterface):
             except Exception as e:  # pragma: no cover - defensive logging
                 self.logger.warning(f"[TikTokSearchService] Failed to set Windows event loop policy: {e}")
         settings = self.settings
+        if not getattr(settings, "camoufox_user_data_dir", None):
+            self.logger.warning(
+                "[TikTokSearchService] camoufox_user_data_dir not configured; continuing without persistent user data"
+            )
         fetcher = ScraplingFetcherAdapter()
         composer = FetchArgComposer()
         camoufox_builder = CamoufoxArgsBuilder()

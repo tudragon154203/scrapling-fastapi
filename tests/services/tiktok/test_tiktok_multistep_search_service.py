@@ -38,6 +38,36 @@ class TestTikTokMultiStepSearchService:
         assert search_service.settings is not None
         assert hasattr(search_service, 'logger')
 
+    def test_prepare_context_warns_without_user_data_dir(self, search_service, monkeypatch, caplog):
+        """_prepare_context should warn and proceed when camoufox_user_data_dir is missing."""
+        settings = search_service.settings
+        original_dir = getattr(settings, "camoufox_user_data_dir", None)
+        settings.camoufox_user_data_dir = None
+
+        captured_dirs = []
+
+        class DummyBuilder:
+            def __init__(self):
+                pass
+
+            def build(self, payload, cfg, caps):
+                captured_dirs.append(getattr(cfg, "camoufox_user_data_dir", None))
+                return {}, None
+
+        monkeypatch.setattr(
+            "app.services.common.browser.camoufox.CamoufoxArgsBuilder",
+            DummyBuilder,
+        )
+
+        with caplog.at_level("WARNING"):
+            search_service._prepare_context(in_tests=True)
+
+        settings.camoufox_user_data_dir = original_dir
+
+        assert captured_dirs, "Expected Camoufox builder to run at least once"
+        assert all(dir_value is None for dir_value in captured_dirs)
+        assert any("camoufox_user_data_dir not configured" in message for message in caplog.messages)
+
     def test_auto_search_action_initialization(self):
         """Test TikTokAutoSearchAction initialization"""
         action = TikTokAutoSearchAction("test query")
