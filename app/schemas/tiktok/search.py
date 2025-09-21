@@ -65,4 +65,7 @@ class TikTokSearchResponse(BaseModel):
     results: List[TikTokVideo] = Field(..., description="List of TikTok videos")
     totalResults: int = Field(..., description="Total number of results")
     query: str = Field(..., description="Normalized query string")
-    execution_mode: str = Field(..., description="Browser execution mode used for this search")
+    execution_mode: str = Field(
+        default="unknown",
+        description="Browser execution mode used for this search",
+    )
