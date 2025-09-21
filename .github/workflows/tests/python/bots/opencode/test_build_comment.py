@@ -194,7 +194,7 @@ High."""
 
         comment = format_comment(metadata, stdout, stderr, exit_code)
 
-        assert "#### dY opencode CLI" in comment
+        # No header is added before extracted review content in the new pipeline
         assert "Test summary" in comment
         assert "> **Command:** opencode --prompt test" in comment
         assert "**Findings:**" in comment

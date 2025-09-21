@@ -239,12 +239,12 @@ def format_comment(
     stderr: str,
     exit_code: int,
 ) -> str:
-    stdout_filtered = filter_to_latest_review(stdout)
-    stdout_clean = clean_stream(stdout_filtered)
+    stdout_clean = clean_stream(stdout)
     stderr_clean = clean_stream(stderr)
     stdout_display, extracted = extract_review_section(stdout_clean)
-    tool_markup_detected = bool(_TOOL_MARKUP_RE.search(stdout_clean) or _TOOL_MARKUP_RE.search(stderr_clean))
-    sections = ["#### dY opencode CLI"]
+    stdout_filtered = filter_to_latest_review(stdout_display)
+    tool_markup_detected = bool(_TOOL_MARKUP_RE.search(stdout_filtered) or _TOOL_MARKUP_RE.search(stderr_clean))
+    sections = []
 
     summary = metadata.get("summary")
     if isinstance(summary, str) and summary.strip():
@@ -257,7 +257,7 @@ def format_comment(
 
     if extracted: # if a review was successfully extracted
         # Clean tool markup from the extracted review section as well
-        cleaned_stdout_display = _TOOL_MARKUP_RE.sub("", stdout_display)
+        cleaned_stdout_display = _TOOL_MARKUP_RE.sub("", stdout_filtered)
         sections.append(_escape_html_like_tags(cleaned_stdout_display))
     elif stdout_clean: # if no review was extracted but there's some output
         sections.append("#### Raw CLI Output (no structured review detected)")
@@ -280,7 +280,7 @@ def format_comment(
 
     diagnostics = _diagnose_missing_review(
         stdout_clean=stdout_clean,
-        stdout_display=stdout_display,
+        stdout_display=stdout_filtered,
         metadata=metadata,
         tool_markup_detected=tool_markup_detected,
     )
@@ -299,7 +299,7 @@ def format_comment(
             "which suggests the model attempted to call a tool instead of returning a review."
         )
         tool_summaries = _summarize_tool_calls(
-            {"stdout": stdout_clean, "stderr": stderr_clean}
+            {"stdout": stdout_filtered, "stderr": stderr_clean}
         )
         if tool_summaries:
             meta_lines.append("Tool call requests observed before the run stopped:")
