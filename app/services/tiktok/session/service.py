@@ -43,15 +43,13 @@ class TiktokService:
         del request  # Payload currently unused but kept for parity with signature
         session_id = str(uuid.uuid4())
         executor: Optional[TiktokExecutor] = None
-        mute_flag_set = False
+        previous_mute = bool(
+            getattr(self.settings, "camoufox_runtime_force_mute_audio", False)
+        )
 
         try:
             config = await self._load_tiktok_config(user_data_dir)
-            try:
-                setattr(self.settings, "_camoufox_force_mute_audio", True)
-                mute_flag_set = True
-            except Exception:
-                pass
+            self.settings.camoufox_runtime_force_mute_audio = True
             executor = TiktokExecutor(config)
             await executor.start_session()
 
@@ -92,11 +90,7 @@ class TiktokService:
                 details={"method": "internal_error", "details": str(exc)},
             )
         finally:
-            if mute_flag_set and hasattr(self.settings, "_camoufox_force_mute_audio"):
-                try:
-                    delattr(self.settings, "_camoufox_force_mute_audio")
-                except Exception:
-                    pass
+            self.settings.camoufox_runtime_force_mute_audio = previous_mute
 
     async def has_active_session(self) -> bool:
         """Return True when at least one logged-in session is available."""

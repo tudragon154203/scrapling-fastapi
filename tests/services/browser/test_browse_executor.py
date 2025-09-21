@@ -65,6 +65,9 @@ def test_browse_crawler_sets_mute_flag(monkeypatch, tmp_path):
         camoufox_window=None,
         camoufox_disable_coop=False,
         camoufox_virtual_display=None,
+        camoufox_runtime_force_mute_audio=False,
+        camoufox_runtime_user_data_mode=None,
+        camoufox_runtime_effective_user_data_dir=None,
     )
 
     monkeypatch.setattr(
@@ -85,7 +88,7 @@ def test_browse_crawler_sets_mute_flag(monkeypatch, tmp_path):
     flag_states = []
 
     def run_side_effect(_crawl_request, _page_action):
-        flag_states.append(getattr(settings, '_camoufox_force_mute_audio', False))
+        flag_states.append(settings.camoufox_runtime_force_mute_audio)
 
     engine.run.side_effect = run_side_effect
 
@@ -94,7 +97,7 @@ def test_browse_crawler_sets_mute_flag(monkeypatch, tmp_path):
 
     assert response.status == 'success'
     assert flag_states == [True]
-    assert not hasattr(settings, '_camoufox_force_mute_audio')
+    assert settings.camoufox_runtime_force_mute_audio is False
 
 
 def test_browse_executor_handles_browser_close_as_success():

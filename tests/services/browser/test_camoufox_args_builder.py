@@ -2,6 +2,7 @@ import os
 import platform
 import tempfile
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
@@ -41,14 +42,16 @@ class TestCamoufoxArgsBuilder:
 
     @pytest.fixture
     def mock_settings(self, tmp_path_factory):
-        settings = Mock()
-        settings.camoufox_user_data_dir = str(tmp_path_factory.mktemp("camoufox_profiles"))
-        settings.camoufox_locale = None
-        settings.camoufox_window = None
-        settings.camoufox_disable_coop = False
-        settings.camoufox_virtual_display = None
-        settings._camoufox_force_mute_audio = False
-        return settings
+        return SimpleNamespace(
+            camoufox_user_data_dir=str(tmp_path_factory.mktemp("camoufox_profiles")),
+            camoufox_locale=None,
+            camoufox_window=None,
+            camoufox_disable_coop=False,
+            camoufox_virtual_display=None,
+            camoufox_runtime_force_mute_audio=False,
+            camoufox_runtime_user_data_mode=None,
+            camoufox_runtime_effective_user_data_dir=None,
+        )
 
     def test_build_no_user_data(self, builder, mock_request, mock_settings, mock_caps):
         # Arrange
@@ -67,7 +70,7 @@ class TestCamoufoxArgsBuilder:
     ):
         # Arrange
         mock_request.force_user_data = True
-        mock_settings._camoufox_user_data_mode = None  # Read mode default
+        mock_settings.camoufox_runtime_user_data_mode = None  # Read mode default
 
         mock_context = MagicMock()
         mock_cleanup = Mock()
@@ -90,9 +93,9 @@ class TestCamoufoxArgsBuilder:
     ):
         # Arrange
         mock_request.force_user_data = True
-        mock_settings._camoufox_user_data_mode = 'write'
+        mock_settings.camoufox_runtime_user_data_mode = 'write'
         master_dir = tmp_path / "master"
-        mock_settings._camoufox_effective_user_data_dir = str(master_dir)
+        mock_settings.camoufox_runtime_effective_user_data_dir = str(master_dir)
 
         # Act
         additional_args, extra_headers = builder.build(mock_request, mock_settings, mock_caps)
@@ -159,7 +162,7 @@ class TestCamoufoxArgsBuilder:
 
     def test_build_force_mute_from_settings(self, builder, mock_request, mock_settings, mock_caps):
         # Arrange
-        setattr(mock_settings, '_camoufox_force_mute_audio', True)
+        mock_settings.camoufox_runtime_force_mute_audio = True
 
         # Act
         additional_args, _ = builder.build(mock_request, mock_settings, mock_caps)
@@ -186,7 +189,7 @@ class TestCamoufoxArgsBuilder:
     def test_build_user_data_dir_permission_error(self, builder, mock_request, mock_settings, mock_caps):
         # Arrange
         mock_request.force_user_data = True
-        mock_settings._camoufox_user_data_mode = None
+        mock_settings.camoufox_runtime_user_data_mode = None
         unwritable_dir = Path(tempfile.gettempdir()) / "non" / "writable" / "dir"
         mock_settings.camoufox_user_data_dir = str(unwritable_dir)
 

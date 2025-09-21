@@ -41,58 +41,47 @@ class BrowseCrawler:
 
             # Use user data context (always temporary clone)
             settings = app_config.get_settings()
-            user_data_dir = getattr(settings, 'camoufox_user_data_dir', 'data/camoufox_profiles')
+            user_data_dir = getattr(
+                settings, 'camoufox_user_data_dir', 'data/camoufox_profiles'
+            )
 
-            mute_flag_set = False
-            try:
-                setattr(settings, '_camoufox_force_mute_audio', True)
-                mute_flag_set = True
-            except Exception:
-                pass
+            previous_mute = bool(
+                getattr(settings, 'camoufox_runtime_force_mute_audio', False)
+            )
+            settings.camoufox_runtime_force_mute_audio = True
+
+            cleanup = None
+            previous_mode = getattr(settings, 'camoufox_runtime_user_data_mode', None)
+            previous_effective_dir = getattr(
+                settings, 'camoufox_runtime_effective_user_data_dir', None
+            )
 
             try:
                 with user_data_context(user_data_dir, 'write') as (effective_dir, cleanup):
-                    try:
-                        # Signal write-mode to CamoufoxArgsBuilder via settings (runtime-only flags)
-                        try:
-                            setattr(settings, '_camoufox_user_data_mode', 'write')
-                            setattr(settings, '_camoufox_effective_user_data_dir', effective_dir)
-                        except Exception:
-                            pass
+                    # Signal write-mode to CamoufoxArgsBuilder via settings (runtime-only flags)
+                    settings.camoufox_runtime_user_data_mode = 'write'
+                    settings.camoufox_runtime_effective_user_data_dir = effective_dir
 
-                        # Update crawl request with user-data enablement
-                        crawl_request.force_user_data = True
+                    # Update crawl request with user-data enablement
+                    crawl_request.force_user_data = True
 
-                        # Create wait for user close action
-                        page_action = WaitForUserCloseAction()
+                    # Create wait for user close action
+                    page_action = WaitForUserCloseAction()
 
-                        # Execute browse session
-                        self.engine.run(crawl_request, page_action)
+                    # Execute browse session
+                    self.engine.run(crawl_request, page_action)
 
-                        # Return success response
-                        return BrowseResponse(
-                            status="success",
-                            message="Browser session completed successfully"
-                        )
-
-                    finally:
-                        # Ensure cleanup is called
-                        try:
-                            # Remove runtime flags to avoid leaking into subsequent requests
-                            if hasattr(settings, '_camoufox_user_data_mode'):
-                                delattr(settings, '_camoufox_user_data_mode')
-                            if hasattr(settings, '_camoufox_effective_user_data_dir'):
-                                delattr(settings, '_camoufox_effective_user_data_dir')
-                        except Exception:
-                            pass
-                        if callable(cleanup):
-                            cleanup()
+                    # Return success response
+                    return BrowseResponse(
+                        status="success",
+                        message="Browser session completed successfully"
+                    )
             finally:
-                if mute_flag_set and hasattr(settings, '_camoufox_force_mute_audio'):
-                    try:
-                        delattr(settings, '_camoufox_force_mute_audio')
-                    except Exception:
-                        pass
+                settings.camoufox_runtime_user_data_mode = previous_mode
+                settings.camoufox_runtime_effective_user_data_dir = previous_effective_dir
+                if callable(cleanup):
+                    cleanup()
+                settings.camoufox_runtime_force_mute_audio = previous_mute
 
         except Exception as e:
             logger.error(f"Browse session failed: {e}")

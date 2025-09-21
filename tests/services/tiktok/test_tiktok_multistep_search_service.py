@@ -168,8 +168,7 @@ class TestTikTokMultiStepSearchService:
         """_execute_browser_search should mute audio via settings during browser launch."""
 
         settings = search_service.settings
-        if hasattr(settings, "_camoufox_force_mute_audio"):
-            delattr(settings, "_camoufox_force_mute_audio")
+        settings.camoufox_runtime_force_mute_audio = False
 
         seen_mute_flag = False
 
@@ -179,7 +178,7 @@ class TestTikTokMultiStepSearchService:
 
             def run(self, crawl_request, page_action):
                 nonlocal seen_mute_flag
-                seen_mute_flag = getattr(settings, "_camoufox_force_mute_audio", False)
+                seen_mute_flag = settings.camoufox_runtime_force_mute_audio
                 return SimpleNamespace(html="<html>muted</html>")
 
         class DummyBrowseExecutor:
@@ -210,7 +209,7 @@ class TestTikTokMultiStepSearchService:
 
         assert html == "<html>muted</html>"
         assert seen_mute_flag is True
-        assert not hasattr(settings, "_camoufox_force_mute_audio")
+        assert settings.camoufox_runtime_force_mute_audio is False
 
     @pytest.mark.asyncio
     async def test_fetch_html_not_implemented(self, search_service, mock_context):
