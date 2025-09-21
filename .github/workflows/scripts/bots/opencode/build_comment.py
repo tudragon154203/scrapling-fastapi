@@ -20,6 +20,7 @@ _CONFIDENCE_MARKERS = ("**confidence:**", "confidence:", "## confidence")
 _HTML_TAG_RE = re.compile(r"<([^>\n]+)>")
 _TOOL_MARKUP_RE = re.compile(r"<(Tool\s+use|/Tool)>", re.IGNORECASE)
 _THINKING_MARKUP_RE = re.compile(r"<(thinking|/thinking)>", re.IGNORECASE)
+_REVIEW_HEADING = "### 🙋 OpenCode Review"
 
 
 def clean_stream(text: str) -> str:
@@ -32,6 +33,19 @@ def clean_stream(text: str) -> str:
     cleaned = _THINKING_MARKUP_RE.sub("", cleaned)
     cleaned = _TOOL_MARKUP_RE.sub("", cleaned)
     return cleaned.strip()
+
+
+def filter_to_latest_review(text: str) -> str:
+    """Return the portion of the text starting from the last review heading."""
+
+    if not text:
+        return ""
+
+    index = text.rfind(_REVIEW_HEADING)
+    if index == -1:
+        return text
+
+    return text[index:]
 
 
 def extract_review_section(text: str) -> tuple[str, bool]:
@@ -225,7 +239,8 @@ def format_comment(
     stderr: str,
     exit_code: int,
 ) -> str:
-    stdout_clean = clean_stream(stdout)
+    stdout_filtered = filter_to_latest_review(stdout)
+    stdout_clean = clean_stream(stdout_filtered)
     stderr_clean = clean_stream(stderr)
     stdout_display, extracted = extract_review_section(stdout_clean)
     tool_markup_detected = bool(_TOOL_MARKUP_RE.search(stdout_clean) or _TOOL_MARKUP_RE.search(stderr_clean))
