@@ -5,6 +5,12 @@ import time
 from pathlib import Path
 from typing import Callable, List, Optional
 
+
+try:
+    from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
+except Exception:  # pragma: no cover - Playwright might be unavailable in some test contexts
+    PlaywrightTimeoutError = TimeoutError  # type: ignore
+
 from app.services.browser.actions.base import BasePageAction
 from app.services.browser.actions.humanize import (
     click_like_human,
@@ -163,15 +169,20 @@ class TikTokAutoSearchAction(BasePageAction):
             pass
 
     def _find_search_input(self, page):
-        """Return the first matching search input element, if any."""
+        """Return the first visible search input element, if any."""
         for selector in self.SEARCH_INPUT_SELECTORS:
             try:
-                search_input = page.query_selector(selector)
+                search_input = page.wait_for_selector(
+                    selector, state="visible", timeout=5_000
+                )
                 if search_input:
                     self.logger.info("Found search input with selector: %s", selector)
                     return search_input
+            except PlaywrightTimeoutError as exc:
+                self.logger.debug("Search input selector %s not visible: %s", selector, exc)
             except Exception as exc:
                 self.logger.debug("Search input selector %s failed: %s", selector, exc)
+        self.logger.warning("No visible search input found after checking selectors.")
         return None
 
     def _encode_search_query(self) -> str:

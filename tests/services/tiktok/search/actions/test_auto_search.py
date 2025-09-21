@@ -4,7 +4,10 @@ import itertools
 
 import pytest
 from unittest.mock import Mock, patch
-from app.services.tiktok.search.actions.auto_search import TikTokAutoSearchAction
+from app.services.tiktok.search.actions.auto_search import (
+    PlaywrightTimeoutError,
+    TikTokAutoSearchAction,
+)
 
 
 class TestTikTokAutoSearchAction:
@@ -98,7 +101,8 @@ class TestTikTokAutoSearchAction:
         mock_page.wait_for_load_state.return_value = None
         mock_search_bar = Mock()
         mock_search_input = Mock()
-        mock_page.query_selector.side_effect = [Exception(), mock_search_bar, mock_search_input]
+        mock_page.query_selector.side_effect = [Exception(), mock_search_bar]
+        mock_page.wait_for_selector.return_value = mock_search_input
         mock_page.focus.return_value = None
         mock_page.keyboard = Mock()
         mock_page.keyboard.type.return_value = None
@@ -118,16 +122,19 @@ class TestTikTokAutoSearchAction:
         # Should have attempted to find search selectors
         assert mock_page.query_selector.call_count >= 2
         assert mock_page.wait_for_load_state.call_count >= 2
+        assert mock_page.wait_for_selector.called
 
     @patch('app.services.tiktok.search.actions.auto_search.type_like_human')
     def test_typing_behavior(self, mock_type_like_human, auto_search_action):
         """Test typing behavior"""
         mock_page = Mock()
+        mock_search_bar = Mock()
         mock_search_input = Mock()
 
         # Mock page methods
         mock_page.wait_for_load_state.return_value = None
-        mock_page.query_selector.side_effect = [Mock(), mock_search_input]
+        mock_page.query_selector.side_effect = [mock_search_bar]
+        mock_page.wait_for_selector.return_value = mock_search_input
         mock_page.focus.return_value = None
         mock_page.keyboard.type.return_value = None
         mock_page.keyboard.press.return_value = None
@@ -149,6 +156,7 @@ class TestTikTokAutoSearchAction:
         # Should have attempted typing
         assert mock_type_like_human.called or mock_page.keyboard.type.called
         assert mock_page.wait_for_load_state.call_count >= 2
+        assert mock_page.wait_for_selector.called
 
     def test_html_content_capture_direct(self, auto_search_action):
         """Test HTML content capture functionality directly"""
@@ -290,20 +298,23 @@ class TestTikTokAutoSearchAction:
         """Search input finder returns the first located element"""
         mock_page = Mock()
         mock_input = Mock()
-        mock_page.query_selector.side_effect = [None, mock_input]
+        mock_page.wait_for_selector.return_value = mock_input
 
         found = auto_search_action._find_search_input(mock_page)
 
         assert found is mock_input
+        assert mock_page.wait_for_selector.called
+        assert mock_page.wait_for_selector.call_args.kwargs.get('state') == 'visible'
 
     def test_find_search_input_returns_none_when_missing(self, auto_search_action):
         """Search input finder returns None when not found"""
         mock_page = Mock()
-        mock_page.query_selector.return_value = None
+        mock_page.wait_for_selector.side_effect = PlaywrightTimeoutError('not visible')
 
         found = auto_search_action._find_search_input(mock_page)
 
         assert found is None
+        assert mock_page.wait_for_selector.called
 
     def test_encode_search_query_handles_unicode_errors(self, auto_search_action):
         """Encoding helper should gracefully handle encode errors"""
