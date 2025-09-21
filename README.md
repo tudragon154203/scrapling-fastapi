@@ -26,9 +26,15 @@ scrapling-fastapi/
 │   ├── api/                # API layer tests
 │   ├── core/               # Core layer tests
 │   ├── integration/        # End-to-end integration tests
+│   │   └── tiktok/         # TikTok integration tests
 │   ├── middleware/         # Middleware tests
 │   ├── schemas/            # Schema tests
 │   └── services/           # Service tests
+│       ├── app_services/   # General application service tests
+│       └── tiktok/         # TikTok service tests
+│           ├── search/     # TikTok search service tests
+│           ├── session/    # TikTok session service tests
+│           └── utils/      # TikTok utility tests
 ├── requirements.txt        # Python dependencies
 ├── .env                    # Environment variables
 ├── .gitignore              # Git ignore rules

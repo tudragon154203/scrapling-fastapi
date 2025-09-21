@@ -74,7 +74,13 @@ src/
 tests/
 ├── contract/
 ├── integration/
-└── unit/
+│   └── tiktok/
+├── services/
+│   ├── app_services/
+│   └── tiktok/
+│       ├── search/
+│       ├── session/
+│       └── utils/
 
 # Option 2: Web application (when "frontend" + "backend" detected)
 backend/

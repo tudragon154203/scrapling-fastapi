@@ -1,9 +1,9 @@
 <!-- 
 Sync Impact Report:
-- Version change: 1.0.0 → 1.0.1 (PATCH - added target environment specification)
-- Modified principles: Added target environment constraint to FastAPI-First Design principle
+- Version change: 1.0.1 → 1.1.0 (MINOR - updated test directory organization principles)
+- Modified principles: Governance section updated for agent reference.
 - No added/removed sections
-- Templates requiring updates: ✅ .specify/templates/plan-template.md (constitution reference updated)
+- Templates requiring updates: ✅ .specify/templates/plan-template.md, ✅ .specify/templates/tasks-template.md, ✅ README.md
 - No follow-up TODOs - all requirements specified
 -->
 
@@ -36,6 +36,6 @@ All PRs must include test coverage and pass CI checks. Code review required for 
 
 ## Governance
 
-Constitution is the supreme governance document. All code must comply with layered architecture principles. Amendments require documentation and migration planning. Versioning follows semantic versioning with impact assessment. Use CLAUDE.md as runtime development guidance reference.
+Constitution is the supreme governance document. All code must comply with layered architecture principles. Amendments require documentation and migration planning. Versioning follows semantic versioning with impact assessment. Use GEMINI.md as runtime development guidance reference.
 
-**Version**: 1.0.1 | **Ratified**: 2025-09-21 | **Last Amended**: 2025-09-21
+**Version**: 1.1.0 | **Ratified**: 2025-09-21 | **Last Amended**: 2025-09-21

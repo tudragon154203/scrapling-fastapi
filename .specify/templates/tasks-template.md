@@ -40,7 +40,16 @@
 - **Single project**: `src/`, `tests/` at repository root
 - **Web app**: `backend/src/`, `frontend/src/`
 - **Mobile**: `api/src/`, `ios/src/` or `android/src/`
-- Paths shown below assume single project - adjust based on plan.md structure
+tests/
+├── contract/
+├── integration/
+│   └── tiktok/
+├── services/
+│   ├── app_services/
+│   └── tiktok/
+│       ├── search/
+│       ├── session/
+│       └── utils/
 
 ## Phase 3.1: Setup
 - [ ] T001 Create project structure per implementation plan
@@ -51,7 +60,7 @@
 **CRITICAL: These tests MUST be written and MUST FAIL before ANY implementation**
 - [ ] T004 [P] Contract test POST /api/users in tests/contract/test_users_post.py
 - [ ] T005 [P] Contract test GET /api/users/{id} in tests/contract/test_users_get.py
-- [ ] T006 [P] Integration test user registration in tests/integration/test_registration.py
+- [ ] T006 [P] Integration test user registration in tests/integration/tiktok/test_example_integration.py
 - [ ] T007 [P] Integration test auth flow in tests/integration/test_auth.py
 
 ## Phase 3.3: Core Implementation (ONLY after tests are failing)
@@ -70,7 +79,7 @@
 - [ ] T018 CORS and security headers
 
 ## Phase 3.5: Polish
-- [ ] T019 [P] Unit tests for validation in tests/unit/test_validation.py
+- [ ] T019 [P] Unit tests for validation in tests/services/app_services/test_example_service.py
 - [ ] T020 Performance tests (<200ms)
 - [ ] T021 [P] Update docs/api.md
 - [ ] T022 Remove duplication
