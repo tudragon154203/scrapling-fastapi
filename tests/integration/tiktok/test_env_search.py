@@ -7,7 +7,7 @@ pytestmark = pytest.mark.integration
 client = TestClient(app)
 
 
-def test_test_env_search_behavior(monkeypatch):
+def test_env_search_behavior(monkeypatch):
     """Integration test for test environment behavior - should always run in headless mode."""
     # Set environment variable to indicate test environment
     monkeypatch.setenv("TESTING", "true")
