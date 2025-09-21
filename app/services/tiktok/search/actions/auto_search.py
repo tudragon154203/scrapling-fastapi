@@ -5,6 +5,12 @@ import time
 from pathlib import Path
 from typing import Callable, List, Optional
 
+
+try:
+    from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
+except Exception:  # pragma: no cover - Playwright might be unavailable in some test contexts
+    PlaywrightTimeoutError = TimeoutError  # type: ignore
+
 from app.services.browser.actions.base import BasePageAction
 from app.services.browser.actions.humanize import (
     click_like_human,
@@ -32,23 +38,6 @@ class TikTokAutoSearchAction(BasePageAction):
         '.css-udify9-5e6d46e3--StyledTUXSearchButton',
     ]
 
-    SEARCH_INPUT_SELECTORS = [
-        'input[data-e2e="search-user-input"]',
-        'input[data-e2e="search-box-input"]',
-        'input[data-e2e="search-suggest"]',
-        'input[placeholder*="Search"]',
-        'input[type="search"]',
-        'input[aria-label*="Search"]',
-        '.search-bar',
-        'input[placeholder*="search"]',
-        'input[aria-label*="search"]',
-        'input[data-e2e="search-input"]',
-        'input[name="search"]',
-        'input[data-testid="search-input"]',
-        'input[class*="search"]',
-        'input[role="combobox"]',
-    ]
-
     RESULT_SELECTORS = [
         '[data-e2e="search-result-item"]',
         '[data-e2e="search-general-item"]',
@@ -72,6 +61,8 @@ class TikTokAutoSearchAction(BasePageAction):
 
     RESULT_SCAN_TIMEOUT = 10
     RESULT_SCAN_INTERVAL = 0.5
+
+    UI_READY_PAUSE = 2  # seconds
 
     def __init__(
         self,
@@ -97,9 +88,8 @@ class TikTokAutoSearchAction(BasePageAction):
         try:
             self._initialize(page)
             self._prepare_search_ui(page)
-            search_input = self._find_search_input(page)
             search_query = self._encode_search_query()
-            self._enter_search_query(page, search_input, search_query)
+            self._enter_search_query(page, None, search_query)
             self._submit_search(page)
             self._await_search_results(page)
             self._scroll_results(page)
@@ -124,33 +114,54 @@ class TikTokAutoSearchAction(BasePageAction):
 
     def _prepare_search_ui(self, page) -> None:
         """Ensure the search UI is visible and ready for typing."""
-        if not self._click_search_button(page):
+        clicked = self._click_search_button(page)
+        if not clicked:
             self.logger.warning(
                 "Could not find search button, proceeding with typing attempt..."
             )
             self._focus_page_body(page)
+        else:
+            time.sleep(self.UI_READY_PAUSE)
         self._wait_for_search_ui(page)
 
     def _wait_for_initial_load(self, page) -> None:
         """Wait for the page to settle before interacting with it."""
         self.logger.info("Waiting for page to load...")
         page.wait_for_load_state("networkidle")
-        time.sleep(2)
+        time.sleep(self.UI_READY_PAUSE)
 
     def _wait_for_search_ui(self, page) -> None:
         """Wait for the search interface to be rendered."""
         self._wait_for_network_idle(page)
+        # Skipping explicit input readiness wait; rely on direct selectors instead.
 
     def _click_search_button(self, page) -> bool:
         """Locate the search button and click it using human-like motions."""
         for selector in self.SEARCH_BUTTON_SELECTORS:
             try:
-                search_bar = page.query_selector(selector)
+                visible_selector = f"{selector} >> visible=true"
+                search_bar = page.wait_for_selector(visible_selector, timeout=5_000)
                 if search_bar:
+                    try:
+                        box = search_bar.bounding_box()
+                    except Exception:
+                        box = None
+                    # Skip hidden duplicates with zero-sized bounding boxes.
+                    if not box or box.get('width', 0) < 5 or box.get('height', 0) < 5:
+                        self.logger.debug("Search bar selector %s had no usable bounding box; skipping", selector)
+                        continue
+                    try:
+                        if hasattr(search_bar, 'is_enabled') and not search_bar.is_enabled():
+                            self.logger.debug("Search bar selector %s is not enabled; skipping", selector)
+                            continue
+                    except Exception:
+                        pass
                     self.logger.info("Found search bar with selector: %s", selector)
                     move_mouse_to_locator(page, search_bar, steps_range=(15, 25))
                     click_like_human(search_bar)
                     return True
+            except PlaywrightTimeoutError as exc:
+                self.logger.debug("Search button selector %s not visible: %s", selector, exc)
             except Exception as exc:
                 self.logger.debug("Selector %s failed: %s", selector, exc)
         return False
@@ -161,18 +172,6 @@ class TikTokAutoSearchAction(BasePageAction):
             page.focus("body")
         except Exception:  # pragma: no cover - focus is best-effort
             pass
-
-    def _find_search_input(self, page):
-        """Return the first matching search input element, if any."""
-        for selector in self.SEARCH_INPUT_SELECTORS:
-            try:
-                search_input = page.query_selector(selector)
-                if search_input:
-                    self.logger.info("Found search input with selector: %s", selector)
-                    return search_input
-            except Exception as exc:
-                self.logger.debug("Search input selector %s failed: %s", selector, exc)
-        return None
 
     def _encode_search_query(self) -> str:
         """Best-effort encoding of the search query to UTF-8."""
@@ -239,7 +238,7 @@ class TikTokAutoSearchAction(BasePageAction):
             page.wait_for_load_state("networkidle")
         except Exception as exc:  # pragma: no cover - best-effort wait
             self.logger.debug("Network idle wait failed: %s", exc)
-        time.sleep(2)
+        time.sleep(self.UI_READY_PAUSE)
 
     def _scan_result_selectors(self, page) -> bool:
         """Scan for known result selectors while waiting for them to appear."""

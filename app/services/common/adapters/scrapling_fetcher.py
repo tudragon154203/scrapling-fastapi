@@ -349,7 +349,7 @@ class FetchArgComposer:
         timeout_ms = (
             (options.get("timeout_seconds") * 1000)
             if options.get("timeout_seconds")
-            else options.get("timeout_ms", 20000)
+            else options.get("timeout_ms", 30000)
         )
         fetch_kwargs["timeout"] = timeout_ms
 

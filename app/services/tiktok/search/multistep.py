@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import inspect
+from contextlib import nullcontext
 from functools import partial
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Set, Tuple, Union
 
@@ -195,21 +196,25 @@ class TikTokMultiStepSearchService(AbstractTikTokSearchService):
                 camoufox_builder=browse_executor.camoufox_builder,
             )
 
+            settings = self.settings
+            user_data_dir = getattr(settings, "camoufox_user_data_dir", None)
+            has_user_data = bool(user_data_dir)
             options = context.get("options", {}) if isinstance(context, dict) else {}
             headless_requested = bool(options.get("headless"))
+
+            if not has_user_data:
+                self.logger.warning(
+                    "[TikTokMultiStepSearchService] camoufox_user_data_dir not configured; running without persistent user data"
+                )
 
             crawl_request = CrawlRequest(
                 url="https://www.tiktok.com/",
                 force_headful=not headless_requested,
-                force_user_data=True,
+                force_user_data=has_user_data,
                 timeout_seconds=120,
                 network_idle=True,
             )
 
-            settings = self.settings
-            user_data_dir = getattr(
-                settings, "camoufox_user_data_dir", "data/camoufox_profiles"
-            )
             result = None
             loop = asyncio.get_running_loop()
 
@@ -224,10 +229,15 @@ class TikTokMultiStepSearchService(AbstractTikTokSearchService):
                 settings, "camoufox_runtime_effective_user_data_dir", None
             )
 
+            context_manager = (
+                user_data_context(user_data_dir, "read") if has_user_data else nullcontext((None, None))
+            )
+
             try:
-                with user_data_context(user_data_dir, "read") as (effective_dir, cleanup):
-                    settings.camoufox_runtime_user_data_mode = "read"
-                    settings.camoufox_runtime_effective_user_data_dir = effective_dir
+                with context_manager as (effective_dir, cleanup):
+                    if effective_dir:
+                        settings.camoufox_runtime_user_data_mode = "read"
+                        settings.camoufox_runtime_effective_user_data_dir = effective_dir
 
                     try:
                         engine_task = loop.run_in_executor(
