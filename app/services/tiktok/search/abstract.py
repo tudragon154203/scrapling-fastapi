@@ -127,7 +127,10 @@ class AbstractTikTokSearchService(ABC, TikTokSearchInterface):
         caps = fetcher.detect_capabilities()
         self.logger.debug(f"[TikTokSearchService] Detected capabilities: {caps}")
         try:
-            base_payload = SimpleNamespace(force_user_data=False)
+            base_payload = SimpleNamespace(
+                force_user_data=False,
+                force_mute_audio=True,
+            )
             _, extra_headers = camoufox_builder.build(base_payload, settings, caps)
             self.logger.debug("[TikTokSearchService] Built base headers for non-force_user_data")
         except Exception as e:
@@ -136,7 +139,10 @@ class AbstractTikTokSearchService(ABC, TikTokSearchInterface):
         user_data_cleanup: Optional[CleanupCallable] = None
         additional_args: Dict[str, Any] = {}
         try:
-            forced_payload = SimpleNamespace(force_user_data=True)
+            forced_payload = SimpleNamespace(
+                force_user_data=True,
+                force_mute_audio=True,
+            )
             additional_args, extra_headers2 = camoufox_builder.build(forced_payload, settings, caps)
             self.logger.debug(
                 f"[TikTokSearchService] Built additional args for forced user data: {len(additional_args)} args"

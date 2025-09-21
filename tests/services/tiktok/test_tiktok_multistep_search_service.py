@@ -1,7 +1,10 @@
 """Unit tests for TikTok MultiStepSearchService functionality"""
 
-import pytest
+from contextlib import contextmanager
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, patch
+
+import pytest
 
 from app.services.tiktok.search.multistep import (
     TikTokAutoSearchAction,
@@ -159,6 +162,55 @@ class TestTikTokMultiStepSearchService:
         mock_cleanup.assert_called_once()
         # Cleanup functions list should be cleared
         assert len(search_service._cleanup_functions) == 0
+
+    @pytest.mark.asyncio
+    async def test_execute_browser_search_mutes_audio(self, search_service, tmp_path, monkeypatch):
+        """_execute_browser_search should mute audio via settings during browser launch."""
+
+        settings = search_service.settings
+        if hasattr(settings, "_camoufox_force_mute_audio"):
+            delattr(settings, "_camoufox_force_mute_audio")
+
+        seen_mute_flag = False
+
+        class DummyEngine:
+            def __init__(self, *args, **kwargs):
+                pass
+
+            def run(self, crawl_request, page_action):
+                nonlocal seen_mute_flag
+                seen_mute_flag = getattr(settings, "_camoufox_force_mute_audio", False)
+                return SimpleNamespace(html="<html>muted</html>")
+
+        class DummyBrowseExecutor:
+            def __init__(self):
+                self.fetch_client = Mock()
+                self.options_resolver = Mock()
+                self.camoufox_builder = Mock()
+
+        @contextmanager
+        def fake_user_data_context(*args, **kwargs):
+            yield (str(tmp_path), lambda: None)
+
+        monkeypatch.setattr(
+            "app.services.tiktok.search.multistep.CrawlerEngine",
+            lambda *args, **kwargs: DummyEngine(),
+        )
+        monkeypatch.setattr(
+            "app.services.browser.executors.browse_executor.BrowseExecutor",
+            lambda: DummyBrowseExecutor(),
+        )
+        monkeypatch.setattr(
+            "app.services.tiktok.search.multistep.user_data_context",
+            fake_user_data_context,
+        )
+
+        search_action = SimpleNamespace(html_content="fallback")
+        html = await search_service._execute_browser_search(search_action, context={"options": {}})
+
+        assert html == "<html>muted</html>"
+        assert seen_mute_flag is True
+        assert not hasattr(settings, "_camoufox_force_mute_audio")
 
     @pytest.mark.asyncio
     async def test_fetch_html_not_implemented(self, search_service, mock_context):

@@ -211,8 +211,16 @@ class TikTokMultiStepSearchService(AbstractTikTokSearchService):
             result = None
             loop = asyncio.get_running_loop()
 
-            with user_data_context(user_data_dir, "read") as (effective_dir, cleanup):
-                try:
+            mute_flag_set = False
+            cleanup = None
+            try:
+                setattr(settings, "_camoufox_force_mute_audio", True)
+                mute_flag_set = True
+            except Exception:
+                pass
+
+            try:
+                with user_data_context(user_data_dir, "read") as (effective_dir, cleanup):
                     try:
                         setattr(settings, "_camoufox_user_data_mode", "read")
                         setattr(settings, "_camoufox_effective_user_data_dir", effective_dir)
@@ -227,14 +235,23 @@ class TikTokMultiStepSearchService(AbstractTikTokSearchService):
                     except asyncio.TimeoutError:
                         self.logger.warning("Browser search timed out after 3 minutes")
                         return ""
+            finally:
+                try:
+                    if hasattr(settings, "_camoufox_user_data_mode"):
+                        delattr(settings, "_camoufox_user_data_mode")
+                    if hasattr(settings, "_camoufox_effective_user_data_dir"):
+                        delattr(settings, "_camoufox_effective_user_data_dir")
+                    if mute_flag_set and hasattr(settings, "_camoufox_force_mute_audio"):
+                        delattr(settings, "_camoufox_force_mute_audio")
+                        mute_flag_set = False
                 finally:
-                    try:
-                        if hasattr(settings, "_camoufox_user_data_mode"):
-                            delattr(settings, "_camoufox_user_data_mode")
-                        if hasattr(settings, "_camoufox_effective_user_data_dir"):
-                            delattr(settings, "_camoufox_effective_user_data_dir")
-                    finally:
+                    if callable(cleanup):
                         cleanup()
+                if mute_flag_set and hasattr(settings, "_camoufox_force_mute_audio"):
+                    try:
+                        delattr(settings, "_camoufox_force_mute_audio")
+                    except Exception:
+                        pass
 
             if result and getattr(result, "html", None):
                 return result.html or ""
