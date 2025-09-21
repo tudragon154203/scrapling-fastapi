@@ -94,10 +94,17 @@ For detailed instructions on running the application, see [RUN.md](RUN.md).
 
 ## Testing
 
+Tests run in parallel by default via [`pytest-xdist`](https://pytest-xdist.readthedocs.io/en/latest/) (configured with `-n auto`).
 Run all tests:
 
 ```bash
 python -m pytest
+```
+
+Run the suite serially if needed:
+
+```bash
+python -m pytest -n 0
 ```
 
 Unit tests only:
