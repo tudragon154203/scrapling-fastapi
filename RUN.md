@@ -68,8 +68,9 @@ Option B — one‑liner
 
 ## Tests
 
-- `python -m pytest -q`
-- Unit tests only: y
+- `python -m pytest -q` (uses pytest-xdist with an auto-detected worker count)
+- Override workers if needed, e.g. `python -m pytest -n 1` for serial execution.
+- Unit tests only:
 
 ```shell
 python -m pytest -m "not integration"
