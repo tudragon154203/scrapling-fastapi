@@ -43,6 +43,7 @@ class TikTokAutoSearchAction(BasePageAction):
             # Wait for page to load
             self.logger.info("Waiting for page to load...")
             page.wait_for_load_state("networkidle")
+            time.sleep(2)
 
             # Find and click the search button using TikTok selectors
             search_selectors = [
@@ -80,6 +81,7 @@ class TikTokAutoSearchAction(BasePageAction):
             # Ensure the search UI has rendered before locating input fields
             try:
                 page.wait_for_load_state("networkidle")
+                time.sleep(2)
             except Exception as e:
                 self.logger.debug(f"Second load state wait failed: {e}")
 
