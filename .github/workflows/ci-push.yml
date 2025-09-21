@@ -29,11 +29,17 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
-          cache: 'pip'
-          cache-dependency-path: |
-            requirements.txt
-            requirements-test.txt
-            **/requirements*.txt
+
+      - name: Cache pip downloads
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            ~\AppData\Local\pip\Cache
+          key: ${{ runner.os }}-pip-${{ matrix.python }}-${{ hashFiles('requirements.txt', 'requirements-test.txt', '**/requirements*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-${{ matrix.python }}-
+            ${{ runner.os }}-pip-
 
       - name: Install dependencies
         run: |

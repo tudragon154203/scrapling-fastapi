@@ -40,11 +40,18 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
-          cache: 'pip'
-          cache-dependency-path: |
-            requirements.txt
-            requirements-test.txt
-            **/requirements*.txt
+
+      - name: Cache pip downloads
+        if: runner.os != 'Windows' || env.ACT != 'true'
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            ~\AppData\Local\pip\Cache
+          key: ${{ runner.os }}-pip-${{ matrix.python }}-${{ hashFiles('requirements.txt', 'requirements-test.txt', '**/requirements*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-${{ matrix.python }}-
+            ${{ runner.os }}-pip-
 
       - name: Use preinstalled deps (ACT Windows)
         if: runner.os == 'Windows' && env.ACT == 'true'
@@ -56,8 +63,30 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt -r requirements-test.txt
 
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/ms-playwright
+            ~\AppData\Local\ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-
+
       - name: Install Playwright browsers
         run: playwright install
+
+      - name: Cache Camoufox resources
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/camoufox
+            ~/.local/share/camoufox
+            ~/Library/Application Support/Camoufox
+            ~\AppData\Local\Camoufox
+          key: ${{ runner.os }}-camoufox-${{ hashFiles('requirements.txt', 'requirements-test.txt', '**/requirements*.txt', 'package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-camoufox-
 
       - name: Fetch Camoufox resources
         shell: pwsh
