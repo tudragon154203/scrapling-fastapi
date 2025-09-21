@@ -1,9 +1,10 @@
-from app.main import app
 import sys
 from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
+
+from app.main import app
 
 
 # Ensure project root on sys.path for imports like app.*
@@ -11,15 +12,10 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-
-pytestmark = pytest.mark.integration
-
-
-# Ensure scrapling is available; if not, fail loudly to surface missing dependency
-try:  # pragma: no cover
-    import scrapling.fetchers  # noqa: F401
-except Exception as exc:  # pragma: no cover
-    pytest.fail(f"scrapling is required for integration tests: {exc}")
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.usefixtures("require_scrapling"),
+]
 
 
 def test_dpd_real_tracking_number():
