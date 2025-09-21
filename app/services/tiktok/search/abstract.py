@@ -38,7 +38,8 @@ class AbstractTikTokSearchService(ABC, TikTokSearchInterface):
         """Return whether the current execution is happening under pytest."""
         return (
             bool(os.environ.get("PYTEST_CURRENT_TEST")) or
-            os.environ.get("TESTING", "").lower() == "true"
+            os.environ.get("TESTING", "").lower() == "true" or
+            os.environ.get("CI", "").lower() == "true"
         )
 
     def _enforce_sort_type(self, sort_type: Optional[str]) -> Optional[Dict[str, Any]]:
