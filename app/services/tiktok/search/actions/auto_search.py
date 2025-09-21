@@ -70,6 +70,9 @@ class TikTokAutoSearchAction(BasePageAction):
         'a[href*="/video/"]',
     ]
 
+    RESULT_SCAN_TIMEOUT = 10
+    RESULT_SCAN_INTERVAL = 0.5
+
     def __init__(
         self,
         search_query: str,
@@ -239,16 +242,24 @@ class TikTokAutoSearchAction(BasePageAction):
         time.sleep(2)
 
     def _scan_result_selectors(self, page) -> bool:
-        """Scan for known result selectors without per-selector waits."""
+        """Scan for known result selectors while waiting for them to appear."""
         self.logger.info("Scanning for search result elements...")
-        for selector in self.RESULT_SELECTORS:
-            try:
-                result_element = page.query_selector(selector)
-                if result_element:
-                    self.logger.info("Found search result with selector: %s", selector)
-                    return True
-            except Exception as exc:
-                self.logger.debug("Result selector %s failed: %s", selector, exc)
+        deadline = time.time() + self.RESULT_SCAN_TIMEOUT
+        while time.time() < deadline:
+            for selector in self.RESULT_SELECTORS:
+                try:
+                    result_element = page.query_selector(selector)
+                    if result_element:
+                        self.logger.info(
+                            "Found search result with selector: %s", selector
+                        )
+                        return True
+                except Exception as exc:
+                    self.logger.debug("Result selector %s failed: %s", selector, exc)
+            time.sleep(self.RESULT_SCAN_INTERVAL)
+        self.logger.debug(
+            "No search result selectors found within %.1f seconds", self.RESULT_SCAN_TIMEOUT
+        )
         return False
 
     def _fallback_result_detection(self, page) -> None:

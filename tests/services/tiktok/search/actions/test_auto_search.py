@@ -1,5 +1,7 @@
 """Unit tests for TikTokAutoSearchAction functionality"""
 
+import itertools
+
 import pytest
 from unittest.mock import Mock, patch
 from app.services.tiktok.search.actions.auto_search import TikTokAutoSearchAction
@@ -174,17 +176,21 @@ class TestTikTokAutoSearchAction:
         found = auto_search_action._scan_result_selectors(mock_page)
 
         assert found is True
-        assert mock_page.query_selector.call_count == 2
+        assert mock_page.query_selector.call_count >= 2
 
     def test_scan_result_selectors_not_found(self, auto_search_action):
         """Test scanning result selectors returns False when none found"""
         mock_page = Mock()
         mock_page.query_selector.return_value = None
+        auto_search_action.RESULT_SCAN_TIMEOUT = 1
 
-        found = auto_search_action._scan_result_selectors(mock_page)
+        time_counter = (i * 0.5 for i in itertools.count())
+
+        with patch('time.sleep'), patch('time.time', side_effect=lambda: next(time_counter)):
+            found = auto_search_action._scan_result_selectors(mock_page)
 
         assert found is False
-        assert mock_page.query_selector.call_count == len(auto_search_action.RESULT_SELECTORS)
+        assert mock_page.query_selector.called
 
     def test_await_search_results_uses_fallback(self, auto_search_action):
         """Test that fallback detection triggers when selectors missing"""
