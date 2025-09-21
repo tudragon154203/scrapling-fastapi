@@ -64,6 +64,10 @@ class TikTokAutoSearchAction(BasePageAction):
 
     UI_READY_PAUSE = 2  # seconds
 
+    SCROLL_MAX_ATTEMPTS = 20
+    SCROLL_NO_CHANGE_LIMIT = 3
+    SCROLL_INTERVAL_SECONDS = 1.5
+
     def __init__(
         self,
         search_query: str,
@@ -79,6 +83,14 @@ class TikTokAutoSearchAction(BasePageAction):
         self.save_html = save_html
         default_snapshot_path = Path(__file__).resolve().parents[1] / "browsing_tiktok_search.html"
         self._html_snapshot_path = Path(html_save_path) if html_save_path else default_snapshot_path
+        self.target_videos: Optional[int] = None
+
+    def set_target_videos(self, target_videos: Optional[int]) -> None:
+        """Configure the desired number of videos to load while scrolling."""
+        if target_videos is not None and target_videos > 0:
+            self.target_videos = int(target_videos)
+        else:
+            self.target_videos = None
 
     def __call__(self, page):
         return self._execute(page)
@@ -276,8 +288,83 @@ class TikTokAutoSearchAction(BasePageAction):
             self.logger.warning("Could not check page content: %s", exc)
 
     def _scroll_results(self, page) -> None:
-        """Scroll to encourage dynamic result loading."""
-        self.logger.info("Scrolling down to load more content...")
+        """Scroll until the desired number of videos are present or scrolling stalls."""
+        target_videos = self.target_videos
+        if target_videos is None:
+            self.logger.info("Target video count not provided; performing default timed scroll")
+            self._timed_scroll(page)
+            return
+
+        current_count = self._count_video_results(page)
+        if current_count >= target_videos:
+            self.logger.info(
+                "Detected %s videos which meets requested count (%s); skipping scroll",
+                current_count,
+                target_videos,
+            )
+            return
+
+        self.logger.info(
+            "Scrolling to reach %s videos (currently detected: %s)",
+            target_videos,
+            current_count,
+        )
+
+        no_change_streak = 0
+        attempts = 0
+
+        while attempts < self.SCROLL_MAX_ATTEMPTS:
+            attempts += 1
+            try:
+                page.mouse.wheel(0, 800)
+            except Exception as exc:
+                self.logger.warning("Scroll error on attempt %s: %s", attempts, exc)
+                break
+
+            time.sleep(self.SCROLL_INTERVAL_SECONDS)
+            new_count = self._count_video_results(page)
+
+            if new_count >= target_videos:
+                self.logger.info(
+                    "Reached requested video count (%s) after %s scroll attempts",
+                    target_videos,
+                    attempts,
+                )
+                break
+
+            if new_count <= current_count:
+                no_change_streak += 1
+                self.logger.debug(
+                    "Scroll attempt %s yielded no new videos (still %s); streak=%s",
+                    attempts,
+                    new_count,
+                    no_change_streak,
+                )
+            else:
+                no_change_streak = 0
+                current_count = new_count
+
+            if no_change_streak >= self.SCROLL_NO_CHANGE_LIMIT:
+                self.logger.info(
+                    "Stopping scroll after %s attempts with no additional videos (current=%s)",
+                    attempts,
+                    new_count,
+                )
+                break
+
+            if self._is_near_page_end(page):
+                self.logger.info(
+                    "Reached end of page after %s attempts with %s videos detected",
+                    attempts,
+                    new_count,
+                )
+                break
+
+        human_pause(1, 2)
+
+    def _timed_scroll(self, page) -> None:
+        """Fallback scroll behaviour when no target is supplied."""
+        self.logger.info("Scrolling down to load more content (timed fallback)...")
         start_time = time.time()
         while time.time() - start_time < 10:
             try:
@@ -287,6 +374,45 @@ class TikTokAutoSearchAction(BasePageAction):
                 self.logger.warning("Scroll error: %s", exc)
                 break
         human_pause(1, 2)
+
+    def _count_video_results(self, page) -> int:
+        """Best-effort detection of how many video cards are currently in the DOM."""
+        selectors = [
+            'div[id^="column-item-video-container-"]',
+            '[data-e2e="search-card"]',
+            '[data-e2e="search-result-item"]',
+        ]
+
+        max_count = 0
+        best_selector: Optional[str] = None
+        for selector in selectors:
+            try:
+                count = page.eval_on_selector_all(selector, "elements => elements.length") or 0
+                self.logger.debug("Selector %s found %s elements", selector, count)
+                if count > max_count:
+                    max_count = int(count)
+                    best_selector = selector
+            except Exception as exc:
+                self.logger.debug("Counting selector %s failed: %s", selector, exc)
+
+        if best_selector:
+            self.logger.debug(
+                "Best result selector %s yielded %s elements", best_selector, max_count
+            )
+
+        return max_count
+
+    def _is_near_page_end(self, page) -> bool:
+        """Check whether the scroll position is near the bottom of the page."""
+        try:
+            return bool(
+                page.evaluate(
+                    "() => (window.innerHeight + window.scrollY) >= (document.body.scrollHeight - 200)"
+                )
+            )
+        except Exception as exc:
+            self.logger.debug("Failed to determine page end: %s", exc)
+            return False
 
     def _capture_html(self, page) -> None:
         """Capture and optionally persist the HTML content of the results."""
