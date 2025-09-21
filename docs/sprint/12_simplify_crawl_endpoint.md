@@ -21,7 +21,7 @@ Rationale: The service now depends on a stable Scrapling engine and no longer ne
 - Request body (JSON):
   - `url` (string, required): Absolute HTTP(S) URL to crawl.
   - `wait_for_selector` (string, optional): CSS selector to wait for before capturing content.
-  - `wait_for_selector_state` (string, optional): One of `visible | attached | hidden | detached`. Defaults to `visible` when `wait_for_selector` is provided and no state is specified.
+  - `wait_for_selector_state` (string, optional): One of `visible | attached | hidden | detached`. Defaults to `attached` when `wait_for_selector` is provided and no state is specified.
   - `timeout_seconds` (integer, optional): Overall operation timeout in seconds. Defaults to service settings (20 by default; see Environment Defaults).
   - `network_idle` (boolean, optional): When `true`, instructs the crawler to wait for a network‑idle condition before capture. Defaults to service settings (false by default).
   - `force_headful` (boolean, optional): When `true`, requests non‑headless mode if supported by the runtime environment. Actual effect may depend on platform/container capabilities.
@@ -71,7 +71,7 @@ Server errors (e.g., validation bugs, unexpected exceptions) may return `5xx` wi
 Interactions:
 
 - `wait_for_selector` and `network_idle` can be used together; the engine attempts to honor both when supported by the underlying fetcher.
-- If a selector wait is specified without `wait_for_selector_state`, the default state `visible` is used.
+- If a selector wait is specified without `wait_for_selector_state`, the default state `attached` is used.
 
 ## Environment Defaults
 

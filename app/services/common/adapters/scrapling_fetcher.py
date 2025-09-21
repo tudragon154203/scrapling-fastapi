@@ -313,7 +313,7 @@ class FetchArgComposer:
 
         if options.get("wait_for_selector"):
             fetch_kwargs["wait_selector"] = options["wait_for_selector"]
-            fetch_kwargs["wait_selector_state"] = options.get("wait_for_selector_state", "visible")
+            fetch_kwargs["wait_selector_state"] = options.get("wait_for_selector_state", "attached")
 
         if getattr(caps, "supports_proxy", False) and proxy:
             fetch_kwargs["proxy"] = proxy

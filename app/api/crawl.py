@@ -34,6 +34,11 @@ def crawl_endpoint(payload: CrawlRequest):
     if not isinstance(crawl, FunctionType):
         req_obj = SimpleNamespace(
             url=str(payload.url).rstrip("/"),
+            wait_for_selector=payload.wait_for_selector,
+            wait_for_selector_state=payload.wait_for_selector_state,
+            timeout_seconds=payload.timeout_seconds,
+            network_idle=payload.network_idle,
+            force_headful=payload.force_headful,
             force_user_data=payload.force_user_data,
         )
     else:
