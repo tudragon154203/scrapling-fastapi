@@ -136,11 +136,7 @@ class TikTokAutoSearchAction(BasePageAction):
 
     def _wait_for_search_ui(self, page) -> None:
         """Wait for the search interface to be rendered."""
-        try:
-            page.wait_for_load_state("networkidle")
-            time.sleep(2)
-        except Exception as exc:  # pragma: no cover - best-effort wait
-            self.logger.debug("Second load state wait failed: %s", exc)
+        self._wait_for_network_idle(page)
 
     def _click_search_button(self, page) -> bool:
         """Locate the search button and click it using human-like motions."""
@@ -219,7 +215,8 @@ class TikTokAutoSearchAction(BasePageAction):
         self.logger.info("Waiting for search results page to load...")
         human_pause(2, 3)
         self._wait_for_results_url(page)
-        if not self._wait_for_result_elements(page):
+        self._wait_for_network_idle(page)
+        if not self._scan_result_selectors(page):
             self._fallback_result_detection(page)
 
     def _wait_for_results_url(self, page) -> None:
@@ -233,12 +230,20 @@ class TikTokAutoSearchAction(BasePageAction):
         except Exception as exc:
             self.logger.warning("Search URL wait timeout or error: %s", exc)
 
-    def _wait_for_result_elements(self, page) -> bool:
-        """Look for elements that indicate search results are rendered."""
-        self.logger.info("Waiting for search result elements...")
+    def _wait_for_network_idle(self, page) -> None:
+        """Wait for the page network activity to settle."""
+        try:
+            page.wait_for_load_state("networkidle")
+        except Exception as exc:  # pragma: no cover - best-effort wait
+            self.logger.debug("Network idle wait failed: %s", exc)
+        time.sleep(2)
+
+    def _scan_result_selectors(self, page) -> bool:
+        """Scan for known result selectors without per-selector waits."""
+        self.logger.info("Scanning for search result elements...")
         for selector in self.RESULT_SELECTORS:
             try:
-                result_element = page.wait_for_selector(selector, timeout=5000)
+                result_element = page.query_selector(selector)
                 if result_element:
                     self.logger.info("Found search result with selector: %s", selector)
                     return True

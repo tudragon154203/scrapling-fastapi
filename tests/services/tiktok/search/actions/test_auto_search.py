@@ -105,13 +105,13 @@ class TestTikTokAutoSearchAction:
         mock_page.content.return_value = "x" * 12000
         mock_page.mouse.wheel.return_value = None
 
-        # Mock wait_for_selector for result selectors
-        mock_page.wait_for_selector.return_value = Mock()
-
-        try:
-            auto_search_action._execute(mock_page)
-        except Exception:
-            pass  # Expected to fail due to mocking
+        with patch('app.services.tiktok.search.actions.auto_search.human_pause'), \
+                patch('time.sleep'), \
+                patch.object(auto_search_action, '_scan_result_selectors', return_value=True):
+            try:
+                auto_search_action._execute(mock_page)
+            except Exception:
+                pass  # Expected to fail due to mocking
 
         # Should have attempted to find search selectors
         assert mock_page.query_selector.call_count >= 2
@@ -136,7 +136,8 @@ class TestTikTokAutoSearchAction:
         # Mock time to avoid actual sleep
         with patch('time.time', side_effect=[0, 11]), \
                 patch('time.sleep'), \
-                patch('app.services.tiktok.search.actions.auto_search.human_pause'):
+                patch('app.services.tiktok.search.actions.auto_search.human_pause'), \
+                patch.object(auto_search_action, '_scan_result_selectors', return_value=True):
 
             try:
                 auto_search_action._execute(mock_page)
@@ -163,6 +164,55 @@ class TestTikTokAutoSearchAction:
 
         # Should have captured HTML content
         assert auto_search_action.html_content == "<html>test content</html>"
+
+    def test_scan_result_selectors_found(self, auto_search_action):
+        """Test scanning result selectors stops when one is found"""
+        mock_page = Mock()
+        mock_element = Mock()
+        mock_page.query_selector.side_effect = [None, mock_element]
+
+        found = auto_search_action._scan_result_selectors(mock_page)
+
+        assert found is True
+        assert mock_page.query_selector.call_count == 2
+
+    def test_scan_result_selectors_not_found(self, auto_search_action):
+        """Test scanning result selectors returns False when none found"""
+        mock_page = Mock()
+        mock_page.query_selector.return_value = None
+
+        found = auto_search_action._scan_result_selectors(mock_page)
+
+        assert found is False
+        assert mock_page.query_selector.call_count == len(auto_search_action.RESULT_SELECTORS)
+
+    def test_await_search_results_uses_fallback(self, auto_search_action):
+        """Test that fallback detection triggers when selectors missing"""
+        mock_page = Mock()
+        mock_page.keyboard = Mock()
+        mock_page.mouse = Mock()
+        mock_page.mouse.wheel.return_value = None
+        mock_page.content.return_value = "x" * 15000
+
+        with patch('app.services.tiktok.search.actions.auto_search.human_pause'), \
+                patch('time.sleep'), \
+                patch.object(auto_search_action, '_wait_for_results_url'), \
+                patch.object(auto_search_action, '_scan_result_selectors', return_value=False) as mock_scan, \
+                patch.object(auto_search_action, '_fallback_result_detection') as mock_fallback:
+            auto_search_action._await_search_results(mock_page)
+
+        mock_scan.assert_called_once_with(mock_page)
+        mock_fallback.assert_called_once_with(mock_page)
+
+    def test_wait_for_network_idle(self, auto_search_action):
+        """Test network idle wait helper"""
+        mock_page = Mock()
+
+        with patch('time.sleep') as mock_sleep:
+            auto_search_action._wait_for_network_idle(mock_page)
+
+        mock_page.wait_for_load_state.assert_called_once_with('networkidle')
+        mock_sleep.assert_called_once()
 
     def test_error_handling_with_cleanup(self, auto_search_action):
         """Test that cleanup is called even on error"""
