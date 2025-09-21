@@ -103,9 +103,8 @@ class TikTokAutoSearchAction(BasePageAction):
         try:
             self._initialize(page)
             self._prepare_search_ui(page)
-            search_input = self._find_search_input(page)
             search_query = self._encode_search_query()
-            self._enter_search_query(page, search_input, search_query)
+            self._enter_search_query(page, None, search_query)
             self._submit_search(page)
             self._await_search_results(page)
             self._scroll_results(page)
@@ -130,11 +129,14 @@ class TikTokAutoSearchAction(BasePageAction):
 
     def _prepare_search_ui(self, page) -> None:
         """Ensure the search UI is visible and ready for typing."""
-        if not self._click_search_button(page):
+        clicked = self._click_search_button(page)
+        if not clicked:
             self.logger.warning(
                 "Could not find search button, proceeding with typing attempt..."
             )
             self._focus_page_body(page)
+        else:
+            time.sleep(2)
         self._wait_for_search_ui(page)
 
     def _wait_for_initial_load(self, page) -> None:
@@ -146,17 +148,35 @@ class TikTokAutoSearchAction(BasePageAction):
     def _wait_for_search_ui(self, page) -> None:
         """Wait for the search interface to be rendered."""
         self._wait_for_network_idle(page)
+        # Skipping explicit input readiness wait; rely on direct selectors instead.
 
     def _click_search_button(self, page) -> bool:
         """Locate the search button and click it using human-like motions."""
         for selector in self.SEARCH_BUTTON_SELECTORS:
             try:
-                search_bar = page.query_selector(selector)
+                visible_selector = f"{selector} >> visible=true"
+                search_bar = page.wait_for_selector(visible_selector, timeout=5_000)
                 if search_bar:
+                    try:
+                        box = search_bar.bounding_box()
+                    except Exception:
+                        box = None
+                    # Skip hidden duplicates with zero-sized bounding boxes.
+                    if not box or box.get('width', 0) < 5 or box.get('height', 0) < 5:
+                        self.logger.debug("Search bar selector %s had no usable bounding box; skipping", selector)
+                        continue
+                    try:
+                        if hasattr(search_bar, 'is_enabled') and not search_bar.is_enabled():
+                            self.logger.debug("Search bar selector %s is not enabled; skipping", selector)
+                            continue
+                    except Exception:
+                        pass
                     self.logger.info("Found search bar with selector: %s", selector)
                     move_mouse_to_locator(page, search_bar, steps_range=(15, 25))
                     click_like_human(search_bar)
                     return True
+            except PlaywrightTimeoutError as exc:
+                self.logger.debug("Search button selector %s not visible: %s", selector, exc)
             except Exception as exc:
                 self.logger.debug("Selector %s failed: %s", selector, exc)
         return False
@@ -167,23 +187,6 @@ class TikTokAutoSearchAction(BasePageAction):
             page.focus("body")
         except Exception:  # pragma: no cover - focus is best-effort
             pass
-
-    def _find_search_input(self, page):
-        """Return the first visible search input element, if any."""
-        for selector in self.SEARCH_INPUT_SELECTORS:
-            try:
-                search_input = page.wait_for_selector(
-                    selector, state="visible", timeout=5_000
-                )
-                if search_input:
-                    self.logger.info("Found search input with selector: %s", selector)
-                    return search_input
-            except PlaywrightTimeoutError as exc:
-                self.logger.debug("Search input selector %s not visible: %s", selector, exc)
-            except Exception as exc:
-                self.logger.debug("Search input selector %s failed: %s", selector, exc)
-        self.logger.warning("No visible search input found after checking selectors.")
-        return None
 
     def _encode_search_query(self) -> str:
         """Best-effort encoding of the search query to UTF-8."""
