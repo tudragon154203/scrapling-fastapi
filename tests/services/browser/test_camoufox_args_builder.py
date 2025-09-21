@@ -156,8 +156,8 @@ class TestCamoufoxArgsBuilder:
         # Assert
         prefs = additional_args.get('firefox_user_prefs')
         assert prefs is not None
-        assert prefs['media.volume_scale'] == 0.0
-        assert prefs['media.default_volume'] == 0.0
+        assert 'media.volume_scale' not in prefs
+        assert 'media.default_volume' not in prefs
         assert prefs['dom.audiochannel.mutedByDefault'] is True
 
     def test_build_force_mute_from_settings(self, builder, mock_request, mock_settings, mock_caps):
@@ -170,8 +170,8 @@ class TestCamoufoxArgsBuilder:
         # Assert
         prefs = additional_args.get('firefox_user_prefs')
         assert prefs is not None
-        assert prefs['media.volume_scale'] == 0.0
-        assert prefs['media.default_volume'] == 0.0
+        assert 'media.volume_scale' not in prefs
+        assert 'media.default_volume' not in prefs
         assert prefs['dom.audiochannel.mutedByDefault'] is True
 
     def test_build_no_camoufox_user_data_dir(self, builder, mock_request, mock_settings, mock_caps):
