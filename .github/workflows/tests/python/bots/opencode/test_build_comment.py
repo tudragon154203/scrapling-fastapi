@@ -1,19 +1,51 @@
 import sys
-import os
-from pathlib import Path
+from textwrap import dedent
 
 sys.path.insert(0, '.github/workflows/scripts/bots/opencode')
 
 import pytest
-from typing import Dict, Any
+from typing import Any, Dict
 
-from build_comment import extract_review_section, format_comment, clean_stream
+from build_comment import (
+    clean_stream,
+    extract_review_section,
+    filter_to_latest_review,
+    format_comment,
+)
 
 
 @pytest.fixture(autouse=True)
 def no_stderr_env(monkeypatch):
     """Ensure INCLUDE_OPENCODE_STDERR is not set to include debug stderr."""
     monkeypatch.setenv("INCLUDE_OPENCODE_STDERR", "0")
+
+
+class TestFilterToLatestReview:
+    @pytest.mark.parametrize(
+        "raw, expected",
+        [
+            ("", ""),
+            ("No review heading here", "No review heading here"),
+            (
+                "### 🙋 OpenCode Review\nSummary line",
+                "### 🙋 OpenCode Review\nSummary line",
+            ),
+            (
+                "Progress update\n### 🙋 OpenCode Review\nLatest findings",
+                "### 🙋 OpenCode Review\nLatest findings",
+            ),
+            (
+                "First section\n### 🙋 OpenCode Review\nOld review\nAnother line\n### 🙋 OpenCode Review\nNew review",
+                "### 🙋 OpenCode Review\nNew review",
+            ),
+            (
+                "Lead-in text\n### 🙋 OpenCode Review",
+                "### 🙋 OpenCode Review",
+            ),
+        ],
+    )
+    def test_various_headings(self, raw: str, expected: str) -> None:
+        assert filter_to_latest_review(raw) == expected
 
 
 class TestExtractReviewSection:
@@ -173,6 +205,50 @@ High."""
         assert "Thinking mode: `standard`" in comment
         assert "Exit code: `0`" in comment
         assert "Progress output from the CLI was omitted to highlight the final review." in comment
+
+    def test_filters_to_latest_review(self):
+        metadata: Dict[str, Any] = {
+            "summary": "Automated review summary.",
+            "command_text": "opencode review",
+            "model": "gpt-test",
+            "event_name": "push",
+        }
+        stdout = dedent(
+            """
+            Progress: preparing analysis
+            ### 🙋 OpenCode Review
+
+            **Findings:**
+            - Earlier issue
+
+            **Suggestions:**
+            - Earlier suggestion
+
+            **Confidence:**
+            - Medium
+
+            Another progress update
+            ### 🙋 OpenCode Review
+
+            **Findings:**
+            - Final issue
+
+            **Suggestions:**
+            - Final suggestion
+
+            **Confidence:**
+            - High
+            """
+        ).strip()
+
+        comment = format_comment(metadata, stdout, stderr="", exit_code=0)
+
+        assert "Progress: preparing analysis" not in comment
+        assert "Another progress update" not in comment
+        assert "Final issue" in comment
+        assert "Final suggestion" in comment
+        assert "### 🙋 OpenCode Review" in comment
+        assert "Progress output from the CLI was omitted" in comment
 
     def test_without_review(self):
         metadata: Dict[str, Any] = {"model": "gpt-4", "event_name": "pull_request"}
