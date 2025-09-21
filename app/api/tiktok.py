@@ -73,9 +73,8 @@ async def tiktok_search_endpoint(payload: TikTokSearchRequest):
     print(f"DEBUG: force_headful={payload.force_headful}, browser_mode={browser_mode.value}")
 
     search_service = TikTokSearchService(strategy=payload.strategy, force_headful=payload.force_headful)
-    fields_set = getattr(payload, "model_fields_set", set())
-    sort_type_param = payload.sortType if "sortType" in fields_set else None
-    recency_days_param = payload.recencyDays if "recencyDays" in fields_set else None
+    sort_type_param = payload.sortType
+    recency_days_param = payload.recencyDays
 
     result = await search_service.search(
         query=payload.query,
