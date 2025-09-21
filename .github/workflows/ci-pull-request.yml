@@ -56,7 +56,8 @@ jobs:
 
       - name: Log pip cache result
         if: runner.os != 'Windows' || env.ACT != 'true'
-        run: echo "Cache hit for pip downloads: ${{ steps.cache-pip.outputs.cache-hit }}"
+        run: |
+          echo "Cache hit for pip downloads: ${{ steps.cache-pip.outputs.cache-hit }}"
 
       - name: Use preinstalled deps (ACT Windows)
         if: runner.os == 'Windows' && env.ACT == 'true'
@@ -80,7 +81,8 @@ jobs:
             ${{ runner.os }}-playwright-
 
       - name: Log Playwright cache result
-        run: echo "Cache hit for Playwright browsers: ${{ steps.cache-playwright.outputs.cache-hit }}"
+        run: |
+          echo "Cache hit for Playwright browsers: ${{ steps.cache-playwright.outputs.cache-hit }}"
 
       - name: Install Playwright browsers
         run: playwright install
@@ -99,7 +101,8 @@ jobs:
             ${{ runner.os }}-camoufox-
 
       - name: Log Camoufox cache result
-        run: echo "Cache hit for Camoufox resources: ${{ steps.cache-camoufox.outputs.cache-hit }}"
+        run:  |
+         echo "Cache hit for Camoufox resources: ${{ steps.cache-camoufox.outputs.cache-hit }}"
 
       - name: Fetch Camoufox resources
         shell: pwsh

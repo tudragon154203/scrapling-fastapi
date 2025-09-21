@@ -43,7 +43,8 @@ jobs:
             ${{ runner.os }}-pip-
 
       - name: Log pip cache result
-        run: echo "Cache hit for pip downloads: ${{ steps.cache-pip.outputs.cache-hit }}"
+        run: |
+          echo "Cache hit for pip downloads: ${{ steps.cache-pip.outputs.cache-hit }}"
 
       - name: Install dependencies
         run: |
