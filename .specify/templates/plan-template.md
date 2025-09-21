@@ -72,11 +72,10 @@ src/
 └── lib/
 
 tests/
-├── contract/
 ├── integration/
 │   └── tiktok/
 ├── services/
-│   ├── app_services/
+│   └── common/
 │   └── tiktok/
 │       ├── search/
 │       ├── session/

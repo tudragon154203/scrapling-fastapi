@@ -30,7 +30,7 @@ scrapling-fastapi/
 │   ├── middleware/         # Middleware tests
 │   ├── schemas/            # Schema tests
 │   └── services/           # Service tests
-│       ├── app_services/   # General application service tests
+│       ├── common/         # General application service tests
 │       └── tiktok/         # TikTok service tests
 │           ├── search/     # TikTok search service tests
 │           ├── session/    # TikTok session service tests

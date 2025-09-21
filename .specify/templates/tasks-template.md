@@ -40,16 +40,7 @@
 - **Single project**: `src/`, `tests/` at repository root
 - **Web app**: `backend/src/`, `frontend/src/`
 - **Mobile**: `api/src/`, `ios/src/` or `android/src/`
-tests/
-├── contract/
-├── integration/
-│   └── tiktok/
-├── services/
-│   ├── app_services/
-│   └── tiktok/
-│       ├── search/
-│       ├── session/
-│       └── utils/
+- Paths shown below assume single project - adjust based on plan.md structure
 
 ## Phase 3.1: Setup
 - [ ] T001 Create project structure per implementation plan
@@ -58,8 +49,7 @@ tests/
 
 ## Phase 3.2: Tests First (TDD) ⚠️ MUST COMPLETE BEFORE 3.3
 **CRITICAL: These tests MUST be written and MUST FAIL before ANY implementation**
-- [ ] T004 [P] Contract test POST /api/users in tests/contract/test_users_post.py
-- [ ] T005 [P] Contract test GET /api/users/{id} in tests/contract/test_users_get.py
+
 - [ ] T006 [P] Integration test user registration in tests/integration/tiktok/test_example_integration.py
 - [ ] T007 [P] Integration test auth flow in tests/integration/test_auth.py
 
@@ -93,9 +83,7 @@ tests/
 
 ## Parallel Example
 ```
-# Launch T004-T007 together:
-Task: "Contract test POST /api/users in tests/contract/test_users_post.py"
-Task: "Contract test GET /api/users/{id} in tests/contract/test_users_get.py"
+# Launch T006-T007 together:
 Task: "Integration test registration in tests/integration/test_registration.py"
 Task: "Integration test auth in tests/integration/test_auth.py"
 ```
@@ -109,26 +97,21 @@ Task: "Integration test auth in tests/integration/test_auth.py"
 ## Task Generation Rules
 *Applied during main() execution*
 
-1. **From Contracts**:
-   - Each contract file → contract test task [P]
-   - Each endpoint → implementation task
-   
-2. **From Data Model**:
+1. **From Data Model**:
    - Each entity → model creation task [P]
    - Relationships → service layer tasks
    
-3. **From User Stories**:
+2. **From User Stories**:
    - Each story → integration test [P]
    - Quickstart scenarios → validation tasks
 
-4. **Ordering**:
+3. **Ordering**:
    - Setup → Tests → Models → Services → Endpoints → Polish
    - Dependencies block parallel execution
 
 ## Validation Checklist
 *GATE: Checked by main() before returning*
 
-- [ ] All contracts have corresponding tests
 - [ ] All entities have model tasks
 - [ ] All tests come before implementation
 - [ ] Parallel tasks truly independent

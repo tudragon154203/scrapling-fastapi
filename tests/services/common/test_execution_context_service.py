@@ -1,4 +1,3 @@
-import pytest
 from src.models.execution_context import ExecutionContext
 
 
@@ -9,7 +8,7 @@ def test_execution_context_not_test_env(monkeypatch):
     monkeypatch.delenv("TESTING", raising=False)
     monkeypatch.delenv("CI", raising=False)
 
-    assert ExecutionContext.is_test_environment() == False
+    assert not ExecutionContext.is_test_environment()
 
 
 def test_execution_context_test_env_pytest(monkeypatch):

@@ -1,4 +1,3 @@
-import pytest
 from src.models.browser_mode import BrowserMode
 from src.services.browser_mode_service import BrowserModeService
 from src.services.execution_context_service import ExecutionContextService
@@ -17,7 +16,7 @@ def test_execution_context_service_not_test_env(monkeypatch):
     monkeypatch.delenv("TESTING", raising=False)
     monkeypatch.delenv("CI", raising=False)
 
-    assert ExecutionContextService.is_test_environment() == False
+    assert not ExecutionContextService.is_test_environment()
 
 
 def test_execution_context_service_test_env_pytest(monkeypatch):
