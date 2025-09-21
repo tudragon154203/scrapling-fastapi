@@ -165,6 +165,57 @@ class TestTikTokMultiStepSearchService:
         assert first_result["id"] == "1234567890"
         assert first_result["webViewUrl"].endswith("/1234567890")
 
+    @pytest.mark.asyncio
+    async def test_process_query_uses_remaining_target(self, search_service, mock_context):
+        """Search action should request only the remaining videos needed."""
+        aggregated = [
+            {
+                "id": f"existing-{index}",
+                "webViewUrl": f"https://www.tiktok.com/@user/video/{index}",
+            }
+            for index in range(6)
+        ]
+        seen_ids = {item["id"] for item in aggregated}
+        seen_urls = {item["webViewUrl"] for item in aggregated}
+
+        parser = SimpleNamespace(
+            parse=Mock(
+                return_value=[
+                    {
+                        "id": f"new-{i}",
+                        "webViewUrl": f"https://www.tiktok.com/@user/video/new-{i}",
+                    }
+                    for i in range(5)
+                ]
+            )
+        )
+
+        with patch.object(
+            search_service,
+            "_execute_browser_search",
+            AsyncMock(return_value="<html></html>"),
+        ), patch(
+            "app.services.tiktok.search.multistep.TikTokAutoSearchAction"
+        ) as mock_action_cls:
+            mock_action_instance = Mock()
+            mock_action_cls.return_value = mock_action_instance
+
+            result = await search_service._process_query_with_browser(
+                query="another",
+                index=1,
+                total_queries=2,
+                parser=parser,
+                aggregated=aggregated,
+                seen_ids=seen_ids,
+                seen_urls=seen_urls,
+                target_count=10,
+                context=mock_context,
+            )
+
+        mock_action_instance.set_target_videos.assert_called_once_with(4)
+        assert len(aggregated) == 11, "Expected new results to be appended"
+        assert result is True, "Should stop further processing once target reached"
+
     def test_auto_search_action_cleanup(self):
         """Test TikTokAutoSearchAction cleanup functionality"""
         action = TikTokAutoSearchAction("test query")
