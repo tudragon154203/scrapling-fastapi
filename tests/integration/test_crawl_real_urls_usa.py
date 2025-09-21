@@ -1,6 +1,6 @@
 import pytest
 
-from ._real_url_test_utils import make_body, min_html_length
+from tests.integration._real_url_test_utils import make_body, min_html_length
 
 pytestmark = pytest.mark.integration
 
