@@ -25,6 +25,17 @@ class TestTikTokAutoSearchAction:
         assert auto_search_action.page is None
         assert hasattr(auto_search_action, 'logger')
 
+    def test_set_target_videos(self, auto_search_action):
+        """Target configuration should accept positive integers and clear invalid values"""
+        auto_search_action.set_target_videos(7)
+        assert auto_search_action.target_videos == 7
+
+        auto_search_action.set_target_videos(0)
+        assert auto_search_action.target_videos is None
+
+        auto_search_action.set_target_videos(None)
+        assert auto_search_action.target_videos is None
+
     def test_cleanup_browser_resources(self, auto_search_action):
         """Test browser resource cleanup"""
         # Mock page object
@@ -231,6 +242,75 @@ class TestTikTokAutoSearchAction:
 
         mock_scan.assert_called_once_with(mock_page)
         mock_fallback.assert_called_once_with(mock_page)
+
+    def test_scroll_results_stops_when_target_reached(self, auto_search_action):
+        """Scrolling should stop as soon as the requested video count is detected."""
+        auto_search_action.set_target_videos(5)
+        mock_page = Mock()
+        mock_page.mouse.wheel.return_value = None
+
+        with patch.object(
+            auto_search_action,
+            '_count_video_results',
+            side_effect=[2, 5],
+        ) as mock_count, patch.object(
+            auto_search_action, '_is_near_page_end', return_value=False
+        ), patch('app.services.tiktok.search.actions.auto_search.time.sleep'), patch(
+            'app.services.tiktok.search.actions.auto_search.human_pause'
+        ):
+            auto_search_action._scroll_results(mock_page)
+
+        mock_page.mouse.wheel.assert_called_once_with(0, 800)
+        assert mock_count.call_count == 2
+
+    def test_scroll_results_stops_when_no_change_limit_hit(self, auto_search_action):
+        """Scrolling should halt when repeated attempts find no new videos."""
+        auto_search_action.set_target_videos(10)
+        mock_page = Mock()
+        mock_page.mouse.wheel.return_value = None
+
+        no_change_sequence = [2] + [2] * auto_search_action.SCROLL_NO_CHANGE_LIMIT
+
+        with patch.object(
+            auto_search_action,
+            '_count_video_results',
+            side_effect=no_change_sequence,
+        ) as mock_count, patch.object(
+            auto_search_action, '_is_near_page_end', return_value=False
+        ), patch('app.services.tiktok.search.actions.auto_search.time.sleep'), patch(
+            'app.services.tiktok.search.actions.auto_search.human_pause'
+        ):
+            auto_search_action._scroll_results(mock_page)
+
+        assert (
+            mock_page.mouse.wheel.call_count
+            == auto_search_action.SCROLL_NO_CHANGE_LIMIT
+        )
+        assert mock_count.call_count == len(no_change_sequence)
+
+    def test_scroll_results_stops_at_max_attempts(self, auto_search_action):
+        """Scrolling should respect the configured maximum number of attempts."""
+        auto_search_action.set_target_videos(20)
+        auto_search_action.SCROLL_MAX_ATTEMPTS = 4
+        auto_search_action.SCROLL_NO_CHANGE_LIMIT = 10
+        mock_page = Mock()
+        mock_page.mouse.wheel.return_value = None
+
+        count_sequence = [1, 5, 9, 12, 15]
+
+        with patch.object(
+            auto_search_action,
+            '_count_video_results',
+            side_effect=count_sequence,
+        ) as mock_count, patch.object(
+            auto_search_action, '_is_near_page_end', return_value=False
+        ), patch('app.services.tiktok.search.actions.auto_search.time.sleep'), patch(
+            'app.services.tiktok.search.actions.auto_search.human_pause'
+        ):
+            auto_search_action._scroll_results(mock_page)
+
+        assert mock_page.mouse.wheel.call_count == 4
+        assert mock_count.call_count == len(count_sequence)
 
     def test_wait_for_initial_load(self, auto_search_action):
         """Ensure initial load waits for network idle and sleep"""
