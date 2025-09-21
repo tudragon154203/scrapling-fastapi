@@ -66,7 +66,7 @@ class TikTokAutoSearchAction(BasePageAction):
 
     SCROLL_MAX_ATTEMPTS = 20
     SCROLL_NO_CHANGE_LIMIT = 3
-    SCROLL_INTERVAL_SECONDS = 1.0
+    SCROLL_INTERVAL_SECONDS = 1.5
 
     def __init__(
         self,
@@ -384,14 +384,21 @@ class TikTokAutoSearchAction(BasePageAction):
         ]
 
         max_count = 0
+        best_selector: Optional[str] = None
         for selector in selectors:
             try:
                 count = page.eval_on_selector_all(selector, "elements => elements.length") or 0
                 self.logger.debug("Selector %s found %s elements", selector, count)
                 if count > max_count:
                     max_count = int(count)
+                    best_selector = selector
             except Exception as exc:
                 self.logger.debug("Counting selector %s failed: %s", selector, exc)
+
+        if best_selector:
+            self.logger.debug(
+                "Best result selector %s yielded %s elements", best_selector, max_count
+            )
 
         return max_count
 
