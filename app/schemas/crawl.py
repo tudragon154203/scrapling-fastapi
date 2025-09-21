@@ -17,7 +17,7 @@ class CrawlRequest(BaseModel):
                 {
                     "url": "https://example.com",
                     "wait_for_selector": "body",
-                    "wait_for_selector_state": "visible",
+                    "wait_for_selector_state": "attached",
                     "timeout_seconds": None,
                     "network_idle": False,
                     "force_headful": False,
@@ -36,12 +36,12 @@ class CrawlRequest(BaseModel):
         json_schema_extra={"example": "body"},
     )
     wait_for_selector_state: Optional[str] = Field(
-        default="visible",
+        default="attached",
         description=(
-            "State to wait for the selector: 'visible' (default), 'hidden', "
-            "'attached', 'detached', or 'any'"
+            "State to wait for the selector: 'attached' (default), 'visible', "
+            "'hidden', 'detached', or 'any'"
         ),
-        json_schema_extra={"example": "visible"},
+        json_schema_extra={"example": "attached"},
     )
 
     # Timeout and network fields

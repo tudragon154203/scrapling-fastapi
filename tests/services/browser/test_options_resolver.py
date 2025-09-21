@@ -17,7 +17,7 @@ def test_force_headful_overrides_default_headless():
 
     assert opts == {
         "wait_for_selector": "body",
-        "wait_for_selector_state": "visible",
+        "wait_for_selector_state": "attached",
         "timeout_ms": settings.default_timeout_ms,
         "timeout_seconds": None,
         "headless": False,

@@ -34,7 +34,7 @@ def test_crawl_success_with_stub(monkeypatch, client):
     p = captured_payload["payload"]
     assert str(p.url).rstrip("/") == body["url"].rstrip("/")
     assert p.wait_for_selector == "body"
-    assert p.wait_for_selector_state == "visible"
+    assert p.wait_for_selector_state == "attached"
     assert p.timeout_seconds == body["timeout_seconds"]
     assert p.force_headful is False
     assert p.force_user_data is False
@@ -77,7 +77,7 @@ def test_crawl_endpoint_patch_uses_simplenamespace(monkeypatch):
     assert isinstance(req_obj, SimpleNamespace)
     assert req_obj.url == "https://example.com/path"
     assert req_obj.wait_for_selector == "body"
-    assert req_obj.wait_for_selector_state == "visible"
+    assert req_obj.wait_for_selector_state == "attached"
     assert req_obj.timeout_seconds is None
     assert req_obj.network_idle is False
     assert req_obj.force_headful is False
@@ -105,7 +105,7 @@ def test_crawl_endpoint_patch_fallback_json_response(monkeypatch):
     assert isinstance(req_obj, SimpleNamespace)
     assert req_obj.url == "https://fallback.example.com"
     assert req_obj.wait_for_selector == "body"
-    assert req_obj.wait_for_selector_state == "visible"
+    assert req_obj.wait_for_selector_state == "attached"
     assert req_obj.timeout_seconds is None
     assert req_obj.network_idle is False
     assert req_obj.force_headful is False
@@ -132,7 +132,7 @@ def test_crawl_endpoint_mock_without_json_payload(monkeypatch):
     assert isinstance(req_obj, SimpleNamespace)
     assert req_obj.url == "https://fallback.example.com"
     assert req_obj.wait_for_selector == "body"
-    assert req_obj.wait_for_selector_state == "visible"
+    assert req_obj.wait_for_selector_state == "attached"
     assert req_obj.timeout_seconds is None
     assert req_obj.network_idle is False
     assert req_obj.force_headful is False
