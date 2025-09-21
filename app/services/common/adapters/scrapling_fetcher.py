@@ -286,6 +286,7 @@ class FetchArgComposer:
         "profile_dir",
         "profile_path",
         "user_data",
+        "firefox_user_prefs",
     )
 
     @classmethod

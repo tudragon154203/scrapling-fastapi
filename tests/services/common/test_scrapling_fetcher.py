@@ -431,6 +431,7 @@ def test_fetch_arg_composer_filters_additional_args_and_headers():
         "_private": "hidden",
         "user_data_dir": "/tmp/user",
         "profile_path": "/tmp/profile",
+        "firefox_user_prefs": {"media.volume_scale": 0.0},
         "unsupported": "nope",
     }
     extra_headers = {"X-Test": "1"}
@@ -449,6 +450,7 @@ def test_fetch_arg_composer_filters_additional_args_and_headers():
         "custom_flag": "yes",
         "user_data_dir": "/tmp/user",
         "profile_path": "/tmp/profile",
+        "firefox_user_prefs": {"media.volume_scale": 0.0},
     }
     assert "_private" not in result["additional_args"]
     assert "unsupported" not in result["additional_args"]
