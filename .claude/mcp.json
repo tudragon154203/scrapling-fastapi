@@ -1,0 +1,28 @@
+{
+  "mcpServers": {
+    "brave-search": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-brave-search"
+      ],
+      "env": {
+        "BRAVE_API_KEY": "BSA5rRrTbbvXnmTq8zu3UrAr_qfiQX6"
+      },
+      "alwaysAllow": [
+        "brave_web_search"
+      ]
+    },
+    "Scrapling Docs": {
+      "command": "npx",
+      "args": [
+        "mcp-remote",
+        "https://gitmcp.io/D4Vinci/Scrapling"
+      ],
+      "alwaysAllow": [
+        "search_Scrapling_documentation",
+        "fetch_Scrapling_documentation"
+      ]
+    }
+  }
+}

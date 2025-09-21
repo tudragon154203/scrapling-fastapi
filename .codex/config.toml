@@ -1,0 +1,3 @@
+[mcp_servers.Scrapling-Docs]
+command = "npx"
+args = ["mcp-remote", "https://gitmcp.io/D4Vinci/Scrapling"]

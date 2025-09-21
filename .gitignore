@@ -81,26 +81,16 @@ temp/
 node_modules/
 
 # Docs
-AGENTS.md
-CLAUDE.md
+# AGENTS.md
+# CLAUDE.md
+# GEMINI.md
 claudedocs/
-.kiro*
-.qwen*
 .roo*
 .kilocode*
-.claude*
-.clinerules*
-.mcp.json
+# .mcp.json
 .playwright-mcp
-.codex*
-GEMINI.md
-scripts/
-!.github/workflows/scripts/
-memory/
-templates/
 tiktok_search.html
 
 # Github Actions
-.gemini/
 gha-creds-*.json
 
