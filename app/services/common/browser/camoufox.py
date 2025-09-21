@@ -37,18 +37,20 @@ class CamoufoxArgsBuilder:
         # User data directory with Firefox semantics (force profile_dir regardless of capability detection)
         # - Crawl flows: use read-mode clones (temporary)
         # - Browse flows: if BrowseCrawler set write-mode flags on settings, use master directly
-        if (hasattr(payload, 'force_user_data') and payload.force_user_data is True and
-                settings.camoufox_user_data_dir):
+        if (
+            hasattr(payload, "force_user_data")
+            and payload.force_user_data is True
+            and settings.camoufox_user_data_dir
+        ):
             try:
-                # Check if browse flow requested write mode via settings flags
-                write_mode = getattr(settings, '_camoufox_user_data_mode', None) == 'write'
-                write_dir = getattr(settings, '_camoufox_effective_user_data_dir', None)
+                write_mode, write_dir = CamoufoxArgsBuilder._runtime_user_data_overrides(
+                    settings
+                )
 
-                if write_mode and write_dir:
+                if write_mode == "write" and write_dir:
                     # Use master directory directly (lock managed by BrowseCrawler)
                     logger.debug(f"Using WRITE user data directory: {write_dir}")
-                    resolved_path = str(Path(write_dir).resolve()) if platform.system(
-                    ) == 'Windows' else os.path.abspath(write_dir)
+                    resolved_path = CamoufoxArgsBuilder._resolve_path(write_dir)
                     # Ensure directory exists and is writable
                     Path(resolved_path).mkdir(parents=True, exist_ok=True)
                     if not os.access(resolved_path, os.W_OK):
@@ -60,8 +62,7 @@ class CamoufoxArgsBuilder:
                         settings.camoufox_user_data_dir, 'read'
                     ) as (effective_dir, cleanup):
                         logger.debug(f"Using user data directory: {effective_dir}")
-                        resolved_path = str(Path(effective_dir).resolve()) if platform.system(
-                        ) == 'Windows' else os.path.abspath(effective_dir)
+                        resolved_path = CamoufoxArgsBuilder._resolve_path(effective_dir)
                         # Ensure directory exists and is writable
                         Path(resolved_path).mkdir(parents=True, exist_ok=True)
                         if not os.access(resolved_path, os.W_OK):
@@ -81,6 +82,10 @@ class CamoufoxArgsBuilder:
             additional_args["virtual_display"] = settings.camoufox_virtual_display
 
         force_mute = bool(getattr(payload, "force_mute_audio", False))
+        if not force_mute:
+            force_mute = bool(
+                getattr(settings, "camoufox_runtime_force_mute_audio", False)
+            )
         if not force_mute:
             force_mute = bool(getattr(settings, "_camoufox_force_mute_audio", False))
         if force_mute:
@@ -131,3 +136,33 @@ class CamoufoxArgsBuilder:
         except Exception:
             return None
         return None
+
+    @staticmethod
+    def _runtime_user_data_overrides(settings) -> Tuple[Optional[str], Optional[str]]:
+        """Extract sanitized runtime user-data overrides from settings."""
+
+        mode = getattr(settings, "camoufox_runtime_user_data_mode", None)
+        if mode is None:
+            mode = getattr(settings, "_camoufox_user_data_mode", None)
+        normalized_mode = mode.lower() if isinstance(mode, str) else None
+
+        raw_dir = getattr(settings, "camoufox_runtime_effective_user_data_dir", None)
+        if raw_dir is None:
+            raw_dir = getattr(settings, "_camoufox_effective_user_data_dir", None)
+        if isinstance(raw_dir, (str, os.PathLike)):
+            try:
+                normalized_dir = os.fspath(raw_dir)
+            except TypeError:
+                normalized_dir = None
+        else:
+            normalized_dir = None
+
+        return normalized_mode, normalized_dir
+
+    @staticmethod
+    def _resolve_path(path_value: str) -> str:
+        """Return an absolute path for the provided path string."""
+
+        if platform.system() == "Windows":
+            return str(Path(path_value).resolve())
+        return os.path.abspath(path_value)

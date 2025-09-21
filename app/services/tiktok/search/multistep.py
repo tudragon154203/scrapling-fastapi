@@ -207,17 +207,27 @@ class TikTokMultiStepSearchService(AbstractTikTokSearchService):
             )
 
             settings = self.settings
-            user_data_dir = getattr(settings, "camoufox_user_data_dir", "data/camoufox_profiles")
+            user_data_dir = getattr(
+                settings, "camoufox_user_data_dir", "data/camoufox_profiles"
+            )
             result = None
             loop = asyncio.get_running_loop()
 
-            with user_data_context(user_data_dir, "read") as (effective_dir, cleanup):
-                try:
-                    try:
-                        setattr(settings, "_camoufox_user_data_mode", "read")
-                        setattr(settings, "_camoufox_effective_user_data_dir", effective_dir)
-                    except Exception:
-                        pass
+            previous_mute = bool(
+                getattr(settings, "camoufox_runtime_force_mute_audio", False)
+            )
+            settings.camoufox_runtime_force_mute_audio = True
+
+            cleanup = None
+            previous_mode = getattr(settings, "camoufox_runtime_user_data_mode", None)
+            previous_effective_dir = getattr(
+                settings, "camoufox_runtime_effective_user_data_dir", None
+            )
+
+            try:
+                with user_data_context(user_data_dir, "read") as (effective_dir, cleanup):
+                    settings.camoufox_runtime_user_data_mode = "read"
+                    settings.camoufox_runtime_effective_user_data_dir = effective_dir
 
                     try:
                         engine_task = loop.run_in_executor(
@@ -227,14 +237,14 @@ class TikTokMultiStepSearchService(AbstractTikTokSearchService):
                     except asyncio.TimeoutError:
                         self.logger.warning("Browser search timed out after 3 minutes")
                         return ""
-                finally:
-                    try:
-                        if hasattr(settings, "_camoufox_user_data_mode"):
-                            delattr(settings, "_camoufox_user_data_mode")
-                        if hasattr(settings, "_camoufox_effective_user_data_dir"):
-                            delattr(settings, "_camoufox_effective_user_data_dir")
-                    finally:
-                        cleanup()
+            finally:
+                settings.camoufox_runtime_user_data_mode = previous_mode
+                settings.camoufox_runtime_effective_user_data_dir = (
+                    previous_effective_dir
+                )
+                if callable(cleanup):
+                    cleanup()
+                settings.camoufox_runtime_force_mute_audio = previous_mute
 
             if result and getattr(result, "html", None):
                 return result.html or ""
