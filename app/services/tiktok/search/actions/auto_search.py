@@ -38,23 +38,6 @@ class TikTokAutoSearchAction(BasePageAction):
         '.css-udify9-5e6d46e3--StyledTUXSearchButton',
     ]
 
-    SEARCH_INPUT_SELECTORS = [
-        'input[data-e2e="search-user-input"]',
-        'input[data-e2e="search-box-input"]',
-        'input[data-e2e="search-suggest"]',
-        'input[placeholder*="Search"]',
-        'input[type="search"]',
-        'input[aria-label*="Search"]',
-        '.search-bar',
-        'input[placeholder*="search"]',
-        'input[aria-label*="search"]',
-        'input[data-e2e="search-input"]',
-        'input[name="search"]',
-        'input[data-testid="search-input"]',
-        'input[class*="search"]',
-        'input[role="combobox"]',
-    ]
-
     RESULT_SELECTORS = [
         '[data-e2e="search-result-item"]',
         '[data-e2e="search-general-item"]',
@@ -78,6 +61,8 @@ class TikTokAutoSearchAction(BasePageAction):
 
     RESULT_SCAN_TIMEOUT = 10
     RESULT_SCAN_INTERVAL = 0.5
+
+    UI_READY_PAUSE = 2  # seconds
 
     def __init__(
         self,
@@ -136,14 +121,14 @@ class TikTokAutoSearchAction(BasePageAction):
             )
             self._focus_page_body(page)
         else:
-            time.sleep(2)
+            time.sleep(self.UI_READY_PAUSE)
         self._wait_for_search_ui(page)
 
     def _wait_for_initial_load(self, page) -> None:
         """Wait for the page to settle before interacting with it."""
         self.logger.info("Waiting for page to load...")
         page.wait_for_load_state("networkidle")
-        time.sleep(2)
+        time.sleep(self.UI_READY_PAUSE)
 
     def _wait_for_search_ui(self, page) -> None:
         """Wait for the search interface to be rendered."""
@@ -253,7 +238,7 @@ class TikTokAutoSearchAction(BasePageAction):
             page.wait_for_load_state("networkidle")
         except Exception as exc:  # pragma: no cover - best-effort wait
             self.logger.debug("Network idle wait failed: %s", exc)
-        time.sleep(2)
+        time.sleep(self.UI_READY_PAUSE)
 
     def _scan_result_selectors(self, page) -> bool:
         """Scan for known result selectors while waiting for them to appear."""
