@@ -33,9 +33,9 @@ class TikTokSearchRequest(BaseModel):
         default="multistep",
         description="Search strategy to use - 'direct' for URL parameters, 'multistep' for browser automation",
     )
-    force_headful: Optional[bool] = Field(
-        default=None,
-        description="Controls browser execution mode - True for headful, False/None for headless",
+    force_headful: bool = Field(
+        default=False,
+        description="Controls browser execution mode - True for headful, False for headless",
     )
 
     @model_validator(mode='after')

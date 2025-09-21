@@ -66,12 +66,12 @@ async def tiktok_search_endpoint(payload: TikTokSearchRequest):
     """Handle the Tiktok search workflow by delegating to the service layer."""
     # Determine browser mode based on force_headful parameter
     from src.services.browser_mode_service import BrowserModeService
-    browser_mode = BrowserModeService.determine_mode(payload.force_headful or False)
+    browser_mode = BrowserModeService.determine_mode(payload.force_headful)
 
     # Log the force_headful parameter and determined mode for debugging
     print(f"DEBUG: force_headful={payload.force_headful}, browser_mode={browser_mode.value}")
 
-    search_service = TikTokSearchService(strategy=payload.strategy, force_headful=payload.force_headful or False)
+    search_service = TikTokSearchService(strategy=payload.strategy, force_headful=payload.force_headful)
     result = await search_service.search(
         query=payload.query,
         num_videos=payload.numVideos,

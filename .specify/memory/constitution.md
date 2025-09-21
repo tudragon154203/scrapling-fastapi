@@ -1,7 +1,7 @@
 <!-- 
 Sync Impact Report:
-- Version change: 1.0.1 → 1.1.0 (MINOR - updated test directory organization principles)
-- Modified principles: Governance section updated for agent reference.
+- Version change: 1.1.0 → 1.2.0 (MINOR - expanded TDD principle for integration/contract tests)
+- Modified principles: III. Test-Driven Development (NON-NEGOTIABLE)
 - No added/removed sections
 - Templates requiring updates: ✅ .specify/templates/plan-template.md, ✅ .specify/templates/tasks-template.md, ✅ README.md
 - No follow-up TODOs - all requirements specified
@@ -18,7 +18,7 @@ Every feature must follow the layered architecture principle (API/Core/Middlewar
 Use FastAPI as the primary web framework with automatic OpenAPI documentation. Target environment: Python 3.10.8 on Windows. Leverage Pydantic 2.9 for data validation with Python 3.13 compatibility. Implement type hints throughout the application. Support both development and production deployment patterns.
 
 ### III. Test-Driven Development (NON-NEGOTIABLE)
-TDD mandatory: Tests written → Implementation → Tests pass → Refactor. Red-Green-Refactor cycle strictly enforced. Parallel test execution via pytest-xdist. Integration tests required for all network/browser-dependent functionality.
+TDD mandatory: Tests written → Implementation → Tests pass → Refactor. Red-Green-Refactor cycle strictly enforced. Parallel test execution via pytest-xdist. Minimize the number of contract and integration tests, focusing on critical paths and external interactions. All integration tests MUST be explicitly marked with `pytest.mark.integration` at the module level.
 
 ### IV. Scrapling-Centric Automation
 Default to Scrapling/Camoufox for browser automation tasks. Implement anti-detection measures (fingerprinting, humanized actions). Support persistent user sessions and proxy rotation. Specialized handling for different targets (websites, APIs, social platforms).
@@ -38,4 +38,4 @@ All PRs must include test coverage and pass CI checks. Code review required for 
 
 Constitution is the supreme governance document. All code must comply with layered architecture principles. Amendments require documentation and migration planning. Versioning follows semantic versioning with impact assessment. Use GEMINI.md as runtime development guidance reference.
 
-**Version**: 1.1.0 | **Ratified**: 2025-09-21 | **Last Amended**: 2025-09-21
+**Version**: 1.2.0 | **Ratified**: 2025-09-21 | **Last Amended**: 2025-09-21
