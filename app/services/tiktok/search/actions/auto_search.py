@@ -43,6 +43,7 @@ class TikTokAutoSearchAction(BasePageAction):
             # Wait for page to load
             self.logger.info("Waiting for page to load...")
             page.wait_for_load_state("networkidle")
+            time.sleep(2)
 
             # Find and click the search button using TikTok selectors
             search_selectors = [
@@ -55,9 +56,10 @@ class TikTokAutoSearchAction(BasePageAction):
             ]
 
             search_clicked = False
+            search_bar = None
             for selector in search_selectors:
                 try:
-                    search_bar = page.wait_for_selector(selector, timeout=5000)
+                    search_bar = page.query_selector(selector)
                     if search_bar:
                         self.logger.info(f"Found search bar with selector: {selector}")
                         # Use human-like hover and click
@@ -76,6 +78,13 @@ class TikTokAutoSearchAction(BasePageAction):
                 except Exception:
                     pass
 
+            # Ensure the search UI has rendered before locating input fields
+            try:
+                page.wait_for_load_state("networkidle")
+                time.sleep(2)
+            except Exception as e:
+                self.logger.debug(f"Second load state wait failed: {e}")
+
             # Find the search input field
             search_input_selectors = [
                 'input[data-e2e="search-user-input"]',
@@ -87,9 +96,10 @@ class TikTokAutoSearchAction(BasePageAction):
             ]
 
             search_input_found = False
+            search_input = None
             for selector in search_input_selectors:
                 try:
-                    search_input = page.wait_for_selector(selector, timeout=3000)
+                    search_input = page.query_selector(selector)
                     if search_input:
                         self.logger.info(f"Found search input with selector: {selector}")
                         search_input_found = True
