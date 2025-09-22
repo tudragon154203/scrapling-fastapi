@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, patch
 from fastapi.testclient import TestClient
 from app.main import app
 from app.schemas.tiktok.search import TikTokSearchResponse
-from src.models.browser_mode import BrowserMode
+from specify_src.models.browser_mode import BrowserMode
 
 client = TestClient(app)
 

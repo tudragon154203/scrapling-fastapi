@@ -1,6 +1,6 @@
 from typing import List, Dict, Any
-from src.models.browser_mode import BrowserMode
-from src.services.browser_mode_service import BrowserModeService
+from specify_src.models.browser_mode import BrowserMode
+from specify_src.services.browser_mode_service import BrowserModeService
 from scrapling import Scrapling
 
 class TikTokSearchService:

@@ -13,7 +13,7 @@ from app.schemas.tiktok.search import TikTokSearchRequest, TikTokSearchResponse
 from app.schemas.tiktok.session import TikTokSessionRequest, TikTokSessionResponse
 from app.services.tiktok.session import TiktokService
 from app.services.tiktok.search.service import TikTokSearchService
-from src.services.browser_mode_service import BrowserModeService
+from specify_src.services.browser_mode_service import BrowserModeService
 
 
 router = APIRouter()

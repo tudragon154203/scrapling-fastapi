@@ -1,4 +1,4 @@
-from src.models.execution_context import ExecutionContext
+from specify_src.models.execution_context import ExecutionContext
 
 
 def test_execution_context_not_test_env(monkeypatch):

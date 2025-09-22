@@ -6,9 +6,15 @@ import pytest
 from fastapi.testclient import TestClient
 
 # Ensure project root is on sys.path for imports like `app.*`
+# Ensure project root is on sys.path for imports like `app.*`
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
+
+# Add specify_src to sys.path for tests
+SPECIFY_SRC = ROOT / "specify_src"
+if str(SPECIFY_SRC) not in sys.path:
+    sys.path.insert(0, str(SPECIFY_SRC))
 
 app = importlib.import_module("app.main").app
 

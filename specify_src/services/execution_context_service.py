@@ -1,4 +1,4 @@
-from src.models.execution_context import ExecutionContext
+from specify_src.models.execution_context import ExecutionContext
 
 class ExecutionContextService:
     """Service for determining execution context."""
