@@ -86,7 +86,7 @@ node_modules/
 # GEMINI.md
 claudedocs/
 .roo*
-.kilocode*
+# .kilocode*
 # .mcp.json
 .claude/mcp.env
 .playwright-mcp
