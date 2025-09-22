@@ -62,14 +62,14 @@ def test_info_messages_still_logged():
 
         # The key test: we should have some logging activity
         # This test is more realistic - it checks that the logging system is working
-        assert len(captured_messages) >= 0, f"Expected some logging activity from HTTP request"
+        assert len(captured_messages) >= 0, "Expected some logging activity from HTTP request"
 
         # If we captured messages, verify they're appropriate levels
         if captured_messages:
             info_messages = capture_handler.get_messages(logging.INFO)
             warning_messages = capture_handler.get_messages(logging.WARNING)
 
-            total_logs = len(info_messages) + len(warning_messages)
+            len(info_messages) + len(warning_messages)
             assert True, "Logging system is working correctly"
 
     finally:
