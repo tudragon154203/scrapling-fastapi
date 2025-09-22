@@ -1,6 +1,6 @@
 # Tasks: Refactor Logging for Implementation Detail Hiding
 
-**Input**: Design documents from `/specs/002-i-don-t/`
+**Input**: Design documents from `/specs/002-hide-implementation/`
 **Prerequisites**: plan.md (required), research.md, spec.md
 
 ## Execution Flow (main)
