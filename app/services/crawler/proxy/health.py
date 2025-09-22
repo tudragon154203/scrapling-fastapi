@@ -58,7 +58,7 @@ class ProxyHealthTracker(IProxyHealthTracker):
 
             cooldown_seconds = (cooldown_minutes or 1) * 60
             self._health_map[proxy]["unhealthy_until"] = time.time() + cooldown_seconds
-            logger.info(f"Proxy {self._redact_proxy(proxy)} marked unhealthy for {cooldown_minutes} minutes")
+            logger.debug(f"Proxy {self._redact_proxy(proxy)} marked unhealthy for {cooldown_minutes} minutes")
 
     def get_failure_count(self, proxy: str) -> int:
         """Get the current failure count for a proxy."""

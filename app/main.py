@@ -15,6 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, RedirectResponse
 from app.api import router as api_router
+from app.api import health
 from app.core.config import get_settings
 from app.core.logging import setup_logger
 
@@ -45,6 +46,14 @@ def create_app() -> FastAPI:
         return RedirectResponse(url="/docs", status_code=307)
 
     app.include_router(api_router)
+    app.include_router(health.router)
+
+    @app.get("/test-logging")
+    async def test_logging_endpoint():
+        logger = logging.getLogger("app.main")
+        logger.debug("This is a sensitive debug message from endpoint.")
+        logger.info("This is a public info message from endpoint.")
+        return {"status": "ok"}
 
     @app.exception_handler(RequestValidationError)
     async def custom_validation_exception_handler(request: Request, exc: RequestValidationError):

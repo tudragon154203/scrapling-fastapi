@@ -138,7 +138,7 @@ class TikTokAutoSearchAction(BasePageAction):
 
     def _wait_for_initial_load(self, page) -> None:
         """Wait for the page to settle before interacting with it."""
-        self.logger.info("Waiting for page to load...")
+        self.logger.debug("Waiting for page to load...")
         page.wait_for_load_state("networkidle")
         time.sleep(self.UI_READY_PAUSE)
 
@@ -168,7 +168,7 @@ class TikTokAutoSearchAction(BasePageAction):
                             continue
                     except Exception:
                         pass
-                    self.logger.info("Found search bar with selector: %s", selector)
+                    self.logger.debug("Found search bar with selector: %s", selector)
                     move_mouse_to_locator(page, search_bar, steps_range=(15, 25))
                     click_like_human(search_bar)
                     return True
@@ -187,7 +187,7 @@ class TikTokAutoSearchAction(BasePageAction):
 
     def _encode_search_query(self) -> str:
         """Best-effort encoding of the search query to UTF-8."""
-        self.logger.info("Typing search query: '%s'", self.search_query)
+        self.logger.debug("Typing search query: '%s'", self.search_query)
         try:
             return self.search_query.encode("utf-8", errors="ignore").decode("utf-8")
         except Exception:  # pragma: no cover - encoding rarely fails
@@ -218,7 +218,7 @@ class TikTokAutoSearchAction(BasePageAction):
 
     def _submit_search(self, page) -> None:
         """Trigger the search submission."""
-        self.logger.info("Submitting search...")
+        self.logger.debug("Submitting search...")
         try:
             page.keyboard.press("Enter")
         except Exception as exc:
@@ -226,7 +226,7 @@ class TikTokAutoSearchAction(BasePageAction):
 
     def _await_search_results(self, page) -> None:
         """Wait until search results are likely loaded."""
-        self.logger.info("Waiting for search results page to load...")
+        self.logger.debug("Waiting for search results page to load...")
         human_pause(2, 3)
         self._wait_for_results_url(page)
         self._wait_for_network_idle(page)
@@ -240,7 +240,7 @@ class TikTokAutoSearchAction(BasePageAction):
                 "window.location.href.includes('/search')",
                 timeout=15000,
             )
-            self.logger.info("Search URL detected!")
+            self.logger.debug("Search URL detected!")
         except Exception as exc:
             self.logger.warning("Search URL wait timeout or error: %s", exc)
 
@@ -254,14 +254,14 @@ class TikTokAutoSearchAction(BasePageAction):
 
     def _scan_result_selectors(self, page) -> bool:
         """Scan for known result selectors while waiting for them to appear."""
-        self.logger.info("Scanning for search result elements...")
+        self.logger.debug("Scanning for search result elements...")
         deadline = time.time() + self.RESULT_SCAN_TIMEOUT
         while time.time() < deadline:
             for selector in self.RESULT_SELECTORS:
                 try:
                     result_element = page.query_selector(selector)
                     if result_element:
-                        self.logger.info(
+                        self.logger.debug(
                             "Found search result with selector: %s", selector
                         )
                         return True
@@ -281,7 +281,7 @@ class TikTokAutoSearchAction(BasePageAction):
         try:
             page_content = page.content()
             if len(page_content) > 10000:
-                self.logger.info(
+                self.logger.debug(
                     "Page content detected (length > 10KB), assuming search results loaded"
                 )
         except Exception as exc:
@@ -291,20 +291,20 @@ class TikTokAutoSearchAction(BasePageAction):
         """Scroll until the desired number of videos are present or scrolling stalls."""
         target_videos = self.target_videos
         if target_videos is None:
-            self.logger.info("Target video count not provided; performing default timed scroll")
+            self.logger.debug("Target video count not provided; performing default timed scroll")
             self._timed_scroll(page)
             return
 
         current_count = self._count_video_results(page)
         if current_count >= target_videos:
-            self.logger.info(
+            self.logger.debug(
                 "Detected %s videos which meets requested count (%s); skipping scroll",
                 current_count,
                 target_videos,
             )
             return
 
-        self.logger.info(
+        self.logger.debug(
             "Scrolling to reach %s videos (currently detected: %s)",
             target_videos,
             current_count,
@@ -325,7 +325,7 @@ class TikTokAutoSearchAction(BasePageAction):
             new_count = self._count_video_results(page)
 
             if new_count >= target_videos:
-                self.logger.info(
+                self.logger.debug(
                     "Reached requested video count (%s) after %s scroll attempts",
                     target_videos,
                     attempts,
@@ -345,7 +345,7 @@ class TikTokAutoSearchAction(BasePageAction):
                 current_count = new_count
 
             if no_change_streak >= self.SCROLL_NO_CHANGE_LIMIT:
-                self.logger.info(
+                self.logger.debug(
                     "Stopping scroll after %s attempts with no additional videos (current=%s)",
                     attempts,
                     new_count,
@@ -353,7 +353,7 @@ class TikTokAutoSearchAction(BasePageAction):
                 break
 
             if self._is_near_page_end(page):
-                self.logger.info(
+                self.logger.debug(
                     "Reached end of page after %s attempts with %s videos detected",
                     attempts,
                     new_count,
@@ -364,7 +364,7 @@ class TikTokAutoSearchAction(BasePageAction):
 
     def _timed_scroll(self, page) -> None:
         """Fallback scroll behaviour when no target is supplied."""
-        self.logger.info("Scrolling down to load more content (timed fallback)...")
+        self.logger.debug("Scrolling down to load more content (timed fallback)...")
         start_time = time.time()
         while time.time() - start_time < 10:
             try:
@@ -416,10 +416,10 @@ class TikTokAutoSearchAction(BasePageAction):
 
     def _capture_html(self, page) -> None:
         """Capture and optionally persist the HTML content of the results."""
-        self.logger.info("Capturing HTML content...")
+        self.logger.debug("Capturing HTML content...")
         try:
             self.html_content = page.content()
-            self.logger.info(
+            self.logger.debug(
                 "Captured HTML content length: %s", len(self.html_content)
             )
             if self.save_html and self.html_content:
@@ -462,6 +462,6 @@ class TikTokAutoSearchAction(BasePageAction):
                 snapshot_path.write_text(
                     header + html_content, encoding="latin-1", errors="replace"
                 )
-            self.logger.info("Saved HTML snapshot to %s", snapshot_path)
+            self.logger.debug("Saved HTML snapshot to %s", snapshot_path)
         except Exception as exc:
             self.logger.warning("Failed to save HTML snapshot: %s", exc)

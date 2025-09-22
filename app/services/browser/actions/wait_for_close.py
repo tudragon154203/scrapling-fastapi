@@ -26,7 +26,7 @@ class WaitForUserCloseAction(BasePageAction):
             except Exception:
                 pass
 
-            logger.info("Waiting for user to close the browser window (write mode)...")
+            logger.debug("Waiting for user to close the browser window (write mode)...")
 
             # Block until the user manually closes the page window
             try:
@@ -41,7 +41,7 @@ class WaitForUserCloseAction(BasePageAction):
                 except Exception:
                     pass
 
-            logger.info("Detected page close; proceeding to finish crawl.")
+            logger.debug("Detected page close; proceeding to finish crawl.")
         except Exception as e:
             # Do not fail the crawl due to waiting logic; just log and continue
             logger.warning(f"WaitForUserCloseAction encountered an error: {type(e).__name__}: {e}")

@@ -89,7 +89,7 @@ class AbstractBrowsingExecutor(ABC):
             self.start_time = asyncio.get_event_loop().time()
             logger = getattr(self, 'logger', None)
             if logger:
-                await logger.info(f"Browser session started with user data: {self.user_data_dir}")
+                await logger.debug(f"Browser session started with user data: {self.user_data_dir}")
 
         except Exception:
             await self._cleanup_on_error()
