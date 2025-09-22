@@ -21,3 +21,10 @@ def test_routes_include_expected_paths():
 
     missing = EXPECTED_PATHS - registered_paths
     assert not missing, f"Missing expected routes: {sorted(missing)}"
+
+
+def test_root_redirects_to_docs(client):
+    response = client.get("/", follow_redirects=False)
+
+    assert response.status_code == 307
+    assert response.headers["location"] == "/docs"
