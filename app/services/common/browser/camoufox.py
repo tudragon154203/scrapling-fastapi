@@ -101,7 +101,18 @@ class CamoufoxArgsBuilder:
         if force_mute:
             existing_prefs = additional_args.get("firefox_user_prefs")
             firefox_prefs = dict(existing_prefs) if isinstance(existing_prefs, dict) else {}
-            firefox_prefs.setdefault("dom.audiochannel.mutedByDefault", True)
+
+            # Firefox honours multiple knobs for audio output. Setting all of them
+            # ensures audio stays muted even when autoplay/media policies change
+            # across releases.
+            firefox_prefs["dom.audiochannel.mutedByDefault"] = True
+            # Firefox only supports boolean, integer and string literals when fed via
+            # --setpref. Coerce the numeric preferences to integers so Camoufox can
+            # propagate them without tripping command-line parsing while still
+            # forcing silence.
+            firefox_prefs["media.default_volume"] = 0
+            firefox_prefs["media.volume_scale"] = 0
+
             additional_args["firefox_user_prefs"] = firefox_prefs
 
         # Do NOT pass `solve_cloudflare` via additional_args.
