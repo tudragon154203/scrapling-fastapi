@@ -118,7 +118,7 @@ def setup_logger(name: Optional[str] = None, level: Optional[int] = None) -> log
     _ensure_filter(handler)
 
     formatter = RefererScrubbingFormatter(
-        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        "%(asctime)s - %(name)s - %(levelname)s - %(funcName)s:%(lineno)d - %(message)s"
     )
     handler.setFormatter(formatter)
 
