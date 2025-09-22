@@ -35,7 +35,7 @@ class AbstractTikTokSearchService(ABC, TikTokSearchInterface):
 
     # Validation helpers -------------------------------------------------
     def _is_tests_env(self) -> bool:
-        """Return whether the current execution is happening under pytest."""
+        """Return whether the current execution is happening under tests or CI."""
         return (
             bool(os.environ.get("PYTEST_CURRENT_TEST")) or
             os.environ.get("TESTING", "").lower() == "true" or

@@ -56,8 +56,8 @@ def test_tiktok_search_endpoint_success(mock_tiktok_search_service, mock_browser
     mock_tiktok_search_service.search.assert_called_once_with(
         query="test query",
         num_videos=1,
-        sort_type=None,
-        recency_days=None,
+        sort_type="RELEVANCE",
+        recency_days="ALL",
     )
 
 
