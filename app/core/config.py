@@ -43,6 +43,7 @@ try:
         camoufox_disable_coop: bool = Field(default=False)
         camoufox_geoip: bool = Field(default=True)
         camoufox_virtual_display: Optional[str] = Field(default=None)
+        camoufox_force_mute_audio_default: bool = Field(default=True)
         # Runtime-only Camoufox toggles managed by services (never persisted)
         camoufox_runtime_force_mute_audio: bool = Field(
             default=False, exclude=True, repr=False
@@ -113,6 +114,7 @@ except Exception:
         camoufox_disable_coop: bool = False
         camoufox_geoip: bool = True
         camoufox_virtual_display: Optional[str] = None
+        camoufox_force_mute_audio_default: bool = True
         camoufox_runtime_force_mute_audio: bool = False
         camoufox_runtime_user_data_mode: Optional[str] = None
         camoufox_runtime_effective_user_data_dir: Optional[str] = None

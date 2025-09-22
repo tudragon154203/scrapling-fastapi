@@ -1,6 +1,5 @@
-from app.schemas.crawl import CrawlRequest
+from app.core.config import get_settings
 
 
-def test_crawl_request_mutes_audio_by_default():
-    req = CrawlRequest(url="https://example.com")
-    assert req.force_mute_audio is True
+def test_camoufox_force_mute_default_enabled():
+    assert get_settings().camoufox_force_mute_audio_default is True

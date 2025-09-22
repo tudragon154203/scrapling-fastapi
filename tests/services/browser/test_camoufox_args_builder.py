@@ -36,7 +36,7 @@ class TestCamoufoxArgsBuilder:
         return SimpleNamespace(
             force_user_data=False,
             url='https://example.com',
-            force_mute_audio=True,
+            force_mute_audio=None,
         )
 
     @pytest.fixture
@@ -47,6 +47,7 @@ class TestCamoufoxArgsBuilder:
             camoufox_window=None,
             camoufox_disable_coop=False,
             camoufox_virtual_display=None,
+            camoufox_force_mute_audio_default=True,
             camoufox_runtime_force_mute_audio=False,
             camoufox_runtime_user_data_mode=None,
             camoufox_runtime_effective_user_data_dir=None,
@@ -161,8 +162,21 @@ class TestCamoufoxArgsBuilder:
         assert 'media.default_volume' not in prefs
         assert prefs['dom.audiochannel.mutedByDefault'] is True
 
+    def test_build_respects_config_default(self, builder, mock_request, mock_settings, mock_caps):
+        # Arrange
+        mock_settings.camoufox_force_mute_audio_default = False
+        mock_request.force_mute_audio = None
+
+        # Act
+        additional_args, _ = builder.build(mock_request, mock_settings, mock_caps)
+
+        # Assert
+        prefs = additional_args.get('firefox_user_prefs')
+        assert prefs is None
+
     def test_build_force_mute_from_settings(self, builder, mock_request, mock_settings, mock_caps):
         # Arrange
+        mock_settings.camoufox_force_mute_audio_default = False
         mock_settings.camoufox_runtime_force_mute_audio = True
         mock_request.force_mute_audio = False
 
