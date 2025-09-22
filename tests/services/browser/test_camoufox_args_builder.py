@@ -7,7 +7,6 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 from app.services.common.browser.camoufox import CamoufoxArgsBuilder
-from app.schemas.crawl import CrawlRequest
 from app.services.common.types import FetchCapabilities
 
 
@@ -34,11 +33,11 @@ class TestCamoufoxArgsBuilder:
 
     @pytest.fixture
     def mock_request(self):
-        request = Mock(spec=CrawlRequest)
-        request.force_user_data = False
-        request.url = 'https://example.com'
-        request.configure_mock(force_mute_audio=False)
-        return request
+        return SimpleNamespace(
+            force_user_data=False,
+            url='https://example.com',
+            force_mute_audio=True,
+        )
 
     @pytest.fixture
     def mock_settings(self, tmp_path_factory):
@@ -62,7 +61,9 @@ class TestCamoufoxArgsBuilder:
 
         # Assert
         assert 'user_data_dir' not in additional_args
-        assert additional_args == {}
+        prefs = additional_args.get('firefox_user_prefs')
+        assert prefs is not None
+        assert prefs['dom.audiochannel.mutedByDefault'] is True
         assert extra_headers is None
 
     def test_build_with_user_data_read_mode(
@@ -148,7 +149,7 @@ class TestCamoufoxArgsBuilder:
 
     def test_build_force_mute_from_payload(self, builder, mock_request, mock_settings, mock_caps):
         # Arrange
-        mock_request.configure_mock(force_mute_audio=True)
+        mock_request.force_mute_audio = True
 
         # Act
         additional_args, _ = builder.build(mock_request, mock_settings, mock_caps)
@@ -163,6 +164,7 @@ class TestCamoufoxArgsBuilder:
     def test_build_force_mute_from_settings(self, builder, mock_request, mock_settings, mock_caps):
         # Arrange
         mock_settings.camoufox_runtime_force_mute_audio = True
+        mock_request.force_mute_audio = False
 
         # Act
         additional_args, _ = builder.build(mock_request, mock_settings, mock_caps)
@@ -184,7 +186,9 @@ class TestCamoufoxArgsBuilder:
 
         # Assert
         assert 'user_data_dir' not in additional_args
-        assert additional_args == {}
+        prefs = additional_args.get('firefox_user_prefs')
+        assert prefs is not None
+        assert prefs['dom.audiochannel.mutedByDefault'] is True
 
     def test_build_user_data_dir_permission_error(self, builder, mock_request, mock_settings, mock_caps):
         # Arrange
@@ -200,3 +204,6 @@ class TestCamoufoxArgsBuilder:
 
                 # Assert
                 assert 'user_data_dir' not in additional_args
+                prefs = additional_args.get('firefox_user_prefs')
+                assert prefs is not None
+                assert prefs['dom.audiochannel.mutedByDefault'] is True

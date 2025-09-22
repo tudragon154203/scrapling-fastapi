@@ -10,6 +10,11 @@ class CrawlRequest(BaseModel):
     Simplified request model with explicit field names and no legacy compatibility.
     """
 
+    @property
+    def force_mute_audio(self) -> bool:
+        """Always mute Camoufox audio for crawl flows."""
+        return True
+
     model_config = ConfigDict(
         extra="forbid",  # Reject extra fields to ensure legacy fields are rejected
         json_schema_extra={
