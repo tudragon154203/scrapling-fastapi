@@ -39,11 +39,11 @@ test('prepare_prompt builds a rich prompt from GitHub context', async () => {
 
   const files = [
     {
-      filename: 'src/example.js',
+      filename: '.specify/src/example.js',
       status: 'modified',
       additions: 10,
       deletions: 2,
-      patch: 'diff --git a/src/example.js b/src/example.js\n@@\n-' + 'a'.repeat(1600),
+      patch: 'diff --git a/.specify/src/example.js b/.specify/src/example.js\n@@\n-' + 'a'.repeat(1600),
     },
     {
       filename: 'docs/readme.md',
@@ -119,7 +119,7 @@ test('prepare_prompt builds a rich prompt from GitHub context', async () => {
   const outputs = Object.fromEntries(setOutputs);
   assert.ok(outputs.prompt, 'prompt output should be set');
   assert.ok(
-    outputs.prompt.includes('- src/example.js (modified, +10 / -2)'),
+    outputs.prompt.includes('- .specify/src/example.js (modified, +10 / -2)'),
     'prompt should include formatted file details',
   );
   assert.ok(

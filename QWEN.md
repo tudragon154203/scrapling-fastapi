@@ -14,7 +14,7 @@ This file contains context information for Qwen Code about the current project.
 - pytest (testing)
 
 ## Project Structure
-- Single project structure with src/ and tests/ directories
+- Single project structure with .specify/src/ and tests/ directories
 - Feature specifications in specs/ directory
 - Implementation follows test-first approach
 

@@ -26,6 +26,9 @@ Default to Scrapling/Camoufox for browser automation tasks. Implement anti-detec
 ### V. Environment-Driven Configuration
 All configuration through environment variables (.env files). Pydantic-settings for type-safe configuration management. Development vs production deployment modes clearly defined. No hardcoded configuration values.
 
+### VI. Spec-Driven Code Location
+Spec-related code, including the main source code folder (`.specify/src/`), MUST be located within the `.specify/` directory. It MUST NOT be placed in the project root directory.
+
 ## Security & Anti-Detection Requirements
 
 Browser fingerprinting integration (BrowserForge). User session persistence and management. Proxy support for distributed crawling. Rate limiting and bot detection avoidance measures. GDPR compliance considerations for data processing.

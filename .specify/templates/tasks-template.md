@@ -37,7 +37,7 @@
 - Include exact file paths in descriptions
 
 ## Path Conventions
-- **Single project**: `src/`, `tests/` at repository root
+- **Single project**: `.specify/src/`, `tests/` at repository root
 - **Web app**: `backend/src/`, `frontend/src/`
 - **Mobile**: `api/src/`, `ios/src/` or `android/src/`
 - Paths shown below assume single project - adjust based on plan.md structure
@@ -54,9 +54,9 @@
 - [ ] T007 [P] Integration test auth flow in tests/integration/test_auth.py
 
 ## Phase 3.3: Core Implementation (ONLY after tests are failing)
-- [ ] T008 [P] User model in src/models/user.py
-- [ ] T009 [P] UserService CRUD in src/services/user_service.py
-- [ ] T010 [P] CLI --create-user in src/cli/user_commands.py
+- [ ] T008 [P] User model in .specify/src/models/user.py
+- [ ] T009 [P] UserService CRUD in .specify/src/services/user_service.py
+- [ ] T010 [P] CLI --create-user in .specify/src/cli/user_commands.py
 - [ ] T011 POST /api/users endpoint
 - [ ] T012 GET /api/users/{id} endpoint
 - [ ] T013 Input validation

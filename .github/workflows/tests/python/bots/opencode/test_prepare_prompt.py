@@ -188,7 +188,7 @@ def test_build_prompt_pull_request_review_comment(sample_comment_payload):
     target_type = "pull_request"
     target_id = "789"
     repository = "test/repo"
-    sample_comment_payload["comment"]["path"] = "src/file.py"
+    sample_comment_payload["comment"]["path"] = ".specify/src/file.py"
     sample_comment_payload["comment"]["line"] = 42
 
     context = build_prompt(
@@ -201,7 +201,7 @@ def test_build_prompt_pull_request_review_comment(sample_comment_payload):
 
     assert "A pull request review comment from @commenter requested opencode on pull request #789" in context.prompt
     assert "Command text:\nFix the bug" in context.prompt
-    assert "File: src/file.py, Line: 42" in context.prompt
+    assert "File: .specify/src/file.py, Line: 42" in context.prompt
     assert context.summary == "Command `/opencode` handled for pull request #789"
 
 
