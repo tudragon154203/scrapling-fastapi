@@ -40,7 +40,7 @@ function Initialize-AgentFile($targetFile, $agentName) {
     $content = $content.Replace('[PROJECT NAME]', (Split-Path $repoRoot -Leaf))
     $content = $content.Replace('[DATE]', (Get-Date -Format 'yyyy-MM-dd'))
     $content = $content.Replace('[EXTRACTED FROM ALL PLAN.MD FILES]', "- $newLang + $newFramework ($currentBranch)")
-    if ($newProjectType -match 'web') { $structure = "backend/`nfrontend/`ntests/" } else { $structure = ".specify/src/`ntests/" }
+    if ($newProjectType -match 'web') { $structure = "backend/`nfrontend/`ntests/" } else { $structure = "specify_src/`ntests/" }
     $content = $content.Replace('[ACTUAL STRUCTURE FROM PLANS]', $structure)
     if ($newLang -match 'Python') { $commands = 'cd src && pytest && ruff check .' }
     elseif ($newLang -match 'Rust') { $commands = 'cargo test && cargo clippy' }

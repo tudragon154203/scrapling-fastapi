@@ -65,7 +65,7 @@ specs/[###-feature]/
 ### Source Code (repository root)
 ```
 # Option 1: Single project (DEFAULT)
-.specify/src/
+specify_src/
 ├── models/
 ├── services/
 ├── cli/

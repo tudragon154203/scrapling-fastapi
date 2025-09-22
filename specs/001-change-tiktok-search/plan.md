@@ -70,7 +70,7 @@ specs/001-change-tiktok-search/
 ### Source Code (repository root)
 ```
 # Option 1: Single project (DEFAULT)
-.specify/src/
+specify_src/
 ├── models/
 ├── services/
 ├── cli/
