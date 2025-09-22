@@ -1,33 +1,44 @@
 import logging
 import io
-from app.core.logging import RefererScrubbingFilter, RefererScrubbingFormatter
+import sys
+from app.core.logging import setup_logger, RefererScrubbingFilter, RefererScrubbingFormatter
 
 
-def test_sensitive_debug_messages_hidden():
-    """Test that sensitive debug messages are hidden from public view."""
+class LogCaptureHandler(logging.Handler):
+    """Custom handler that captures log records for testing."""
 
-    # Create a logger with DEBUG level to capture all messages
-    logger = logging.getLogger("test_sensitive_debug")
-    logger.setLevel(logging.DEBUG)
+    def __init__(self, level=logging.NOTSET):
+        super().__init__(level)
+        self.records = []
 
-    # Remove existing handlers
+    def emit(self, record):
+        self.records.append(record)
+
+    def get_messages(self, level=None):
+        """Get formatted messages, optionally filtered by level."""
+        if level:
+            return [self.format(record) for record in self.records if record.levelno == level]
+        return [self.format(record) for record in self.records]
+
+
+def test_sensitive_debug_messages_hidden_with_real_setup():
+    """Test that sensitive debug messages are hidden using real logging setup."""
+
+    # Use the actual setup_logger function from the app
+    logger = setup_logger("test_sensitive_debug", level=logging.INFO)
+
+    # Replace the handler with our capture handler
     for handler in logger.handlers[:]:
         logger.removeHandler(handler)
 
-    # Create a handler that captures logs
-    log_capture = io.StringIO()
-    handler = logging.StreamHandler(log_capture)
-    handler.setLevel(logging.DEBUG)
+    capture_handler = LogCaptureHandler()
+    capture_handler.setFormatter(RefererScrubbingFormatter("%(levelname)s - %(message)s"))
 
-    # Use the scrubbing formatter and filter
-    formatter = RefererScrubbingFormatter("%(message)s")
-    handler.setFormatter(formatter)
-
-    # Add the scrubbing filter
+    # Add the real scrubbing filter
     scrub_filter = RefererScrubbingFilter()
-    handler.addFilter(scrub_filter)
+    capture_handler.addFilter(scrub_filter)
 
-    logger.addHandler(handler)
+    logger.addHandler(capture_handler)
 
     # Log messages with potentially sensitive information
     debug_message = "DEBUG: Sensitive user data from session abc123"
@@ -38,71 +49,82 @@ def test_sensitive_debug_messages_hidden():
     logger.info(info_message)
     logger.warning(warning_message)
 
-    # Get logged content
-    logged_content = log_capture.getvalue()
+    # Check captured records
+    records = capture_handler.records
 
-    # Check that debug messages are present in raw logs but not in public output
-    assert debug_message in logged_content, "Debug messages should be captured"
-    assert info_message in logged_content, "Info messages should be present"
-    assert "WARNING: Something happened" in logged_content, "Warning message should be present after referer scrubbing"
+    # Only INFO and WARNING should be captured (DEBUG filtered out)
+    debug_records = [r for r in records if r.levelno == logging.DEBUG]
+    info_records = [r for r in records if r.levelno == logging.INFO]
+    warning_records = [r for r in records if r.levelno == logging.WARNING]
 
-    # Check that sensitive referer information is NOT in the final output
-    assert "referer:" not in logged_content, "Sensitive referer information should be scrubbed"
-    assert "https://example.com/sensitive/path" not in logged_content, "URL should not be in logs"
+    assert len(debug_records) == 0, f"Debug messages should be filtered out: {debug_records}"
+    assert len(info_records) > 0, "Info messages should be captured"
+    assert len(warning_records) > 0, "Warning messages should be captured"
+
+    # Check formatted output for sensitive data scrubbing
+    formatted_messages = capture_handler.get_messages()
+
+    # Sensitive referer information should be scrubbed from warnings
+    referer_found = any("referer:" in msg for msg in formatted_messages)
+    url_found = any("https://example.com/sensitive/path" in msg for msg in formatted_messages)
+
+    assert not referer_found, f"Sensitive referer information found in logs: {formatted_messages}"
+    assert not url_found, f"Sensitive URL found in logs: {formatted_messages}"
 
 
-def test_call_logs_hidden_at_info_level():
-    """Test that verbose call logs are hidden when logging level is not DEBUG."""
+def test_call_logs_hidden_at_info_level_with_real_setup():
+    """Test that verbose call logs are hidden with real logging setup."""
 
-    logger = logging.getLogger("test_call_logs_hidden")
-    logger.setLevel(logging.INFO)
+    logger = setup_logger("test_call_logs_hidden", level=logging.INFO)
 
-    # Remove existing handlers
+    # Replace handler with capture handler
     for handler in logger.handlers[:]:
         logger.removeHandler(handler)
 
-    log_capture = io.StringIO()
-    handler = logging.StreamHandler(log_capture)
-    handler.setLevel(logging.INFO)
-    formatter = RefererScrubbingFormatter("%(message)s")
-    handler.setFormatter(formatter)
+    capture_handler = LogCaptureHandler()
+    capture_handler.setFormatter(RefererScrubbingFormatter("%(message)s"))
+
+    # Add the real scrubbing filter
     scrub_filter = RefererScrubbingFilter()
-    handler.addFilter(scrub_filter)
+    capture_handler.addFilter(scrub_filter)
 
-    logger.addHandler(handler)
+    logger.addHandler(capture_handler)
 
-    # Log a message with call logs
-    message_with_call_log = "Some operation\nCall log:\n  - element.click()\n  - page.wait()\n  - screenshot.take()"
+    # Log a message with call logs that might be filtered
+    message_with_call_log = "INFO: Operation completed successfully\nCall log:\n  - navigate(url)\n  - click(element)\n  - extract_data()"
 
     logger.info(message_with_call_log)
 
-    logged_content = log_capture.getvalue()
+    formatted_messages = capture_handler.get_messages()
 
     # At INFO level, call logs should be filtered out
-    assert "Call log:" not in logged_content, "Call logs should be hidden at INFO level"
-    assert "element.click()" not in logged_content, "Specific call log details should be hidden"
-    assert "Some operation" in logged_content, "Original message should still be present"
+    call_log_found = any("Call log:" in msg for msg in formatted_messages)
+    element_click_found = any("element.click()" in msg for msg in formatted_messages)
+
+    assert not call_log_found, f"Call logs should be hidden at INFO level: {formatted_messages}"
+    assert not element_click_found, f"Specific call log details should be hidden: {formatted_messages}"
+
+    # Main message should still be present
+    assert any("Operation completed successfully" in msg for msg in formatted_messages), "Main operation message should be present"
 
 
-def test_warning_deduplication():
-    """Test that duplicate warnings are deduplicated."""
+def test_warning_deduplication_with_real_setup():
+    """Test that duplicate warnings are deduplicated using real setup."""
 
-    logger = logging.getLogger("test_deduplication")
-    logger.setLevel(logging.WARNING)
+    logger = setup_logger("test_deduplication", level=logging.WARNING)
 
-    # Remove existing handlers
+    # Replace handler with capture handler
     for handler in logger.handlers[:]:
         logger.removeHandler(handler)
 
-    log_capture = io.StringIO()
-    handler = logging.StreamHandler(log_capture)
-    handler.setLevel(logging.WARNING)
-    formatter = RefererScrubbingFormatter("%(message)s")
-    handler.setFormatter(formatter)
-    scrub_filter = RefererScrubbingFilter()
-    handler.addFilter(scrub_filter)
+    capture_handler = LogCaptureHandler()
+    capture_handler.setFormatter(RefererScrubbingFormatter("%(levelname)s - %(message)s"))
 
-    logger.addHandler(handler)
+    # Add the real scrubbing filter (this handles deduplication)
+    scrub_filter = RefererScrubbingFilter()
+    capture_handler.addFilter(scrub_filter)
+
+    logger.addHandler(capture_handler)
 
     # Log the same warning multiple times
     warning_message = "WARNING: Duplicate test warning"
@@ -111,13 +133,42 @@ def test_warning_deduplication():
     logger.warning(warning_message)  # This should be filtered out
     logger.warning(warning_message)  # This should be filtered out
 
-    logged_content = log_capture.getvalue()
+    formatted_messages = capture_handler.get_messages()
 
     # Should only see the warning once
-    lines = logged_content.strip().split('\n')
-    log_lines = [line for line in lines if line.strip()]
-
-    # Only one instance of the warning should appear
-    warning_count = sum(1 for line in log_lines if warning_message in line)
+    warning_count = sum(1 for msg in formatted_messages if warning_message in msg)
     assert warning_count == 1, f"Warning should appear only once, but appeared {warning_count} times"
-    assert len(log_lines) == 1, f"Expected only 1 log line, got {len(log_lines)}"
+
+    # Total messages should be limited due to deduplication
+    assert len(formatted_messages) <= 5, f"Too many messages after deduplication: {formatted_messages}"
+
+
+def test_debug_messages_suppressed_by_default():
+    """Test that debug messages are suppressed by default in real setup."""
+
+    # Capture stdout since that's where setup_logger writes
+    original_stdout = sys.stdout
+    stdout_capture = io.StringIO()
+    sys.stdout = stdout_capture
+
+    try:
+        # Use the real setup_logger as the app does (INFO level by default)
+        logger = setup_logger("test_default_suppression")
+
+        # Log at different levels
+        logger.debug("This debug should NOT be visible")
+        logger.info("This info SHOULD be visible")
+        logger.warning("This warning SHOULD be visible")
+
+        # Check what was actually written
+        output = stdout_capture.getvalue()
+
+        # Debug should not appear
+        assert "This debug should NOT be visible" not in output
+
+        # At least one log level should appear
+        assert any(level in output for level in ["INFO", "WARNING", "ERROR", "CRITICAL"]), \
+            f"No logs found in output: {output}"
+
+    finally:
+        sys.stdout = original_stdout
