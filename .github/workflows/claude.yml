@@ -79,7 +79,7 @@ jobs:
       - name: Setup Bun runtime
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version: v1.2.11
 
       - name: Start Claude Code Router
         env:
