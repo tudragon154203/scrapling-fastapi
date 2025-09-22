@@ -81,13 +81,23 @@ class CamoufoxArgsBuilder:
         if getattr(settings, "camoufox_virtual_display", None):
             additional_args["virtual_display"] = settings.camoufox_virtual_display
 
-        force_mute = bool(getattr(payload, "force_mute_audio", False))
+        default_mute = bool(getattr(settings, "camoufox_force_mute_audio_default", True))
+        request_flag = getattr(payload, "force_mute_audio", None)
+
+        if request_flag is None:
+            force_mute = default_mute
+        else:
+            force_mute = bool(request_flag)
+
         if not force_mute:
             force_mute = bool(
                 getattr(settings, "camoufox_runtime_force_mute_audio", False)
             )
         if not force_mute:
             force_mute = bool(getattr(settings, "_camoufox_force_mute_audio", False))
+        if not force_mute and default_mute:
+            force_mute = True
+
         if force_mute:
             existing_prefs = additional_args.get("firefox_user_prefs")
             firefox_prefs = dict(existing_prefs) if isinstance(existing_prefs, dict) else {}

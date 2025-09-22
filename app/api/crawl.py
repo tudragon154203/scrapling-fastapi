@@ -40,6 +40,7 @@ def crawl_endpoint(payload: CrawlRequest):
             network_idle=payload.network_idle,
             force_headful=payload.force_headful,
             force_user_data=payload.force_user_data,
+            force_mute_audio=True,
         )
     else:
         req_obj = payload
@@ -72,6 +73,7 @@ def crawl_dpd_endpoint(payload: DPDCrawlRequest):
         req_obj = SimpleNamespace(
             tracking_number=getattr(payload, "tracking_number", payload.tracking_code),
             force_user_data=payload.force_user_data,
+            force_mute_audio=True,
         )
     else:
         req_obj = payload
@@ -105,6 +107,7 @@ def crawl_auspost_endpoint(payload: AuspostCrawlRequest):
             tracking_code=payload.tracking_code,
             details_url=payload.details_url,
             force_user_data=payload.force_user_data,
+            force_mute_audio=True,
         )
     else:
         req_obj = payload
