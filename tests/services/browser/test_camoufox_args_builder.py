@@ -172,7 +172,8 @@ class TestCamoufoxArgsBuilder:
 
         # Assert
         prefs = additional_args.get('firefox_user_prefs')
-        assert prefs is None
+        assert prefs is not None
+        assert prefs['dom.audiochannel.mutedByDefault'] is True
 
     def test_build_force_mute_from_settings(self, builder, mock_request, mock_settings, mock_caps):
         # Arrange
