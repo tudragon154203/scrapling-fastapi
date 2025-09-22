@@ -115,7 +115,10 @@ def test_info_messages_survive_call_log_filtering():
     logger.addHandler(handler)
 
     # Create info message with call logs that might be filtered
-    info_message_with_call_log = "INFO: Operation completed successfully\nCall log:\n  - navigate(url)\n  - click(element)\n  - extract_data()"
+    info_message_with_call_log = (
+        "INFO: Operation completed successfully\n"
+        "Call log:\n  - navigate(url)\n  - click(element)\n  - extract_data()"
+    )
 
     logger.info(info_message_with_call_log)
 
