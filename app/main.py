@@ -39,7 +39,7 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    
+
     @app.get("/", include_in_schema=False)
     async def redirect_to_docs() -> RedirectResponse:
         return RedirectResponse(url="/docs", status_code=307)
