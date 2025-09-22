@@ -37,7 +37,7 @@ class DPDCrawler:
         url = f"{DPD_BASE}/{encoded_code}"
         return CrawlRequest(
             url=url,
-            wait_for_selector="div.delivery-info",
+            wait_for_selector="tra-tracking-table",
             wait_for_selector_state="visible",
             network_idle=True,
             force_headful=dpd_request.force_headful,
