@@ -13,7 +13,7 @@ def mock_tiktok_search_service():
     with patch("app.api.tiktok.TikTokSearchService", autospec=True) as MockService:
         instance = MockService.return_value
         instance.search = AsyncMock()
-        yield instance
+        yield MockService
 
 
 @pytest.fixture
@@ -34,7 +34,25 @@ def mock_tiktok_service_init():
 
 
 def test_tiktok_search_endpoint_success(mock_tiktok_search_service, mock_browser_mode_service):
-    mock_tiktok_search_service.search.return_value = {
+
+
+def test_tiktok_search_endpoint_headful_multistep(mock_tiktok_search_service, mock_browser_mode_service):
+    mock_browser_mode_service.determine_mode.return_value = BrowserMode.HEADFUL
+    mock_tiktok_search_service.return_value.search.return_value = {"results": [], "totalResults": 0, "query": "test query"}
+
+    response = client.post(
+        "/tiktok/search",
+        json={"query": "test query", "numVideos": 1, "force_headful": True}
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["execution_mode"] == BrowserMode.HEADFUL.value
+
+    mock_browser_mode_service.determine_mode.assert_called_once_with(True)
+    mock_tiktok_search_service.assert_called_once_with(strategy="multistep", force_headful=True)
+
+    mock_tiktok_search_service.return_value.search.return_value = {
         "results": [{"id": "123", "title": "video1"}],
         "totalResults": 1,
         "query": "test query",
@@ -53,7 +71,8 @@ def test_tiktok_search_endpoint_success(mock_tiktok_search_service, mock_browser
     assert data.execution_mode == BrowserMode.HEADLESS.value
 
     mock_browser_mode_service.determine_mode.assert_called_once_with(False)
-    mock_tiktok_search_service.search.assert_called_once_with(
+    mock_tiktok_search_service.assert_called_once_with(strategy="direct", force_headful=False)
+    mock_tiktok_search_service.return_value.search.assert_called_once_with(
         query="test query",
         num_videos=1,
         sort_type="RELEVANCE",
@@ -74,7 +93,7 @@ def test_tiktok_search_endpoint_success(mock_tiktok_search_service, mock_browser
 def test_tiktok_search_endpoint_error_handling_structured_error(
     mock_tiktok_search_service, mock_browser_mode_service, error_code, expected_status_code
 ):
-    mock_tiktok_search_service.search.return_value = {
+    mock_tiktok_search_service.return_value.search.return_value = {
         "error": {"code": error_code, "message": f"Error message for {error_code}"}
     }
 
@@ -104,7 +123,7 @@ def test_tiktok_search_endpoint_error_handling_structured_error(
 def test_tiktok_search_endpoint_error_handling_string_error(
     mock_tiktok_search_service, mock_browser_mode_service, error_message, expected_code, expected_status_code
 ):
-    mock_tiktok_search_service.search.return_value = {"error": error_message}
+    mock_tiktok_search_service.return_value.search.return_value = {"error": error_message}
 
     response = client.post(
         "/tiktok/search",

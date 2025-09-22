@@ -13,6 +13,7 @@ from app.schemas.tiktok.search import TikTokSearchRequest, TikTokSearchResponse
 from app.schemas.tiktok.session import TikTokSessionRequest, TikTokSessionResponse
 from app.services.tiktok.session import TiktokService
 from app.services.tiktok.search.service import TikTokSearchService
+from specify_src.models.browser_mode import BrowserMode
 from specify_src.services.browser_mode_service import BrowserModeService
 
 
@@ -72,7 +73,11 @@ async def tiktok_search_endpoint(payload: TikTokSearchRequest):
     # Log the force_headful parameter and determined mode for debugging
     print(f"DEBUG: force_headful={payload.force_headful}, browser_mode={browser_mode.value}")
 
-    search_service = TikTokSearchService(strategy=payload.strategy, force_headful=payload.force_headful)
+    effective_strategy = payload.strategy
+    if browser_mode == BrowserMode.HEADLESS and payload.strategy == "multistep":
+        effective_strategy = "direct"
+
+    search_service = TikTokSearchService(strategy=effective_strategy, force_headful=payload.force_headful)
     sort_type_param = payload.sortType
     recency_days_param = payload.recencyDays
 
