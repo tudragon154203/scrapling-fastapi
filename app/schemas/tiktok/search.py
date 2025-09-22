@@ -33,6 +33,10 @@ class TikTokSearchRequest(BaseModel):
         default="multistep",
         description="Search strategy to use - 'direct' for URL parameters, 'multistep' for browser automation",
     )
+    force_headful: bool = Field(
+        default=False,
+        description="Controls browser execution mode - True for headful, False for headless",
+    )
 
     @model_validator(mode='after')
     def validate_query(self):
@@ -61,3 +65,7 @@ class TikTokSearchResponse(BaseModel):
     results: List[TikTokVideo] = Field(..., description="List of TikTok videos")
     totalResults: int = Field(..., description="Total number of results")
     query: str = Field(..., description="Normalized query string")
+    execution_mode: str = Field(
+        default="unknown",
+        description="Browser execution mode used for this search",
+    )

@@ -35,8 +35,12 @@ class AbstractTikTokSearchService(ABC, TikTokSearchInterface):
 
     # Validation helpers -------------------------------------------------
     def _is_tests_env(self) -> bool:
-        """Return whether the current execution is happening under pytest."""
-        return bool(os.environ.get("PYTEST_CURRENT_TEST"))
+        """Return whether the current execution is happening under tests or CI."""
+        return (
+            bool(os.environ.get("PYTEST_CURRENT_TEST")) or
+            os.environ.get("TESTING", "").lower() == "true" or
+            os.environ.get("CI", "").lower() == "true"
+        )
 
     def _enforce_sort_type(self, sort_type: Optional[str]) -> Optional[Dict[str, Any]]:
         """Validate the requested sort type, returning an error payload when invalid."""
@@ -103,13 +107,13 @@ class AbstractTikTokSearchService(ABC, TikTokSearchInterface):
         return queries
 
     # Context helpers ----------------------------------------------------
-    def _prepare_context(self, *, in_tests: bool) -> SearchContext:
+    def _prepare_context(self, *, in_tests: bool, force_headful: bool = False) -> SearchContext:
         """Compose fetch dependencies needed to perform an independent search."""
         from app.services.common.adapters.scrapling_fetcher import ScraplingFetcherAdapter, FetchArgComposer
         from app.services.common.browser.camoufox import CamoufoxArgsBuilder
 
         self.logger.debug(
-            f"[TikTokSearchService] Preparing fetch context for independent search - in_tests: {in_tests}"
+            f"[TikTokSearchService] Preparing fetch context for independent search - in_tests: {in_tests}, force_headful: {force_headful}"
         )
         # Ensure proper event loop policy on Windows for Playwright/Scrapling
         if sys.platform == "win32":
@@ -164,8 +168,15 @@ class AbstractTikTokSearchService(ABC, TikTokSearchInterface):
                 exc_info=True,
             )
             additional_args = {}
-        # headless_opt = False
-        headless_opt = True if in_tests else False
+
+        # Determine headless mode:
+        # 1. If in test environment, always use headless
+        # 2. Otherwise, use force_headful parameter to determine mode
+        if in_tests:
+            headless_opt = True
+        else:
+            headless_opt = not force_headful  # force_headful=True means headless=False
+
         self.logger.debug(f"[TikTokSearchService] Headless mode set to: {headless_opt}")
         # Wait for richer signals so parser can extract full info
         # - Prefer script#SIGI_STATE (structured JSON)

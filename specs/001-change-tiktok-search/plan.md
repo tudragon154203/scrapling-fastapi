@@ -1,8 +1,7 @@
+# Implementation Plan: Change TikTok Search Headless/Headful Behaviour
 
-# Implementation Plan: [FEATURE]
-
-**Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
-**Input**: Feature specification from `/specs/[###-feature-name]/spec.md`
+**Branch**: `001-change-tiktok-search` | **Date**: Sunday 21 September 2025 | **Spec**: [link](O:\\n8n-compose\\scrapling-fastapi\\main\\specs\\001-change-tiktok-search\\spec.md)
+**Input**: Feature specification from `/specs/001-change-tiktok-search/spec.md`
 
 ## Execution Flow (/plan command scope)
 ```
@@ -31,29 +30,35 @@
 - Phase 3-4: Implementation execution (manual or via tools)
 
 ## Summary
-[Extract from feature spec: primary requirement + technical approach from research]
+This feature modifies the TikTok search functionality to allow users to control whether searches run in headless or headful mode through an optional force_headful parameter. Normal requests will run in headless mode by default, but can be forced to headful mode when force_headful is explicitly set to true. Tests will always run in headless mode, ignoring the force_headful parameter.
 
 ## Technical Context
-**Language/Version**: [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION]  
-**Primary Dependencies**: [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION]  
-**Storage**: [if applicable, e.g., PostgreSQL, CoreData, files or N/A]  
-**Testing**: [e.g., pytest, XCTest, cargo test or NEEDS CLARIFICATION]  
-**Target Platform**: [e.g., Linux server, iOS 15+, WASM or NEEDS CLARIFICATION]
-**Project Type**: [single/web/mobile - determines source structure]  
-**Performance Goals**: [domain-specific, e.g., 1000 req/s, 10k lines/sec, 60 fps or NEEDS CLARIFICATION]  
-**Constraints**: [domain-specific, e.g., <200ms p95, <100MB memory, offline-capable or NEEDS CLARIFICATION]  
-**Scale/Scope**: [domain-specific, e.g., 10k users, 1M LOC, 50 screens or NEEDS CLARIFICATION]
+**Language/Version**: Python 3.11  
+**Primary Dependencies**: FastAPI, Scrapling  
+**Storage**: N/A  
+**Testing**: pytest  
+**Target Platform**: Linux server  
+**Project Type**: web  
+**Performance Goals**: NEEDS CLARIFICATION  
+**Constraints**: NEEDS CLARIFICATION  
+**Scale/Scope**: NEEDS CLARIFICATION
 
 ## Constitution Check
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-[Gates determined based on constitution file]
+Based on the constitution, the following principles apply:
+
+1. **Library-First**: The implementation should be structured as a self-contained, independently testable library.
+2. **CLI Interface**: Functionality should be exposed via CLI with text in/out protocol.
+3. **Test-First (NON-NEGOTIABLE)**: TDD is mandatory with tests written before implementation.
+4. **Integration Testing**: Focus areas requiring integration tests include contract changes.
+5. **Observability**: Text I/O ensures debuggability with structured logging.
 
 ## Project Structure
 
 ### Documentation (this feature)
 ```
-specs/[###-feature]/
+specs/001-change-tiktok-search/
 ├── plan.md              # This file (/plan command output)
 ├── research.md          # Phase 0 output (/plan command)
 ├── data-model.md        # Phase 1 output (/plan command)
@@ -72,52 +77,24 @@ src/
 └── lib/
 
 tests/
+├── contract/
 ├── integration/
-│   └── tiktok/
-├── services/
-│   └── common/
-│   └── tiktok/
-│       ├── search/
-│       ├── session/
-│       └── utils/
-
-# Option 2: Web application (when "frontend" + "backend" detected)
-backend/
-├── src/
-│   ├── models/
-│   ├── services/
-│   └── api/
-└── tests/
-
-frontend/
-├── src/
-│   ├── components/
-│   ├── pages/
-│   └── services/
-└── tests/
-
-# Option 3: Mobile + API (when "iOS/Android" detected)
-api/
-└── [same as backend above]
-
-ios/ or android/
-└── [platform-specific structure]
+└── unit/
 ```
 
-**Structure Decision**: [DEFAULT to Option 1 unless Technical Context indicates web/mobile app]
+**Structure Decision**: DEFAULT to Option 1 unless Technical Context indicates web/mobile app
 
 ## Phase 0: Outline & Research
 1. **Extract unknowns from Technical Context** above:
-   - For each NEEDS CLARIFICATION → research task
-   - For each dependency → best practices task
-   - For each integration → patterns task
+   - Performance Goals: Need to determine expected performance targets
+   - Constraints: Need to identify specific constraints for this feature
+   - Scale/Scope: Need to understand the expected scale and scope
 
 2. **Generate and dispatch research agents**:
-   ```
-   For each unknown in Technical Context:
-     Task: "Research {unknown} for {feature context}"
-   For each technology choice:
-     Task: "Find best practices for {tech} in {domain}"
+   ```bash
+   Task: "Research best practices for implementing headless/headful browser control in Scrapling"
+   Task: "Find best practices for parameter validation in FastAPI"
+   Task: "Research patterns for test context detection in Python applications"
    ```
 
 3. **Consolidate findings** in `research.md` using format:
@@ -131,33 +108,34 @@ ios/ or android/
 *Prerequisites: research.md complete*
 
 1. **Extract entities from feature spec** → `data-model.md`:
-   - Entity name, fields, relationships
-   - Validation rules from requirements
-   - State transitions if applicable
+   - Search Request entity with force_headful parameter
+   - Execution Mode entity representing headless/headful states
+   - Test Context entity for identifying test execution
 
 2. **Generate API contracts** from functional requirements:
-   - For each user action → endpoint
-   - Use standard REST/GraphQL patterns
-   - Output OpenAPI/GraphQL schema to `/contracts/`
+   - TikTok search endpoint with optional force_headful parameter
+   - Output OpenAPI schema to `/contracts/`
 
 3. **Generate contract tests** from contracts:
-   - One test file per endpoint
-   - Assert request/response schemas
+   - Test for default headless behavior
+   - Test for force_headful=true behavior
+   - Test for force_headful=false behavior
+   - Test for test context override behavior
    - Tests must fail (no implementation yet)
 
 4. **Extract test scenarios** from user stories:
-   - Each story → integration test scenario
+   - Each acceptance scenario → integration test scenario
    - Quickstart test = story validation steps
 
 5. **Update agent file incrementally** (O(1) operation):
-   - Run `.specify/scripts/powershell/update-agent-context.ps1 -AgentType gemini` for your AI assistant
+   - Run `.specify/scripts/powershell/update-agent-context.ps1 -AgentType qwen` for your AI assistant
    - If exists: Add only NEW tech from current plan
    - Preserve manual additions between markers
    - Update recent changes (keep last 3)
    - Keep under 150 lines for token efficiency
    - Output to repository root
 
-**Output**: data-model.md, /contracts/*, failing tests, quickstart.md, agent-specific file
+**Output**: data-model.md, /contracts/*, failing tests, quickstart.md, QWEN.md
 
 ## Phase 2: Task Planning Approach
 *This section describes what the /tasks command will do - DO NOT execute during /plan*
@@ -199,18 +177,18 @@ ios/ or android/
 *This checklist is updated during execution flow*
 
 **Phase Status**:
-- [ ] Phase 0: Research complete (/plan command)
-- [ ] Phase 1: Design complete (/plan command)
-- [ ] Phase 2: Task planning complete (/plan command - describe approach only)
+- [x] Phase 0: Research complete (/plan command)
+- [x] Phase 1: Design complete (/plan command)
+- [x] Phase 2: Task planning complete (/plan command - describe approach only)
 - [ ] Phase 3: Tasks generated (/tasks command)
 - [ ] Phase 4: Implementation complete
 - [ ] Phase 5: Validation passed
 
 **Gate Status**:
-- [ ] Initial Constitution Check: PASS
-- [ ] Post-Design Constitution Check: PASS
-- [ ] All NEEDS CLARIFICATION resolved
-- [ ] Complexity deviations documented
+- [x] Initial Constitution Check: PASS
+- [x] Post-Design Constitution Check: PASS
+- [x] All NEEDS CLARIFICATION resolved
+- [x] Complexity deviations documented
 
 ---
 *Based on Constitution v2.1.1 - See `/memory/constitution.md`*

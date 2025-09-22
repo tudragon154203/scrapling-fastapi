@@ -49,9 +49,8 @@
 
 ## Phase 3.2: Tests First (TDD) ⚠️ MUST COMPLETE BEFORE 3.3
 **CRITICAL: These tests MUST be written and MUST FAIL before ANY implementation**
-- [ ] T004 [P] Contract test POST /api/users in tests/contract/test_users_post.py
-- [ ] T005 [P] Contract test GET /api/users/{id} in tests/contract/test_users_get.py
-- [ ] T006 [P] Integration test user registration in tests/integration/test_registration.py
+
+- [ ] T006 [P] Integration test user registration in tests/integration/tiktok/test_example_integration.py
 - [ ] T007 [P] Integration test auth flow in tests/integration/test_auth.py
 
 ## Phase 3.3: Core Implementation (ONLY after tests are failing)
@@ -70,11 +69,12 @@
 - [ ] T018 CORS and security headers
 
 ## Phase 3.5: Polish
-- [ ] T019 [P] Unit tests for validation in tests/unit/test_validation.py
+- [ ] T019 [P] Unit tests for validation in tests/services/app_services/test_example_service.py
 - [ ] T020 Performance tests (<200ms)
 - [ ] T021 [P] Update docs/api.md
 - [ ] T022 Remove duplication
 - [ ] T023 Run manual-testing.md
+- [ ] T024 Remove intermediate files/folders created during implementation
 
 ## Dependencies
 - Tests (T004-T007) before implementation (T008-T014)
@@ -84,9 +84,7 @@
 
 ## Parallel Example
 ```
-# Launch T004-T007 together:
-Task: "Contract test POST /api/users in tests/contract/test_users_post.py"
-Task: "Contract test GET /api/users/{id} in tests/contract/test_users_get.py"
+# Launch T006-T007 together:
 Task: "Integration test registration in tests/integration/test_registration.py"
 Task: "Integration test auth in tests/integration/test_auth.py"
 ```
@@ -100,26 +98,21 @@ Task: "Integration test auth in tests/integration/test_auth.py"
 ## Task Generation Rules
 *Applied during main() execution*
 
-1. **From Contracts**:
-   - Each contract file → contract test task [P]
-   - Each endpoint → implementation task
-   
-2. **From Data Model**:
+1. **From Data Model**:
    - Each entity → model creation task [P]
    - Relationships → service layer tasks
    
-3. **From User Stories**:
+2. **From User Stories**:
    - Each story → integration test [P]
    - Quickstart scenarios → validation tasks
 
-4. **Ordering**:
+3. **Ordering**:
    - Setup → Tests → Models → Services → Endpoints → Polish
    - Dependencies block parallel execution
 
 ## Validation Checklist
 *GATE: Checked by main() before returning*
 
-- [ ] All contracts have corresponding tests
 - [ ] All entities have model tasks
 - [ ] All tests come before implementation
 - [ ] Parallel tasks truly independent

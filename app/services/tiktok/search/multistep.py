@@ -23,9 +23,10 @@ if TYPE_CHECKING:  # pragma: no cover - import for type checkers only
 class TikTokMultiStepSearchService(AbstractTikTokSearchService):
     """Multi-step TikTok search service using browser automation for search interaction."""
 
-    def __init__(self) -> None:
+    def __init__(self, force_headful: bool = False) -> None:
         super().__init__()
         self._cleanup_functions: List[Callable] = []
+        self._force_headful = force_headful
 
     async def search(
         self,
@@ -49,7 +50,9 @@ class TikTokMultiStepSearchService(AbstractTikTokSearchService):
 
             in_tests = self._is_tests_env()
             self.logger.debug(f"[TikTokMultiStepSearchService] Test environment: {in_tests}")
-            context = self._prepare_context(in_tests=in_tests)
+            # Get force_headful from search service if available
+            force_headful = getattr(self, '_force_headful', False)
+            context = self._prepare_context(in_tests=in_tests, force_headful=force_headful)
             user_data_cleanup = context["user_data_cleanup"]
 
             # Register cleanup function

@@ -26,9 +26,15 @@ scrapling-fastapi/
 │   ├── api/                # API layer tests
 │   ├── core/               # Core layer tests
 │   ├── integration/        # End-to-end integration tests
+│   │   └── tiktok/         # TikTok integration tests
 │   ├── middleware/         # Middleware tests
 │   ├── schemas/            # Schema tests
 │   └── services/           # Service tests
+│       ├── common/         # General application service tests
+│       └── tiktok/         # TikTok service tests
+│           ├── search/     # TikTok search service tests
+│           ├── session/    # TikTok session service tests
+│           └── utils/      # TikTok utility tests
 ├── requirements.txt        # Python dependencies
 ├── .env                    # Environment variables
 ├── .gitignore              # Git ignore rules
@@ -45,9 +51,10 @@ scrapling-fastapi/
 - **Health Checks**: Built-in health check endpoint for monitoring.
 - **Advanced Web Scraping**: Utilizes Scrapling/Camoufox for stealthy browser automation.
 - **Specialized Crawlers**: Includes dedicated endpoints for DPD and AusPost tracking.
-- **TikTok Integration**: Provides endpoints for TikTok session management and content search.
+- **TikTok Integration**: Provides endpoints for TikTok session management and content search with configurable browser execution mode.
 - **User Data Persistence**: Supports persistent user profiles for maintaining sessions across requests.
 - **Humanized Actions**: Implements realistic user behavior (mouse movements, typing delays) to avoid bot detection.
+- **Configurable Browser Mode**: Control browser execution mode (headless/headful) for TikTok searches with automatic test environment override.
 
 ## Prerequisites
 
