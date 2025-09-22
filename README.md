@@ -89,6 +89,11 @@ scrapling-fastapi/
    cp .env.example .env
    ```
 
+   If you plan to use the Brave MCP server, copy `.claude/mcp.env.example` to
+   `.claude/mcp.env` and provide your Brave Search API key via the
+   `BRAVE_API_KEY` variable (or export it in your shell before launching the MCP
+   server).
+
 ## Running the Application
 
 Run the FastAPI app locally:
