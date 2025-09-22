@@ -48,13 +48,6 @@ def create_app() -> FastAPI:
     app.include_router(api_router)
     app.include_router(health.router)
 
-    @app.get("/test-logging")
-    async def test_logging_endpoint():
-        logger = logging.getLogger("app.main")
-        logger.debug("This is a sensitive debug message from endpoint.")
-        logger.info("This is a public info message from endpoint.")
-        return {"status": "ok"}
-
     @app.exception_handler(RequestValidationError)
     async def custom_validation_exception_handler(request: Request, exc: RequestValidationError):
         raw_details = exc.errors()
