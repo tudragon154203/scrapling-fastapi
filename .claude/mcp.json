@@ -1,9 +1,14 @@
-{
+﻿{
   "mcpServers": {
     "brave-search": {
-      "command": "../scripts/run-brave-search.sh",
-      "args": [],
-      "env": {},
+      "command": "node",
+      "args": [
+        "--import=dotenv/config",
+        "node_modules/@modelcontextprotocol/server-brave-search/dist/index.js"
+      ],
+      "env": {
+        "DOTENV_CONFIG_PATH": ".claude/mcp.env"
+      },
       "alwaysAllow": [
         "brave_web_search"
       ]
