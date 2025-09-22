@@ -1,6 +1,6 @@
 # Feature Specification: Refactor Logging for Implementation Detail Hiding
 
-**Feature Branch**: `002-hide-implementation`  
+**Feature Branch**: `feat/002-hide-implementation`  
 **Created**: Monday 22 September 2025  
 **Status**: Draft  
 **Input**: User description: "I don't want to leak out implementation details or crawling methods onto logger.info. Change all logger.info that reveals internal process into logger.debug, so that only me or other dev can turn on log level DEBUG and see the details. All users only see non-important logger.info ones without knowing the implementation"

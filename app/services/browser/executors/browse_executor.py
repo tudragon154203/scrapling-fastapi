@@ -87,7 +87,7 @@ class BrowseExecutor(IExecutor):
                 if existing is None or int(existing) < int(browse_timeout_ms):
                     fetch_kwargs["timeout"] = browse_timeout_ms
 
-            logger.info(f"Starting browse session for URL: {request.url}")
+            logger.debug(f"Starting browse session for URL: {request.url}")
             page = self.fetch_client.fetch(str(request.url), fetch_kwargs)
 
             # The page_action (WaitForUserCloseAction) should have completed successfully
@@ -121,7 +121,7 @@ class BrowseExecutor(IExecutor):
         except Exception as e:
             # For browse operations, we should NOT retry on user close or similar errors
             # The user explicitly closed the browser, so we should respect that
-            logger.info(f"Browse session ended normally: {type(e).__name__}: {e}")
+            logger.debug(f"Browse session ended normally: {type(e).__name__}: {e}")
 
             if isinstance(e, ImportError):
                 return CrawlResponse(
@@ -146,7 +146,7 @@ class BrowseExecutor(IExecutor):
             error_str = str(e).lower()
 
             if any(close_err.lower() in error_str or close_err in error_name for close_err in close_errors):
-                logger.info("Browser was closed by user - session completed successfully")
+                logger.debug("Browser was closed by user - session completed successfully")
                 return CrawlResponse(
                     status="success",
                     url=request.url,

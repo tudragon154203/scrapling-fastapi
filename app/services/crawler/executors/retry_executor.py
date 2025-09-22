@@ -166,7 +166,7 @@ class RetryingExecutor(IExecutor):
                 candidate_proxy = attempt_config["proxy"]
                 candidate_mode = attempt_config["mode"]
                 if candidate_proxy and self.health_tracker.is_unhealthy(candidate_proxy):
-                    logger.info(
+                    logger.debug(
                         f"Attempt {index+1} skipped - {candidate_mode} proxy "
                         f"{self._redact_proxy(candidate_proxy)} is unhealthy"
                     )
@@ -202,6 +202,7 @@ class RetryingExecutor(IExecutor):
                      additional_args,
                      extra_headers,
                      settings) -> AttemptResult:
+        last_error = "Unknown error"
         selected_proxy = selection.proxy
         redacted_proxy = self._redact_proxy(selected_proxy)
         logger.debug(
@@ -217,18 +218,18 @@ class RetryingExecutor(IExecutor):
                 settings=settings,
                 page_action=page_action,
             )
-            logger.info(f"Attempt {attempt_number} - calling fetch")
+            logger.debug(f"Attempt {attempt_number} - calling fetch")
             page = self.fetch_client.fetch(str(request.url), fetch_kwargs)
             status = getattr(page, "status", None)
             html = getattr(page, "html_content", None)
             html_len = len(html or "")
-            logger.info(
+            logger.debug(
                 f"Attempt {attempt_number} - page status: {status}, html length: {html_len}"
             )
             min_len = int(getattr(settings, "min_html_content_length", 500) or 0)
             html_has_doc = bool(html and "<html" in (html.lower() if isinstance(html, str) else ""))
             if status == 200 and html and html_len >= min_len:
-                logger.info(f"Attempt {attempt_number} outcome: success (html-ok)")
+                logger.debug(f"Attempt {attempt_number} outcome: success (html-ok)")
                 return AttemptResult(CrawlResponse(status="success", url=request.url, html=html), None)
             if status != 200:
                 last_error = f"Non-200 status: {status}"
@@ -240,11 +241,10 @@ class RetryingExecutor(IExecutor):
                         f"HTML not acceptable (len={html_len}, "
                         f"has_html_tag={html_has_doc}, status={status})"
                     )
-            logger.info(f"Attempt {attempt_number} outcome: failure - {last_error}")
+            logger.debug(f"Attempt {attempt_number} outcome: failure - {last_error}")
             return AttemptResult(None, last_error)
-        except Exception as e:
-            last_error = f"{type(e).__name__}: {e}"
-            logger.info(f"Attempt {attempt_number} outcome: failure - {last_error}")
+        except Exception:
+            logger.debug(f"Attempt {attempt_number} outcome: failure - {last_error}")
             return AttemptResult(None, last_error)
 
     def _record_outcome(self, selection: ProxySelection, result: AttemptResult, settings) -> None:

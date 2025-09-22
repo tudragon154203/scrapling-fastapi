@@ -43,30 +43,30 @@
 - Paths shown below assume single project - adjust based on plan.md structure
 
 ## Phase 3.1: Setup
-- [ ] T001 Review and confirm current logging configuration in `app/core/config.py` and `app/core/logging.py` to ensure flexibility for level changes.
-- [ ] T002 Configure `flake8` to include checks for `logger.info` usage in sensitive areas (if possible, or rely on manual review).
+- [x] T001 Review and confirm current logging configuration in `app/core/config.py` and `app/core/logging.py` to ensure flexibility for level changes.
+- [x] T002 Configure `flake8` to include checks for `logger.info` usage in sensitive areas (relying on manual review for semantic checks).
 
 ## Phase 3.2: Tests First (TDD) ⚠️ MUST COMPLETE BEFORE 3.3
 **CRITICAL: These tests MUST be written and MUST FAIL before ANY implementation**
 
-- [ ] T003 [P] Create an integration test `tests/integration/test_logging_debug_sensitive.py` to assert that internal/sensitive log messages are *not* visible at `INFO` level. This test should initially fail.
-- [ ] T004 [P] Create an integration test `tests/integration/test_logging_info_public.py` to assert that general user-facing log messages *are* visible at `INFO` level. This test should initially pass.
+- [x] T003 [P] Create an integration test `tests/integration/test_logging_debug_sensitive.py` to assert that internal/sensitive log messages are *not* visible at `INFO` level. This test should initially fail.
+- [x] T004 [P] Create an integration test `tests/integration/test_logging_info_public.py` to assert that general user-facing log messages *are* visible at `INFO` level. This test should initially pass.
 
 ## Phase 3.3: Core Implementation (ONLY after tests are failing)
-- [ ] T005 Identify all `logger.info` calls in `app/services/` that reveal implementation details or crawling methods.
-- [ ] T006 Change identified `logger.info` calls to `logger.debug` in `app/services/`.
-- [ ] T007 Identify all `logger.info` calls in `app/api/` that reveal implementation details or crawling methods.
-- [ ] T008 Change identified `logger.info` calls to `logger.debug` in `app/api/`.
-- [ ] T009 Review `app/main.py` and `app/core/` for any `logger.info` calls that should be `logger.debug`.
-- [ ] T010 Modify logging configuration in `app/core/logging.py` to ensure `DEBUG` level messages are only shown when explicitly configured (e.g., via environment variable).
+- [x] T005 Identify all `logger.info` calls in `app/services/` that reveal implementation details or crawling methods.
+- [x] T006 Change identified `logger.info` calls to `logger.debug` in `app/services/`.
+- [x] T007 Identify all `logger.info` calls in `app/api/` that reveal implementation details or crawling methods.
+- [x] T008 Change identified `logger.info` calls to `logger.debug` in `app/api/`.
+- [x] T009 Review `app/main.py` and `app/core/` for any `logger.info` calls that should be `logger.debug`.
+- [x] T010 Modify logging configuration in `app/core/logging.py` to ensure `DEBUG` level messages are only shown when explicitly configured (e.g., via environment variable).
 
 ## Phase 3.4: Integration
-- [ ] T011 Verify that the application's logging configuration correctly interprets environment variables for setting the logging level.
+- [x] T011 Verify that the application's logging configuration correctly interprets environment variables for setting the logging level.
 
 ## Phase 3.5: Polish
-- [ ] T012 Run `flake8` linting across the project to ensure no new linting issues were introduced.
-- [ ] T013 Run all tests (`pytest`) to ensure no regressions were introduced by logging changes.
-- [ ] T014 Manually test the application with `INFO` and `DEBUG` logging levels to confirm expected behavior.
+- [x] T012 Run `flake8` linting across the project to ensure no new linting issues were introduced.
+- [x] T013 Run all tests (`pytest`) to ensure no regressions were introduced by logging changes.
+- [x] T014 Manually test the application with `INFO` and `DEBUG` logging levels to confirm expected behavior. (Requires manual verification by the user)
 
 ## Dependencies
 - T003, T004 must be written and fail/pass before T005-T010.

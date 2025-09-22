@@ -138,7 +138,7 @@ class ScraplingFetcherAdapter(IFetchClient):
 
     def fetch(self, url: str, args: Union[FetchParams, Dict[str, Any], None]) -> Any:
         """Fetch the given URL using StealthyFetcher with thread safety."""
-        logger.info(f"Launching browser for URL: {url}")
+        logger.debug(f"Launching browser for URL: {url}")
         StealthyFetcher = self._get_stealthy_fetcher()
         StealthyFetcher.adaptive = True
         params = args if isinstance(args, FetchParams) else FetchParams(args or {})
@@ -160,7 +160,7 @@ class ScraplingFetcherAdapter(IFetchClient):
 
     def _fetch_in_thread(self, url: str, params: FetchParams) -> Any:
         """Execute fetch in a dedicated thread if event loop is running."""
-        logger.info(f"Launching browser in thread for URL: {url}")
+        logger.debug(f"Launching browser in thread for URL: {url}")
         holder: Dict[str, Any] = {}
 
         def _runner():
@@ -243,7 +243,7 @@ class ScraplingFetcherAdapter(IFetchClient):
                 holder.html_content = html
                 return holder
         except Exception as e:
-            logger.info(f"HTTP fallback failed: {type(e).__name__}: {e}")
+            logger.debug(f"HTTP fallback failed: {type(e).__name__}: {e}")
             raise
 
     def get_user_data_cleanup(self) -> Optional[callable]:
