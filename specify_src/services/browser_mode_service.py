@@ -1,5 +1,5 @@
-from src.models.browser_mode import BrowserMode
-from src.services.execution_context_service import ExecutionContextService
+from specify_src.models.browser_mode import BrowserMode
+from specify_src.services.execution_context_service import ExecutionContextService
 
 class BrowserModeService:
     """Service for determining browser execution mode."""

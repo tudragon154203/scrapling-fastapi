@@ -37,7 +37,7 @@
 - Include exact file paths in descriptions
 
 ## Path Conventions
-- **Single project**: `src/`, `tests/` at repository root
+- **Single project**: `specify_src/`, `tests/` at repository root
 - **Web app**: `backend/src/`, `frontend/src/`
 - **Mobile**: `api/src/`, `ios/src/` or `android/src/`
 - Paths shown below assume single project - adjust based on plan.md structure
@@ -60,12 +60,12 @@
 - [ ] T011 [P] Integration test for test environment behavior in tests/integration/test_test_env_search.py
 
 ## Phase 3.3: Core Implementation (ONLY after tests are failing)
-- [ ] T012 [P] BrowserMode enum in src/models/browser_mode.py
-- [ ] T013 [P] ExecutionContext model in src/models/execution_context.py
-- [ ] T014 [P] SearchRequest model with force_headful parameter in src/models/search_request.py
-- [ ] T015 [P] ExecutionContext service for test detection in src/services/execution_context_service.py
-- [ ] T016 [P] Browser mode determination service in src/services/browser_mode_service.py
-- [ ] T017 TikTok search service with mode control in src/services/tiktok_search_service.py
+- [ ] T012 [P] BrowserMode enum in specify_src/models/browser_mode.py
+- [ ] T013 [P] ExecutionContext model in specify_src/models/execution_context.py
+- [ ] T014 [P] SearchRequest model with force_headful parameter in specify_src/models/search_request.py
+- [ ] T015 [P] ExecutionContext service for test detection in specify_src/services/execution_context_service.py
+- [ ] T016 [P] Browser mode determination service in specify_src/services/browser_mode_service.py
+- [ ] T017 TikTok search service with mode control in specify_src/services/tiktok_search_service.py
 - [ ] T018 POST /tiktok/search endpoint implementation
 - [ ] T019 Input validation for force_headful parameter
 - [ ] T020 Error handling for invalid parameters
@@ -107,14 +107,14 @@ Task: "Integration test for headful search behavior in tests/integration/test_he
 Task: "Integration test for test environment behavior in tests/integration/test_test_env_search.py"
 
 # Launch T012-T014 together:
-Task: "BrowserMode enum in src/models/browser_mode.py"
-Task: "ExecutionContext model in src/models/execution_context.py"
-Task: "SearchRequest model with force_headful parameter in src/models/search_request.py"
+Task: "BrowserMode enum in specify_src/models/browser_mode.py"
+Task: "ExecutionContext model in specify_src/models/execution_context.py"
+Task: "SearchRequest model with force_headful parameter in specify_src/models/search_request.py"
 
 # Launch T015-T017 together:
-Task: "ExecutionContext service for test detection in src/services/execution_context_service.py"
-Task: "Browser mode determination service in src/services/browser_mode_service.py"
-Task: "TikTok search service with mode control in src/services/tiktok_search_service.py"
+Task: "ExecutionContext service for test detection in specify_src/services/execution_context_service.py"
+Task: "Browser mode determination service in specify_src/services/browser_mode_service.py"
+Task: "TikTok search service with mode control in specify_src/services/tiktok_search_service.py"
 
 # Launch T025-T026 together:
 Task: "Unit tests for browser mode service in tests/unit/test_browser_mode_service.py"

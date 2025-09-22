@@ -1,9 +1,9 @@
 <!-- 
 Sync Impact Report:
-- Version change: 1.3.0 → 1.4.0 (MINOR - added flake8 and cleanup requirements)
-- Modified principles: Quality Gates & Review Process
+- Version change: 1.4.0 → 1.4.1 (PATCH - updated spec-related code location from .specify/src/ to specify_src/)
+- Modified principles: Spec-Driven Code Location
 - No added/removed sections
-- Templates requiring updates: ✅ .specify/templates/plan-template.md, ✅ .specify/templates/tasks-template.md, ✅ README.md
+- Templates requiring updates: ✅ .specify/templates/plan-template.md, ✅ .specify/templates/tasks-template.md
 - No follow-up TODOs - all requirements specified
 -->
 
@@ -26,6 +26,9 @@ Default to Scrapling/Camoufox for browser automation tasks. Implement anti-detec
 ### V. Environment-Driven Configuration
 All configuration through environment variables (.env files). Pydantic-settings for type-safe configuration management. Development vs production deployment modes clearly defined. No hardcoded configuration values.
 
+### VI. Spec-Driven Code Location
+Spec-related code, including the main source code folder (`specify_src/`), MUST be located within the project root directory. It MUST NOT be placed within the `.specify/` directory.
+
 ## Security & Anti-Detection Requirements
 
 Browser fingerprinting integration (BrowserForge). User session persistence and management. Proxy support for distributed crawling. Rate limiting and bot detection avoidance measures. GDPR compliance considerations for data processing.
@@ -38,4 +41,4 @@ All PRs must include test coverage and pass CI checks. Code review required for 
 
 Constitution is the supreme governance document. All code must comply with layered architecture principles. Amendments require documentation and migration planning. Versioning follows semantic versioning with impact assessment. Use GEMINI.md as runtime development guidance reference.
 
-**Version**: 1.4.0 | **Ratified**: 2025-09-21 | **Last Amended**: 2025-09-21
+**Version**: 1.4.1 | **Ratified**: 2025-09-21 | **Last Amended**: 2025-09-22

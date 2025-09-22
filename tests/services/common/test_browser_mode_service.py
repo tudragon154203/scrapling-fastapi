@@ -1,6 +1,6 @@
-from src.models.browser_mode import BrowserMode
-from src.services.browser_mode_service import BrowserModeService
-from src.services.execution_context_service import ExecutionContextService
+from specify_src.models.browser_mode import BrowserMode
+from specify_src.services.browser_mode_service import BrowserModeService
+from specify_src.services.execution_context_service import ExecutionContextService
 
 
 def test_browser_mode_enum():
