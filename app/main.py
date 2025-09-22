@@ -17,7 +17,7 @@ from fastapi.responses import JSONResponse
 from app.api import router as api_router
 from app.api import health
 from app.core.config import get_settings
-from app.core.logging import setup_logger, get_logger
+from app.core.logging import setup_logger
 
 
 @asynccontextmanager
