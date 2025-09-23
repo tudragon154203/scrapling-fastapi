@@ -34,7 +34,7 @@ jobs:
       TARGET_ID: ${{ inputs.target-id || '' }}
       TARGET_TYPE: ${{ inputs.target-type || '' }}
       # MODEL: 'openrouter/qwen/qwen3-235b-a22b:free'
-      MODEL: ${{ format('openrouter/{0}', vars.OPENROUTER_MODEL) }}
+      MODEL: 'openrouter/x-ai/grok-4-fast:free'
     concurrency:
       group: opencode-${{ github.workflow }}-${{ inputs.event-name }}-${{ inputs.target-id != '' && inputs.target-id || github.run_id }}
       cancel-in-progress: true
