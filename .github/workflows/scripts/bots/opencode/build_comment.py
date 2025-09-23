@@ -270,13 +270,10 @@ def format_comment(
         sections.append("_The opencode CLI did not return any output._")
 
     meta_lines: list[str] = []
-    model = metadata.get("model") or "unknown"
-    meta_lines.append(f"Model: `{model}`")
-    event_name = metadata.get("event_name") or "unknown"
-    meta_lines.append(f"Event: `{event_name}`")
+    thinking_mode_line: str | None = None
     thinking_mode = metadata.get("thinking_mode")
     if isinstance(thinking_mode, str) and thinking_mode.strip():
-        meta_lines.append(f"Thinking mode: `{thinking_mode.strip()}`")
+        thinking_mode_line = f"Thinking mode: `{thinking_mode.strip()}`"
 
     diagnostics = _diagnose_missing_review(
         stdout_clean=stdout_clean,
@@ -286,10 +283,8 @@ def format_comment(
     )
     if diagnostics:
         meta_lines.extend(diagnostics)
-    meta_lines.append(f"Exit code: `{exit_code}`")
-    if extracted:
-        meta_lines.append("Progress output from the CLI was omitted to highlight the final review.")
     if exit_code != 0:
+        meta_lines.append(f"Exit code: `{exit_code}`")
         meta_lines.append(
             "The CLI exited with a non-zero status. Review the stderr output for additional details."
         )
@@ -305,6 +300,13 @@ def format_comment(
             meta_lines.append("Tool call requests observed before the run stopped:")
             meta_lines.extend(f"- {summary}" for summary in tool_summaries)
 
+    if meta_lines and thinking_mode_line:
+        meta_lines.insert(0, thinking_mode_line)
+
+    supplemental_sections: list[str] = []
+    if meta_lines:
+        supplemental_sections.append("\n".join(meta_lines))
+
     include_stderr = os.getenv("INCLUDE_OPENCODE_STDERR") == "1"
     appended_stderr = False
 
@@ -319,8 +321,8 @@ def format_comment(
             if truncated:
                 block_lines.append("...(truncated)")
             block_lines.append("```")
-            meta_lines.append("\n".join(block_lines))
-            meta_lines.append("Debug: stderr output included because INCLUDE_OPENCODE_STDERR=1.")
+            supplemental_sections.append("\n".join(block_lines))
+            supplemental_sections.append("Debug: stderr output included because INCLUDE_OPENCODE_STDERR=1.")
             appended_stderr = True
 
     if not appended_stderr and stderr_clean and stderr_clean != stdout_clean:
@@ -333,11 +335,11 @@ def format_comment(
         if truncated:
             block_lines.append("...(truncated)")
         block_lines.append("```")
-        meta_lines.append("\n".join(block_lines))
+        supplemental_sections.append("\n".join(block_lines))
     elif not appended_stderr and stderr and stderr.strip():
-        meta_lines.append("CLI stderr contained only formatting codes and was omitted.")
+        supplemental_sections.append("CLI stderr contained only formatting codes and was omitted.")
 
-    sections.append("\n".join(meta_lines))
+    sections.extend(supplemental_sections)
 
     troubleshooting = _build_troubleshooting_section(exit_code)
     if troubleshooting:
