@@ -23,12 +23,28 @@
 1. Send a POST request to /tiktok/search with a query and force_headful: true
 2. Verify the response includes execution_mode: "headful"
 
-**Expected Result**: 
+**Expected Result**:
 ```json
 {
   "results": [...],
   "execution_mode": "headful",
   "message": "Search completed successfully"
+}
+```
+
+## Test: Headless Multistep Fallback
+**Description**: Verify that multistep requests automatically fall back to the direct strategy when the browser runs in headless mode.
+
+**Test Steps**:
+1. Send a POST request to /tiktok/search with strategy: "multistep" and force_headful: false (or omit the flag)
+2. Verify the response includes execution_mode: "headless" and returns results without error
+
+**Expected Result**:
+```json
+{
+  "results": [...],
+  "execution_mode": "headless",
+  "message": "Search completed using headless-safe direct strategy"
 }
 ```
 

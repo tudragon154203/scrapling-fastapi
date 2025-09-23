@@ -2,7 +2,6 @@ import pytest
 from unittest.mock import AsyncMock, patch
 from fastapi.testclient import TestClient
 from app.main import app
-from app.schemas.tiktok.search import TikTokSearchResponse
 from specify_src.models.browser_mode import BrowserMode
 
 client = TestClient(app)
@@ -33,16 +32,73 @@ def mock_tiktok_service_init():
         yield mock_init
 
 
-def test_tiktok_search_endpoint_success(mock_tiktok_search_service, mock_browser_mode_service):
-
-
-def test_tiktok_search_endpoint_headful_multistep(mock_tiktok_search_service, mock_browser_mode_service):
-    mock_browser_mode_service.determine_mode.return_value = BrowserMode.HEADFUL
-    mock_tiktok_search_service.return_value.search.return_value = {"results": [], "totalResults": 0, "query": "test query"}
+def test_tiktok_search_endpoint_headless_multistep_fallbacks_to_direct(
+    mock_tiktok_search_service, mock_browser_mode_service
+):
+    mock_browser_mode_service.determine_mode.return_value = BrowserMode.HEADLESS
+    mock_tiktok_search_service.return_value.search.return_value = {
+        "results": [
+            {
+                "id": "123",
+                "caption": "video1",
+                "authorHandle": "@creator",
+                "likeCount": "9",
+                "uploadTime": "2024-01-01T00:00:00Z",
+                "webViewUrl": "https://www.tiktok.com/@creator/video/123",
+            }
+        ],
+        "totalResults": 1,
+        "query": "test query",
+    }
 
     response = client.post(
         "/tiktok/search",
-        json={"query": "test query", "numVideos": 1, "force_headful": True}
+        json={
+            "query": "test query",
+            "numVideos": 2,
+            "sortType": "RELEVANCE",
+            "recencyDays": "ALL",
+            "strategy": "multistep",
+            "force_headful": False,
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["execution_mode"] == BrowserMode.HEADLESS.value
+    assert payload["results"][0]["authorHandle"] == "creator"
+    assert payload["results"][0]["likeCount"] == 9
+
+    mock_browser_mode_service.determine_mode.assert_called_once_with(False)
+    mock_tiktok_search_service.assert_called_once_with(
+        strategy="direct", force_headful=False
+    )
+    mock_tiktok_search_service.return_value.search.assert_awaited_once_with(
+        query="test query",
+        num_videos=2,
+        sort_type="RELEVANCE",
+        recency_days="ALL",
+    )
+
+
+def test_tiktok_search_endpoint_headful_multistep_preserves_strategy(
+    mock_tiktok_search_service, mock_browser_mode_service
+):
+    mock_browser_mode_service.determine_mode.return_value = BrowserMode.HEADFUL
+    mock_tiktok_search_service.return_value.search.return_value = {
+        "results": [],
+        "totalResults": 0,
+        "query": "test query",
+    }
+
+    response = client.post(
+        "/tiktok/search",
+        json={
+            "query": "test query",
+            "numVideos": 1,
+            "strategy": "multistep",
+            "force_headful": True,
+        },
     )
 
     assert response.status_code == 200
@@ -50,29 +106,10 @@ def test_tiktok_search_endpoint_headful_multistep(mock_tiktok_search_service, mo
     assert payload["execution_mode"] == BrowserMode.HEADFUL.value
 
     mock_browser_mode_service.determine_mode.assert_called_once_with(True)
-    mock_tiktok_search_service.assert_called_once_with(strategy="multistep", force_headful=True)
-
-    mock_tiktok_search_service.return_value.search.return_value = {
-        "results": [{"id": "123", "title": "video1"}],
-        "totalResults": 1,
-        "query": "test query",
-    }
-
-    response = client.post(
-        "/tiktok/search",
-        json={"query": "test query", "numVideos": 1, "force_headful": False}
+    mock_tiktok_search_service.assert_called_once_with(
+        strategy="multistep", force_headful=True
     )
-
-    assert response.status_code == 200
-    data = TikTokSearchResponse(**response.json())
-    assert data.query == "test query"
-    assert data.totalResults == 1
-    assert len(data.results) == 1
-    assert data.execution_mode == BrowserMode.HEADLESS.value
-
-    mock_browser_mode_service.determine_mode.assert_called_once_with(False)
-    mock_tiktok_search_service.assert_called_once_with(strategy="direct", force_headful=False)
-    mock_tiktok_search_service.return_value.search.assert_called_once_with(
+    mock_tiktok_search_service.return_value.search.assert_awaited_once_with(
         query="test query",
         num_videos=1,
         sort_type="RELEVANCE",

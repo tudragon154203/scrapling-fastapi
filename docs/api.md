@@ -82,6 +82,7 @@ The API provides flexible control over browser execution mode:
 2. **Force Headful**: When `force_headful` is set to `true`, searches run in headful mode
 3. **Explicit Headless**: When `force_headful` is set to `false`, searches run in headless mode
 4. **Test Environment Override**: In test environments, all searches run in headless mode regardless of the `force_headful` parameter
+5. **Automatic Strategy Fallback**: When the request selects the `multistep` strategy but the resolved browser mode is headless, the API automatically runs the `direct` strategy to keep headless executions reliable. The response still reports `execution_mode` as `headless`.
 
 #### Test Environment Detection
 

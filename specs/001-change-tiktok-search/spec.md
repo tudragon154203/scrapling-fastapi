@@ -62,6 +62,7 @@ As a user of the TikTok search functionality, I want to control whether the sear
 2. **Given** a search request with force_headful set to false, **When** the search is executed, **Then** it should run in headless mode
 3. **Given** a search request with force_headful set to true, **When** the search is executed, **Then** it should run in headful mode
 4. **Given** any test execution context, **When** the search functionality is used, **Then** it should always run in headless mode regardless of the force_headful parameter
+5. **Given** a request that selects the `multistep` strategy but resolves to headless browser mode, **When** the search executes, **Then** the system should automatically use the direct URL-parameter strategy while still reporting headless execution
 
 ### Edge Cases
 - What happens when force_headful is set to an invalid value (e.g., string, null)?
@@ -77,6 +78,7 @@ As a user of the TikTok search functionality, I want to control whether the sear
 - **FR-004**: System MUST always run TikTok searches in headless mode during test execution
 - **FR-005**: System MUST ignore the force_headful parameter when running tests
 - **FR-006**: System MUST validate the force_headful parameter when provided and return an appropriate error for invalid values [NEEDS CLARIFICATION: What constitutes an appropriate error response format?]
+- **FR-007**: System MUST fall back to the direct URL-parameter strategy when browser mode is headless and the request selects the multistep strategy
 
 ### Key Entities *(include if feature involves data)*
 - **Search Request**: A request to the TikTok search endpoint that may include the optional force_headful parameter
