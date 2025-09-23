@@ -43,4 +43,3 @@ def test_tiktok_search_headless_mode_default(request_payload):
         assert "likeCount" in video
         assert "uploadTime" in video
         assert "webViewUrl" in video
-
