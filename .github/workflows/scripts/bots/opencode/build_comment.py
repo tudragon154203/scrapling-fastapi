@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import re
 from pathlib import Path
 from typing import Any, Dict
@@ -306,21 +305,6 @@ def format_comment(
     supplemental_sections: list[str] = []
     if meta_lines:
         supplemental_sections.append("\n".join(meta_lines))
-
-    include_stderr = os.getenv("INCLUDE_OPENCODE_STDERR") == "1"
-    if include_stderr:
-        display = stderr_clean or (stderr.strip() if stderr else "")
-        if display:
-            truncated = False
-            if len(display) > MAX_STREAM_SECTION:
-                truncated = True
-                display = display[-MAX_STREAM_SECTION:]
-            block_lines = ["CLI stderr (debug mode):", "```text", display]
-            if truncated:
-                block_lines.append("...(truncated)")
-            block_lines.append("```")
-            supplemental_sections.append("\n".join(block_lines))
-            supplemental_sections.append("Debug: stderr output included because INCLUDE_OPENCODE_STDERR=1.")
 
     sections.extend(supplemental_sections)
 

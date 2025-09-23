@@ -274,10 +274,10 @@ High."""
         monkeypatch.setenv("INCLUDE_OPENCODE_STDERR", "1")
         comment = format_comment(metadata, stdout, stderr, exit_code)
 
-        assert "CLI stderr (debug mode):" in comment
-        assert "```text" in comment
-        assert "Some error message." in comment
-        assert "```" in comment
+        assert "**Findings:**" in comment
+        assert "CLI stderr" not in comment
+        assert "Some error message." not in comment
+        assert "Debug:" not in comment
 
     def test_non_zero_exit_code(self):
         metadata: Dict[str, Any] = {"model": "gpt-4"}
@@ -308,8 +308,8 @@ High."""
         # But since in prefix, removed
         assert "Error: boom" in comment  # In progress, not removed by clean_stream
         assert "**Findings:** Clean." in comment
-        assert "CLI stderr (debug mode):" in comment
-        assert "carriage" in comment  # Cleaned but present in stderr block
+        assert "CLI stderr" not in comment
+        assert "carriage" not in comment
 
     def test_empty_inputs(self):
         metadata: Dict[str, Any] = {}
