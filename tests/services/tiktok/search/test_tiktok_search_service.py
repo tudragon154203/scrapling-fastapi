@@ -68,3 +68,18 @@ def test_resolves_direct_strategy_for_headless_mode():
 def test_preserves_requested_strategy_for_headful_mode():
     service = TikTokSearchService(strategy="multistep", browser_mode=BrowserMode.HEADFUL)
     assert service.strategy == "multistep"
+
+
+def test_headful_uses_multistep_strategy(tmp_path):
+    service = TikTokSearchService(strategy="multistep", browser_mode=BrowserMode.HEADFUL)
+    settings = service.settings
+    original = getattr(settings, "camoufox_user_data_dir", None)
+    settings.camoufox_user_data_dir = str(tmp_path)
+    master_dir = tmp_path / "master"
+    master_dir.mkdir(parents=True)
+    (master_dir / "prefs.js").write_text("user_pref('media.volume_scale', 1.0);")
+    try:
+        impl = service._build_search_implementation()
+        assert isinstance(impl, TikTokMultiStepSearchService)
+    finally:
+        _restore_user_data_dir(settings, original)

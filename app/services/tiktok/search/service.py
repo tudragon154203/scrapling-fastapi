@@ -64,6 +64,11 @@ class TikTokSearchService(TikTokSearchInterface):
 
     def _resolve_strategy(self, requested_strategy: str) -> str:
         """Resolve the effective strategy based on browser mode constraints."""
+        # The multistep flow requires a visible browser window for TikTok login and
+        # human-verification interstitials. When the resolved browser mode is
+        # headless we immediately downgrade to the direct strategy rather than
+        # attempting a flow that is guaranteed to fail without those UI
+        # capabilities.
         if (
             self._browser_mode is not None
             and self._browser_mode == BrowserMode.HEADLESS
