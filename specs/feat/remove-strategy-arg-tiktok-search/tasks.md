@@ -77,13 +77,14 @@
 - [ ] T023 [P] Update API documentation in docs/api.md
 - [ ] T024 Remove duplicate strategy field references
 - [ ] T025 Run quickstart test scenarios from quickstart.md
+- [ ] T026 [P] Validate search result consistency against current implementation (≥95% result overlap, <2% ranking variation)
 
 ## Dependencies
 - Tests (T004-T007) before implementation (T008-T016)
 - T008 blocks T010
 - T011, T012 block T013
 - T013 blocks T017, T018
-- Implementation before polish (T021-T025)
+- Implementation before polish (T021-T026)
 
 ## Parallel Example
 ```

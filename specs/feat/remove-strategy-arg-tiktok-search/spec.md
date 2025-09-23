@@ -83,7 +83,7 @@ API consumers can perform TikTok searches without specifying a strategy paramete
 
 ### Functional Requirements
 - **FR-001**: The TikTok search endpoint MUST automatically select the appropriate search method based solely on the force_headful parameter value
-- **FR-002**: When force_headful=True, the system MUST execute the browser-based multistep search path for comprehensive TikTok content retrieval
+- **FR-002**: When force_headful=True, the system MUST execute the browser-based multistep search path for TikTok content retrieval
 - **FR-003**: When force_headful=False, the system MUST execute the headless url param search path for efficient TikTok content retrieval
 - **FR-004**: The system MUST remove strategy field references from all request and response schemas
 - **FR-005**: The system MUST reject requests containing the strategy field with an explicit error response
@@ -91,12 +91,10 @@ API consumers can perform TikTok searches without specifying a strategy paramete
 - **FR-007**: All existing tests MUST continue to pass with the new parameter structure
 - **FR-008**: The system MUST provide clear error messages for invalid force_headful parameter values
 - **FR-009**: The system MUST use lenient parameter parsing for force_headful (accepting true/false, TRUE/FALSE, 1/0)
-- **FR-010**: The system MUST provide search results consistent with the current behavior when using the equivalent settings
+- **FR-010**: The system MUST provide search results consistent with the current behavior when using the equivalent settings (≥95% result overlap, <2% variation in relevance ranking)
 - **FR-011**: Integrations currently using the strategy field MUST reconfigure to use the simplified force_headful-based approach
 - **FR-012**: Error responses MUST use the standardized format matching existing API patterns
 
-*Example of marking unclear requirements:*
-- **FR-011**: The system MUST handle strategy field removal without breaking existing integrations [NEEDS CLARIFICATION: what constitutes breaking vs. non-breaking change?]
 
 ### Key Entities *(include if feature involves data)*
 - **TikTok Search Request**: API request containing search parameters, now without strategy field
