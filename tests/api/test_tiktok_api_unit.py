@@ -71,7 +71,9 @@ def test_tiktok_search_endpoint_headless_multistep_fallbacks_to_direct(
 
     mock_browser_mode_service.determine_mode.assert_called_once_with(False)
     mock_tiktok_search_service.assert_called_once_with(
-        strategy="direct", force_headful=False
+        strategy="direct",
+        force_headful=False,
+        browser_mode=BrowserMode.HEADLESS,
     )
     mock_tiktok_search_service.return_value.search.assert_awaited_once_with(
         query="test query",
@@ -107,7 +109,9 @@ def test_tiktok_search_endpoint_headful_multistep_preserves_strategy(
 
     mock_browser_mode_service.determine_mode.assert_called_once_with(True)
     mock_tiktok_search_service.assert_called_once_with(
-        strategy="multistep", force_headful=True
+        strategy="multistep",
+        force_headful=True,
+        browser_mode=BrowserMode.HEADFUL,
     )
     mock_tiktok_search_service.return_value.search.assert_awaited_once_with(
         query="test query",

@@ -77,7 +77,11 @@ async def tiktok_search_endpoint(payload: TikTokSearchRequest):
     if browser_mode == BrowserMode.HEADLESS and payload.strategy == "multistep":
         effective_strategy = "direct"
 
-    search_service = TikTokSearchService(strategy=effective_strategy, force_headful=payload.force_headful)
+    search_service = TikTokSearchService(
+        strategy=effective_strategy,
+        force_headful=payload.force_headful,
+        browser_mode=browser_mode,
+    )
     sort_type_param = payload.sortType
     recency_days_param = payload.recencyDays
 

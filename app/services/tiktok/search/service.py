@@ -9,6 +9,7 @@ from pathlib import Path
 from app.services.tiktok.search.interfaces import TikTokSearchInterface
 from app.services.tiktok.search.multistep import TikTokMultiStepSearchService
 from app.services.tiktok.search.url_param import TikTokURLParamSearchService
+from specify_src.models.browser_mode import BrowserMode
 
 
 class TikTokSearchService(TikTokSearchInterface):
@@ -18,12 +19,15 @@ class TikTokSearchService(TikTokSearchInterface):
         self,
         strategy: str = "multistep",
         force_headful: bool = False,
+        browser_mode: BrowserMode | None = None,
     ) -> None:
         from app.core.config import get_settings
         self.settings = get_settings()
         self.logger = logging.getLogger(__name__)
-        self.strategy = strategy
+        self._requested_strategy = strategy
+        self._browser_mode = browser_mode
         self._force_headful = force_headful
+        self.strategy = self._resolve_strategy(strategy)
 
     async def search(
         self,
@@ -57,6 +61,19 @@ class TikTokSearchService(TikTokSearchInterface):
         except Exception as exc:  # pragma: no cover - defensive logging
             self.logger.error("[TikTokSearchService] Exception in search: %s", exc, exc_info=True)
             return {"error": f"Search failed: {exc}"}
+
+    def _resolve_strategy(self, requested_strategy: str) -> str:
+        """Resolve the effective strategy based on browser mode constraints."""
+        if (
+            self._browser_mode is not None
+            and self._browser_mode == BrowserMode.HEADLESS
+            and requested_strategy == "multistep"
+        ):
+            self.logger.info(
+                "[TikTokSearchService] Overriding multistep strategy with direct strategy for headless mode"
+            )
+            return "direct"
+        return requested_strategy
 
     def _build_search_implementation(self) -> TikTokSearchInterface:
         """Instantiate the configured search implementation."""

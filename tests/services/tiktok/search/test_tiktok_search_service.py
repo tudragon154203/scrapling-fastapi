@@ -1,8 +1,8 @@
-
 import pytest
 
 from app.services.tiktok.search.multistep import TikTokMultiStepSearchService
 from app.services.tiktok.search.service import TikTokSearchService
+from specify_src.models.browser_mode import BrowserMode
 
 
 @pytest.fixture
@@ -58,3 +58,13 @@ def test_build_search_uses_multistep_when_master_present(service, tmp_path):
         assert isinstance(impl, TikTokMultiStepSearchService)
     finally:
         _restore_user_data_dir(settings, original)
+
+
+def test_resolves_direct_strategy_for_headless_mode():
+    service = TikTokSearchService(strategy="multistep", browser_mode=BrowserMode.HEADLESS)
+    assert service.strategy == "direct"
+
+
+def test_preserves_requested_strategy_for_headful_mode():
+    service = TikTokSearchService(strategy="multistep", browser_mode=BrowserMode.HEADFUL)
+    assert service.strategy == "multistep"
