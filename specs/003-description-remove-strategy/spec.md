@@ -27,6 +27,17 @@
 
 ---
 
+## Clarifications
+
+### Session 2025-09-23
+- Q: How should the system handle backwards compatibility for clients that still send the strategy field? → A: Reject strategy field explicitly (return error on unknown parameter)
+- Q: What should happen to existing integrations that currently rely on the strategy field? → A: Need reconfiguration (integrations may need updates)
+- Q: How strict should the system be about force_headful parameter validation? → A: Very strict
+- Q: Should the system accept partial string matches for force_headful? → A: Lenient (true/false, TRUE/FALSE, 1/0)
+- Q: What error response format should be used for invalid parameters? → A: Standardized error format matching existing API patterns
+
+---
+
 ## ⚡ Quick Guidelines
 - ✅ Focus on WHAT users need and WHY
 - ❌ Avoid HOW to implement (no tech stack, APIs, code structure)
@@ -64,9 +75,9 @@ API consumers can perform TikTok searches without specifying a strategy paramete
 4. **Given** existing functionality, **When** the API endpoint is updated, **Then** all existing tests should continue to pass with the new simplified parameter set
 
 ### Edge Cases
-- What happens when users pass an unknown parameter that was previously supported?
-- How does the system handle backwards compatibility for clients that may still send the strategy field?
-- What error messages should be returned when invalid force_headful values are provided?
+- Unknown parameters will be rejected with standardized error responses
+- Requests containing the strategy field will be rejected immediately
+- Invalid force_headful values will trigger clear error messages following existing API patterns
 
 ## Requirements *(mandatory)*
 
@@ -75,12 +86,14 @@ API consumers can perform TikTok searches without specifying a strategy paramete
 - **FR-002**: When force_headful=True, the system MUST execute the browser-based multistep search path for comprehensive TikTok content retrieval
 - **FR-003**: When force_headful=False, the system MUST execute the headless url param search path for efficient TikTok content retrieval
 - **FR-004**: The system MUST remove strategy field references from all request and response schemas
-- **FR-005**: The system MUST maintain backward compatibility with existing API consumers who may still send the strategy field [NEEDS CLARIFICATION: should this be accepted gracefully or rejected as invalid?]
+- **FR-005**: The system MUST reject requests containing the strategy field with an explicit error response
 - **FR-006**: All existing documentation MUST be updated to reflect the simplified API contract
 - **FR-007**: All existing tests MUST continue to pass with the new parameter structure
 - **FR-008**: The system MUST provide clear error messages for invalid force_headful parameter values
-- **FR-009**: API consumers MUST be able to search TikTok content without needing to understand different search strategies
+- **FR-009**: The system MUST use lenient parameter parsing for force_headful (accepting true/false, TRUE/FALSE, 1/0)
 - **FR-010**: The system MUST provide search results consistent with the current behavior when using the equivalent settings
+- **FR-011**: Integrations currently using the strategy field MUST reconfigure to use the simplified force_headful-based approach
+- **FR-012**: Error responses MUST use the standardized format matching existing API patterns
 
 *Example of marking unclear requirements:*
 - **FR-011**: The system MUST handle strategy field removal without breaking existing integrations [NEEDS CLARIFICATION: what constitutes breaking vs. non-breaking change?]
@@ -108,6 +121,7 @@ API consumers can perform TikTok searches without specifying a strategy paramete
 - [x] Success criteria are measurable
 - [x] Scope is clearly bounded
 - [x] Dependencies and assumptions identified
+- [x] Backwards compatibility strategy clearly defined
 
 ---
 
