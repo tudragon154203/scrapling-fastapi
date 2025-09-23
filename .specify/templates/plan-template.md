@@ -65,21 +65,16 @@ specs/[###-feature]/
 ### Source Code (repository root)
 ```
 # Option 1: Single project (DEFAULT)
-specify_src/
+src/
 ├── models/
 ├── services/
 ├── cli/
 └── lib/
 
 tests/
+├── contract/
 ├── integration/
-│   └── tiktok/
-├── services/
-│   └── common/
-│   └── tiktok/
-│       ├── search/
-│       ├── session/
-│       └── utils/
+└── unit/
 
 # Option 2: Web application (when "frontend" + "backend" detected)
 backend/
@@ -150,7 +145,8 @@ ios/ or android/
    - Quickstart test = story validation steps
 
 5. **Update agent file incrementally** (O(1) operation):
-   - Run `.specify/scripts/powershell/update-agent-context.ps1 -AgentType gemini` for your AI assistant
+   - Run `.specify/scripts/powershell/update-agent-context.ps1 -AgentType kilocode`
+     **IMPORTANT**: Execute it exactly as specified above. Do not add or remove any arguments.
    - If exists: Add only NEW tech from current plan
    - Preserve manual additions between markers
    - Update recent changes (keep last 3)
