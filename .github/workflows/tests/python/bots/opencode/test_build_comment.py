@@ -200,11 +200,10 @@ High."""
         assert "**Findings:**" in comment
         assert "**Suggestions:**" in comment
         assert "**Confidence:**" in comment
-        assert "Model: `gpt-4`" in comment
-        assert "Event: `pull_request`" in comment
-        assert "Thinking mode: `standard`" in comment
-        assert "Exit code: `0`" in comment
-        assert "Progress output from the CLI was omitted to highlight the final review." in comment
+        assert "Model:" not in comment
+        assert "Event:" not in comment
+        assert "Thinking mode:" not in comment
+        assert "Exit code:" not in comment
 
     def test_filters_to_latest_review(self):
         metadata: Dict[str, Any] = {
@@ -248,7 +247,7 @@ High."""
         assert "Final issue" in comment
         assert "Final suggestion" in comment
         assert "### 🙋 OpenCode Review" in comment
-        assert "Progress output from the CLI was omitted" in comment
+        assert "Progress output" not in comment
 
     def test_without_review(self):
         metadata: Dict[str, Any] = {"model": "gpt-4", "event_name": "pull_request"}
@@ -263,18 +262,19 @@ High."""
         assert "Only progress, no review." in comment
         assert "```" in comment
         assert "No structured review (findings/suggestions/confidence) was detected" in comment
-        assert "Model: `gpt-4`" in comment
-        assert "Exit code: `0`" in comment
+        assert "Model:" not in comment
+        assert "Exit code:" not in comment
 
-    def test_with_stderr(self):
+    def test_with_stderr(self, monkeypatch: pytest.MonkeyPatch):
         metadata: Dict[str, Any] = {"model": "gpt-4"}
         stdout = "**Findings:** Test."
         stderr = "Some error message."
         exit_code = 0
 
+        monkeypatch.setenv("INCLUDE_OPENCODE_STDERR", "1")
         comment = format_comment(metadata, stdout, stderr, exit_code)
 
-        assert "CLI stderr:" in comment
+        assert "CLI stderr (debug mode):" in comment
         assert "```text" in comment
         assert "Some error message." in comment
         assert "```" in comment
@@ -291,13 +291,14 @@ High."""
         assert "#### Troubleshooting the opencode CLI" in comment
         assert "- Expand the **Run opencode CLI** step" in comment
 
-    def test_no_unwanted_elements(self):
+    def test_no_unwanted_elements(self, monkeypatch: pytest.MonkeyPatch):
         # Test cleaning: ANSI, control chars, thinking blocks, tool uses, errors
         metadata: Dict[str, Any] = {"model": "gpt-4"}
         stdout = "\x1B[31mRed text\x1B[0m\nThinking: <thinking>stuff</thinking>\n<Tool use> call </Tool>\nError: boom\n**Findings:** Clean."
         stderr = "stderr with \r\n carriage."
         exit_code = 0
 
+        monkeypatch.setenv("INCLUDE_OPENCODE_STDERR", "1")
         comment = format_comment(metadata, stdout, stderr, exit_code)
 
         # Should clean ANSI, control, but extract review
@@ -307,7 +308,7 @@ High."""
         # But since in prefix, removed
         assert "Error: boom" in comment  # In progress, not removed by clean_stream
         assert "**Findings:** Clean." in comment
-        assert "CLI stderr:" in comment
+        assert "CLI stderr (debug mode):" in comment
         assert "carriage" in comment  # Cleaned but present in stderr block
 
     def test_empty_inputs(self):
@@ -319,9 +320,9 @@ High."""
         comment = format_comment(metadata, stdout, stderr, exit_code)
 
         assert "_The opencode CLI did not return any output._" in comment
-        assert "Model: `unknown`" in comment
-        assert "Event: `unknown`" in comment
-        assert "Exit code: `0`" in comment
+        assert "Model:" not in comment
+        assert "Event:" not in comment
+        assert "Exit code:" not in comment
 
     def test_html_like_tags_escaped(self):
         metadata: Dict[str, Any] = {"model": "gpt-4"}
