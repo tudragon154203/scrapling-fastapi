@@ -308,12 +308,10 @@ def format_comment(
         supplemental_sections.append("\n".join(meta_lines))
 
     include_stderr = os.getenv("INCLUDE_OPENCODE_STDERR") == "1"
-    appended_stderr = False
-
     if include_stderr:
         display = stderr_clean or (stderr.strip() if stderr else "")
-        truncated = False
         if display:
+            truncated = False
             if len(display) > MAX_STREAM_SECTION:
                 truncated = True
                 display = display[-MAX_STREAM_SECTION:]
@@ -323,21 +321,6 @@ def format_comment(
             block_lines.append("```")
             supplemental_sections.append("\n".join(block_lines))
             supplemental_sections.append("Debug: stderr output included because INCLUDE_OPENCODE_STDERR=1.")
-            appended_stderr = True
-
-    if not appended_stderr and stderr_clean and stderr_clean != stdout_clean:
-        display = stderr_clean
-        truncated = False
-        if len(display) > MAX_STREAM_SECTION:
-            truncated = True
-            display = display[-MAX_STREAM_SECTION:]
-        block_lines = ["CLI stderr:", "```text", display]
-        if truncated:
-            block_lines.append("...(truncated)")
-        block_lines.append("```")
-        supplemental_sections.append("\n".join(block_lines))
-    elif not appended_stderr and stderr and stderr.strip():
-        supplemental_sections.append("CLI stderr contained only formatting codes and was omitted.")
 
     sections.extend(supplemental_sections)
 
