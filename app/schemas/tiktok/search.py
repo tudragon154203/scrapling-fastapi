@@ -15,7 +15,7 @@ class TikTokSearchRequest(BaseModel):
         description="Search query as string or array of strings",
     )
     numVideos: int = Field(
-        default=20,
+        default=10,
         ge=1,
         le=100,
         description="Number of videos to return (1-100)",
@@ -24,6 +24,12 @@ class TikTokSearchRequest(BaseModel):
         default=False,
         description="Determines search method - True for browser-based search, False for headless URL param search",
     )
+
+    @model_validator(mode='after')
+    def validate_num_videos_for_mode(self):
+        if not self.force_headful and self.numVideos > 15:
+            raise ValueError('numVideos cannot exceed 15 in headless mode')
+        return self
 
     @model_validator(mode='after')
     def validate_query(self):
