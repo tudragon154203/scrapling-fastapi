@@ -41,8 +41,6 @@ class TestTikTokSearchEndpoint:
         args, kwargs = mock_search.await_args
         assert kwargs["query"] == "test"
         assert kwargs["num_videos"] == 20
-        assert kwargs["sort_type"] == "RELEVANCE"
-        assert kwargs["recency_days"] == "ALL"
         assert data["execution_mode"] == "headless"
         assert data["search_metadata"]["executed_path"] == "headless"
         assert data["search_metadata"]["execution_time"] >= 0

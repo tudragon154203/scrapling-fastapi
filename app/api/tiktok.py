@@ -98,15 +98,11 @@ async def tiktok_search_endpoint(payload: TikTokSearchRequest):
     browser_mode = BrowserModeService.determine_mode(payload.force_headful)
 
     search_service = TikTokSearchService(force_headful=payload.force_headful)
-    sort_type_param = payload.sortType
-    recency_days_param = payload.recencyDays
 
     start_time = time.perf_counter()
     result = await search_service.search(
         query=payload.query,
         num_videos=payload.numVideos,
-        sort_type=sort_type_param,
-        recency_days=recency_days_param,
     )
     execution_time = time.perf_counter() - start_time
 

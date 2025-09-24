@@ -32,18 +32,16 @@ class TikTokMultiStepSearchService(AbstractTikTokSearchService):
         self,
         query: Union[str, List[str]],
         num_videos: int = 50,
-        sort_type: str = "RELEVANCE",
-        recency_days: str = "ALL",
     ) -> Dict[str, Any]:
         """Execute a TikTok search using browser automation and return structured results."""
         try:
             self.logger.debug(
                 f"[TikTokMultiStepSearchService] Starting search - query: {query}, "
-                f"num_videos: {num_videos}, sort_type: {sort_type}, recency_days: {recency_days}"
+                f"num_videos: {num_videos}"
             )
 
             # Validate request parameters
-            queries_or_error = self._validate_request(query=query, sort_type=sort_type)
+            queries_or_error = self._validate_request(query=query)
             if isinstance(queries_or_error, dict):
                 return queries_or_error
             queries: List[str] = list(queries_or_error)

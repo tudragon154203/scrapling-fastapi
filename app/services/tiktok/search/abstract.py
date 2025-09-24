@@ -27,8 +27,6 @@ class AbstractTikTokSearchService(ABC, TikTokSearchInterface):
         self,
         query: Union[str, List[str]],
         num_videos: int,
-        sort_type: str,
-        recency_days: str,
     ) -> Dict[str, Any]:
         """Execute a TikTok search and return the structured results."""
         raise NotImplementedError
@@ -41,21 +39,6 @@ class AbstractTikTokSearchService(ABC, TikTokSearchInterface):
             os.environ.get("TESTING", "").lower() == "true" or
             os.environ.get("CI", "").lower() == "true"
         )
-
-    def _enforce_sort_type(self, sort_type: Optional[str]) -> Optional[Dict[str, Any]]:
-        """Validate the requested sort type, returning an error payload when invalid."""
-        self.logger.debug(f"[TikTokSearchService] Enforcing sort_type: {sort_type}")
-        if str(sort_type or "").upper() == "RELEVANCE":
-            self.logger.debug("[TikTokSearchService] Sort type validated: RELEVANCE")
-            return None
-        self.logger.warning(f"[TikTokSearchService] Sort type validation failed for: {sort_type}")
-        return {
-            "error": {
-                "code": "VALIDATION_ERROR",
-                "message": "Unsupported sortType; only RELEVANCE is supported",
-                "fields": {"sortType": "Must be 'RELEVANCE'"},
-            }
-        }
 
     def _normalize_queries(self, query: Union[str, List[str]]) -> Tuple[bool, Union[List[str], Dict[str, Any]]]:
         """Normalize user-provided queries into a filtered list of search strings."""
@@ -89,14 +72,8 @@ class AbstractTikTokSearchService(ABC, TikTokSearchInterface):
     def _validate_request(
         self,
         query: Union[str, List[str]],
-        sort_type: Optional[str],
     ) -> Union[List[str], Dict[str, Any]]:
-        """Validate sort type and normalize the incoming query payload."""
-        self.logger.debug(f"[TikTokSearchService] Checking sort_type: {sort_type}")
-        err = self._enforce_sort_type(sort_type)
-        if err is not None:
-            self.logger.warning(f"[TikTokSearchService] Sort type validation failed: {err}")
-            return err
+        """Validate the incoming query payload."""
         self.logger.debug(f"[TikTokSearchService] Normalizing query: {query}")
         ok, queries_or_err = self._normalize_queries(query)
         if not ok:

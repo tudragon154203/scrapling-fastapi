@@ -20,14 +20,6 @@ class TikTokSearchRequest(BaseModel):
         le=100,
         description="Number of videos to return (1-100)",
     )
-    sortType: Literal["RELEVANCE"] = Field(
-        default="RELEVANCE",
-        description="Sort type for results (only RELEVANCE supported in v1)",
-    )
-    recencyDays: Literal["ALL", "24H", "7_DAYS", "30_DAYS", "90_DAYS", "180_DAYS"] = Field(
-        default="ALL",
-        description="Recency filter for results (best-effort)",
-    )
     force_headful: bool = Field(
         default=False,
         description="Determines search method - True for browser-based search, False for headless URL param search",
