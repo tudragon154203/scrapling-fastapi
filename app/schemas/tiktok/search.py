@@ -1,7 +1,6 @@
 """TikTok search schemas."""
 
 from typing import List, Union, Literal
-
 from pydantic import BaseModel, Field, model_validator
 from pydantic.config import ConfigDict
 
@@ -16,10 +15,10 @@ class TikTokSearchRequest(BaseModel):
         description="Search query as string or array of strings",
     )
     numVideos: int = Field(
-        default=50,
+        default=20,
         ge=1,
-        le=50,
-        description="Number of videos to return (1-50)",
+        le=100,
+        description="Number of videos to return (1-100)",
     )
     sortType: Literal["RELEVANCE"] = Field(
         default="RELEVANCE",
@@ -29,13 +28,9 @@ class TikTokSearchRequest(BaseModel):
         default="ALL",
         description="Recency filter for results (best-effort)",
     )
-    strategy: Literal["direct", "multistep"] = Field(
-        default="multistep",
-        description="Search strategy to use - 'direct' for URL parameters, 'multistep' for browser automation",
-    )
     force_headful: bool = Field(
         default=False,
-        description="Controls browser execution mode - True for headful, False for headless",
+        description="Determines search method - True for browser-based search, False for headless URL param search",
     )
 
     @model_validator(mode='after')
@@ -59,13 +54,44 @@ class TikTokSearchRequest(BaseModel):
     model_config = ConfigDict(extra='forbid')
 
 
+class SearchMetadata(BaseModel):
+    """Metadata about the search execution."""
+
+    executed_path: Literal["browser-based", "headless"] = Field(
+        ...,
+        description="Method used for search execution"
+    )
+    execution_time: float = Field(
+        ...,
+        description="Time taken for search execution in seconds"
+    )
+    request_hash: str = Field(
+        ...,
+        description="Unique identifier for this request"
+    )
+
+
 class TikTokSearchResponse(BaseModel):
     """Response schema for TikTok search endpoint."""
 
-    results: List[TikTokVideo] = Field(..., description="List of TikTok videos")
-    totalResults: int = Field(..., description="Total number of results")
-    query: str = Field(..., description="Normalized query string")
+    results: List[TikTokVideo] = Field(
+        ...,
+        description="Array of TikTok content items"
+    )
+    totalResults: int = Field(
+        ...,
+        description="Total number of available results"
+    )
+    query: str = Field(
+        ...,
+        description="Normalized query string"
+    )
+    search_metadata: SearchMetadata = Field(
+        ...,
+        description="Information about the search execution"
+    )
     execution_mode: str = Field(
         default="unknown",
-        description="Browser execution mode used for this search",
+        description="Browser execution mode used for this search (deprecated - use search_metadata.executed_path)",
+        deprecated=True
     )

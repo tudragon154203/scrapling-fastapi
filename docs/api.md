@@ -39,7 +39,7 @@ Content-Type: application/json
 | sortType | string | No | Sort type for results (only "RELEVANCE" supported, default: "RELEVANCE") |
 | recencyDays | string | No | Recency filter for results (default: "ALL") |
 | strategy | string | No | Search strategy to use ("direct" or "multistep", default: "multistep") |
-| force_headful | boolean | No | Controls browser execution mode (true for headful, false/None for headless, default: None) |
+| force_headful | boolean | No | Forces headful browser mode if True (optional, defaults to False) |
 
 #### Response
 
@@ -79,7 +79,7 @@ Content-Type: application/json
 The API provides flexible control over browser execution mode:
 
 1. **Default Behavior**: All searches run in headless mode by default
-2. **Force Headful**: When `force_headful` is set to `true`, searches run in headful mode
+2. **Force Headful**: When `force_headful` is set to `true`, searches run in headful mode (optional parameter defaults to False)
 3. **Explicit Headless**: When `force_headful` is set to `false`, searches run in headless mode
 4. **Test Environment Override**: In test environments, all searches run in headless mode regardless of the `force_headful` parameter
 

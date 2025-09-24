@@ -1,0 +1,256 @@
+openapi: 3.0.0
+info:
+  title: TikTok Search API - Strategy Removal
+  description: TikTok search endpoint with simplified parameter structure
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: support@example.com
+
+servers:
+  - url: http://localhost:5681
+    description: Development server
+  - url: https://api.example.com
+    description: Production server
+
+paths:
+  /tiktok/search:
+    post:
+      tags:
+        - TikTok Search
+      summary: Perform TikTok search with automatic method selection
+      description: Search TikTok content using browser-based or headless methods automatically selected based on the force_headful parameter
+      operationId: searchTikTok
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - query
+                - force_headful
+              properties:
+                query:
+                  oneOf:
+                    - type: string
+                    - type: array
+                      items:
+                        type: string
+                  description: Search query terms
+                  example: ["funny", "cats"]
+                numVideos:
+                  type: integer
+                  description: Maximum number of videos to retrieve (1-100, default 20)
+                  minimum: 1
+                  maximum: 100
+                  default: 20
+                  example: 25
+                sortType:
+                  type: string
+                  description: Sorting strategy (currently only RELEVANCE)
+                  enum: [RELEVANCE]
+                  default: RELEVANCE
+                recencyDays:
+                  type: string
+                  description: Recency filter applied to results
+                  enum: [ALL, 24H, 7_DAYS, 30_DAYS, 90_DAYS, 180_DAYS]
+                  default: ALL
+                force_headful:
+                  type: boolean
+                  description: Determines search method - True for browser-based search, False for headless URL param search
+                  example: false
+                search_url:
+                  type: string
+                  format: uri
+                  description: Direct search URL (used when force_headful=False)
+                  example: "https://www.tiktok.com/search/funny%20cats"
+                limit:
+                  type: integer
+                  description: Additional limit applied to normalized results (1-100, default 20)
+                  minimum: 1
+                  maximum: 100
+                  default: 20
+                offset:
+                  type: integer
+                  description: Pagination offset for normalized results (default 0)
+                  minimum: 0
+                  default: 0
+              additionalProperties: false
+      responses:
+        '200':
+          description: Successful search operation
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - results
+                  - totalResults
+                  - query
+                  - search_metadata
+                  - execution_mode
+                properties:
+                  results:
+                    type: array
+                    description: Array of TikTok content items
+                    items:
+                      $ref: '#/components/schemas/TikTokContentItem'
+                  totalResults:
+                    type: integer
+                    description: Total number of available results
+                    example: 150
+                  query:
+                    type: string
+                    description: Normalized query string
+                    example: "funny cats"
+                  search_metadata:
+                    $ref: '#/components/schemas/TikTokSearchMetadata'
+                  execution_mode:
+                    type: string
+                    description: Browser execution mode used for this search (deprecated - use search_metadata.executed_path)
+                    example: "headless"
+                    deprecated: true
+        '400':
+          description: Bad request - invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ValidationError'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+components:
+  schemas:
+    TikTokContentItem:
+      type: object
+      required:
+        - id
+        - caption
+        - authorHandle
+        - likeCount
+        - uploadTime
+        - webViewUrl
+      properties:
+        id:
+          type: string
+          description: Unique TikTok content ID
+          example: "7123456789012345678"
+        caption:
+          type: string
+          description: Video caption text
+          example: "Funny cat compilation"
+        authorHandle:
+          type: string
+          description: Content author username without the leading @
+          example: "catlover"
+        likeCount:
+          type: integer
+          description: Number of likes
+          example: 1000
+        uploadTime:
+          type: string
+          description: Content upload timestamp
+          example: "2025-01-01T12:00:00Z"
+        webViewUrl:
+          type: string
+          format: uri
+          description: Direct URL to the TikTok content
+          example: "https://www.tiktok.com/@catlover/video/7123456789012345678"
+        thumbnailUrl:
+          type: string
+          format: uri
+          description: Optional thumbnail URL
+          example: "https://example.com/thumbnail.jpg"
+    TikTokSearchMetadata:
+      type: object
+      required:
+        - executed_path
+        - execution_time
+        - request_hash
+      properties:
+        executed_path:
+          type: string
+          enum: [browser-based, headless]
+          description: Method used for search execution
+          example: "headless"
+        execution_time:
+          type: number
+          format: float
+          description: Time taken for search execution in seconds
+          example: 2.5
+        request_hash:
+          type: string
+          description: Unique identifier for this request
+          example: "abc123def456"
+    ErrorDetail:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          description: Error type identifier
+          example: "INVALID_PARAMETER"
+        message:
+          type: string
+          description: Human-readable error message
+          example: "The strategy parameter is not supported"
+        field:
+          type: string
+          description: Field name that caused the error (if applicable)
+          example: "strategy"
+        details:
+          type: object
+          description: Additional error context
+          example:
+            accepted_values: ["force_headful"]
+    ErrorEnvelope:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorDetail'
+    ValidationError:
+      type: object
+      required:
+        - loc
+        - msg
+        - type
+      properties:
+        loc:
+          type: array
+          description: Field location in request structure
+          items:
+            type: string
+          example: ["body", "force_headful"]
+        msg:
+          type: string
+          description: Error message
+          example: "field required"
+        type:
+          type: string
+          description: Error type
+          example: "value_error.missing"
+
+tags:
+  - name: TikTok Search
+    description: TikTok content search functionality
+

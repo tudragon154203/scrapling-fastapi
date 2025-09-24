@@ -7,7 +7,7 @@ from app.services.tiktok.search.service import TikTokSearchService
 
 @pytest.fixture
 def service():
-    return TikTokSearchService()
+    return TikTokSearchService(force_headful=True)
 
 
 def _restore_user_data_dir(settings, original):
