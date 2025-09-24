@@ -23,9 +23,6 @@ Content-Type: application/json
 {
   "query": "funny cats",
   "numVideos": 50,
-  "sortType": "RELEVANCE",
-  "recencyDays": "ALL",
-  "strategy": "multistep",
   "force_headful": true
 }
 ```
@@ -36,8 +33,6 @@ Content-Type: application/json
 |-------|------|----------|-------------|
 | query | string or array | Yes | Search query as string or array of strings |
 | numVideos | integer | No | Number of videos to return (1-50, default: 50) |
-| sortType | string | No | Sort type for results (only "RELEVANCE" supported, default: "RELEVANCE") |
-| recencyDays | string | No | Recency filter for results (default: "ALL") |
 | strategy | string | No | Search strategy to use ("direct" or "multistep", default: "multistep") |
 | force_headful | boolean | No | Forces headful browser mode if True (optional, defaults to False) |
 

@@ -32,16 +32,12 @@ class TikTokSearchService(TikTokSearchInterface):
         self,
         query: Union[str, List[str]],
         num_videos: int = 50,
-        sort_type: str = "RELEVANCE",
-        recency_days: str = "ALL",
     ) -> Dict[str, Any]:
         """Execute a TikTok search using the configured strategy."""
         self.logger.debug(
-            "[TikTokSearchService] search called - query: %s, num_videos: %s, sort_type: %s, recency_days: %s",
+            "[TikTokSearchService] search called - query: %s, num_videos: %s",
             query,
             num_videos,
-            sort_type,
-            recency_days,
         )
 
         try:
@@ -49,8 +45,6 @@ class TikTokSearchService(TikTokSearchInterface):
             result = await search_impl.search(
                 query,
                 num_videos=num_videos,
-                sort_type=sort_type,
-                recency_days=recency_days,
             )
             if self._should_attempt_fallback(result):
                 self.logger.info(

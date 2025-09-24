@@ -21,9 +21,6 @@ class TikTokSearchInterface(Protocol):
             execute sequentially.
         num_videos: Target number of videos to collect from the search
             operation.
-        sort_type: TikTok sort ordering to apply when fetching results.
-        recency_days: Optional recency window identifier understood by the
-            implementation.
 
     Returns:
         A dictionary containing the normalized TikTok search results.
@@ -33,8 +30,6 @@ class TikTokSearchInterface(Protocol):
         self,
         query: Union[str, List[str]],
         num_videos: int,
-        sort_type: str,
-        recency_days: str,
     ) -> Dict[str, Any]:
         """Execute a TikTok search and return the structured results."""
         ...

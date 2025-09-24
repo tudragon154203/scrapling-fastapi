@@ -79,14 +79,14 @@ class TestTikTokMultiStepSearchService:
     async def test_search_validation_error(self, search_service):
         """Test search method returns validation error for invalid input"""
         # Test empty query validation
-        result = await search_service.search("", 10, "RELEVANCE", "ALL")
+        result = await search_service.search("", 10)
         assert "error" in result
         assert result["error"]["code"] == "VALIDATION_ERROR"
 
-        # Test invalid sort type validation
-        result = await search_service.search("test", 10, "INVALID", "ALL")
-        assert "error" in result
-        assert result["error"]["code"] == "VALIDATION_ERROR"
+        # Test valid query (should not return validation error)
+        result = await search_service.search("test", 10)
+        assert "error" not in result
+        assert "results" in result
 
     @pytest.mark.asyncio
     async def test_search_success_response_format(self, search_service, mock_context):
@@ -96,7 +96,7 @@ class TestTikTokMultiStepSearchService:
                 patch.object(search_service, '_process_query_with_browser', AsyncMock(return_value=None)), \
                 patch.object(search_service, '_cleanup_user_data', AsyncMock()):
 
-            result = await search_service.search("test query", 10, "RELEVANCE", "ALL")
+            result = await search_service.search("test query", 10)
 
             # Validate response format matches expected schema
             assert "results" in result
@@ -114,7 +114,7 @@ class TestTikTokMultiStepSearchService:
                 patch.object(search_service, '_process_query_with_browser', AsyncMock(side_effect=Exception("Browser failed"))), \
                 patch.object(search_service, '_cleanup_user_data', AsyncMock()):
 
-            result = await search_service.search("test query", 10, "RELEVANCE", "ALL")
+            result = await search_service.search("test query", 10)
 
             # Validate error response format
             assert "error" in result
@@ -130,7 +130,7 @@ class TestTikTokMultiStepSearchService:
                 patch.object(search_service, '_process_query_with_browser', AsyncMock(return_value=None)), \
                 patch.object(search_service, '_cleanup_user_data', AsyncMock()):
 
-            result = await search_service.search(["query1", "query2"], 10, "RELEVANCE", "ALL")
+            result = await search_service.search(["query1", "query2"], 10)
 
             # Should normalize multiple queries into single string
             assert result["query"] == "query1 query2"
@@ -157,7 +157,7 @@ class TestTikTokMultiStepSearchService:
                 patch.object(search_service, '_execute_browser_search', AsyncMock(return_value=sample_html)), \
                 patch.object(search_service, '_cleanup_user_data', AsyncMock()):
 
-            result = await search_service.search("sample query", 5, "RELEVANCE", "ALL")
+            result = await search_service.search("sample query", 5)
 
         assert result["results"], "Expected parsed results from sample HTML"
         assert result["totalResults"] == len(result["results"])
