@@ -50,10 +50,10 @@ class TestTikTokSearchContract:
             json={"query": "contract", "force_headful": True, "strategy": "browser"},
         )
 
-        assert response.status_code == 400
+        assert response.status_code == 422
         payload = response.json()
-        assert payload["error"]["code"] == "INVALID_PARAMETER"
-        assert payload["error"]["field"] == "strategy"
+        assert "detail" in payload
+        assert any("strategy" in str(item).lower() for item in payload["detail"])
 
     def test_validation_error_contract(self, client):
         """Validation errors should bubble up as FastAPI-formatted details."""

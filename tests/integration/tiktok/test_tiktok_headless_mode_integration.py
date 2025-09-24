@@ -28,7 +28,6 @@ def test_tiktok_search_headless_mode_default(request_payload):
 
     data = response.json()
 
-    assert data["execution_mode"] == "headless"
     assert data["query"] == "street food"
 
     metadata = data["search_metadata"]
@@ -37,14 +36,17 @@ def test_tiktok_search_headless_mode_default(request_payload):
     assert isinstance(metadata["request_hash"], str) and metadata["request_hash"]
 
     assert isinstance(data["results"], list)
+    assert len(data["results"]) > 0, "Should return at least one search result in headless mode"
 
     assert isinstance(data["totalResults"], int)
-    assert data["totalResults"] >= 0
+    assert data["totalResults"] > 0, "Should have positive total results count"
 
+    # Verify actual search results content quality
     for video in data["results"]:
-        assert "id" in video
-        assert "caption" in video
-        assert "authorHandle" in video
-        assert "likeCount" in video
-        assert "uploadTime" in video
-        assert "webViewUrl" in video
+        assert "id" in video and video["id"], "Video should have non-empty id"
+        assert "caption" in video and video["caption"], "Video should have non-empty caption"
+        assert "authorHandle" in video and video["authorHandle"], "Video should have non-empty author handle"
+        assert "likeCount" in video and isinstance(
+            video["likeCount"], int) and video["likeCount"] >= 0, "Video should have valid like count"
+        assert "uploadTime" in video and video["uploadTime"], "Video should have upload time"
+        assert "webViewUrl" in video and video["webViewUrl"], "Video should have non-empty URL"

@@ -14,7 +14,6 @@ class TestTikTokSearchContract:
     @pytest.mark.integration
     def test_endpoint_exists_and_responds(self, api_client):
         """Test that the TikTok search endpoint exists and responds to basic requests."""
-        # This test should fail initially as endpoint needs implementation
         response = api_client.post("/tiktok/search", json={
             "query": "test",
             "force_headful": False

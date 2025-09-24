@@ -24,18 +24,6 @@ class TestForceHeadfulValidation:
         request = TikTokSearchRequest(query="test query")
         assert request.force_headful is False
 
-    def test_force_headful_with_optional_params(self):
-        """Optional parameters should coexist with force_headful."""
-        # This test is now invalid as limit and offset have been removed from the schema.
-        # The schema now only allows the fields specified by the user.
-        pass
-
-    def test_force_headful_with_search_url(self):
-        """search_url should remain optional alongside force_headful."""
-        # This test is now invalid as search_url has been removed from the schema.
-        # The schema now only allows the fields specified by the user.
-        pass
-
     def test_extra_fields_are_captured(self):
         """Extra fields should be rejected with a ValidationError."""
         with pytest.raises(ValidationError) as exc_info:
