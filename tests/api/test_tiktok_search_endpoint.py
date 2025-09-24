@@ -106,7 +106,7 @@ class TestTikTokSearchEndpoint:
         detail = response.json()["detail"]
         assert any("unexpected" in item.get("loc", [""])[-1] for item in detail)
 
-    def test_missing_force_headful_fails_validation(self, client):
+    def test_missing_force_headful_defaults_to_headless_and_respects_num_videos_limit(self, client):
         """Missing force_headful defaults to False and uses headless path."""
         response = client.post("/tiktok/search", json={"query": "test"})
 

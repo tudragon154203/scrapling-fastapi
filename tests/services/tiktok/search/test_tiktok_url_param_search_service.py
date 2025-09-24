@@ -212,7 +212,7 @@ class TestTikTokURLParamSearchService:
         service.settings = Mock()
         search_service = TikTokURLParamSearchService(service)
 
-        result = search_service._validate_request(["  foo  ", "bar"], sort_type="RELEVANCE")
+        result = search_service._validate_request(["  foo  ", "bar"])
 
         assert result == ["foo", "bar"]
 
@@ -223,10 +223,11 @@ class TestTikTokURLParamSearchService:
         service.settings = Mock()
         search_service = TikTokURLParamSearchService(service)
 
-        result = search_service._validate_request("query", sort_type="TRENDING")
+        result = search_service._validate_request("query")
 
-        assert isinstance(result, dict)
-        assert result["error"]["code"] == "VALIDATION_ERROR"
+        # Since sort_type validation was removed, this should now return a list
+        assert isinstance(result, list)
+        assert result == ["query"]
 
     async def test_prepare_context_builds_expected_components(self):
         """_prepare_context should assemble the fetch context without invoking real network calls."""
