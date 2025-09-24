@@ -66,7 +66,14 @@ class TestTikTokSearchIntegration:
             json={"query": "integration", "force_headful": True, "strategy": "legacy"},
         )
 
-        assert response.status_code == 400
+        assert response.status_code == 422
         data = response.json()
-        assert data["error"]["field"] == "strategy"
-        assert "not supported" in data["error"]["message"].lower()
+        # Standard Pydantic validation error format with detail array
+        assert "detail" in data
+        detail = data["detail"]
+        assert isinstance(detail, list)
+        # Find the strategy validation error
+        strategy_error = next((item for item in detail if "strategy" in item.get("loc", [])), None)
+        assert strategy_error is not None
+        assert "strategy" in strategy_error.get("loc", [])
+        assert "extra inputs are not permitted" in strategy_error.get("msg", "").lower()
