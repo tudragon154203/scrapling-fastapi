@@ -31,6 +31,7 @@ class TestTikTokSearchEndpoint:
         payload = {
             "query": "test",
             "force_headful": False,
+            "numVideos": 15,
         }
 
         response = client.post("/tiktok/search", json=payload)
@@ -40,7 +41,7 @@ class TestTikTokSearchEndpoint:
         assert mock_search.await_count == 1
         args, kwargs = mock_search.await_args
         assert kwargs["query"] == "test"
-        assert kwargs["num_videos"] == 20
+        assert kwargs["num_videos"] == 15
         assert kwargs["sort_type"] == "RELEVANCE"
         assert kwargs["recency_days"] == "ALL"
         assert data["execution_mode"] == "headless"
@@ -110,7 +111,7 @@ class TestTikTokSearchEndpoint:
 
     def test_missing_force_headful_fails_validation(self, client):
         """Missing force_headful defaults to False and uses headless path."""
-        response = client.post("/tiktok/search", json={"query": "test"})
+        response = client.post("/tiktok/search", json={"query": "test", "numVideos": 15})
 
         assert response.status_code == 200
         data = response.json()
@@ -133,7 +134,7 @@ class TestTikTokSearchEndpoint:
 
         response = client.post(
             "/tiktok/search",
-            json={"query": "test", "force_headful": False},
+            json={"query": "test", "force_headful": False, "numVideos": 15},
         )
 
         assert response.status_code == 409
@@ -152,7 +153,7 @@ class TestTikTokSearchEndpoint:
 
         response = client.post(
             "/tiktok/search",
-            json={"query": "test", "force_headful": False},
+            json={"query": "test", "force_headful": False, "numVideos": 15},
         )
 
         assert response.status_code == 429
