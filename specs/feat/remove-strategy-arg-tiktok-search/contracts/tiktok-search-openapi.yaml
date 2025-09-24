@@ -32,9 +32,30 @@ paths:
                 - force_headful
               properties:
                 query:
-                  type: string
+                  oneOf:
+                    - type: string
+                    - type: array
+                      items:
+                        type: string
                   description: Search query terms
-                  example: "funny cats"
+                  example: ["funny", "cats"]
+                numVideos:
+                  type: integer
+                  description: Maximum number of videos to retrieve (1-100, default 20)
+                  minimum: 1
+                  maximum: 100
+                  default: 20
+                  example: 25
+                sortType:
+                  type: string
+                  description: Sorting strategy (currently only RELEVANCE)
+                  enum: [RELEVANCE]
+                  default: RELEVANCE
+                recencyDays:
+                  type: string
+                  description: Recency filter applied to results
+                  enum: [ALL, 24H, 7_DAYS, 30_DAYS, 90_DAYS, 180_DAYS]
+                  default: ALL
                 force_headful:
                   type: boolean
                   description: Determines search method - True for browser-based search, False for headless URL param search
@@ -46,17 +67,15 @@ paths:
                   example: "https://www.tiktok.com/search/funny%20cats"
                 limit:
                   type: integer
-                  description: Maximum number of results to return (1-100, default: 20)
+                  description: Additional limit applied to normalized results (1-100, default 20)
                   minimum: 1
                   maximum: 100
                   default: 20
-                  example: 10
                 offset:
                   type: integer
-                  description: Result offset for pagination (default: 0)
+                  description: Pagination offset for normalized results (default 0)
                   minimum: 0
                   default: 0
-                  example: 0
               additionalProperties: false
       responses:
         '200':
@@ -67,45 +86,37 @@ paths:
                 type: object
                 required:
                   - results
-                  - total_count
+                  - totalResults
+                  - query
                   - search_metadata
+                  - execution_mode
                 properties:
                   results:
                     type: array
                     description: Array of TikTok content items
                     items:
                       $ref: '#/components/schemas/TikTokContentItem'
-                  total_count:
+                  totalResults:
                     type: integer
                     description: Total number of available results
                     example: 150
+                  query:
+                    type: string
+                    description: Normalized query string
+                    example: "funny cats"
                   search_metadata:
-                    type: object
-                    required:
-                      - executed_path
-                      - execution_time
-                      - request_hash
-                    properties:
-                      executed_path:
-                        type: string
-                        enum: [browser-based, headless]
-                        description: Method used for search execution
-                        example: "headless"
-                      execution_time:
-                        type: number
-                        format: float
-                        description: Time taken for search execution in seconds
-                        example: 2.5
-                      request_hash:
-                        type: string
-                        description: Unique identifier for this request
-                        example: "abc123def456"
+                    $ref: '#/components/schemas/TikTokSearchMetadata'
+                  execution_mode:
+                    type: string
+                    description: Browser execution mode used for this search (deprecated - use search_metadata.executed_path)
+                    example: "headless"
+                    deprecated: true
         '400':
           description: Bad request - invalid parameters
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
         '422':
           description: Validation error
           content:
@@ -122,7 +133,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
 
 components:
   schemas:
@@ -130,62 +141,70 @@ components:
       type: object
       required:
         - id
-        - title
-        - url
-        - author
-        - thumbnail_url
+        - caption
+        - authorHandle
+        - likeCount
+        - uploadTime
+        - webViewUrl
       properties:
         id:
           type: string
           description: Unique TikTok content ID
           example: "7123456789012345678"
-        title:
+        caption:
           type: string
-          description: Content title
+          description: Video caption text
           example: "Funny cat compilation"
-        url:
+        authorHandle:
           type: string
-          format: uri
-          description: Direct URL to the TikTok content
-          example: "https://www.tiktok.com/@example/video/7123456789012345678"
-        author:
-          type: string
-          description: Content author username
-          example: "@catlover"
-        thumbnail_url:
-          type: string
-          format: uri
-          description: URL to thumbnail image
-          example: "https://example.com/thumbnail.jpg"
-        likes:
+          description: Content author username without the leading @
+          example: "catlover"
+        likeCount:
           type: integer
           description: Number of likes
           example: 1000
-        comments:
-          type: integer
-          description: Number of comments
-          example: 50
-        shares:
-          type: integer
-          description: Number of shares
-          example: 25
-        duration:
-          type: integer
-          description: Content duration in seconds
-          example: 30
-        created_at:
+        uploadTime:
           type: string
-          format: date-time
-          description: Content creation timestamp
+          description: Content upload timestamp
           example: "2025-01-01T12:00:00Z"
-
-    Error:
+        webViewUrl:
+          type: string
+          format: uri
+          description: Direct URL to the TikTok content
+          example: "https://www.tiktok.com/@catlover/video/7123456789012345678"
+        thumbnailUrl:
+          type: string
+          format: uri
+          description: Optional thumbnail URL
+          example: "https://example.com/thumbnail.jpg"
+    TikTokSearchMetadata:
       type: object
       required:
-        - error
+        - executed_path
+        - execution_time
+        - request_hash
+      properties:
+        executed_path:
+          type: string
+          enum: [browser-based, headless]
+          description: Method used for search execution
+          example: "headless"
+        execution_time:
+          type: number
+          format: float
+          description: Time taken for search execution in seconds
+          example: 2.5
+        request_hash:
+          type: string
+          description: Unique identifier for this request
+          example: "abc123def456"
+    ErrorDetail:
+      type: object
+      required:
+        - code
         - message
       properties:
-        error:
+        code:
           type: string
           description: Error type identifier
           example: "INVALID_PARAMETER"
@@ -202,7 +221,13 @@ components:
           description: Additional error context
           example:
             accepted_values: ["force_headful"]
-
+    ErrorEnvelope:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorDetail'
     ValidationError:
       type: object
       required:
@@ -228,3 +253,4 @@ components:
 tags:
   - name: TikTok Search
     description: TikTok content search functionality
+

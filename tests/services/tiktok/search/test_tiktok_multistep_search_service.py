@@ -307,7 +307,13 @@ class TestTikTokMultiStepSearchService:
         sample_response = {
             "results": [],
             "totalResults": 0,
-            "query": "test query"
+            "query": "test query",
+            "search_metadata": {
+                "executed_path": "headless",
+                "execution_time": 0.0,
+                "request_hash": "dummy",
+            },
+            "execution_mode": "headless",
         }
 
         # Should validate successfully against the schema
@@ -315,3 +321,4 @@ class TestTikTokMultiStepSearchService:
         assert validated.results == []
         assert validated.totalResults == 0
         assert validated.query == "test query"
+        assert validated.search_metadata.executed_path == "headless"

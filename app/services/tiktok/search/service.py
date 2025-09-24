@@ -21,13 +21,11 @@ class TikTokSearchService(TikTokSearchInterface):
 
     def __init__(
         self,
-        strategy: str = "multistep",
         force_headful: bool = False,
     ) -> None:
         from app.core.config import get_settings
         self.settings = get_settings()
         self.logger = logging.getLogger(__name__)
-        self.strategy = strategy
         self._force_headful = force_headful
 
     async def search(
@@ -74,8 +72,11 @@ class TikTokSearchService(TikTokSearchInterface):
             return {"error": f"Search failed: {exc}"}
 
     def _build_search_implementation(self) -> TikTokSearchInterface:
-        """Instantiate the configured search implementation."""
-        if self.strategy == "direct":
+        """Instantiate the configured search implementation based on force_headful parameter."""
+        # Use force_headful to determine the search implementation
+        # True = browser-based search (multistep)
+        # False = headless search (url param)
+        if not self._force_headful:
             return TikTokURLParamSearchService()
 
         user_data_dir = getattr(self.settings, "camoufox_user_data_dir", None)

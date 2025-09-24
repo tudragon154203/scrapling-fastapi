@@ -6,7 +6,11 @@ search capabilities. Both endpoints are grouped under the same documentation
 section to keep the generated OpenAPI docs concise.
 """
 
-from fastapi import APIRouter, status, Request
+import hashlib
+import json
+import time
+
+from fastapi import APIRouter, status, Request, HTTPException
 from fastapi.responses import JSONResponse
 from app.schemas.tiktok.models import TikTokVideo
 from app.schemas.tiktok.search import TikTokSearchRequest, TikTokSearchResponse
@@ -66,28 +70,49 @@ async def create_tiktok_session_endpoint(request: Request):
 @router.post("/tiktok/search", response_model=TikTokSearchResponse, tags=["Tiktok"])
 async def tiktok_search_endpoint(payload: TikTokSearchRequest):
     """Handle the Tiktok search workflow by delegating to the service layer."""
-    # Determine browser mode based on force_headful parameter
+    extra_fields = []
+    if hasattr(payload, "model_extra") and payload.model_extra:
+        extra_fields = sorted(str(name) for name in payload.model_extra.keys())
+
+    if extra_fields:
+        if "strategy" in extra_fields:
+            error_payload = {
+                "code": "INVALID_PARAMETER",
+                "message": "The strategy parameter is not supported. Please use the force_headful parameter instead.",
+                "field": "strategy",
+                "details": {"accepted_values": ["force_headful"]},
+            }
+            return JSONResponse(content={"error": error_payload}, status_code=status.HTTP_400_BAD_REQUEST)
+
+        field_label = ", ".join(extra_fields)
+        error_payload = {
+            "code": "INVALID_PARAMETER",
+            "message": f"Unknown parameter(s) provided: {', '.join(extra_fields)}",
+            "field": field_label,
+            "details": {
+                "accepted_parameters": sorted(payload.model_fields.keys()),
+            },
+        }
+        return JSONResponse(content={"error": error_payload}, status_code=status.HTTP_400_BAD_REQUEST)
+
     browser_mode = BrowserModeService.determine_mode(payload.force_headful)
 
-    # Log the force_headful parameter and determined mode for debugging
-    print(f"DEBUG: force_headful={payload.force_headful}, browser_mode={browser_mode.value}")
-
-    search_service = TikTokSearchService(strategy=payload.strategy, force_headful=payload.force_headful)
+    search_service = TikTokSearchService(force_headful=payload.force_headful)
     sort_type_param = payload.sortType
     recency_days_param = payload.recencyDays
 
+    start_time = time.perf_counter()
     result = await search_service.search(
         query=payload.query,
         num_videos=payload.numVideos,
         sort_type=sort_type_param,
         recency_days=recency_days_param,
     )
+    execution_time = time.perf_counter() - start_time
 
     if "error" in result:
         err = result["error"] or {}
-        # Handle both string error messages and structured error objects
         if isinstance(err, str):
-            # Convert string error to structured error format
             code = "SCRAPE_FAILED"
             lower_err = err.lower()
             if "not logged" in lower_err or "session" in lower_err:
@@ -152,10 +177,25 @@ async def tiktok_search_endpoint(payload: TikTokSearchRequest):
     else:
         normalized_query = str(payload.query)
 
-    response_payload = TikTokSearchResponse(
-        results=normalized_results,
-        totalResults=total_results,
-        query=normalized_query,
-        execution_mode=browser_mode.value,
-    )
-    return response_payload
+    request_hash = hashlib.md5(json.dumps(payload.model_dump(mode="json"), sort_keys=True).encode()).hexdigest()
+
+    response_data = {
+        "results": normalized_results,
+        "totalResults": total_results,
+        "query": normalized_query,
+        "execution_mode": browser_mode.value,
+        "search_metadata": {
+            "executed_path": "browser-based" if browser_mode.value == "headful" else "headless",
+            "execution_time": execution_time,
+            "request_hash": request_hash,
+        },
+    }
+
+    try:
+        response_payload = TikTokSearchResponse(**response_data)
+        return response_payload
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create valid response: {exc}",
+        )

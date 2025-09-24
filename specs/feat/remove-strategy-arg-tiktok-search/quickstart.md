@@ -13,7 +13,7 @@ This guide helps you quickly understand and test the updated TikTok search funct
 {
   "query": "funny cats",
   "strategy": "browser", // or "headless", "auto"
-  "limit": 10
+  "numVideos": 10
 }
 ```
 
@@ -77,11 +77,10 @@ curl -X POST "http://localhost:5681/tiktok/search" \
 | strategy: "auto" | Use force_headful explicitly | Simplified decision logic |
 
 ### Force Headful Acceptable Values
-The API accepts multiple boolean representations:
-- `true`, `false` (recommended)
-- `"true"`, `"false"` (case-insensitive)
-- `"TRUE"`, `"FALSE"`
-- `1`, `0`
+The API accepts boolean values and common coercions:
+- `true` / `false` (JSON booleans)
+- "true" / "false" (case-insensitive strings)
+- `1` / `0` (numeric toggles)
 
 ### Error Responses
 - **Strategy field errors**: 400 Bad Request with message "The strategy parameter is not supported"
@@ -98,7 +97,7 @@ Replace old strategy parameter with force_headful boolean:
 data = {
     "query": "search term",
     "strategy": "browser",
-    "limit": 10
+    "numVideos": 10
 }
 
 # NEW
@@ -129,7 +128,7 @@ Update any API documentation to:
 **Fix**: Remove any `strategy` parameters from your requests
 
 **Error**: Invalid force_headful value
-**Fix**: Use boolean values only (true/false, "true"/"false", 1/0)
+**Fix**: Use boolean values only (true/false)
 
 **Response**: No `executed_path` field
 **Fix**: Check for missing required fields (query, force_headful)
@@ -187,3 +186,4 @@ If you encounter issues:
 ---
 
 **Remember**: The strategy parameter has been completely removed. Only use `force_headful` with boolean values for search method selection.
+
