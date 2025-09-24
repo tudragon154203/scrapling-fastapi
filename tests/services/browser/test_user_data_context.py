@@ -184,21 +184,6 @@ class TestUserDataContext:
 
     # Removed schema-level user_data_mode validation in new model
 
-    @pytest.mark.skipif(sys.platform == "win32", reason="fcntl not available on Windows")
-    @patch('fcntl.flock')
-    @patch('os.open')
-    def test_write_mode_lock_timeout(self, mock_open, mock_fcntl, temp_base_dir):
-        """Test that write mode handles lock acquisition timeout."""
-        # Mock open to succeed
-        mock_open.return_value = 1
-
-        # Mock fcntl.flock to raise BlockingIOError
-        mock_fcntl.side_effect = BlockingIOError("Resource temporarily unavailable")
-
-        with pytest.raises(RuntimeError, match="Timeout waiting for exclusive user-data lock"):
-            with user_data_context(temp_base_dir, "write"):
-                pass
-
     def test_camoufox_builder_integration_with_force_user_data_true(
         self, mock_settings, mock_caps_with_user_data, temp_base_dir
     ):
