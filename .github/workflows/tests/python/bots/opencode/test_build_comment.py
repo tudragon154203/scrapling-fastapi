@@ -13,13 +13,6 @@ from build_comment import (
     format_comment,
 )
 
-
-@pytest.fixture(autouse=True)
-def no_stderr_env(monkeypatch):
-    """Ensure INCLUDE_OPENCODE_STDERR is not set to include debug stderr."""
-    monkeypatch.setenv("INCLUDE_OPENCODE_STDERR", "0")
-
-
 class TestFilterToLatestReview:
     @pytest.mark.parametrize(
         "raw, expected",
@@ -265,13 +258,12 @@ High."""
         assert "Model:" not in comment
         assert "Exit code:" not in comment
 
-    def test_with_stderr(self, monkeypatch: pytest.MonkeyPatch):
+    def test_with_stderr(self):
         metadata: Dict[str, Any] = {"model": "gpt-4"}
         stdout = "**Findings:** Test."
         stderr = "Some error message."
         exit_code = 0
 
-        monkeypatch.setenv("INCLUDE_OPENCODE_STDERR", "1")
         comment = format_comment(metadata, stdout, stderr, exit_code)
 
         assert "**Findings:**" in comment
@@ -291,14 +283,13 @@ High."""
         assert "#### Troubleshooting the opencode CLI" in comment
         assert "- Expand the **Run opencode CLI** step" in comment
 
-    def test_no_unwanted_elements(self, monkeypatch: pytest.MonkeyPatch):
+    def test_no_unwanted_elements(self):
         # Test cleaning: ANSI, control chars, thinking blocks, tool uses, errors
         metadata: Dict[str, Any] = {"model": "gpt-4"}
         stdout = "\x1B[31mRed text\x1B[0m\nThinking: <thinking>stuff</thinking>\n<Tool use> call </Tool>\nError: boom\n**Findings:** Clean."
         stderr = "stderr with \r\n carriage."
         exit_code = 0
 
-        monkeypatch.setenv("INCLUDE_OPENCODE_STDERR", "1")
         comment = format_comment(metadata, stdout, stderr, exit_code)
 
         # Should clean ANSI, control, but extract review
