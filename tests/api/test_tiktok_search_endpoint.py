@@ -1,9 +1,6 @@
 """API tests for the TikTok search endpoint."""
 
 from unittest.mock import AsyncMock, patch
-
-import pytest
-
 from app.schemas.tiktok.search import TikTokSearchResponse
 
 

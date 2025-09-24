@@ -15,8 +15,8 @@ client = TestClient(app)
 @pytest.mark.parametrize(
     "request_payload",
     [
-        {"query": "street food", "numVideos": 3},
         {"query": "street food", "force_headful": False, "numVideos": 3},
+        {"query": "street food", "force_headful": "false", "numVideos": 3},
     ],
 )
 def test_tiktok_search_headless_mode_default(request_payload):
@@ -31,11 +31,14 @@ def test_tiktok_search_headless_mode_default(request_payload):
     assert data["execution_mode"] == "headless"
     assert data["query"] == "street food"
 
+    metadata = data["search_metadata"]
+    assert metadata["executed_path"] == "headless"
+    assert metadata["execution_time"] >= 0
+    assert isinstance(metadata["request_hash"], str) and metadata["request_hash"]
+
     assert isinstance(data["results"], list)
 
     assert isinstance(data["totalResults"], int)
-    # TODO: tighten this assertion to require positive results once the scraper
-    # reliably captures TikTok HTML in CI.
     assert data["totalResults"] >= 0
 
     for video in data["results"]:
