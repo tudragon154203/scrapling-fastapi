@@ -29,7 +29,7 @@ class TikTokSearchRequest(BaseModel):
         description="Recency filter for results (best-effort)",
     )
     force_headful: bool = Field(
-        ...,
+        default=False,
         description="Determines search method - True for browser-based search, False for headless URL param search",
     )
 

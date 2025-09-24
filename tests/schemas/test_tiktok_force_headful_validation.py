@@ -20,10 +20,9 @@ class TestForceHeadfulValidation:
         assert request.force_headful is False
 
     def test_force_headful_missing(self):
-        """Missing force_headful should raise a validation error."""
-        with pytest.raises(ValidationError) as exc_info:
-            TikTokSearchRequest(query="test query")
-        assert "force_headful" in str(exc_info.value)
+        """Missing force_headful should default to False."""
+        request = TikTokSearchRequest(query="test query")
+        assert request.force_headful is False
 
     def test_force_headful_with_optional_params(self):
         """Optional parameters should coexist with force_headful."""

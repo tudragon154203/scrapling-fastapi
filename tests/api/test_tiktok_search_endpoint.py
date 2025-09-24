@@ -109,12 +109,13 @@ class TestTikTokSearchEndpoint:
         assert any("unexpected" in item.get("loc", [""])[-1] for item in detail)
 
     def test_missing_force_headful_fails_validation(self, client):
-        """force_headful remains a required field."""
+        """Missing force_headful defaults to False and uses headless path."""
         response = client.post("/tiktok/search", json={"query": "test"})
 
-        assert response.status_code == 422
-        detail = response.json()["detail"]
-        assert any(item.get("loc", ["", ""])[-1] == "force_headful" for item in detail)
+        assert response.status_code == 200
+        data = response.json()
+        assert data["execution_mode"] == "headless"
+        assert data["search_metadata"]["executed_path"] == "headless"
 
     def test_invalid_force_headful_value(self, client):
         """Values outside the accepted coercions should raise validation errors."""
