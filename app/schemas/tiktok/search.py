@@ -32,21 +32,6 @@ class TikTokSearchRequest(BaseModel):
         ...,
         description="Determines search method - True for browser-based search, False for headless URL param search",
     )
-    search_url: Optional[str] = Field(
-        None,
-        description="Direct search URL (used when force_headful=False)",
-    )
-    limit: Optional[int] = Field(
-        20,
-        ge=1,
-        le=100,
-        description="Maximum number of results to return (1-100, default: 20)",
-    )
-    offset: Optional[int] = Field(
-        0,
-        ge=0,
-        description="Result offset for pagination (default: 0)",
-    )
 
     @model_validator(mode='after')
     def validate_query(self):
@@ -66,7 +51,7 @@ class TikTokSearchRequest(BaseModel):
                 raise ValueError('Query string must be 100 characters or less')
         return self
 
-    model_config = ConfigDict(extra='allow')
+    model_config = ConfigDict(extra='forbid')
 
 
 class SearchMetadata(BaseModel):

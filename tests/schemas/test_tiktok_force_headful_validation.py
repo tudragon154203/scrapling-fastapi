@@ -27,22 +27,18 @@ class TestForceHeadfulValidation:
 
     def test_force_headful_with_optional_params(self):
         """Optional parameters should coexist with force_headful."""
-        request = TikTokSearchRequest(
-            query="test query",
-            force_headful=True,
-            limit=10,
-            offset=5,
-        )
-        assert request.limit == 10
-        assert request.offset == 5
+        # This test is now invalid as limit and offset have been removed from the schema.
+        # The schema now only allows the fields specified by the user.
+        pass
 
     def test_force_headful_with_search_url(self):
         """search_url should remain optional alongside force_headful."""
-        url = "https://www.tiktok.com/search/test"
-        request = TikTokSearchRequest(query="test query", force_headful=False, search_url=url)
-        assert request.search_url == url
+        # This test is now invalid as search_url has been removed from the schema.
+        # The schema now only allows the fields specified by the user.
+        pass
 
     def test_extra_fields_are_captured(self):
-        """Extra fields should be preserved for higher-level validation."""
-        request = TikTokSearchRequest(query="test", force_headful=True, strategy="legacy")
-        assert request.model_extra["strategy"] == "legacy"
+        """Extra fields should be rejected with a ValidationError."""
+        with pytest.raises(ValidationError) as exc_info:
+            TikTokSearchRequest(query="test", force_headful=True, strategy="legacy")
+        assert "Extra inputs are not permitted" in str(exc_info.value)

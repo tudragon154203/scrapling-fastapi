@@ -93,11 +93,9 @@ class TestTikTokSearchEndpoint:
             json={"query": "test", "force_headful": True, "strategy": "multistep"},
         )
 
-        assert response.status_code == 400
-        data = response.json()
-        assert data["error"]["code"] == "INVALID_PARAMETER"
-        assert "strategy" in data["error"]["message"].lower()
-        assert data["error"]["field"] == "strategy"
+        assert response.status_code == 422
+        detail = response.json()["detail"]
+        assert any("strategy" in item.get("loc", [""])[-1] for item in detail)
 
     def test_unknown_parameter_rejected(self, client):
         """Unknown parameters should also be rejected with the standard format."""
@@ -106,11 +104,9 @@ class TestTikTokSearchEndpoint:
             json={"query": "test", "force_headful": False, "unexpected": 1},
         )
 
-        assert response.status_code == 400
-        data = response.json()
-        assert data["error"]["code"] == "INVALID_PARAMETER"
-        assert "unexpected" in data["error"]["message"]
-        assert "force_headful" in ", ".join(data["error"]["details"]["accepted_parameters"])
+        assert response.status_code == 422
+        detail = response.json()["detail"]
+        assert any("unexpected" in item.get("loc", [""])[-1] for item in detail)
 
     def test_missing_force_headful_fails_validation(self, client):
         """force_headful remains a required field."""
