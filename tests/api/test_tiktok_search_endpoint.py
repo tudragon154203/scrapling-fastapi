@@ -31,7 +31,7 @@ class TestTikTokSearchEndpoint:
         payload = {
             "query": "test",
             "force_headful": False,
-            "numVideos": 15,
+            "numVideos": 10,
         }
 
         response = client.post("/tiktok/search", json=payload)
