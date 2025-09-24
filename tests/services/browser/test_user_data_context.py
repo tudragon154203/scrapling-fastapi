@@ -1,11 +1,10 @@
 import os
 import shutil
-import sys
 import tempfile
 from pathlib import Path
 
 import pytest
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 from app.services.common.browser import user_data as user_data_module
 from app.services.common.browser.user_data import user_data_context
