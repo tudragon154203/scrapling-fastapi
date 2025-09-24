@@ -47,7 +47,11 @@
 ## Constitution Check
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-[Gates determined based on constitution file]
+* Layered Architecture: Services organized by domain specificity (browser, common, crawler, tiktok)
+* Schema Consistency: New schemas MUST refer to existing patterns in app/schemas/*.py to prevent drift
+* TDD Compliance: All implementation tests written before code (Red-Green-Refactor)
+* FastAPI Integration: Pydantic 2.9 validation, Python 3.10+ compatibility
+* Environment Configuration: All settings via .env files with Pydantic-settings
 
 ## Project Structure
 
@@ -209,4 +213,4 @@ ios/ or android/
 - [ ] Complexity deviations documented
 
 ---
-*Based on Constitution v2.1.1 - See `/memory/constitution.md`*
+*Based on Constitution v1.4.2 - See `/memory/constitution.md`*

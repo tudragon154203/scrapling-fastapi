@@ -12,6 +12,7 @@
    → data-model.md: Extract entities → model tasks
    → contracts/: Each file → contract test task
    → research.md: Extract decisions → setup tasks
+   → Existing schemas (app/schemas/*.py): Analyze patterns → schema consistency task
 3. Generate tasks by category:
    → Setup: project init, dependencies, linting
    → Tests: contract tests, integration tests
@@ -75,6 +76,7 @@
 - [ ] T021 [P] Update docs/api.md
 - [ ] T022 Remove duplication
 - [ ] T023 Run manual-testing.md
+- [ ] T024 Schema validation against existing patterns in app/schemas/*.py
 
 ## Dependencies
 - Tests (T004-T007) before implementation (T008-T014)
@@ -103,16 +105,20 @@ Task: "Integration test auth in tests/integration/test_auth.py"
 1. **From Contracts**:
    - Each contract file → contract test task [P]
    - Each endpoint → implementation task
-   
+
 2. **From Data Model**:
    - Each entity → model creation task [P]
    - Relationships → service layer tasks
-   
-3. **From User Stories**:
+
+3. **From Existing Schemas** (NEW):
+   - Analysis of app/schemas/*.py → schema consistency task [P]
+   - Pattern matching for new schemas → validation task
+
+4. **From User Stories**:
    - Each story → integration test [P]
    - Quickstart scenarios → validation tasks
 
-4. **Ordering**:
+5. **Ordering**:
    - Setup → Tests → Models → Services → Endpoints → Polish
    - Dependencies block parallel execution
 

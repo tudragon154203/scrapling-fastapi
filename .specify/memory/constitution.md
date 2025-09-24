@@ -1,8 +1,8 @@
-<!-- 
+<!--
 Sync Impact Report:
-- Version change: 1.4.0 → 1.4.1 (PATCH - updated spec-related code location from .specify/src/ to specify_src/)
-- Modified principles: Spec-Driven Code Location
-- No added/removed sections
+- Version change: 1.4.1 → 1.4.2 (MINOR - added Schema Consistency principle)
+- Added sections: Schema Consistency principle
+- Removed sections: None
 - Templates requiring updates: ✅ .specify/templates/plan-template.md, ✅ .specify/templates/tasks-template.md
 - No follow-up TODOs - all requirements specified
 -->
@@ -14,7 +14,7 @@ Sync Impact Report:
 ### I. Layered Architecture
 Every feature must follow the layered architecture principle (API/Core/Middleware/Schemas/Services). Services must be organized by domain specificity (browser, common, crawler, tiktok). Clear separation of concerns required - no mixing of layers.
 
-### II. FastAPI-First Design  
+### II. FastAPI-First Design
 Use FastAPI as the primary web framework with automatic OpenAPI documentation. Target environment: Python 3.10.8 on Windows. Leverage Pydantic 2.9 for data validation with Python 3.13 compatibility. Implement type hints throughout the application. Support both development and production deployment patterns.
 
 ### III. Test-Driven Development (NON-NEGOTIABLE)
@@ -29,6 +29,9 @@ All configuration through environment variables (.env files). Pydantic-settings 
 ### VI. Spec-Driven Code Location
 Spec-related code, including the main source code folder (`specify_src/`), MUST be located within the project root directory. It MUST NOT be placed within the `.specify/` directory.
 
+### VII. Schema Consistency (API Contracts)
+All new schemas MUST refer to existing API schemas to prevent drift from established patterns. Request and response models MUST follow conventions from app/schemas/*.py files. Use existing field naming, validation patterns, and response structures. Divergences MUST be justified and documented.
+
 ## Security & Anti-Detection Requirements
 
 Browser fingerprinting integration (BrowserForge). User session persistence and management. Proxy support for distributed crawling. Rate limiting and bot detection avoidance measures. GDPR compliance considerations for data processing.
@@ -41,4 +44,4 @@ All PRs must include test coverage and pass CI checks. Code review required for 
 
 Constitution is the supreme governance document. All code must comply with layered architecture principles. Amendments require documentation and migration planning. Versioning follows semantic versioning with impact assessment. Use GEMINI.md as runtime development guidance reference.
 
-**Version**: 1.4.1 | **Ratified**: 2025-09-21 | **Last Amended**: 2025-09-22
+**Version**: 1.4.2 | **Ratified**: 2025-09-21 | **Last Amended**: 2025-09-24
