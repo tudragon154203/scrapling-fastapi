@@ -39,6 +39,7 @@ Use pm2 to manage the application in production. On Windows, prefer the ecosyste
 Option A — ecosystem file (recommended on Windows)
 
 - The repo includes `ecosystem.config.js` configured to launch uvicorn.
+- The config auto-detects a pyenv-provided Python 3.10.8 interpreter and will fall back to other 3.10.x installs when needed.
 - Start: `pm2 start ecosystem.config.js --only scrapling-api`
 - Logs: `pm2 logs scrapling-api`
 - Restart/Stop: `pm2 restart scrapling-api` / `pm2 stop scrapling-api`
