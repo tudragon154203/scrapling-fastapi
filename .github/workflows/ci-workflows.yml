@@ -1,4 +1,4 @@
-name: '🧪 CI - Workflows'
+name: "🧪 CI - Workflows"
 
 on:
   push:
@@ -15,7 +15,7 @@ concurrency:
 jobs:
   lint:
     name: Lint workflows
-    runs-on: ubuntu-22.04
+    runs-on: ${{ vars.OS || 'ubuntu-latest' }}
     permissions:
       contents: read
       checks: write
@@ -32,7 +32,7 @@ jobs:
 
   tests:
     name: Workflow tests
-    runs-on: ubuntu-22.04
+    runs-on: ${{ vars.OS || 'ubuntu-latest' }}
     permissions:
       contents: read
     steps:

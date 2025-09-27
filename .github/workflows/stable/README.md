@@ -146,7 +146,7 @@ Use v1.1 when you need the richer automation shipped after v1. Key upgrades incl
 - **Workflow coverage**: v1.1 bundles fresh `ci-pull-request.yml` and `ci-push.yml` entry points, refreshes `ci-workflows.yml`, and adds authored docs under `docs/` for agent-selection, API key rotation, and emoji conventions.
 - **Opencode agent overhaul**: v1.1 introduces a Python prompt builder, CLI runner wrappers, comment formatter, and cross-platform launchers under `scripts/bots/opencode/`; v1 only shipped installer/runner shell scripts.
 - **Quality checks**: v1.1 ships Jest/pytest suites in `tests/` (JavaScript emoji helpers and prompt generators, Python dispatchers/key rotators/opencode formatters, CLI integration harness stubs) that were absent from v1.
-- v.1.2: improve build_comment of opencode
+- **v.1.2**: improve build_comment of opencode + add .github\workflows\ci-workflows.yml to zip
 
 ## Setup Instructions
 
