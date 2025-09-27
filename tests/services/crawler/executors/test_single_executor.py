@@ -19,10 +19,10 @@ def test_single_executor_uses_single_clone_and_cleans_up(monkeypatch):
 
     cleanup = MagicMock()
 
-    with patch.object(executor.options_resolver, 'resolve', return_value={}) as mock_resolve, \
+    with patch.object(executor.options_resolver, 'resolve', return_value={}), \
             patch.object(executor.fetch_client, 'detect_capabilities') as mock_caps, \
             patch.object(executor.camoufox_builder, 'build') as mock_build, \
-            patch.object(executor.arg_composer, 'compose', return_value={}) as mock_compose, \
+            patch.object(executor.arg_composer, 'compose', return_value={}), \
             patch.object(executor.fetch_client, 'fetch') as mock_fetch:
 
         caps = MagicMock()
@@ -48,10 +48,10 @@ def test_single_executor_cleanup_runs_on_exception(monkeypatch):
 
     cleanup = MagicMock()
 
-    with patch.object(executor.options_resolver, 'resolve', return_value={}) as mock_resolve, \
+    with patch.object(executor.options_resolver, 'resolve', return_value={}), \
             patch.object(executor.fetch_client, 'detect_capabilities') as mock_caps, \
             patch.object(executor.camoufox_builder, 'build') as mock_build, \
-            patch.object(executor.arg_composer, 'compose', return_value={}) as mock_compose, \
+            patch.object(executor.arg_composer, 'compose', return_value={}), \
             patch.object(executor.fetch_client, 'fetch') as mock_fetch:
 
         caps = MagicMock()
