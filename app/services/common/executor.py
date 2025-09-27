@@ -56,8 +56,7 @@ class AbstractBrowsingExecutor(ABC):
         user_data_path = Path(self.user_data_dir)
 
         if (
-            self.user_data_dir.startswith("./user_data/clones/")
-            or str(user_data_path).startswith(str(clones_root))
+            (str(user_data_path).startswith(str(clones_root)) and user_data_path != clones_root)
             or not user_data_path.exists()
         ):
             # Clone from master directory
