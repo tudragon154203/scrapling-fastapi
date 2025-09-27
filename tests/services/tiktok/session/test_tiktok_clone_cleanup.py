@@ -17,8 +17,10 @@ class TestTikTokCloneCleanup:
         """Test that clone directories are cleaned up after TikTok session"""
         # Create a temporary master directory
         with tempfile.TemporaryDirectory() as temp_dir:
-            master_dir = Path(temp_dir) / "master"
+            base_dir = Path(temp_dir)
+            master_dir = base_dir / "master"
             master_dir.mkdir()
+            clones_dir = base_dir / "clones"
 
             # Create some fake user data files
             (master_dir / "places.sqlite").touch()
@@ -26,7 +28,7 @@ class TestTikTokCloneCleanup:
 
             # Mock settings to use our temp directory
             mock_settings = MagicMock()
-            mock_settings.camoufox_user_data_dir = str(master_dir)
+            mock_settings.camoufox_user_data_dir = str(base_dir)
             mock_settings.tiktok_write_mode_enabled = False
             mock_settings.tiktok_login_detection_timeout = 8
             mock_settings.tiktok_max_session_duration = 300
@@ -46,7 +48,7 @@ class TestTikTokCloneCleanup:
             # Create TikTok executor
             config = TikTokSessionConfig(
                 user_data_master_dir=str(master_dir),
-                user_data_clones_dir=str(master_dir),
+                user_data_clones_dir=str(clones_dir),
                 write_mode_enabled=False,
                 acquire_lock_timeout=30,
                 login_detection_timeout=8,
@@ -69,7 +71,7 @@ class TestTikTokCloneCleanup:
                 cleanup_called = True
 
             mock_additional_args = {
-                'user_data_dir': str(master_dir),
+                'user_data_dir': str(clones_dir / 'session'),
                 '_user_data_cleanup': mock_cleanup
             }
 
@@ -99,12 +101,14 @@ class TestTikTokCloneCleanup:
         """Test that clone directories are cleaned up even when session fails"""
         # Create a temporary master directory
         with tempfile.TemporaryDirectory() as temp_dir:
-            master_dir = Path(temp_dir) / "master"
+            base_dir = Path(temp_dir)
+            master_dir = base_dir / "master"
             master_dir.mkdir()
+            clones_dir = base_dir / "clones"
 
             # Mock settings to use our temp directory
             mock_settings = MagicMock()
-            mock_settings.camoufox_user_data_dir = str(master_dir)
+            mock_settings.camoufox_user_data_dir = str(base_dir)
             mock_settings.tiktok_write_mode_enabled = False
             mock_settings.tiktok_login_detection_timeout = 8
             mock_settings.tiktok_max_session_duration = 300
@@ -122,7 +126,7 @@ class TestTikTokCloneCleanup:
             # Create TikTok executor
             config = TikTokSessionConfig(
                 user_data_master_dir=str(master_dir),
-                user_data_clones_dir=str(master_dir),
+                user_data_clones_dir=str(clones_dir),
                 write_mode_enabled=False,
                 acquire_lock_timeout=30,
                 login_detection_timeout=8,
@@ -145,7 +149,7 @@ class TestTikTokCloneCleanup:
                 cleanup_called = True
 
             mock_additional_args = {
-                'user_data_dir': str(master_dir),
+                'user_data_dir': str(clones_dir / 'session'),
                 '_user_data_cleanup': mock_cleanup
             }
 

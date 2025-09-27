@@ -44,14 +44,26 @@ class AbstractBrowsingExecutor(ABC):
             temp_dir = tempfile.mkdtemp(prefix="scrapling_")
             return temp_dir
 
-        # Check if it's a relative path that should be cloned
-        master_dir = Path(self.settings.camoufox_user_data_dir or "./user_data/master")
+        configured_dir = Path(self.settings.camoufox_user_data_dir or "./user_data")
+        if configured_dir.name == "master":
+            base_dir = configured_dir.parent
+            master_dir = configured_dir
+        else:
+            base_dir = configured_dir
+            master_dir = configured_dir / "master"
 
-        if self.user_data_dir.startswith("./user_data/clones/") or not Path(self.user_data_dir).exists():
+        clones_root = base_dir / "clones"
+        user_data_path = Path(self.user_data_dir)
+
+        if (
+            self.user_data_dir.startswith("./user_data/clones/")
+            or str(user_data_path).startswith(str(clones_root))
+            or not user_data_path.exists()
+        ):
             # Clone from master directory
-            return await self._clone_user_data_dir(master_dir, self.user_data_dir)
+            return await self._clone_user_data_dir(master_dir, str(user_data_path))
 
-        return self.user_data_dir
+        return str(user_data_path)
 
     async def _clone_user_data_dir(self, master_dir: Path, target_dir: str) -> str:
         """Clone master user data directory to target"""
