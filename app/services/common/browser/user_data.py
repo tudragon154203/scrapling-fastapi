@@ -122,15 +122,19 @@ def _read_mode_context(base_path: Path) -> Tuple[str, Callable[[], None]]:
         clone_dir.mkdir(parents=True, exist_ok=True)
         _copytree_recursive(master_dir, clone_dir)
         logger.debug(f"Created clone directory: {clone_dir}")
-        # Cleanup function: remove clone directory
 
         def cleanup():
-            try:
-                if clone_dir.exists():
-                    shutil.rmtree(clone_dir)
-                    logger.debug(f"Cleaned up clone directory: {clone_dir}")
-            except Exception as e:
-                logger.warning(f"Failed to cleanup clone directory: {e}")
+            max_retries = 5
+            for i in range(max_retries):
+                try:
+                    if clone_dir.exists():
+                        shutil.rmtree(clone_dir)
+                        logger.debug(f"Cleaned up clone directory: {clone_dir}")
+                        return
+                except Exception as e:
+                    logger.warning(f"Attempt {i + 1}/{max_retries} to cleanup clone directory {clone_dir} failed: {e}")
+                    time.sleep(0.5)  # Wait a bit before retrying
+            logger.error(f"Failed to cleanup clone directory {clone_dir} after {max_retries} attempts.")
         return str(clone_dir), cleanup
     except Exception as e:
         # Cleanup on error

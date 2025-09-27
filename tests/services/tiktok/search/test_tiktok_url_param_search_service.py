@@ -282,7 +282,7 @@ class TestTikTokURLParamSearchService:
         ) as sleep_mock:
             await search_service._cleanup_user_data(cleanup_callable)
 
-        sleep_mock.assert_awaited_once_with(3)
+        sleep_mock.assert_awaited_once_with(5)
         cleanup_callable.assert_called_once_with()
 
     async def test_fetch_html_uses_context_components(self, tmp_path):
