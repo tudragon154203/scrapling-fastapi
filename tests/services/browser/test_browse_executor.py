@@ -203,6 +203,70 @@ def test_browse_executor_sets_long_timeout():
         assert effective_kwargs['timeout'] > 10000
 
 
+def test_browse_executor_invokes_cleanup_once(monkeypatch):
+    from app.schemas.crawl import CrawlRequest
+
+    executor = BrowseExecutor()
+    settings = SimpleNamespace(default_timeout_ms=2000, private_proxy_url=None)
+    monkeypatch.setattr(
+        'app.services.browser.executors.browse_executor.app_config.get_settings',
+        lambda: settings,
+    )
+
+    cleanup = MagicMock()
+    request = CrawlRequest(url="https://example.com")
+
+    with patch.object(executor.options_resolver, 'resolve', return_value={}) as mock_resolve, \
+            patch.object(executor.fetch_client, 'detect_capabilities') as mock_caps, \
+            patch.object(executor.camoufox_builder, 'build') as mock_build, \
+            patch.object(executor.arg_composer, 'compose', return_value={}) as mock_compose, \
+            patch.object(executor.fetch_client, 'fetch') as mock_fetch:
+
+        caps = MagicMock()
+        caps.supports_proxy = False
+        mock_caps.return_value = caps
+        mock_build.return_value = ({'_user_data_cleanup': cleanup}, {})
+        mock_fetch.return_value = MagicMock()
+
+        result = executor.execute(request)
+
+    assert result.status == "success"
+    assert mock_build.call_count == 1
+    cleanup.assert_called_once()
+
+
+def test_browse_executor_cleanup_runs_on_error(monkeypatch):
+    from app.schemas.crawl import CrawlRequest
+
+    executor = BrowseExecutor()
+    settings = SimpleNamespace(default_timeout_ms=2000, private_proxy_url=None)
+    monkeypatch.setattr(
+        'app.services.browser.executors.browse_executor.app_config.get_settings',
+        lambda: settings,
+    )
+
+    cleanup = MagicMock()
+    request = CrawlRequest(url="https://example.com")
+
+    with patch.object(executor.options_resolver, 'resolve', return_value={}) as mock_resolve, \
+            patch.object(executor.fetch_client, 'detect_capabilities') as mock_caps, \
+            patch.object(executor.camoufox_builder, 'build') as mock_build, \
+            patch.object(executor.arg_composer, 'compose', return_value={}) as mock_compose, \
+            patch.object(executor.fetch_client, 'fetch') as mock_fetch:
+
+        caps = MagicMock()
+        caps.supports_proxy = True
+        mock_caps.return_value = caps
+        mock_build.return_value = ({'_user_data_cleanup': cleanup}, {})
+        mock_fetch.side_effect = Exception("NetworkError: Connection failed")
+
+        result = executor.execute(request)
+
+    assert result.status == "failure"
+    assert mock_build.call_count == 1
+    cleanup.assert_called_once()
+
+
 def test_browse_crawler_with_custom_engine():
     """Test that BrowseCrawler can accept a custom engine."""
     custom_engine = MagicMock()
