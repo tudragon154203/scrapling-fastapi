@@ -65,17 +65,18 @@ async def test_prepare_user_data_dir_without_initial_dir():
 
 @pytest.mark.asyncio
 async def test_prepare_user_data_dir_clones_from_master(tmp_path: Path):
-    master_dir = tmp_path / "master"
+    base_dir = tmp_path
+    master_dir = base_dir / "master"
     master_dir.mkdir()
     (master_dir / "config.json").write_text("configuration")
 
-    clone_dir = tmp_path / "clones" / "profile1"
+    clone_dir = base_dir / "clones" / "profile1"
     executor = DummyBrowsingExecutor(user_data_dir=str(clone_dir))
     settings = executor.settings
     original_dir = settings.camoufox_user_data_dir
 
     try:
-        settings.camoufox_user_data_dir = str(master_dir)
+        settings.camoufox_user_data_dir = str(base_dir)
 
         prepared_dir = await executor._prepare_user_data_dir()
 

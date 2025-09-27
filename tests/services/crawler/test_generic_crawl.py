@@ -1,3 +1,4 @@
+import os
 import sys
 import types
 
@@ -143,8 +144,9 @@ def test_user_data_with_supported_param(monkeypatch):
     from app.services.common.browser.camoufox import CamoufoxArgsBuilder
 
     def _fake_build(payload, settings, caps):
+        clone_dir = os.path.join(settings.camoufox_user_data_dir, "clones", "test_clone")
         return {
-            "user_data_dir": settings.camoufox_user_data_dir
+            "user_data_dir": clone_dir
         }, None
 
     monkeypatch.setattr(CamoufoxArgsBuilder, "build", staticmethod(_fake_build))
@@ -161,7 +163,8 @@ def test_user_data_with_supported_param(monkeypatch):
     # Check that user_data_dir was passed in additional_args
     kwargs = calls["kwargs"][0]
     assert "additional_args" in kwargs
-    assert kwargs["additional_args"]["user_data_dir"] == "/tmp/test_user_data"
+    expected_dir = os.path.join("/tmp/test_user_data", "clones", "test_clone")
+    assert kwargs["additional_args"]["user_data_dir"] == expected_dir
 
 
 def test_user_data_without_env_var(monkeypatch):

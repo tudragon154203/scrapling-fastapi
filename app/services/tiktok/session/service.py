@@ -7,6 +7,7 @@ from __future__ import annotations
 import logging
 import os
 import uuid
+from pathlib import Path
 from typing import Any, Dict, Optional
 
 from app.core.config import get_settings
@@ -203,7 +204,16 @@ class TiktokService:
 
     async def _load_tiktok_config(self, user_data_dir: Optional[str] = None) -> TikTokSessionConfig:
         """Load TikTok configuration from settings and optional overrides."""
-        base_user_data_dir = user_data_dir or self.settings.camoufox_user_data_dir or "./user_data"
+        raw_base_dir = Path(user_data_dir or self.settings.camoufox_user_data_dir or "./user_data")
+        if raw_base_dir.name == "master":
+            master_dir = raw_base_dir
+            clones_dir = raw_base_dir.parent / "clones"
+        elif raw_base_dir.name == "clones":
+            clones_dir = raw_base_dir
+            master_dir = raw_base_dir.parent / "master"
+        else:
+            master_dir = raw_base_dir / "master"
+            clones_dir = raw_base_dir / "clones"
         headless = bool(getattr(self.settings, "default_headless", True))
         try:
             current_test = os.environ.get("PYTEST_CURRENT_TEST", "")
@@ -214,8 +224,8 @@ class TiktokService:
             headless = bool(getattr(self.settings, "default_headless", True))
 
         return TikTokSessionConfig(
-            user_data_master_dir=base_user_data_dir,
-            user_data_clones_dir=base_user_data_dir,
+            user_data_master_dir=str(master_dir),
+            user_data_clones_dir=str(clones_dir),
             write_mode_enabled=self.settings.tiktok_write_mode_enabled,
             acquire_lock_timeout=30,
             login_detection_timeout=self.settings.tiktok_login_detection_timeout,

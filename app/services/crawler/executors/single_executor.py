@@ -25,10 +25,12 @@ class SingleAttemptExecutor(IExecutor):
         self.arg_composer = arg_composer or FetchArgComposer()
         self.camoufox_builder = camoufox_builder or CamoufoxArgsBuilder()
 
+    def _select_proxy(self, settings) -> Optional[str]:
+        """Return the proxy to use for the single attempt."""
+        return getattr(settings, "private_proxy_url", None) or None
+
     def execute(self, request: CrawlRequest, page_action: Optional[PageAction] = None) -> CrawlResponse:
         """Execute a single crawl attempt."""
-        settings = app_config.get_settings()
-
         # Ensure proper event loop policy on Windows for Playwright
         if sys.platform == "win32":
             try:
@@ -36,31 +38,24 @@ class SingleAttemptExecutor(IExecutor):
             except Exception:
                 pass
 
-        # Resolve options and potential lightweight headers early so we can fallback if needed
+        settings = app_config.get_settings()
         options = self.options_resolver.resolve(request, settings)
-        additional_args, extra_headers = self.camoufox_builder.build(request, settings, caps={})
-        # Capture optional user-data cleanup callback early
         user_data_cleanup = None
-        try:
-            user_data_cleanup = additional_args.get('_user_data_cleanup') if additional_args else None
-        except Exception:
-            user_data_cleanup = None
 
         try:
             caps = self.fetch_client.detect_capabilities()
             additional_args, extra_headers = self.camoufox_builder.build(request, settings, caps)
-            # Refresh cleanup callback in case caps-dependent build altered args
             try:
-                user_data_cleanup = additional_args.get('_user_data_cleanup') if additional_args else user_data_cleanup
+                user_data_cleanup = additional_args.get('_user_data_cleanup') if additional_args else None
             except Exception:
-                pass
+                user_data_cleanup = None
 
-            if not caps.supports_proxy:
+            if not getattr(caps, "supports_proxy", False):
                 logger.warning(
                     "StealthyFetcher.fetch does not support proxy parameter, continuing without proxy"
                 )
 
-            selected_proxy = getattr(settings, "private_proxy_url", None) or None
+            selected_proxy = self._select_proxy(settings)
 
             fetch_kwargs = self.arg_composer.compose(
                 options=options,
@@ -73,13 +68,6 @@ class SingleAttemptExecutor(IExecutor):
             )
 
             page = self.fetch_client.fetch(str(request.url), fetch_kwargs)
-
-            # Cleanup user data context after fetch if cleanup function was stored
-            if user_data_cleanup:
-                try:
-                    user_data_cleanup()
-                except Exception as e:
-                    logger.warning(f"Failed to cleanup user data context: {e}")
 
             status_code = getattr(page, "status", None)
             html = getattr(page, "html_content", None)
@@ -99,17 +87,24 @@ class SingleAttemptExecutor(IExecutor):
                 html=None,
                 message=f"HTTP status: {status_code if status_code is not None else 'unknown'}",
             )
+        except ImportError:
+            return CrawlResponse(
+                status="failure",
+                url=request.url,
+                html=None,
+                message="Scrapling library not available",
+            )
         except Exception as e:
-            if isinstance(e, ImportError):
-                return CrawlResponse(
-                    status="failure",
-                    url=request.url,
-                    html=None,
-                    message="Scrapling library not available",
-                )
             return CrawlResponse(
                 status="failure",
                 url=request.url,
                 html=None,
                 message=f"Exception during crawl: {type(e).__name__}: {e}",
             )
+        finally:
+            # Ensure clone directories or write-mode locks are released even on failure
+            if user_data_cleanup:
+                try:
+                    user_data_cleanup()
+                except Exception as cleanup_exc:
+                    logger.warning(f"Failed to cleanup user data context: {cleanup_exc}")

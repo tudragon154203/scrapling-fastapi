@@ -192,9 +192,19 @@ class AbstractTikTokSearchService(ABC, TikTokSearchInterface):
             return
         self.logger.debug("[TikTokSearchService] Calling user_data_cleanup function")
         try:
-            await asyncio.sleep(3)
+            # Give more time for processes to release file handles
+            await asyncio.sleep(5)  # Increased sleep time
             self._handle_cleanup([cleanup_callable])
-            self.logger.debug("[TikTokSearchService] User data cleanup completed successfully")
+
+            # Explicitly check if the directory still exists after cleanup
+            if cleanup_callable and hasattr(cleanup_callable, '__self__') and hasattr(cleanup_callable.__self__, 'clone_dir'):
+                clone_dir_path = cleanup_callable.__self__.clone_dir
+                if os.path.exists(clone_dir_path):
+                    self.logger.warning(f"[TikTokSearchService] Clone directory {clone_dir_path} still exists after cleanup attempt.")
+                else:
+                    self.logger.debug("[TikTokSearchService] User data cleanup completed successfully")
+            else:
+                self.logger.debug("[TikTokSearchService] User data cleanup completed successfully (path not available for verification)")
         except Exception as e:  # pragma: no cover - defensive logging
             self.logger.error(
                 f"[TikTokSearchService] User data cleanup failed: {e}",

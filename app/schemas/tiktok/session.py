@@ -75,10 +75,10 @@ class TikTokSessionConfig(BaseModel):
 
     # User data directory configuration
     user_data_master_dir: str = Field(
-        default="./user_data", description="User data directory (uses CAMOUFOX_USER_DATA_DIR)"
+        default="./user_data/master", description="User data directory (uses CAMOUFOX_USER_DATA_DIR)"
     )
     user_data_clones_dir: str = Field(
-        default="./user_data", description="User data directory clones (uses CAMOUFOX_USER_DATA_DIR)"
+        default="./user_data/clones", description="User data directory clones (uses CAMOUFOX_USER_DATA_DIR)"
     )
     write_mode_enabled: bool = Field(default=False, description="Enable write mode for user data directory")
     acquire_lock_timeout: int = Field(default=30, description="Lock acquisition timeout in seconds")
