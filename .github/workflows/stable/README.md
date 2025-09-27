@@ -3,6 +3,7 @@
 This directory contains stable, production-ready GitHub Actions workflows for AI-assisted code reviews, issue triage, and interactive responses in pull requests (PRs) and issues. These workflows leverage AI models like Aider, Claude, and Gemini to automate feedback, analysis, and assistance.
 
 The workflows are designed to be modular:
+
 - **Standalone workflows** in the `standalone/` subdirectory can be copied directly to `.github/workflows/` and run independently.
 - The `dispatcher_stable_v1.zip` provides a composite dispatcher that orchestrates multiple AI agents based on events.
 
@@ -17,15 +18,18 @@ These YAML files are self-contained and can be copied to `.github/workflows/` to
 **Purpose**: Performs automated code reviews on pull requests using the Aider tool powered by Google's Gemini model. It analyzes diffs, identifies issues, and provides structured feedback without making changes.
 
 **Triggers**:
+
 - Pull request: `opened`, `synchronize`, `reopened`, `ready_for_review`
 
 **Requirements**:
+
 - **Secrets**: At least one of `GEMINI_API_KEY`, `GEMINI_API_KEY_2`
 - **Environment**: `Agents/Bots`
 - **Permissions**: `contents: read`, `pull-requests: write`, `issues: write`
 - **Runtime**: Ubuntu Latest, Python 3.11, Aider installed via pip
 
 **How it Works**:
+
 1. Checks for Gemini API keys.
 2. Generates a PR diff (truncated if >60KB).
 3. Creates a review prompt including the diff and instructions for structured output.
@@ -42,6 +46,7 @@ These YAML files are self-contained and can be copied to `.github/workflows/` to
 **Purpose**: Acts as an interactive AI assistant (Claude) that responds to mentions in issues, PRs, comments, and reviews. It uses a code router for multi-provider support and GitHub tools for interactions like commenting or inline suggestions.
 
 **Triggers**:
+
 - Pull requests: `opened`, `synchronize`, `reopened`
 - Issue comments: `created`, `edited` (if starts with `@claude`, `CLAUDE`, or `/claude`)
 - PR review comments: `created`, `edited` (same triggers)
@@ -49,12 +54,14 @@ These YAML files are self-contained and can be copied to `.github/workflows/` to
 - PR reviews: `submitted`, `edited` (if body starts with triggers)
 
 **Requirements**:
+
 - **Secrets**: `OPENROUTER_API_KEY` (primary), `GEMINI_API_KEY` (fallback)
 - **Environment**: `Agents/Bots`
 - **Permissions**: `contents: write`, `pull-requests: write`, `issues: write`, `id-token: write`, `actions: read`
 - **Runtime**: Ubuntu 22.04, Bun runtime for the code router
 
 **How it Works**:
+
 1. Checks author association (OWNER/COLLABORATOR/MEMBER).
 2. Sets up Claude Code Router with config for OpenRouter (free models like Qwen, GLM, Kimi, DeepSeek) and Gemini fallback.
 3. Starts the router server locally.
@@ -70,10 +77,12 @@ These YAML files are self-contained and can be copied to `.github/workflows/` to
 **Purpose**: Provides advanced, structured PR reviews using Google's Gemini CLI. Includes detailed context (files, diffs, commits) and responds to mentions in comments. Reacts with 👀 to indicate activity.
 
 **Triggers**:
+
 - Pull requests: `opened`, `reopened`, `synchronize`
 - Issue/PR review comments: `created`, `edited` (if starts with `Gemini`, `GEMINI`, `@gemini`, `@gemini-cli`, or `/gemini`)
 
 **Requirements**:
+
 - **Secrets**: `GEMINI_API_KEY`
 - **Variables**: `GEMINI_MODEL` (default: `gemini-2.5-flash`)
 - **Environment**: `Agents/Bots`
@@ -81,6 +90,7 @@ These YAML files are self-contained and can be copied to `.github/workflows/` to
 - **Runtime**: Ubuntu Latest, Node.js 20
 
 **How it Works**:
+
 1. Adds 👀 reaction to the PR/issue/comment.
 2. Skips if no API key.
 3. Prepares a detailed prompt: loads PR context (title, description, files with patches truncated at 1.5KB, commits), user request from comment.
@@ -100,6 +110,7 @@ These YAML files are self-contained and can be copied to `.github/workflows/` to
 **Requirements**: Identical to v1.1.
 
 **How it Works**:
+
 1. Prepares basic prompt with PR title, description, or comment body.
 2. Runs Gemini CLI for concise summary/risks/follow-ups.
 3. Posts response if successful.
@@ -111,6 +122,7 @@ These YAML files are self-contained and can be copied to `.github/workflows/` to
 **Purpose**: A composite workflow that dispatches events to the appropriate standalone AI workflow (Aider, Claude, Gemini) based on configuration. Ensures coordinated AI responses without duplication.
 
 **Usage**:
+
 - Extract the ZIP to `.github/workflows/` (overwrites if exists).
 - Ensure standalone YAMLs are in place or referenced.
 - Triggers: Configurable, typically on PR/issue events.
@@ -118,6 +130,7 @@ These YAML files are self-contained and can be copied to `.github/workflows/` to
 - The ZIP includes a main dispatcher YAML and supporting scripts/filters (e.g., for bot dispatching).
 
 **How it Works**:
+
 - Uses event filters to route to specific agents.
 - Extracts together as a set; do not use individually from ZIP.
 
@@ -126,39 +139,42 @@ These YAML files are self-contained and can be copied to `.github/workflows/` to
 ### dispatcher_stable_v1.1.zip vs dispatcher_stable_v1.zip
 
 Use v1.1 when you need the richer automation shipped after v1. Key upgrades include:
+
 - **Key rotation & secrets handling**: v1.1 replaces the shell-based `check_gemini_keys.sh` with the reusable Python rotators in `scripts/bots/common/rotate_key/`, unlocks up to five Gemini/OpenRouter keys, and propagates the chosen secret name to downstream steps.
 - **Dispatcher insights**: v1.1 extends `dispatcher_filter.py` to parse CSV/JSON inputs, exports the active filter as text/JSON, captures the target ID/type, and feeds a new `dispatcher_summary.py` job summary so you can see which bots triggered.
 - **Default dispatch behaviour**: v1.1 sets the default `ACTIVE_BOTS_VAR` to `["aider", "gemini", "claude"]`, refines Opencode pull-request rules to rely on author trust, and adds emoji reactions that surface when a bot picks up the event.
 - **Workflow coverage**: v1.1 bundles fresh `ci-pull-request.yml` and `ci-push.yml` entry points, refreshes `ci-workflows.yml`, and adds authored docs under `docs/` for agent-selection, API key rotation, and emoji conventions.
 - **Opencode agent overhaul**: v1.1 introduces a Python prompt builder, CLI runner wrappers, comment formatter, and cross-platform launchers under `scripts/bots/opencode/`; v1 only shipped installer/runner shell scripts.
 - **Quality checks**: v1.1 ships Jest/pytest suites in `tests/` (JavaScript emoji helpers and prompt generators, Python dispatchers/key rotators/opencode formatters, CLI integration harness stubs) that were absent from v1.
+- v.1.2: improve build_comment of opencode
 
 ## Setup Instructions
 
 1. **Copy Standalone Workflows**:
+
    - Navigate to `.github/workflows/stable/standalone/`.
    - Copy desired `.yml` files (e.g., `cp aider-stable.yml ../../`).
    - Commit and push to enable.
-
 2. **Configure Secrets**:
+
    - Go to repo Settings > Secrets and variables > Actions.
    - Add API keys: `GEMINI_API_KEY` (required for Aider/Gemini), `OPENROUTER_API_KEY` (for Claude).
    - Optional: Multiple Gemini keys for failover.
-
 3. **Set Up Environment**:
+
    - Settings > Environments > New environment: `Agents/Bots`.
    - Add protection rules if needed (e.g., required reviewers).
-
 4. **Dispatcher Setup**:
+
    - Unzip `dispatcher_stable_v1.zip` to `.github/workflows/`.
    - Verify extracted files (e.g., main dispatcher YAML, scripts).
    - Configure any variables/secrets.
-
 5. **Test**:
+
    - Create a test PR or comment `@gemini review this` / `@claude help`.
    - Check Actions tab for logs; monitor API costs.
-
 6. **Permissions**:
+
    - Workflows request minimal scopes; approve if prompted.
 
 ## Best Practices and Notes
