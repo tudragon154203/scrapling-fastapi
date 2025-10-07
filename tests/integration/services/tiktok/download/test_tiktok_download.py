@@ -64,18 +64,19 @@ class TestTikTokDownloadIntegration:
         """Test download endpoint with valid request format but using mock."""
         # Mock the service to avoid actual network calls in this test
         with patch('app.api.tiktok.tiktok_download_service') as mock_service:
-            mock_service.download_video = AsyncMock(return_value={
-                "status": "success",
-                "message": "Video download URL resolved successfully",
-                "download_url": "https://example.com/video.mp4",
-                "video_info": {
-                    "id": "7530618987760209170",
-                    "title": "TikTok Video",
-                    "author": "tieentiton"
-                },
-                "file_size": 1024000,
-                "execution_time": 12.5
-            })
+            from app.schemas.tiktok.download import TikTokDownloadResponse, TikTokVideoInfo
+            mock_service.download_video = AsyncMock(return_value=TikTokDownloadResponse(
+                status="success",
+                message="Video download URL resolved successfully",
+                download_url="https://example.com/video.mp4",
+                video_info=TikTokVideoInfo(
+                    id="7530618987760209170",
+                    title="TikTok Video",
+                    author="tieentiton"
+                ),
+                file_size=1024000,
+                execution_time=12.5
+            ))
 
             response = client.post(
                 "/tiktok/download",
@@ -169,13 +170,14 @@ class TestTikTokDownloadIntegration:
         """Test download service error handling with mocked failures."""
         with patch('app.api.tiktok.tiktok_download_service') as mock_service:
             # Test navigation failure
-            mock_service.download_video = AsyncMock(return_value={
-                "status": "error",
-                "message": "Failed to navigate to TikVid service",
-                "error_code": "NAVIGATION_FAILED",
-                "error_details": {"original_url": DEMO_TIKTOK_URL},
-                "execution_time": 30.0
-            })
+            from app.schemas.tiktok.download import TikTokDownloadResponse
+            mock_service.download_video = AsyncMock(return_value=TikTokDownloadResponse(
+                status="error",
+                message="Failed to navigate to TikVid service",
+                error_code="NAVIGATION_FAILED",
+                error_details={"original_url": DEMO_TIKTOK_URL},
+                execution_time=30.0
+            ))
 
             response = client.post(
                 "/tiktok/download",
@@ -191,13 +193,14 @@ class TestTikTokDownloadIntegration:
     def test_download_endpoint_quality_parameter(self):
         """Test download endpoint with quality parameter."""
         with patch('app.api.tiktok.tiktok_download_service') as mock_service:
-            mock_service.download_video = AsyncMock(return_value={
-                "status": "success",
-                "message": "Video download URL resolved successfully",
-                "download_url": "https://example.com/hd_video.mp4",
-                "video_info": {"id": "7530618987760209170"},
-                "execution_time": 10.0
-            })
+            from app.schemas.tiktok.download import TikTokDownloadResponse, TikTokVideoInfo
+            mock_service.download_video = AsyncMock(return_value=TikTokDownloadResponse(
+                status="success",
+                message="Video download URL resolved successfully",
+                download_url="https://example.com/hd_video.mp4",
+                video_info=TikTokVideoInfo(id="7530618987760209170"),
+                execution_time=10.0
+            ))
 
             response = client.post(
                 "/tiktok/download",
@@ -217,11 +220,12 @@ class TestTikTokDownloadIntegration:
     def test_download_endpoint_extra_fields_rejection(self):
         """Test download endpoint rejects extra fields."""
         with patch('app.api.tiktok.tiktok_download_service') as mock_service:
-            mock_service.download_video = AsyncMock(return_value={
-                "status": "error",
-                "message": "Failed to resolve video download URL",
-                "error_code": "DOWNLOAD_FAILED"
-            })
+            from app.schemas.tiktok.download import TikTokDownloadResponse
+            mock_service.download_video = AsyncMock(return_value=TikTokDownloadResponse(
+                status="error",
+                message="Failed to resolve video download URL",
+                error_code="DOWNLOAD_FAILED"
+            ))
 
             response = client.post(
                 "/tiktok/download",

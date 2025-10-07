@@ -28,7 +28,8 @@ class TikTokDownloadRequest(BaseModel):
                     "quality": "HD"
                 }
             ]
-        }
+        },
+        "extra": "forbid"  # Reject extra fields in the request
     }
 
 
