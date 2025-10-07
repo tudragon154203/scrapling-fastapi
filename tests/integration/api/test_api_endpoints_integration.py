@@ -2,7 +2,6 @@
 Integration tests for API endpoints to increase overall coverage.
 """
 
-import pytest
 from fastapi.testclient import TestClient
 from unittest.mock import patch, MagicMock
 
@@ -301,7 +300,7 @@ class TestAPIEndpointsIntegration:
         mock_crawler_service.crawl = MagicMock(return_value={"status": "success"})
 
         response = self.client.post("/crawl",
-            json={"url": "https://example.com"},
-            headers={"X-Custom-Header": "test-value"}
-        )
+                                    json={"url": "https://example.com"},
+                                    headers={"X-Custom-Header": "test-value"}
+                                    )
         assert response.status_code == 200

@@ -1,4 +1,4 @@
-﻿"""Session management components for TikTok services."""
+"""Session management components for TikTok services."""
 
 from .service import TiktokService
 from .registry import SessionRecord, SessionRegistry

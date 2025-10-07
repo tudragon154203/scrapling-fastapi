@@ -2,10 +2,10 @@
 Comprehensive tests for Camoufox browser utilities to achieve 80%+ coverage.
 """
 
-import os
-import platform
+import os  # noqa: F401 - used in patches
+import platform  # noqa: F401 - used in patches
 from pathlib import Path
-from unittest.mock import MagicMock, patch, mock_open
+from unittest.mock import MagicMock, patch
 
 import pytest
 

@@ -6,8 +6,6 @@ import logging
 import re
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from app.core.logging import (
     RefererScrubbingFormatter,
     RefererScrubbingFilter,
@@ -184,7 +182,6 @@ class TestRefererScrubbingFilter:
             mock_logger.getEffectiveLevel.return_value = logging.DEBUG
             mock_get_logger.return_value = mock_logger
 
-            original_msg = record.msg
             result = filter_instance.filter(record)
 
             # Should not filter call log at debug level

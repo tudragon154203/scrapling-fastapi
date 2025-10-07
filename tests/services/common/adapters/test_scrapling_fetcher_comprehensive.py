@@ -3,7 +3,7 @@ Comprehensive tests for ScraplingFetcherAdapter to increase coverage.
 """
 
 import pytest
-from unittest.mock import MagicMock, patch, AsyncMock
+from unittest.mock import MagicMock, patch
 
 from app.services.common.adapters.scrapling_fetcher import ScraplingFetcherAdapter, FetchArgComposer, FetchParams
 

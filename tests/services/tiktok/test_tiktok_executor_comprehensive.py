@@ -3,7 +3,7 @@ Comprehensive tests for TikTok executor to achieve 80%+ coverage.
 """
 
 import asyncio
-import sys
+import sys  # noqa: F401 - used in patches
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
