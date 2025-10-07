@@ -111,6 +111,7 @@ class TestGenericCrawler:
             retry_backoff_base_ms = 1
             retry_backoff_max_ms = 1
             retry_jitter_ms = 0
+            camoufox_user_data_dir = "/tmp/test_user_data"
 
         monkeypatch.setattr("app.core.config.get_settings", lambda: MockSettings())
 
@@ -127,6 +128,22 @@ class TestGenericCrawler:
             url="https://example.com",
             headers={"User-Agent": "Custom Agent"}
         )
+
+        # Mock settings
+        class MockSettings:
+            max_retries = 1
+            default_headless = True
+            default_network_idle = False
+            default_timeout_ms = 5000
+            min_html_content_length = 1
+            proxy_list_file_path = None
+            private_proxy_url = None
+            retry_backoff_base_ms = 1
+            retry_backoff_max_ms = 1
+            retry_jitter_ms = 0
+            camoufox_user_data_dir = "/tmp/test_user_data"
+
+        monkeypatch.setattr("app.core.config.get_settings", lambda: MockSettings())
 
         # Install fake scrapling that returns success
         _install_fake_scrapling(monkeypatch, [200])
@@ -261,6 +278,22 @@ class TestGenericCrawler:
             url="https://example.com",
             headers={"User-Agent": "CustomBot/1.0"}
         )
+
+        # Mock settings
+        class MockSettings:
+            max_retries = 1
+            default_headless = True
+            default_network_idle = False
+            default_timeout_ms = 5000
+            min_html_content_length = 1
+            proxy_list_file_path = None
+            private_proxy_url = None
+            retry_backoff_base_ms = 1
+            retry_backoff_max_ms = 1
+            retry_jitter_ms = 0
+            camoufox_user_data_dir = "/tmp/test_user_data"
+
+        monkeypatch.setattr("app.core.config.get_settings", lambda: MockSettings())
 
         # Install fake scrapling that returns success
         _install_fake_scrapling(monkeypatch, [200])
