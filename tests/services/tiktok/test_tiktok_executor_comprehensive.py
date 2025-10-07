@@ -72,6 +72,7 @@ class TestTiktokExecutorInitialization:
 class TestTiktokExecutorConfiguration:
     """Test executor configuration methods."""
 
+    @pytest.mark.asyncio
     async def test_get_config(self, tiktok_executor):
         """Test getting TikTok browser configuration."""
         config = await tiktok_executor.get_config()
@@ -85,6 +86,7 @@ class TestTiktokExecutorConfiguration:
         assert config["wait_for_selector"] == "html"
         assert config["wait_for_selector_state"] == "visible"
 
+    @pytest.mark.asyncio
     async def test_get_config_with_proxy(self, mock_config):
         """Test getting config with proxy."""
         proxy = {"http": "http://proxy:8080"}
@@ -100,6 +102,7 @@ class TestTiktokExecutorBrowserSetup:
 
     @patch("app.services.tiktok.tiktok_executor.asyncio.WindowsProactorEventLoopPolicy")
     @patch("app.services.tiktok.tiktok_executor.sys.platform", "win32")
+    @pytest.mark.asyncio
     async def test_setup_browser_windows(self, mock_policy_class, tiktok_executor):
         """Test browser setup on Windows."""
         # Setup mocks
@@ -125,6 +128,7 @@ class TestTiktokExecutorBrowserSetup:
 
     @patch("app.services.tiktok.tiktok_executor.asyncio.WindowsProactorEventLoopPolicy")
     @patch("app.services.tiktok.tiktok_executor.sys.platform", "win32")
+    @pytest.mark.asyncio
     async def test_setup_browser_windows_exception(self, mock_policy_class, tiktok_executor):
         """Test browser setup on Windows with policy exception."""
         # Setup mock to raise exception
@@ -146,6 +150,7 @@ class TestTiktokExecutorBrowserSetup:
         tiktok_executor.fetcher.fetch.assert_called_once()
 
     @patch("app.services.tiktok.tiktok_executor.sys.platform", "linux")
+    @pytest.mark.asyncio
     async def test_setup_browser_non_windows(self, tiktok_executor):
         """Test browser setup on non-Windows platform."""
         mock_fetcher_result = MagicMock()
@@ -164,6 +169,7 @@ class TestTiktokExecutorBrowserSetup:
         tiktok_executor.browser == mock_fetcher_result
         assert tiktok_executor._user_data_cleanup == mock_args["_user_data_cleanup"]
 
+    @pytest.mark.asyncio
     async def test_setup_browser_no_user_data_cleanup(self, tiktok_executor):
         """Test browser setup when no user data cleanup."""
         mock_fetcher_result = MagicMock()
@@ -186,6 +192,7 @@ class TestTiktokExecutorBrowserSetup:
 class TestTiktokExecutorSessionManagement:
     """Test session lifecycle management."""
 
+    @pytest.mark.asyncio
     async def test_start_session_success(self, tiktok_executor):
         """Test successful session start."""
         # Mock setup_browser
@@ -199,6 +206,7 @@ class TestTiktokExecutorSessionManagement:
         assert hasattr(tiktok_executor, 'start_time')
         assert tiktok_executor.start_time > 0
 
+    @pytest.mark.asyncio
     async def test_start_session_with_cleanup(self, tiktok_executor):
         """Test session start with cleanup on error."""
         # Mock setup_browser to raise exception
@@ -212,6 +220,7 @@ class TestTiktokExecutorSessionManagement:
         # Verify cleanup was called
         tiktok_executor._cleanup_on_error.assert_called_once()
 
+    @pytest.mark.asyncio
     async def test_cleanup_with_user_data_cleanup(self, tiktok_executor):
         """Test cleanup with user data cleanup function."""
         # Setup
@@ -227,6 +236,7 @@ class TestTiktokExecutorSessionManagement:
         assert tiktok_executor._user_data_cleanup is None
         assert tiktok_executor.browser is None
 
+    @pytest.mark.asyncio
     async def test_cleanup_user_data_cleanup_exception(self, tiktok_executor):
         """Test cleanup when user data cleanup fails."""
         # Setup
@@ -240,6 +250,7 @@ class TestTiktokExecutorSessionManagement:
         # Assertions
         assert tiktok_executor._user_data_cleanup is None
 
+    @pytest.mark.asyncio
     async def test_cleanup_browser_exception(self, tiktok_executor):
         """Test cleanup when browser cleanup fails."""
         # Setup
@@ -253,6 +264,7 @@ class TestTiktokExecutorSessionManagement:
         # Assertions
         assert tiktok_executor.browser is None
 
+    @pytest.mark.asyncio
     async def test_cleanup_general_exception(self, tiktok_executor):
         """Test cleanup with general exception."""
         # Setup
@@ -265,6 +277,7 @@ class TestTiktokExecutorSessionManagement:
         # Assertions
         assert tiktok_executor._user_data_cleanup is None
 
+    @pytest.mark.asyncio
     async def test_cleanup_no_resources(self, tiktok_executor):
         """Test cleanup when no resources to clean."""
         # Setup
@@ -278,6 +291,7 @@ class TestTiktokExecutorSessionManagement:
 class TestTiktokExecutorActions:
     """Test executor action methods."""
 
+    @pytest.mark.asyncio
     async def test_detect_login_state(self, tiktok_executor):
         """Test login state detection."""
         # Setup
@@ -290,6 +304,7 @@ class TestTiktokExecutorActions:
         assert result == "LOGGED_IN"
         mock_detector.detect_login_state.assert_called_once_with(timeout=15)
 
+    @pytest.mark.asyncio
     async def test_detect_login_state_default_timeout(self, tiktok_executor):
         """Test login state detection with default timeout."""
         # Setup
@@ -302,31 +317,37 @@ class TestTiktokExecutorActions:
         assert result == "LOGGED_OUT"
         mock_detector.detect_login_state.assert_called_once_with(timeout=8)
 
+    @pytest.mark.asyncio
     async def test_navigate_to_profile(self, tiktok_executor):
         """Test navigate to profile (not implemented)."""
         # Should not raise exception
         await tiktok_executor.navigate_to_profile()
 
+    @pytest.mark.asyncio
     async def test_search_hashtag(self, tiktok_executor):
         """Test search hashtag (not implemented)."""
         # Should not raise exception
         await tiktok_executor.search_hashtag("test")
 
+    @pytest.mark.asyncio
     async def test_watch_video(self, tiktok_executor):
         """Test watch video (not implemented)."""
         # Should not raise exception
         await tiktok_executor.watch_video("https://tiktok.com/video/123")
 
+    @pytest.mark.asyncio
     async def test_like_post(self, tiktok_executor):
         """Test like post (not implemented)."""
         result = await tiktok_executor.like_post()
         assert result is False
 
+    @pytest.mark.asyncio
     async def test_follow_user(self, tiktok_executor):
         """Test follow user (not implemented)."""
         result = await tiktok_executor.follow_user("testuser")
         assert result is False
 
+    @pytest.mark.asyncio
     async def test_get_video_info_with_url(self, tiktok_executor):
         """Test get video info with browser URL."""
         # Setup
@@ -341,6 +362,7 @@ class TestTiktokExecutorActions:
         assert result["author"] == ""
         assert result["likes"] == "0"
 
+    @pytest.mark.asyncio
     async def test_get_video_info_without_url(self, tiktok_executor):
         """Test get video info without browser URL."""
         # Setup
@@ -351,21 +373,25 @@ class TestTiktokExecutorActions:
 
         assert result["url"] == ""
 
+    @pytest.mark.asyncio
     async def test_interact_with_page_wait(self, tiktok_executor):
         """Test interact with page wait action."""
         result = await tiktok_executor.interact_with_page("wait", seconds=1.5)
         assert result is None
 
+    @pytest.mark.asyncio
     async def test_interact_with_page_wait_default(self, tiktok_executor):
         """Test interact with page wait action with default seconds."""
         result = await tiktok_executor.interact_with_page("wait")
         assert result is None
 
+    @pytest.mark.asyncio
     async def test_interact_with_page_unknown_action(self, tiktok_executor):
         """Test interact with page unknown action."""
         with pytest.raises(ValueError, match="Unknown action: unknown"):
             await tiktok_executor.interact_with_page("unknown")
 
+    @pytest.mark.asyncio
     async def test_wait_method(self, tiktok_executor):
         """Test _wait method."""
         start_time = asyncio.get_event_loop().time()
@@ -374,6 +400,7 @@ class TestTiktokExecutorActions:
 
         assert end_time - start_time >= 0.1
 
+    @pytest.mark.asyncio
     async def test_close(self, tiktok_executor):
         """Test close method."""
         tiktok_executor.cleanup = AsyncMock()
@@ -382,6 +409,7 @@ class TestTiktokExecutorActions:
 
         tiktok_executor.cleanup.assert_called_once()
 
+    @pytest.mark.asyncio
     async def test_is_still_active_true(self, tiktok_executor):
         """Test is_still_active when browser exists."""
         tiktok_executor.browser = MagicMock()
@@ -390,6 +418,7 @@ class TestTiktokExecutorActions:
 
         assert result is True
 
+    @pytest.mark.asyncio
     async def test_is_still_active_false(self, tiktok_executor):
         """Test is_still_active when browser is None."""
         tiktok_executor.browser = None
@@ -402,6 +431,7 @@ class TestTiktokExecutorActions:
 class TestTiktokExecutorEdgeCases:
     """Test edge cases and error conditions."""
 
+    @pytest.mark.asyncio
     async def test_start_session_get_config_exception(self, tiktok_executor):
         """Test start session when get_config fails."""
         tiktok_executor.get_config = AsyncMock(side_effect=Exception("Config failed"))
@@ -421,6 +451,7 @@ class TestTiktokExecutorEdgeCases:
 
     @patch("app.services.tiktok.tiktok_executor.asyncio.WindowsProactorEventLoopPolicy")
     @patch("app.services.tiktok.tiktok_executor.sys.platform", "win32")
+    @pytest.mark.asyncio
     async def test_setup_browser_fetch_exception(self, mock_policy_class, tiktok_executor):
         """Test browser setup when fetch fails."""
         mock_fetcher_result = MagicMock()
@@ -442,6 +473,7 @@ class TestTiktokExecutorEdgeCases:
 class TestTiktokExecutorIntegration:
     """Test integration scenarios."""
 
+    @pytest.mark.asyncio
     async def test_full_session_lifecycle(self, mock_config):
         """Test full session lifecycle."""
         with patch("app.services.tiktok.tiktok_executor.get_settings", return_value=mock_settings()):
@@ -465,6 +497,7 @@ class TestTiktokExecutorIntegration:
             await executor.cleanup()
             assert executor.browser is None
 
+    @pytest.mark.asyncio
     async def test_session_with_proxy(self, mock_config):
         """Test session with proxy configuration."""
         proxy = {"http": "http://proxy:8080", "https": "https://proxy:8080"}

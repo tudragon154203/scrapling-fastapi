@@ -16,6 +16,7 @@ class TestServicesIntegration:
     """Integration tests for service layer."""
 
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_crawl_service_with_user_data(self):
         """Test crawl service with user data functionality."""
         request = CrawlRequest(
@@ -44,6 +45,7 @@ class TestServicesIntegration:
 
                 assert result["status"] == "success"
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_tiktok_service_session_lifecycle(self):
         """Test TikTok service full session lifecycle."""
@@ -96,6 +98,7 @@ class TestServicesIntegration:
                     assert await service.close_session(list(service.sessions.ids())[0]) is True
 
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_browse_service_with_actions(self):
         """Test browse service with various actions."""
         request = BrowseRequest(
@@ -128,6 +131,7 @@ class TestServicesIntegration:
                 assert "actions_performed" in result
 
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_service_error_handling_integration(self):
         """Test error handling across services."""
         # Test crawl service error
@@ -159,6 +163,7 @@ class TestServicesIntegration:
                 assert "SESSION_CREATION_FAILED" in str(result.error_details)
 
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_service_timeout_integration(self):
         """Test timeout handling in services."""
         request = CrawlRequest(url="https://example.com")
@@ -174,6 +179,7 @@ class TestServicesIntegration:
 
             assert result["status"] == "error"
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_proxy_integration(self):
         """Test proxy configuration integration."""
@@ -206,6 +212,7 @@ class TestServicesIntegration:
                 assert result["status"] == "success"
                 # Verify proxy was used (would need to check fetcher call args)
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_concurrent_service_operations(self):
         """Test concurrent operations across services."""
@@ -241,6 +248,7 @@ class TestServicesIntegration:
                     assert result["status"] == "success"
 
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_service_configuration_validation(self):
         """Test configuration validation in services."""
         # Test with invalid configuration
@@ -256,6 +264,7 @@ class TestServicesIntegration:
             result = await service.crawl(request)
             # Behavior depends on implementation - should not crash
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_service_resource_cleanup(self):
         """Test resource cleanup in services."""
@@ -282,6 +291,7 @@ class TestServicesIntegration:
                     await service.cleanup_all_sessions()
                     mock_executor.cleanup.assert_called()
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_service_state_persistence(self):
         """Test state persistence across service calls."""
@@ -310,6 +320,7 @@ class TestServicesIntegration:
                     assert len(service.sessions) == 3
                     assert await service.has_active_session() is True
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_service_dependency_injection(self):
         """Test dependency injection in services."""

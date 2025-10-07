@@ -68,6 +68,7 @@ class TestLoginDetectorInitialization:
 class TestLoginDetectorStateDetection:
     """Test login state detection methods."""
 
+    @pytest.mark.asyncio
     async def test_detect_login_state_logged_in(self, login_detector, mock_browser):
         """Test detection when logged in."""
         # Setup browser with logged-in HTML content
@@ -85,6 +86,7 @@ class TestLoginDetectorStateDetection:
 
         assert result == TikTokLoginState.LOGGED_IN
 
+    @pytest.mark.asyncio
     async def test_detect_login_state_logged_out(self, login_detector, mock_browser):
         """Test detection when logged out."""
         # Setup browser with logged-out HTML content
@@ -102,6 +104,7 @@ class TestLoginDetectorStateDetection:
 
         assert result == TikTokLoginState.LOGGED_OUT
 
+    @pytest.mark.asyncio
     async def test_detect_login_state_uncertain_equal_matches(self, login_detector, mock_browser):
         """Test detection when indicators are balanced."""
         # Setup browser with mixed HTML content
@@ -118,6 +121,7 @@ class TestLoginDetectorStateDetection:
 
         assert result == TikTokLoginState.UNCERTAIN
 
+    @pytest.mark.asyncio
     async def test_detect_login_state_uncertain_no_html(self, login_detector, mock_browser):
         """Test detection when no HTML content available."""
         # Setup browser without HTML content
@@ -127,6 +131,7 @@ class TestLoginDetectorStateDetection:
 
         assert result == TikTokLoginState.UNCERTAIN
 
+    @pytest.mark.asyncio
     async def test_detect_login_state_uncertain_empty_html(self, login_detector, mock_browser):
         """Test detection when HTML content is empty."""
         # Setup browser with empty HTML content
@@ -136,6 +141,7 @@ class TestLoginDetectorStateDetection:
 
         assert result == TikTokLoginState.UNCERTAIN
 
+    @pytest.mark.asyncio
     async def test_detect_login_state_exception_handling(self, login_detector, mock_browser):
         """Test detection with exception during processing."""
         # Setup browser to raise exception when accessing html_content
@@ -147,6 +153,7 @@ class TestLoginDetectorStateDetection:
 
         assert result == TikTokLoginState.UNCERTAIN
 
+    @pytest.mark.asyncio
     async def test_detect_login_state_case_insensitive(self, login_detector, mock_browser):
         """Test detection is case insensitive."""
         # Setup browser with mixed case HTML content
@@ -163,6 +170,7 @@ class TestLoginDetectorStateDetection:
 
         assert result == TikTokLoginState.LOGGED_IN
 
+    @pytest.mark.asyncio
     async def test_detect_login_state_multiple_indicators(self, login_detector, mock_browser):
         """Test detection with multiple indicators."""
         # Setup browser with many logged-in indicators
@@ -184,6 +192,7 @@ class TestLoginDetectorStateDetection:
 
         assert result == TikTokLoginState.LOGGED_IN
 
+    @pytest.mark.asyncio
     async def test_detect_login_state_custom_timeout(self, login_detector, mock_browser):
         """Test detection with custom timeout."""
         mock_browser.html_content = """
@@ -202,6 +211,7 @@ class TestLoginDetectorStateDetection:
 class TestLoginDetectorDetectionMethods:
     """Test individual detection methods."""
 
+    @pytest.mark.asyncio
     async def test_try_combo_detection(self, login_detector, mock_browser):
         """Test combo detection method."""
         mock_browser.html_content = """
@@ -216,6 +226,7 @@ class TestLoginDetectorDetectionMethods:
 
         assert result == TikTokLoginState.LOGGED_IN
 
+    @pytest.mark.asyncio
     async def test_detect_dom_elements(self, login_detector, mock_browser):
         """Test DOM elements detection method."""
         mock_browser.html_content = """
@@ -230,12 +241,14 @@ class TestLoginDetectorDetectionMethods:
 
         assert result == TikTokLoginState.LOGGED_OUT
 
+    @pytest.mark.asyncio
     async def test_detect_api_requests(self, login_detector):
         """Test API requests detection method (not available)."""
         result = await login_detector._detect_api_requests(10)
 
         assert result == TikTokLoginState.UNCERTAIN
 
+    @pytest.mark.asyncio
     async def test_try_fallback_refresh(self, login_detector):
         """Test fallback refresh method (not available)."""
         result = await login_detector._try_fallback_refresh(10)
@@ -246,6 +259,7 @@ class TestLoginDetectorDetectionMethods:
 class TestLoginDetectorConfiguration:
     """Test detector configuration and validation methods."""
 
+    @pytest.mark.asyncio
     async def test_get_detection_details(self, login_detector):
         """Test getting detection details."""
         # Setup browser
@@ -271,6 +285,7 @@ class TestLoginDetectorConfiguration:
         assert result["detection_timeout"] == 30
         assert result["detected_state"] == "LOGGED_IN"
 
+    @pytest.mark.asyncio
     async def test_get_detection_details_uncertain(self, login_detector):
         """Test getting detection details when uncertain."""
         login_detector.browser.html_content = ""
@@ -279,6 +294,7 @@ class TestLoginDetectorConfiguration:
 
         assert result["detected_state"] == "UNCERTAIN"
 
+    @pytest.mark.asyncio
     async def test_update_selectors(self, login_detector):
         """Test updating selectors."""
         new_selectors = {"new_selector": ".new-element"}
@@ -289,6 +305,7 @@ class TestLoginDetectorConfiguration:
         assert login_detector.selectors != original_selectors
         assert login_detector.selectors["new_selector"] == ".new-element"
 
+    @pytest.mark.asyncio
     async def test_validate_selectors_all_valid(self, login_detector):
         """Test selector validation when all are valid."""
         login_detector.selectors = {
@@ -303,6 +320,7 @@ class TestLoginDetectorConfiguration:
         assert result["logged_out"] is True
         assert result["uncertain"] is True
 
+    @pytest.mark.asyncio
     async def test_validate_selectors_missing_values(self, login_detector):
         """Test selector validation with missing values."""
         login_detector.selectors = {
@@ -317,6 +335,7 @@ class TestLoginDetectorConfiguration:
         assert result["logged_out"] is False
         assert result["uncertain"] is False
 
+    @pytest.mark.asyncio
     async def test_validate_selectors_none_values(self, login_detector):
         """Test selector validation with None values."""
         login_detector.selectors = {
@@ -331,6 +350,7 @@ class TestLoginDetectorConfiguration:
         assert result["logged_out"] is True
         assert result["uncertain"] is False
 
+    @pytest.mark.asyncio
     async def test_test_selector_exists(self, login_detector):
         """Test testing an existing selector."""
         login_detector.selectors = {"test_selector": ".test-element"}
@@ -339,12 +359,14 @@ class TestLoginDetectorConfiguration:
 
         assert result is True
 
+    @pytest.mark.asyncio
     async def test_test_selector_missing(self, login_detector):
         """Test testing a missing selector."""
         result = await login_detector.test_selector("missing_selector")
 
         assert result is False
 
+    @pytest.mark.asyncio
     async def test_test_selector_empty(self, login_detector):
         """Test testing an empty selector."""
         login_detector.selectors = {"empty_selector": ""}
@@ -353,6 +375,7 @@ class TestLoginDetectorConfiguration:
 
         assert result is False
 
+    @pytest.mark.asyncio
     async def test_get_login_state_details(self, login_detector, mock_browser):
         """Test getting comprehensive login state details."""
         mock_browser.html_content = """
@@ -380,6 +403,7 @@ class TestLoginDetectorConfiguration:
         assert result["detection_method"] == "html_content_analysis"
         assert result["html_available"] is True
 
+    @pytest.mark.asyncio
     async def test_get_login_state_details_no_html(self, login_detector, mock_browser):
         """Test login state details when no HTML available."""
         delattr(mock_browser, 'html_content')
@@ -390,6 +414,7 @@ class TestLoginDetectorConfiguration:
         assert result["dom_detection"] == TikTokLoginState.UNCERTAIN
         assert result["html_available"] is False
 
+    @pytest.mark.asyncio
     async def test_get_login_state_details_no_url(self, login_detector, mock_browser):
         """Test login state details when no URL available."""
         mock_browser.html_content = "<html><body>Test</body></html>"
@@ -403,6 +428,7 @@ class TestLoginDetectorConfiguration:
 class TestLoginDetectorEdgeCases:
     """Test edge cases and error conditions."""
 
+    @pytest.mark.asyncio
     async def test_detect_login_state_html_content_attribute_error(self, login_detector, mock_browser):
         """Test detection when html_content access raises AttributeError."""
         # Setup browser to raise AttributeError
@@ -415,6 +441,7 @@ class TestLoginDetectorEdgeCases:
 
         assert result == TikTokLoginState.UNCERTAIN
 
+    @pytest.mark.asyncio
     async def test_detect_login_state_with_none_html_content(self, login_detector, mock_browser):
         """Test detection when html_content is None."""
         mock_browser.html_content = None
@@ -423,6 +450,7 @@ class TestLoginDetectorEdgeCases:
 
         assert result == TikTokLoginState.UNCERTAIN
 
+    @pytest.mark.asyncio
     async def test_detect_login_state_regex_error_handling(self, login_detector, mock_browser):
         """Test detection handles regex errors gracefully."""
         # This would test if any regex pattern could fail, but since we use
@@ -434,6 +462,7 @@ class TestLoginDetectorEdgeCases:
         # Should not raise exception
         assert result in [TikTokLoginState.LOGGED_IN, TikTokLoginState.LOGGED_OUT, TikTokLoginState.UNCERTAIN]
 
+    @pytest.mark.asyncio
     async def test_detector_without_config_attributes(self, mock_browser):
         """Test detector with minimal config."""
         minimal_config = TikTokSessionConfig(
@@ -455,6 +484,7 @@ class TestLoginDetectorEdgeCases:
         assert result["selectors_used"] == {}
         assert result["api_endpoints_checked"] == {}
 
+    @pytest.mark.asyncio
     async def test_login_state_value_attribute(self, login_detector, mock_browser):
         """Test login state value attribute handling."""
         mock_browser.html_content = """
@@ -469,6 +499,7 @@ class TestLoginDetectorEdgeCases:
         result = await login_detector.get_detection_details()
         assert result["detected_state"] == "LOGGED_IN"
 
+    @pytest.mark.asyncio
     async def test_large_html_content_performance(self, login_detector, mock_browser):
         """Test detection performance with large HTML content."""
         # Create large HTML content
@@ -479,6 +510,7 @@ class TestLoginDetectorEdgeCases:
         result = await login_detector.detect_login_state()
         assert result == TikTokLoginState.LOGGED_IN
 
+    @pytest.mark.asyncio
     async def test_unicode_html_content(self, login_detector, mock_browser):
         """Test detection with Unicode HTML content."""
         mock_browser.html_content = """
