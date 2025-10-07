@@ -27,7 +27,10 @@ def _install_fake_scrapling(monkeypatch, side_effects):
             # treat action as HTTP status
             resp = types.SimpleNamespace()
             resp.status = int(action)
-            resp.html_content = f"<html><head><title>Test Page {idx+1}</title></head><body><h1>Content</h1><p>This is test content for attempt {idx+1}.</p></body></html>"
+            resp.html_content = (
+                f"<html><head><title>Test Page {idx+1}</title></head>"
+                f"<body><h1>Content</h1><p>This is test content for attempt {idx+1}.</p></body></html>"
+            )
             return resp
 
     fake_fetchers = types.SimpleNamespace(StealthyFetcher=FakeStealthyFetcher)
@@ -180,6 +183,7 @@ class TestGenericCrawler:
         # Install fake scrapling that returns empty content
         class FakeEmptyFetcher:
             adaptive = False
+
             @staticmethod
             def fetch(url, **kwargs):
                 resp = types.SimpleNamespace()
