@@ -302,6 +302,8 @@ class FetchArgComposer:
     ) -> FetchParams:
         """Compose fetch arguments from components in a capability-safe way."""
         proxy = selected_proxy  # Alias for compatibility
+        # Handle None options gracefully
+        options = options or {}
         fetch_kwargs = FetchParams(
             {
                 "headless": options.get("headless", True),

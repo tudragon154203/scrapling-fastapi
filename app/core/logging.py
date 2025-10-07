@@ -20,7 +20,7 @@ class RefererScrubbingFilter(logging.Filter):
     """Log filter that removes referer fragments, hides verbose call logs, and deduplicates warnings."""
 
     _referer_pattern = RefererScrubbingFormatter._referer_pattern
-    _call_log_pattern = re.compile(r"(?:^|\n)Call log:\n(?:\s+-.*(?:\n|$))+", re.IGNORECASE)
+    _call_log_pattern = re.compile(r"(?:^|\n)Call log:\n(?:\s+[-+].*?(?:\n|$))+", re.IGNORECASE)
 
     def __init__(self) -> None:
         super().__init__()

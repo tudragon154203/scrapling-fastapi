@@ -140,12 +140,12 @@ class CamoufoxArgsBuilder:
         mode = getattr(settings, "camoufox_runtime_user_data_mode", None)
         if mode is None:
             mode = getattr(settings, "_camoufox_user_data_mode", None)
-        normalized_mode = mode.lower() if isinstance(mode, str) else None
+        normalized_mode = mode.lower() if isinstance(mode, str) and mode else None
 
         raw_dir = getattr(settings, "camoufox_runtime_effective_user_data_dir", None)
         if raw_dir is None:
             raw_dir = getattr(settings, "_camoufox_effective_user_data_dir", None)
-        if isinstance(raw_dir, (str, os.PathLike)):
+        if isinstance(raw_dir, (str, os.PathLike)) and raw_dir:
             try:
                 normalized_dir = os.fspath(raw_dir)
             except TypeError:
