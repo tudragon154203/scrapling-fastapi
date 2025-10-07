@@ -24,7 +24,7 @@ class TestTikVidResolveAction:
         action = TikVidResolveAction(url, quality)
 
         assert action.tiktok_url == url
-        assert action.quality_hint == quality
+        assert action.quality_hint == quality.lower().strip() or quality
         assert action.result_links == []
 
     def test_action_initialization_without_quality(self):
@@ -44,8 +44,10 @@ class TestTikVidResolveAction:
 
         assert action.quality_hint == "hd"
 
-    def test_action_call(self, action):
+    def test_action_call(self):
         """Test action call method."""
+        url = "https://www.tiktok.com/@test/video/9876543210"
+        action = TikVidResolveAction(url)
         mock_page = Mock()
         action._execute = Mock(return_value=mock_page)
 

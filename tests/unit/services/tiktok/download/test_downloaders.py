@@ -35,7 +35,13 @@ class TestVideoFileDownloader:
 
         with patch('app.services.tiktok.download.downloaders.file.httpx') as mock_httpx:
             mock_client = AsyncMock()
-            mock_httpx.AsyncClient.return_value.__aenter__.return_value = mock_client
+
+            # Mock the AsyncClient context manager properly
+            mock_client_manager = AsyncMock()
+            mock_client_manager.__aenter__.return_value = mock_client
+            mock_client_manager.__aexit__ = AsyncMock()
+            mock_httpx.AsyncClient.return_value = mock_client_manager
+
             mock_client.head.return_value = mock_response
 
             result = await downloader.get_file_info(url)
@@ -76,7 +82,13 @@ class TestVideoFileDownloader:
 
         with patch('app.services.tiktok.download.downloaders.file.httpx') as mock_httpx:
             mock_client = AsyncMock()
-            mock_httpx.AsyncClient.return_value.__aenter__.return_value = mock_client
+
+            # Mock the AsyncClient context manager properly
+            mock_client_manager = AsyncMock()
+            mock_client_manager.__aenter__.return_value = mock_client
+            mock_client_manager.__aexit__ = AsyncMock()
+            mock_httpx.AsyncClient.return_value = mock_client_manager
+
             mock_client.head.return_value = mock_response
 
             result = await downloader.get_file_info(url)
@@ -123,12 +135,20 @@ class TestVideoFileDownloader:
         mock_response.aiter_bytes = mock_aiter_bytes
 
         with patch('app.services.tiktok.download.downloaders.file.httpx') as mock_httpx:
+            # Create mock client
             mock_client = AsyncMock()
-            mock_httpx.AsyncClient.return_value.__aenter__.return_value = mock_client
 
-            mock_stream = AsyncMock()
-            mock_stream.__aenter__.return_value = mock_response
-            mock_client.stream.return_value = mock_stream
+            # Create mock stream context manager that returns our mock response
+            mock_stream_context = AsyncMock()
+            mock_stream_context.__aenter__.return_value = mock_response
+            mock_stream_context.__aexit__ = AsyncMock(return_value=None)
+            mock_client.stream.return_value = mock_stream_context
+
+            # Create mock AsyncClient context manager
+            mock_client_context = AsyncMock()
+            mock_client_context.__aenter__.return_value = mock_client
+            mock_client_context.__aexit__ = AsyncMock(return_value=None)
+            mock_httpx.AsyncClient.return_value = mock_client_context
 
             result = await downloader.stream_to_memory(url)
 
@@ -154,11 +174,18 @@ class TestVideoFileDownloader:
 
         with patch('app.services.tiktok.download.downloaders.file.httpx') as mock_httpx:
             mock_client = AsyncMock()
-            mock_httpx.AsyncClient.return_value.__aenter__.return_value = mock_client
 
-            mock_stream = AsyncMock()
-            mock_stream.__aenter__.return_value = mock_response
-            mock_client.stream.return_value = mock_stream
+            # Mock the AsyncClient context manager properly
+            mock_client_manager = AsyncMock()
+            mock_client_manager.__aenter__.return_value = mock_client
+            mock_client_manager.__aexit__ = AsyncMock()
+            mock_httpx.AsyncClient.return_value = mock_client_manager
+
+            # Mock the stream method to return a context manager
+            mock_stream_manager = AsyncMock()
+            mock_stream_manager.__aenter__.return_value = mock_response
+            mock_stream_manager.__aexit__ = AsyncMock()
+            mock_client.stream.return_value = mock_stream_manager
 
             result = await downloader.stream_to_file(url, output_dir)
 
@@ -185,11 +212,18 @@ class TestVideoFileDownloader:
 
         with patch('app.services.tiktok.download.downloaders.file.httpx') as mock_httpx:
             mock_client = AsyncMock()
-            mock_httpx.AsyncClient.return_value.__aenter__.return_value = mock_client
 
-            mock_stream = AsyncMock()
-            mock_stream.__aenter__.return_value = mock_response
-            mock_client.stream.return_value = mock_stream
+            # Mock the AsyncClient context manager properly
+            mock_client_manager = AsyncMock()
+            mock_client_manager.__aenter__.return_value = mock_client
+            mock_client_manager.__aexit__ = AsyncMock()
+            mock_httpx.AsyncClient.return_value = mock_client_manager
+
+            # Mock the stream method to return a context manager
+            mock_stream_manager = AsyncMock()
+            mock_stream_manager.__aenter__.return_value = mock_response
+            mock_stream_manager.__aexit__ = AsyncMock()
+            mock_client.stream.return_value = mock_stream_manager
 
             result = await downloader.stream_to_file(url, output_dir)
 
