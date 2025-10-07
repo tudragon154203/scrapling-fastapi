@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+**🚨 CONSTITUTION COMPLIANCE MANDATORY**: All development must follow the principles in `.specify/memory/constitution.md`.
+
 ## Development Commands
 
 ### Running the Application
@@ -89,8 +91,17 @@ app/
 
 Some tests require real network/browser operations,  which will perform actual web scraping operations.
 
+### Constitutional Requirements
+
+- **Test-Driven Development**: NON-NEGOTIABLE - Tests must be written before implementation
+- **Layered Architecture**: Strict separation of API/Core/Middleware/Schemas/Services layers
+- **Schema Consistency**: All new schemas must follow existing patterns in `app/schemas/*.py`
+- **Code Quality**: Must pass `flake8` linting for `app/` and `tests/` directories
+- **Location Rules**: Never place implementation code in `.specify/` directory
+
 ### BACKWARDS COMPATIBILITY: DO NOT CARE
 
 ### CUSTOM RULES
 
 * init.py should be empty
+
