@@ -6,11 +6,12 @@ import pytest
 from unittest.mock import patch, MagicMock, AsyncMock
 
 from app.services.tiktok.session.service import TiktokService
-# from app.schemas.crawl import CrawlRequest  # Not used in commented code
-# from app.schemas.browse import BrowseRequest  # Not used in commented code
+from app.services.crawler.generic import GenericCrawler
+from app.services.browser.browse import BrowseCrawler
+from app.schemas.crawl import CrawlRequest
+from app.schemas.browse import BrowseRequest
 
 
-@pytest.mark.skip("Integration test file outdated - service APIs have changed")
 @pytest.mark.integration
 class TestServicesIntegration:
     """Integration tests for service layer."""
@@ -19,11 +20,11 @@ class TestServicesIntegration:
     @pytest.mark.asyncio
     async def test_crawl_service_with_user_data(self):
         """Test crawl service with user data functionality."""
-        # request = CrawlRequest(
-        #     url="https://example.com",
-        #     force_user_data=True,
-        #     user_data_dir="/tmp/test_data"
-        # )
+        request = CrawlRequest(
+            url="https://example.com",
+            force_user_data=True,
+            user_data_dir="/tmp/test_data"
+        )
 
         # Mock the underlying fetcher to avoid actual network calls
         with patch('app.services.crawler.generic.ScraplingFetcherAdapter') as mock_fetcher_class:
@@ -40,10 +41,10 @@ class TestServicesIntegration:
                 mock_settings.camoufox_user_data_dir = "/tmp/default"
                 mock_get_settings.return_value = mock_settings
 
-                # service = GenericCrawlService()  # Class doesn't exist - test file outdated
-                # result = await service.crawl(request)
+                service = GenericCrawler()
+                result = service.run(request)
 
-                # assert result["status"] == "success"
+                assert result.status == "success"
 
     @pytest.mark.asyncio
     @pytest.mark.asyncio
@@ -101,14 +102,14 @@ class TestServicesIntegration:
     @pytest.mark.asyncio
     async def test_browse_service_with_actions(self):
         """Test browse service with various actions."""
-        # request = BrowseRequest(
-        #     url="https://example.com",
-        #     actions=[
-        #         {"type": "wait", "seconds": 1},
-        #         {"type": "scroll", "direction": "down"},
-        #         {"type": "click", "selector": ".button"}
-        #     ]
-        # )
+        request = BrowseRequest(
+            url="https://example.com",
+            actions=[
+                {"type": "wait", "seconds": 1},
+                {"type": "scroll", "direction": "down"},
+                {"type": "click", "selector": ".button"}
+            ]
+        )
 
         with patch('app.services.browser.browse.ScraplingFetcherAdapter') as mock_fetcher_class:
             mock_fetcher = MagicMock()
@@ -124,29 +125,28 @@ class TestServicesIntegration:
                 mock_settings.camoufox_user_data_dir = "/tmp/browse"
                 mock_get_settings.return_value = mock_settings
 
-                # service = BrowseService()  # Class doesn't exist - test file outdated
-                # result = await service.browse(request)
+                service = BrowseCrawler()
+                result = service.run(request)
 
-                # # assert result["status"] == "success"
-                # assert "actions_performed" in result
+                assert result.status == "success"
 
     @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_service_error_handling_integration(self):
         """Test error handling across services."""
         # Test crawl service error
-        # request = CrawlRequest(url="https://example.com")
+        request = CrawlRequest(url="https://example.com")
 
         with patch('app.services.crawler.generic.ScraplingFetcherAdapter') as mock_fetcher_class:
             mock_fetcher = MagicMock()
             mock_fetcher.fetch.side_effect = Exception("Network error")
             mock_fetcher_class.return_value = mock_fetcher
 
-            # service = GenericCrawlService()  # Class doesn't exist - test file outdated
-            # result = await service.crawl(request)
+            service = GenericCrawler()
+            result = service.run(request)
 
-            # assert result["status"] == "error"
-            # assert "Network error" in result["error"]
+            assert result.status == "error"
+            assert "Network error" in str(result.content)
 
         # Test TikTok service error
         with patch('app.services.tiktok.session.service.get_settings'):
