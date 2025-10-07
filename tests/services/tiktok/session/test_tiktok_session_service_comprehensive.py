@@ -39,9 +39,9 @@ def mock_session_registry():
 
 
 @pytest.fixture
-def tiktok_service(mock_session_registry):
+def tiktok_service(mock_session_registry, mock_settings):
     """TikTok service fixture."""
-    with patch("app.services.tiktok.session.service.get_settings", return_value=mock_settings()):
+    with patch("app.services.tiktok.session.service.get_settings", return_value=mock_settings):
         return TiktokService(session_registry=mock_session_registry)
 
 
