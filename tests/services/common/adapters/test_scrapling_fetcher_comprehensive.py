@@ -5,7 +5,7 @@ Comprehensive tests for ScraplingFetcherAdapter to increase coverage.
 import pytest
 from unittest.mock import MagicMock, patch, AsyncMock
 
-from app.services.common.adapters.scrapling_fetcher import ScraplingFetcherAdapter, FetchArgComposer
+from app.services.common.adapters.scrapling_fetcher import ScraplingFetcherAdapter, FetchArgComposer, FetchParams
 
 
 class TestScraplingFetcherAdapter:
@@ -330,7 +330,7 @@ class TestFetchArgComposer:
             page_action=None
         )
 
-        assert isinstance(result, dict)
+        assert isinstance(result, FetchParams)
         # Should contain processed options
 
     def test_compose_with_proxy(self, composer, mock_settings):
@@ -351,7 +351,7 @@ class TestFetchArgComposer:
             page_action=None
         )
 
-        assert isinstance(result, dict)
+        assert isinstance(result, FetchParams)
 
     def test_compose_with_user_data(self, composer, mock_settings):
         """Test composing options with user data."""
@@ -373,7 +373,7 @@ class TestFetchArgComposer:
             page_action=None
         )
 
-        assert isinstance(result, dict)
+        assert isinstance(result, FetchParams)
 
     def test_compose_with_headers(self, composer, mock_settings):
         """Test composing options with headers."""
@@ -392,7 +392,7 @@ class TestFetchArgComposer:
             page_action=None
         )
 
-        assert isinstance(result, dict)
+        assert isinstance(result, FetchParams)
 
     def test_compose_with_capabilities(self, composer, mock_settings):
         """Test composing options based on capabilities."""
@@ -417,7 +417,7 @@ class TestFetchArgComposer:
             page_action=None
         )
 
-        assert isinstance(result, dict)
+        assert isinstance(result, FetchParams)
 
     def test_compose_with_page_action(self, composer, mock_settings):
         """Test composing options with page action."""
@@ -437,7 +437,7 @@ class TestFetchArgComposer:
             page_action=page_action
         )
 
-        assert isinstance(result, dict)
+        assert isinstance(result, FetchParams)
 
     def test_compose_with_additional_args(self, composer, mock_settings):
         """Test composing options with additional args."""
@@ -459,7 +459,7 @@ class TestFetchArgComposer:
             page_action=None
         )
 
-        assert isinstance(result, dict)
+        assert isinstance(result, FetchParams)
 
     def test_compose_error_handling(self, composer, mock_settings):
         """Test composer error handling."""
@@ -479,7 +479,7 @@ class TestFetchArgComposer:
             page_action=None
         )
 
-        assert isinstance(result, dict)
+        assert isinstance(result, FetchParams)
 
     def test_compose_with_complex_options(self, composer, mock_settings):
         """Test composing complex options."""
@@ -515,7 +515,7 @@ class TestFetchArgComposer:
             page_action=None
         )
 
-        assert isinstance(result, dict)
+        assert isinstance(result, FetchParams)
 
     def test_compose_with_none_settings(self, composer):
         """Test composer with None settings."""
@@ -534,4 +534,4 @@ class TestFetchArgComposer:
             page_action=None
         )
 
-        assert isinstance(result, dict)
+        assert isinstance(result, FetchParams)

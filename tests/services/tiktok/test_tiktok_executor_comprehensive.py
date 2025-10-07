@@ -49,9 +49,9 @@ def tiktok_executor(mock_config):
 class TestTiktokExecutorInitialization:
     """Test TikTok executor initialization."""
 
-    def test_executor_init(self, mock_config):
+    def test_executor_init(self, mock_config, mock_settings):
         """Test executor initialization."""
-        with patch("app.services.tiktok.tiktok_executor.get_settings", return_value=mock_settings()):
+        with patch("app.services.tiktok.tiktok_executor.get_settings", return_value=mock_settings):
             executor = TiktokExecutor(mock_config, proxy={"http": "http://proxy:8080"})
 
             assert executor.config == mock_config
@@ -60,10 +60,10 @@ class TestTiktokExecutorInitialization:
             assert isinstance(executor.fetcher, ScraplingFetcherAdapter)
             assert isinstance(executor.camoufox_builder, CamoufoxArgsBuilder)
 
-    def test_executor_init_with_custom_builder(self, mock_config):
+    def test_executor_init_with_custom_builder(self, mock_config, mock_settings):
         """Test executor initialization with custom camoufox builder."""
         custom_builder = MagicMock()
-        with patch("app.services.tiktok.tiktok_executor.get_settings", return_value=mock_settings()):
+        with patch("app.services.tiktok.tiktok_executor.get_settings", return_value=mock_settings):
             executor = TiktokExecutor(mock_config, camoufox_builder=custom_builder)
 
             assert executor.camoufox_builder is custom_builder
