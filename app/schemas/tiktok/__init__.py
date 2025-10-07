@@ -10,6 +10,10 @@ from .search import (
     TikTokSearchRequest,
     TikTokSearchResponse,
 )
+from .download import (
+    TikTokDownloadRequest,
+    TikTokDownloadResponse,
+)
 from .models import (
     TikTokVideo,
     TikTokSearchError,
@@ -23,6 +27,8 @@ __all__ = [
     "TikTokSessionConfig",
     "TikTokSearchRequest",
     "TikTokSearchResponse",
+    "TikTokDownloadRequest",
+    "TikTokDownloadResponse",
     "TikTokVideo",
     "TikTokSearchError",
     "TikTokSearchErrorResponse",
