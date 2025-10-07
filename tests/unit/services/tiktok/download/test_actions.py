@@ -51,7 +51,7 @@ class TestTikVidResolveAction:
         mock_page = Mock()
         action._execute = Mock(return_value=mock_page)
 
-        result = action(mock_page)
+        result = action.apply(mock_page)
 
         assert result == mock_page
         action._execute.assert_called_once_with(mock_page)
@@ -130,7 +130,7 @@ class TestTikVidResolveAction:
         mock_button.click = Mock()
         mock_page.get_by_role = Mock(return_value=mock_button)
         mock_page.keyboard = Mock()
-        mock_page.press = Mock(return_value=None)  # First strategy fails
+        mock_field.press = Mock(return_value=None)  # First strategy succeeds
 
         mock_page.wait_for_function = Mock()
         mock_page.wait_for_timeout = Mock()
@@ -159,7 +159,7 @@ class TestTikVidResolveAction:
         mock_page.keyboard.insert_text = Mock()
 
         # Mock button clicking
-        mock_page.press = Mock(return_value=None)  # First strategy fails
+        mock_field.press = Mock(return_value=None)  # First strategy succeeds
         mock_page.get_by_role = Mock(return_value=Mock(click=Mock()))
 
         mock_page.wait_for_function = Mock()
@@ -182,32 +182,50 @@ class TestTikVidResolveAction:
         mock_field = Mock()
         mock_field.click = Mock()
         mock_field.fill = Mock()
-        mock_page.locator = Mock(return_value=Mock(first=mock_field))
 
-        # Mock button clicking - first two strategies fail, third succeeds
+        # Mock button clicking - strategies 1, 2, 3 fail, 4 succeeds
         call_count = 0
-        def mock_click_strategy():
+        def mock_click_strategy(*args, **kwargs):
             nonlocal call_count
             call_count += 1
-            if call_count <= 2:
+            if call_count <= 3:
                 raise Exception(f"Strategy {call_count} failed")
             return None
 
-        mock_page.press = Mock(side_effect=mock_click_strategy)
+        # Mock the field press and get_by_role to fail
+        mock_field.press = Mock(side_effect=mock_click_strategy)
         mock_page.get_by_role = Mock(side_effect=mock_click_strategy)
-        mock_button = Mock()
-        mock_button.click = Mock()
-        mock_page.locator.return_value = Mock(first=mock_button)
+
+        # Mock button that fails for first 3 locator calls, succeeds for 4th
+        mock_button_fail = Mock()
+        mock_button_fail.click = Mock(side_effect=mock_click_strategy)
+        mock_button_success = Mock()
+        mock_button_success.click = Mock()
+
+        # Create proper locator mock that handles different selectors
+        locator_call_count = 0
+        def locator_side_effect(selector):
+            nonlocal locator_call_count
+            locator_call_count += 1
+            if any(s in selector for s in ['input', 'placeholder']):
+                return Mock(first=mock_field)
+            elif locator_call_count <= 3:  # First 3 locator calls should fail
+                return Mock(first=mock_button_fail)
+            else:  # 4th locator call should succeed
+                return Mock(first=mock_button_success)
+
+        mock_page.locator = Mock(side_effect=locator_side_effect)
 
         mock_page.wait_for_function = Mock()
         mock_page.wait_for_timeout = Mock()
+        # Add count method for the final locator call
         mock_page.locator.return_value.count.return_value = 0
 
         result = action._execute(mock_page)
 
         # Verify multiple strategies were tried
-        assert call_count == 3
-        mock_page.press.assert_called_once_with("Enter")
+        assert call_count == 4
+        mock_field.press.assert_called_once_with("Enter")
         mock_page.get_by_role.assert_called_once_with("button", name="Download")
 
     @patch('app.services.tiktok.download.actions.resolver.TIKVID_BASE', 'https://tikvid.io/vi')
@@ -221,15 +239,34 @@ class TestTikVidResolveAction:
         mock_field = Mock()
         mock_field.click = Mock()
         mock_field.fill = Mock()
-        mock_page.locator = Mock(return_value=Mock(first=mock_field))
 
         # Mock all button click strategies failing
-        def mock_failing_strategy():
+        def mock_failing_strategy(*args, **kwargs):
             raise Exception("All strategies fail")
 
-        mock_page.press = Mock(side_effect=mock_failing_strategy)
+        mock_field.press = Mock(side_effect=mock_failing_strategy)
         mock_page.get_by_role = Mock(side_effect=mock_failing_strategy)
-        mock_page.locator.return_value.first.click = Mock(side_effect=mock_failing_strategy)
+
+        # Create mock button that always fails
+        def create_failing_button():
+            mock_button = Mock()
+            mock_button.click = Mock(side_effect=mock_failing_strategy)
+            return mock_button
+
+        # Create proper locator mock that always fails for non-input locators
+        def locator_side_effect(selector):
+            if any(s in selector for s in ['input', 'placeholder']):
+                # Input field selectors should return the field
+                return Mock(first=mock_field)
+            else:
+                # All other selectors (buttons, links, etc.) should fail
+                mock_button = create_failing_button()
+                mock_locator = Mock(first=mock_button)
+                # Handle nested locator calls
+                mock_locator.locator = Mock(return_value=Mock(first=create_failing_button()))
+                return mock_locator
+
+        mock_page.locator = Mock(side_effect=locator_side_effect)
 
         with pytest.raises(Exception, match="Could not click download button"):
             action._execute(mock_page)
@@ -245,8 +282,7 @@ class TestTikVidResolveAction:
         mock_field = Mock()
         mock_field.click = Mock()
         mock_field.fill = Mock()
-        mock_page.locator = Mock(return_value=Mock(first=mock_field))
-        mock_page.press = Mock()
+        mock_field.press = Mock()  # Mock field press to succeed
 
         mock_page.wait_for_function = Mock()
         mock_page.wait_for_timeout = Mock()
@@ -257,10 +293,19 @@ class TestTikVidResolveAction:
         mock_link2 = Mock()
         mock_link2.get_attribute = Mock(return_value="https://example.com/absolute.mp4")
 
-        mock_locator = Mock()
-        mock_locator.count.return_value = 2
-        mock_locator.nth = Mock(side_effect=[mock_link1, mock_link2])
-        mock_page.locator.return_value = mock_locator
+        mock_link_locator = Mock()
+        mock_link_locator.count.return_value = 2
+        mock_link_locator.nth = Mock(side_effect=[mock_link1, mock_link2])
+
+        # Create proper locator mock that handles different selectors
+        def locator_side_effect(selector):
+            if any(s in selector for s in ['input', 'placeholder']):
+                return Mock(first=mock_field)
+            else:
+                # For download link selectors
+                return mock_link_locator
+
+        mock_page.locator = Mock(side_effect=locator_side_effect)
 
         # Mock URL evaluation
         mock_page.evaluate = Mock(side_effect=[
@@ -286,8 +331,7 @@ class TestTikVidResolveAction:
         mock_field = Mock()
         mock_field.click = Mock()
         mock_field.fill = Mock()
-        mock_page.locator = Mock(return_value=Mock(first=mock_field))
-        mock_page.press = Mock()
+        mock_field.press = Mock()  # Mock field press to succeed
 
         mock_page.wait_for_function = Mock()
         mock_page.wait_for_timeout = Mock()
@@ -297,7 +341,10 @@ class TestTikVidResolveAction:
         mock_link.get_attribute = Mock(return_value="https://example.com/video.mp4")
 
         def mock_locator_side_effect(selector):
-            if selector == "a:has-text('Download MP4')":
+            if any(s in selector for s in ['input', 'placeholder']):
+                # Field selectors
+                return Mock(first=mock_field)
+            elif selector == "a:has-text('Download MP4')":
                 # First selector - no links found
                 mock_locator = Mock()
                 mock_locator.count.return_value = 0

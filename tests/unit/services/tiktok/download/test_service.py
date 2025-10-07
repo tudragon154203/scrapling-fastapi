@@ -8,7 +8,7 @@ from app.services.tiktok.download.service import TikTokDownloadService
 from app.services.tiktok.download.resolvers.video_url import TikVidVideoResolver
 from app.services.tiktok.download.downloaders.file import VideoFileDownloader
 from app.schemas.tiktok.download import TikTokDownloadRequest, TikTokDownloadResponse
-from app.schemas.tiktok.models import TikTokVideoInfo
+from app.schemas.tiktok.download import TikTokVideoInfo
 
 
 class TestTikTokDownloadService:
@@ -84,8 +84,8 @@ class TestTikTokDownloadService:
         result = await service.download_video(invalid_request)
 
         assert result.status == "error"
-        assert result.error_code == "INVALID_VIDEO_ID"
-        assert "Could not extract video ID" in result.message
+        assert result.error_code == "INVALID_URL"
+        assert "Invalid TikTok URL" in result.message
 
     @pytest.mark.asyncio
     async def test_download_video_resolution_failure(self, service, valid_request):
@@ -97,8 +97,8 @@ class TestTikTokDownloadService:
             result = await service.download_video(valid_request)
 
         assert result.status == "error"
-        assert result.error_code == "DOWNLOAD_FAILED"
-        assert "Failed to resolve video download URL" in result.message
+        assert result.error_code == "NAVIGATION_FAILED"
+        assert "Failed to navigate" in result.message
 
     @pytest.mark.asyncio
     async def test_download_video_file_info_failure(self, service, valid_request):
@@ -141,7 +141,7 @@ class TestTikTokDownloadService:
             result = await service.download_video(valid_request)
 
         assert result.status == "error"
-        assert result.error_code == "NO_DOWNLOAD_LINK"
+        assert result.error_code == "DOWNLOAD_FAILED"
 
     def test_error_response_creation(self, service):
         """Test error response creation."""

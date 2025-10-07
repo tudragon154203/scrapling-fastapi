@@ -164,7 +164,14 @@ class TestTikVidVideoResolver:
 
         # Mock dependencies
         mock_adapter = Mock()
-        mock_adapter.detect_capabilities.return_value = Mock().__dict__
+
+        # Create a simple object with the required __dict__ attribute
+        class MockCaps:
+            def __init__(self):
+                self.supports_proxy = True
+
+        mock_caps_obj = MockCaps()
+        mock_adapter.detect_capabilities.return_value = mock_caps_obj
 
         mock_action = Mock(spec=TikVidResolveAction)
         mock_action.result_links = []
@@ -172,7 +179,6 @@ class TestTikVidVideoResolver:
         mock_payload = SimpleNamespace(force_user_data=True)
         mock_additional_args = {"user_data_dir": "/tmp/data"}
         mock_extra_headers = {"User-Agent": "test"}
-        mock_caps = {"supports_proxy": True}
         mock_fetch_kwargs = {"headless": False}
 
         with patch('app.services.tiktok.download.resolvers.video_url.ScraplingFetcherAdapter', return_value=mock_adapter), \
