@@ -62,7 +62,7 @@ class TestGenericCrawler:
         """Test basic successful crawl."""
         request = CrawlRequest(url="https://example.com")
 
-        # Mock settings with low min_html_content_length
+        # Mock settings with all required attributes
         class MockSettings:
             max_retries = 1
             default_headless = True
@@ -74,6 +74,13 @@ class TestGenericCrawler:
             retry_backoff_base_ms = 1
             retry_backoff_max_ms = 1
             retry_jitter_ms = 0
+            camoufox_user_data_dir = "/tmp/test_data"
+            camoufox_runtime_user_data_mode = None
+            camoufox_runtime_effective_user_data_dir = None
+            camoufox_runtime_force_mute_audio = False
+            scrapling_stealthy = True
+            default_ua_type = "desktop"
+            default_locale = "en-US"
 
         monkeypatch.setattr("app.core.config.get_settings", lambda: MockSettings())
 
