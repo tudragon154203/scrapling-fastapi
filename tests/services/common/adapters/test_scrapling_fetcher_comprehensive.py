@@ -3,7 +3,7 @@ Comprehensive tests for ScraplingFetcherAdapter to increase coverage.
 """
 
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, AsyncMock, patch
 
 from app.services.common.adapters.scrapling_fetcher import ScraplingFetcherAdapter, FetchArgComposer, FetchParams
 
@@ -34,18 +34,20 @@ class TestScraplingFetcherAdapter:
         """Test capability detection."""
         capabilities = adapter.detect_capabilities()
 
-        assert isinstance(capabilities, dict)
-        # Check for expected capability keys
-        expected_keys = [
-            "supports_stealth",
-            "supports_user_data",
+        from app.services.common.types import FetchCapabilities
+        assert isinstance(capabilities, FetchCapabilities)
+        # Check for expected capability attributes
+        expected_attrs = [
             "supports_proxy",
-            "supports_headless",
-            "supports_javascript"
+            "supports_user_data",
+            "supports_network_idle",
+            "supports_timeout",
+            "supports_extra_headers"
         ]
 
-        for key in expected_keys:
-            assert key in capabilities
+        for attr in expected_attrs:
+            assert hasattr(capabilities, attr)
+            assert isinstance(getattr(capabilities, attr), bool)
 
     def test_detect_capabilities_with_system_info(self, adapter):
         """Test capability detection includes system info."""
@@ -53,8 +55,10 @@ class TestScraplingFetcherAdapter:
             capabilities = adapter.detect_capabilities()
 
             # Should still return basic capabilities
-            assert isinstance(capabilities, dict)
-            assert "supports_stealth" in capabilities
+            from app.services.common.types import FetchCapabilities
+            assert isinstance(capabilities, FetchCapabilities)
+            assert hasattr(capabilities, 'supports_proxy')
+            assert isinstance(capabilities.supports_proxy, bool)
 
     @pytest.mark.asyncio
     async def test_fetch_basic_success(self, adapter):
@@ -65,20 +69,20 @@ class TestScraplingFetcherAdapter:
             "headless": True
         }
 
-        with patch('app.services.common.adapters.scrapling_fetcher.StealthyFetcher') as mock_fetcher_class:
-            mock_fetcher = MagicMock()
-            mock_fetcher.fetch.return_value = MagicMock(
+        with patch.object(adapter, '_get_stealthy_fetcher') as mock_get_fetcher:
+            mock_fetcher_class = MagicMock()
+            mock_get_fetcher.return_value = mock_fetcher_class
+            mock_fetcher_class.fetch = AsyncMock(return_value=MagicMock(
                 html_content="<html>Test content</html>",
                 status_code=200,
                 url=url
-            )
-            mock_fetcher_class.return_value = mock_fetcher
+            ))
 
             result = await adapter.fetch(url, options)
 
             assert hasattr(result, 'html_content')
             assert result.html_content == "<html>Test content</html>"
-            mock_fetcher.fetch.assert_called_once()
+            mock_fetcher_class.fetch.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_fetch_with_proxy(self, adapter):
@@ -90,13 +94,13 @@ class TestScraplingFetcherAdapter:
             "proxy": proxy
         }
 
-        with patch('app.services.common.adapters.scrapling_fetcher.StealthyFetcher') as mock_fetcher_class:
-            mock_fetcher = MagicMock()
-            mock_fetcher.fetch.return_value = MagicMock(
+        with patch.object(adapter, '_get_stealthy_fetcher') as mock_get_fetcher:
+            mock_fetcher_class = MagicMock()
+            mock_get_fetcher.return_value = mock_fetcher_class
+            mock_fetcher_class.fetch = AsyncMock(return_value=MagicMock(
                 html_content="<html>Proxied content</html>",
                 status_code=200
-            )
-            mock_fetcher_class.return_value = mock_fetcher
+            ))
 
             result = await adapter.fetch(url, options)
 
@@ -112,13 +116,13 @@ class TestScraplingFetcherAdapter:
             "user_data_dir": user_data_dir
         }
 
-        with patch('app.services.common.adapters.scrapling_fetcher.StealthyFetcher') as mock_fetcher_class:
-            mock_fetcher = MagicMock()
-            mock_fetcher.fetch.return_value = MagicMock(
+        with patch.object(adapter, '_get_stealthy_fetcher') as mock_get_fetcher:
+            mock_fetcher_class = MagicMock()
+            mock_get_fetcher.return_value = mock_fetcher_class
+            mock_fetcher_class.fetch = AsyncMock(return_value=MagicMock(
                 html_content="<html>User data content</html>",
                 status_code=200
-            )
-            mock_fetcher_class.return_value = mock_fetcher
+            ))
 
             result = await adapter.fetch(url, options)
 
@@ -134,13 +138,13 @@ class TestScraplingFetcherAdapter:
             "extra_headers": headers
         }
 
-        with patch('app.services.common.adapters.scrapling_fetcher.StealthyFetcher') as mock_fetcher_class:
-            mock_fetcher = MagicMock()
-            mock_fetcher.fetch.return_value = MagicMock(
+        with patch.object(adapter, '_get_stealthy_fetcher') as mock_get_fetcher:
+            mock_fetcher_class = MagicMock()
+            mock_get_fetcher.return_value = mock_fetcher_class
+            mock_fetcher_class.fetch = AsyncMock(return_value=MagicMock(
                 html_content="<html>Custom headers content</html>",
                 status_code=200
-            )
-            mock_fetcher_class.return_value = mock_fetcher
+            ))
 
             result = await adapter.fetch(url, options)
 
@@ -155,13 +159,13 @@ class TestScraplingFetcherAdapter:
             "javascript_enabled": False
         }
 
-        with patch('app.services.common.adapters.scrapling_fetcher.StealthyFetcher') as mock_fetcher_class:
-            mock_fetcher = MagicMock()
-            mock_fetcher.fetch.return_value = MagicMock(
+        with patch.object(adapter, '_get_stealthy_fetcher') as mock_get_fetcher:
+            mock_fetcher_class = MagicMock()
+            mock_get_fetcher.return_value = mock_fetcher_class
+            mock_fetcher_class.fetch = AsyncMock(return_value=MagicMock(
                 html_content="<html>No JS content</html>",
                 status_code=200
-            )
-            mock_fetcher_class.return_value = mock_fetcher
+            ))
 
             result = await adapter.fetch(url, options)
 
@@ -177,13 +181,14 @@ class TestScraplingFetcherAdapter:
             "wait_for_selector_state": "visible"
         }
 
-        with patch('app.services.common.adapters.scrapling_fetcher.StealthyFetcher') as mock_fetcher_class:
-            mock_fetcher = MagicMock()
-            mock_fetcher.fetch.return_value = MagicMock(
+        with patch.object(adapter, '_get_stealthy_fetcher') as mock_get_fetcher:
+            mock_fetcher_class = MagicMock()
+            mock_get_fetcher.return_value = mock_fetcher_class
+            # Mock the class method fetch directly
+            mock_fetcher_class.fetch = AsyncMock(return_value=MagicMock(
                 html_content="<html><div class='content'>Content loaded</div></html>",
                 status_code=200
-            )
-            mock_fetcher_class.return_value = mock_fetcher
+            ))
 
             result = await adapter.fetch(url, options)
 
@@ -198,13 +203,13 @@ class TestScraplingFetcherAdapter:
             "viewport": {"width": 1920, "height": 1080}
         }
 
-        with patch('app.services.common.adapters.scrapling_fetcher.StealthyFetcher') as mock_fetcher_class:
-            mock_fetcher = MagicMock()
-            mock_fetcher.fetch.return_value = MagicMock(
+        with patch.object(adapter, '_get_stealthy_fetcher') as mock_get_fetcher:
+            mock_fetcher_class = MagicMock()
+            mock_get_fetcher.return_value = mock_fetcher_class
+            mock_fetcher_class.fetch = AsyncMock(return_value=MagicMock(
                 html_content="<html>Viewport content</html>",
                 status_code=200
-            )
-            mock_fetcher_class.return_value = mock_fetcher
+            ))
 
             result = await adapter.fetch(url, options)
 
@@ -216,10 +221,10 @@ class TestScraplingFetcherAdapter:
         url = "https://example.com"
         options = {"timeout_seconds": 30}
 
-        with patch('app.services.common.adapters.scrapling_fetcher.StealthyFetcher') as mock_fetcher_class:
-            mock_fetcher = MagicMock()
-            mock_fetcher.fetch.side_effect = Exception("Fetch failed")
-            mock_fetcher_class.return_value = mock_fetcher
+        with patch.object(adapter, '_get_stealthy_fetcher') as mock_get_fetcher:
+            mock_fetcher_class = MagicMock()
+            mock_get_fetcher.return_value = mock_fetcher_class
+            mock_fetcher_class.fetch = AsyncMock(side_effect=Exception("Fetch failed"))
 
             with pytest.raises(Exception, match="Fetch failed"):
                 await adapter.fetch(url, options)
@@ -230,10 +235,10 @@ class TestScraplingFetcherAdapter:
         url = "https://example.com"
         options = {"timeout_seconds": 30}
 
-        with patch('app.services.common.adapters.scrapling_fetcher.StealthyFetcher') as mock_fetcher_class:
-            mock_fetcher = MagicMock()
-            mock_fetcher.fetch.side_effect = TimeoutError("Request timed out")
-            mock_fetcher_class.return_value = mock_fetcher
+        with patch.object(adapter, '_get_stealthy_fetcher') as mock_get_fetcher:
+            mock_fetcher_class = MagicMock()
+            mock_get_fetcher.return_value = mock_fetcher_class
+            mock_fetcher_class.fetch = AsyncMock(side_effect=TimeoutError("Request timed out"))
 
             with pytest.raises(TimeoutError, match="Request timed out"):
                 await adapter.fetch(url, options)
@@ -244,10 +249,10 @@ class TestScraplingFetcherAdapter:
         url = "https://example.com"
         options = {"timeout_seconds": 30}
 
-        with patch('app.services.common.adapters.scrapling_fetcher.StealthyFetcher') as mock_fetcher_class:
-            mock_fetcher = MagicMock()
-            mock_fetcher.fetch.side_effect = ConnectionError("Connection failed")
-            mock_fetcher_class.return_value = mock_fetcher
+        with patch.object(adapter, '_get_stealthy_fetcher') as mock_get_fetcher:
+            mock_fetcher_class = MagicMock()
+            mock_get_fetcher.return_value = mock_fetcher_class
+            mock_fetcher_class.fetch = AsyncMock(side_effect=ConnectionError("Connection failed"))
 
             with pytest.raises(ConnectionError, match="Connection failed"):
                 await adapter.fetch(url, options)
@@ -258,13 +263,13 @@ class TestScraplingFetcherAdapter:
         url = "https://example.com"
         options = {}
 
-        with patch('app.services.common.adapters.scrapling_fetcher.StealthyFetcher') as mock_fetcher_class:
-            mock_fetcher = MagicMock()
-            mock_fetcher.fetch.return_value = MagicMock(
+        with patch.object(adapter, '_get_stealthy_fetcher') as mock_get_fetcher:
+            mock_fetcher_class = MagicMock()
+            mock_get_fetcher.return_value = mock_fetcher_class
+            mock_fetcher_class.fetch = AsyncMock(return_value=MagicMock(
                 html_content="<html>Minimal options content</html>",
                 status_code=200
-            )
-            mock_fetcher_class.return_value = mock_fetcher
+            ))
 
             result = await adapter.fetch(url, options)
 
@@ -279,13 +284,13 @@ class TestScraplingFetcherAdapter:
             "stealth": True
         }
 
-        with patch('app.services.common.adapters.scrapling_fetcher.StealthyFetcher') as mock_fetcher_class:
-            mock_fetcher = MagicMock()
-            mock_fetcher.fetch.return_value = MagicMock(
+        with patch.object(adapter, '_get_stealthy_fetcher') as mock_get_fetcher:
+            mock_fetcher_class = MagicMock()
+            mock_get_fetcher.return_value = mock_fetcher_class
+            mock_fetcher_class.fetch = AsyncMock(return_value=MagicMock(
                 html_content="<html>Stealth mode content</html>",
                 status_code=200
-            )
-            mock_fetcher_class.return_value = mock_fetcher
+            ))
 
             result = await adapter.fetch(url, options)
 

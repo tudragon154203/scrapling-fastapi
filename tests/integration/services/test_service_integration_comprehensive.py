@@ -11,6 +11,7 @@ from app.services.tiktok.session.service import TiktokService
 
 
 @pytest.mark.skip("Integration test file outdated - service APIs have changed")
+@pytest.mark.integration
 class TestServicesIntegration:
     """Integration tests for service layer."""
 

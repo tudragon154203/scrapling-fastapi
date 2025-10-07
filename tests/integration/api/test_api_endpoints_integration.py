@@ -2,12 +2,14 @@
 Integration tests for API endpoints to increase overall coverage.
 """
 
+import pytest
 from fastapi.testclient import TestClient
 from unittest.mock import patch, MagicMock
 
 from app.main import app
 
 
+@pytest.mark.integration
 class TestAPIEndpointsIntegration:
     """Integration tests for API endpoints."""
 
@@ -21,7 +23,7 @@ class TestAPIEndpointsIntegration:
         assert response.status_code == 200
         data = response.json()
         assert "status" in data
-        assert data["status"] == "healthy"
+        assert data["status"] == "ok"
 
     @patch('app.api.routes.crawler_service')
     def test_crawl_endpoint_integration_success(self, mock_crawler_service):
