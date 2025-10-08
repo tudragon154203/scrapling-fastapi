@@ -1,0 +1,28 @@
+﻿{
+  "mcpServers": {
+    "brave-search": {
+      "command": "node",
+      "args": [
+        "--import=dotenv/config",
+        "node_modules/@modelcontextprotocol/server-brave-search/dist/index.js"
+      ],
+      "env": {
+        "DOTENV_CONFIG_PATH": ".claude/mcp.env"
+      },
+      "alwaysAllow": [
+        "brave_web_search"
+      ]
+    },
+    "Scrapling Docs": {
+      "command": "npx",
+      "args": [
+        "mcp-remote",
+        "https://gitmcp.io/D4Vinci/Scrapling"
+      ],
+      "alwaysAllow": [
+        "search_Scrapling_documentation",
+        "fetch_Scrapling_documentation"
+      ]
+    }
+  }
+}
