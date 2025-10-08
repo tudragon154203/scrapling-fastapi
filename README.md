@@ -52,7 +52,7 @@ scrapling-fastapi/
 - **Advanced Web Scraping**: Utilizes Scrapling/Camoufox for stealthy browser automation.
 - **Specialized Crawlers**: Includes dedicated endpoints for DPD and AusPost tracking.
 - **TikTok Integration**: Provides endpoints for TikTok session management, content search, and video downloads with configurable browser execution mode and strategy selection.
-- **User Data Persistence**: Supports persistent user profiles for maintaining sessions across requests.
+- **User Data Persistence**: Supports persistent user profiles for maintaining sessions across requests with master/clone architecture for Chromium and single-profile mode for Camoufox.
 - **Humanized Actions**: Implements realistic user behavior (mouse movements, typing delays) to avoid bot detection.
 - **Configurable Browser Mode**: Control browser execution mode (headless/headful) for TikTok searches with automatic test environment override.
 
@@ -92,6 +92,11 @@ scrapling-fastapi/
    **Key Environment Variables for TikTok Features:**
    - `TIKTOK_DOWNLOAD_STRATEGY`: Download strategy for TikTok videos (`camoufox` or `chromium`, default: `chromium`)
    - `TIKVID_BASE`: Base URL for TikVid resolver service (default: `https://tikvid.io/vi`)
+   - `CHROMIUM_USER_DATA_DIR`: Root directory for Chromium profiles (enables persistent Chromium sessions, default: disabled)
+
+   **User Data Management:**
+   - `CAMOUFOX_USER_DATA_DIR`: Directory for Camoufox Firefox profiles (default: `data/camoufox_profiles`)
+   - `CHROMIUM_USER_DATA_DIR`: Directory for Chromium profiles with master/clone structure (default: disabled)
 
    If you plan to use the Brave MCP server, copy `.claude/mcp.env.example` to
    `.claude/mcp.env` and provide your Brave Search API key via the

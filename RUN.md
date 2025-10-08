@@ -67,6 +67,7 @@ Option B — one‑liner
 - Health: `http://localhost:5680/health`
 - API Documentation: `http://localhost:5680/docs` (Interactive OpenAPI/Swagger UI)
 - TikTok API Guide: See [docs/api.md](docs/api.md) for detailed TikTok API documentation
+- Browse Endpoint: Use `POST /browse` with `{"engine": "chromium"}` to seed Chromium profiles for persistent TikTok downloads
 
 ## Tests
 

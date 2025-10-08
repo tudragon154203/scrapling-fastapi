@@ -38,7 +38,7 @@ AI Agent Development Guidelines for Scrapling FastAPI Project
 ## Security & Anti-Detection Requirements
 
 - **Fingerprinting**: BrowserForge integration mandatory
-- **Sessions**: User session persistence and management
+- **Sessions**: User session persistence and management with master/clone architecture for Chromium profiles
 - **Proxy**: Support for distributed crawling
 - **Detection**: Rate limiting and bot detection avoidance
 - **Compliance**: GDPR considerations for data processing

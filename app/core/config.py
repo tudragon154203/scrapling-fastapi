@@ -37,6 +37,8 @@ try:
         min_html_content_length: int = Field(default=500)
         # Camoufox user data directory (single profile dir)
         camoufox_user_data_dir: Optional[str] = Field(default=None)
+        # Chromium user data directory (master/clone profile structure)
+        chromium_user_data_dir: Optional[str] = Field(default=None)
         # Camoufox stealth extras (optional, no API changes)
         camoufox_locale: Optional[str] = Field(default=None)  # e.g., "en-US,en;q=0.9"
         camoufox_window: Optional[str] = Field(default="1280x720")  # e.g., "1366x768"
@@ -52,6 +54,13 @@ try:
             default=None, exclude=True, repr=False
         )
         camoufox_runtime_effective_user_data_dir: Optional[str] = Field(
+            default=None, exclude=True, repr=False
+        )
+        # Runtime-only Chromium toggles managed by services (never persisted)
+        chromium_runtime_user_data_mode: Optional[str] = Field(
+            default=None, exclude=True, repr=False
+        )
+        chromium_runtime_effective_user_data_dir: Optional[str] = Field(
             default=None, exclude=True, repr=False
         )
         # AusPost humanization settings
@@ -110,6 +119,8 @@ except Exception:
         proxy_unhealthy_cooldown_minute: int = 30
         # Camoufox user data directory (single profile dir)
         camoufox_user_data_dir: Optional[str] = None
+        # Chromium user data directory (master/clone profile structure)
+        chromium_user_data_dir: Optional[str] = None
         # Camoufox stealth extras
         camoufox_locale: Optional[str] = None
         camoufox_window: Optional[str] = "1280x720"
@@ -120,6 +131,9 @@ except Exception:
         camoufox_runtime_force_mute_audio: bool = False
         camoufox_runtime_user_data_mode: Optional[str] = None
         camoufox_runtime_effective_user_data_dir: Optional[str] = None
+        # Runtime-only Chromium toggles managed by services (never persisted)
+        chromium_runtime_user_data_mode: Optional[str] = None
+        chromium_runtime_effective_user_data_dir: Optional[str] = None
         # Content validation
         min_html_content_length: int = 500
         # AusPost humanization settings
@@ -170,6 +184,7 @@ except Exception:
             proxy_health_failure_threshold=int(os.getenv("PROXY_HEALTH_FAILURE_THRESHOLD", "2")),
             proxy_unhealthy_cooldown_minute=int(os.getenv("PROXY_UNHEALTHY_COOLDOWN_MINUTE", "30")),
             camoufox_user_data_dir=os.getenv("CAMOUFOX_USER_DATA_DIR"),
+            chromium_user_data_dir=os.getenv("CHROMIUM_USER_DATA_DIR"),
             camoufox_locale=os.getenv("CAMOUFOX_LOCALE"),
             camoufox_window=os.getenv("CAMOUFOX_WINDOW"),
             camoufox_disable_coop=os.getenv("CAMOUFOX_DISABLE_COOP", "false").lower() in {"1", "true", "yes"},
