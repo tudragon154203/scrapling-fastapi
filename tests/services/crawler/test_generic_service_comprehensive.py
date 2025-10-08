@@ -243,9 +243,28 @@ class TestGenericCrawler:
 
         assert result.status == "error"
 
-    def test_crawl_http_error(self, service, monkeypatch):
+    def test_crawl_http_error(self, monkeypatch):
         """Test crawl with HTTP error response."""
         request = CrawlRequest(url="https://example.com")
+
+        # Mock settings before creating service
+        class MockSettings:
+            max_retries = 1
+            default_headless = True
+            default_network_idle = False
+            default_timeout_ms = 5000
+            min_html_content_length = 1
+            proxy_list_file_path = None
+            private_proxy_url = None
+            retry_backoff_base_ms = 1
+            retry_backoff_max_ms = 1
+            retry_jitter_ms = 0
+            camoufox_user_data_dir = "/tmp/test_user_data"
+
+        monkeypatch.setattr("app.core.config.get_settings", lambda: MockSettings())
+
+        # Create service after mocking settings
+        service = GenericCrawler()
 
         # Install fake scrapling that returns 404
         _install_fake_scrapling(monkeypatch, [404])
@@ -357,11 +376,30 @@ class TestGenericCrawler:
 
         assert result.status == "success"
 
-    def test_crawl_with_viewport_size(self, service, monkeypatch):
+    def test_crawl_with_viewport_size(self, monkeypatch):
         """Test crawl with custom viewport size."""
         request = CrawlRequest(
             url="https://example.com"
         )
+
+        # Mock settings before creating service
+        class MockSettings:
+            max_retries = 1
+            default_headless = True
+            default_network_idle = False
+            default_timeout_ms = 5000
+            min_html_content_length = 1
+            proxy_list_file_path = None
+            private_proxy_url = None
+            retry_backoff_base_ms = 1
+            retry_backoff_max_ms = 1
+            retry_jitter_ms = 0
+            camoufox_user_data_dir = "/tmp/test_user_data"
+
+        monkeypatch.setattr("app.core.config.get_settings", lambda: MockSettings())
+
+        # Create service after mocking settings
+        service = GenericCrawler()
 
         # Install fake scrapling that returns success
         _install_fake_scrapling(monkeypatch, [200])

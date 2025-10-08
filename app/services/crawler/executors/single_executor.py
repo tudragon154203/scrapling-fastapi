@@ -80,6 +80,10 @@ class SingleAttemptExecutor(IExecutor):
                 msg = f"HTML too short (<{min_len} chars); suspected bot detection"
                 return CrawlResponse(status="failure", url=request.url, html=None, message=msg)
 
+            # Non-2xx status but with content: still successful (e.g., 404 with error page)
+            if html and len(html) >= min_len:
+                return CrawlResponse(status="success", url=request.url, html=html)
+
             # Non-2xx status: return failure
             return CrawlResponse(
                 status="failure",
