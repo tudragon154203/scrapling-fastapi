@@ -10,6 +10,9 @@ from app.services.common.browser import user_data as user_data_mod
 logger = logging.getLogger(__name__)
 
 
+_CAMOUFOX_READY = False
+
+
 class CamoufoxArgsBuilder:
     """Builder for Camoufox additional arguments and headers."""
 
@@ -25,6 +28,8 @@ class CamoufoxArgsBuilder:
         Returns:
             Tuple of (additional_args, extra_headers)
         """
+        CamoufoxArgsBuilder._ensure_camoufox_ready()
+
         additional_args: Dict[str, Any] = {}
 
         # Debug: Log that build method was called
@@ -124,6 +129,25 @@ class CamoufoxArgsBuilder:
             logger.debug(f"Camoufox additional_args keys: {list(additional_args.keys())}")
 
         return additional_args, extra_headers
+
+    @staticmethod
+    def _ensure_camoufox_ready() -> None:
+        """Ensure Camoufox binaries are installed before attempting to launch."""
+
+        global _CAMOUFOX_READY
+        if _CAMOUFOX_READY:
+            return
+
+        try:
+            from camoufox import pkgman  # type: ignore
+
+            pkgman.camoufox_path()
+            _CAMOUFOX_READY = True
+        except Exception as exc:  # pragma: no cover - depends on system setup
+            logger.error("Camoufox installation check failed: %s", exc, exc_info=True)
+            raise RuntimeError(
+                "Camoufox runtime is not available. Please ensure `camoufox fetch` succeeds."
+            ) from exc
 
     @staticmethod
     def _parse_window_size(value: Optional[str]) -> Optional[Tuple[int, int]]:

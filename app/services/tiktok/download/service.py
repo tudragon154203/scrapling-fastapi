@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 from typing import Any, Dict, Optional
@@ -15,10 +16,8 @@ from app.schemas.tiktok.download import (
 from app.services.tiktok.download.downloaders.file import VideoFileDownloader
 from app.services.tiktok.download.resolvers.video_url import TikVidVideoResolver
 from app.services.tiktok.download.utils.helpers import (
-    extract_tiktok_video_id,
     extract_video_metadata_from_url,
     is_valid_tiktok_url,
-    format_file_size,
 )
 
 logger = logging.getLogger(__name__)
@@ -68,9 +67,13 @@ class TikTokDownloadService:
 
             self.logger.info(f"[TikTokDownloadService] Resolving video ID: {video_id}")
 
-            # Resolve the direct download URL
+            # Resolve the direct download URL (non-blocking)
             resolver = TikVidVideoResolver(self.settings)
-            download_url = resolver.resolve_video_url(url_str, request.quality)
+            download_url = await asyncio.to_thread(
+                resolver.resolve_video_url,
+                url_str,
+                request.quality
+            )
 
             self.logger.info(f"[TikTokDownloadService] Resolved download URL: {download_url}")
 
