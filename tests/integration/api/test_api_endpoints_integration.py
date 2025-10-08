@@ -79,9 +79,7 @@ class TestAPIEndpointsIntegration:
         )
         mock_tiktok_service.create_session = AsyncMock(return_value=mock_response)
 
-        response = self.client.post("/tiktok/session", json={
-            "user_data_dir": "/tmp/tiktok_data"
-        })
+        response = self.client.post("/tiktok/session", json={})
 
         assert response.status_code == 200
         data = response.json()
@@ -117,8 +115,7 @@ class TestAPIEndpointsIntegration:
         })
 
         response = self.client.post("/browse", json={
-            "url": "https://example.com",
-            "actions": [{"type": "wait", "seconds": 1}]
+            "url": "https://example.com"
         })
 
         assert response.status_code == 200
@@ -192,44 +189,44 @@ class TestAPIEndpointsIntegration:
         # If not, this test will pass without checking specific headers
         assert response.status_code == 200
 
-    @patch('app.api.routes.tiktok_service')
-    def test_tiktok_search_endpoint_integration(self, mock_tiktok_service):
+    @patch('app.services.tiktok.search.service.TikTokSearchService.search')
+    def test_tiktok_search_endpoint_integration(self, mock_search):
         """Test TikTok search endpoint integration."""
         # Mock successful search
-        mock_tiktok_service.search = MagicMock(return_value={
-            "status": "success",
+        mock_search.return_value = {
             "results": [
                 {
                     "id": "123",
-                    "description": "Test video",
-                    "author": "testuser"
+                    "caption": "Test video",
+                    "authorHandle": "testuser",
+                    "likeCount": 100
                 }
-            ]
-        })
+            ],
+            "totalResults": 1
+        }
 
         response = self.client.post("/tiktok/search", json={
             "query": "test query",
-            "num_videos": 10
+            "numVideos": 10
         })
 
         assert response.status_code == 200
         data = response.json()
-        assert "result" in data
+        assert "results" in data
 
-    @patch('app.api.routes.tiktok_service')
-    def test_tiktok_search_endpoint_validation(self, mock_tiktok_service):
+    def test_tiktok_search_endpoint_validation(self):
         """Test TikTok search endpoint validation."""
-        # Test with invalid num_videos
+        # Test with invalid numVideos
         response = self.client.post("/tiktok/search", json={
             "query": "test",
-            "num_videos": -1
+            "numVideos": -1
         })
         assert response.status_code == 422
 
         # Test with empty query
         response = self.client.post("/tiktok/search", json={
             "query": "",
-            "num_videos": 10
+            "numVideos": 10
         })
         # May pass validation depending on schema requirements
 
