@@ -25,30 +25,39 @@ class TestAPIEndpointsIntegration:
         assert "status" in data
         assert data["status"] == "ok"
 
-    @patch('app.api.routes.crawler_service')
-    def test_crawl_endpoint_integration_success(self, mock_crawler_service):
+    @patch('app.api.crawl.crawl')
+    def test_crawl_endpoint_integration_success(self, mock_crawl):
         """Test crawl endpoint integration success."""
-        # Mock successful crawl
-        mock_crawler_service.crawl = MagicMock(return_value={
+        # Mock successful crawl - return a mock object with .json attribute
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json = MagicMock(return_value={
             "status": "success",
-            "content": "<html>Test content</html>",
+            "html": "<html>Test content</html>",
             "url": "https://example.com"
         })
+        mock_crawl.return_value = mock_response
 
         response = self.client.post("/crawl", json={
             "url": "https://example.com",
-            "user_data_dir": "/tmp/test"
+            "force_user_data": True
         })
 
+        print(f"Actual response status: {response.status_code}")
+        print(f"Actual response content: {response.content}")
         assert response.status_code == 200
         data = response.json()
-        assert "result" in data
+        print(f"Response status: {response.status_code}")
+        print(f"Response data: {data}")
+        # Check for expected fields in crawl response
+        assert "status" in data
+        assert data["status"] == "success"
 
-    @patch('app.api.routes.crawler_service')
-    def test_crawl_endpoint_integration_error(self, mock_crawler_service):
+    @patch('app.api.crawl.crawl')
+    def test_crawl_endpoint_integration_error(self, mock_crawl):
         """Test crawl endpoint integration error."""
         # Mock crawl failure
-        mock_crawler_service.crawl = MagicMock(side_effect=Exception("Crawl failed"))
+        mock_crawl.side_effect = Exception("Crawl failed")
 
         response = self.client.post("/crawl", json={
             "url": "https://example.com"
