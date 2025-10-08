@@ -10,7 +10,6 @@ import pytest
 pytestmark = [pytest.mark.unit]
 
 
-
 class TestTikTokParser:
     """Unit tests for TikTok HTML parsing functionality"""
 

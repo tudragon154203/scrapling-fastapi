@@ -7,7 +7,6 @@ import pytest
 pytestmark = [pytest.mark.unit]
 
 
-
 def _install_fake_scrapling(monkeypatch, side_effects):
     """Install fake scrapling.fetchers with a StealthyFetcher.fetch sequence.
 

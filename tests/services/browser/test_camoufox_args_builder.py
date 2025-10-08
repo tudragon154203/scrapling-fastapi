@@ -1,3 +1,5 @@
+from app.services.common.types import FetchCapabilities
+from app.services.common.browser.camoufox import CamoufoxArgsBuilder
 import os
 import platform
 import tempfile
@@ -8,11 +10,6 @@ from unittest.mock import MagicMock, Mock, patch
 import pytest
 
 pytestmark = [pytest.mark.unit]
-
-
-import pytest
-from app.services.common.browser.camoufox import CamoufoxArgsBuilder
-from app.services.common.types import FetchCapabilities
 
 
 def _expected_path(raw_path: str) -> str:

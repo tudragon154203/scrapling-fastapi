@@ -1,13 +1,11 @@
+from app.services.crawler.executors.single_executor import SingleAttemptExecutor
+from app.schemas.crawl import CrawlRequest
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 pytestmark = [pytest.mark.unit]
-
-
-from app.schemas.crawl import CrawlRequest
-from app.services.crawler.executors.single_executor import SingleAttemptExecutor
 
 
 def _settings_factory():

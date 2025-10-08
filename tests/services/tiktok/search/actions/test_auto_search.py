@@ -1,18 +1,15 @@
 """Unit tests for TikTokAutoSearchAction functionality"""
 
+from app.services.tiktok.search.actions.auto_search import (
+    PlaywrightTimeoutError,
+    TikTokAutoSearchAction,
+)
+from unittest.mock import Mock, patch
 import itertools
 
 import pytest
 
 pytestmark = [pytest.mark.unit]
-
-
-import pytest
-from unittest.mock import Mock, patch
-from app.services.tiktok.search.actions.auto_search import (
-    PlaywrightTimeoutError,
-    TikTokAutoSearchAction,
-)
 
 
 class TestTikTokAutoSearchAction:

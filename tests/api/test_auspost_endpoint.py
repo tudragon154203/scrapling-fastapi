@@ -1,4 +1,5 @@
 
+from fastapi.responses import JSONResponse
 import json
 from types import SimpleNamespace
 from unittest.mock import MagicMock
@@ -6,9 +7,6 @@ from unittest.mock import MagicMock
 import pytest
 
 pytestmark = [pytest.mark.unit]
-
-
-from fastapi.responses import JSONResponse
 
 
 def test_auspost_crawl_success_with_stub(monkeypatch, client):

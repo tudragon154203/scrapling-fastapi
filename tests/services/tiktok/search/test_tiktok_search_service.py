@@ -1,13 +1,9 @@
 
-import pytest
-
+from app.services.tiktok.search.service import TikTokSearchService
+from app.services.tiktok.search.multistep import TikTokMultiStepSearchService
 import pytest
 
 pytestmark = [pytest.mark.unit]
-
-
-from app.services.tiktok.search.multistep import TikTokMultiStepSearchService
-from app.services.tiktok.search.service import TikTokSearchService
 
 
 @pytest.fixture

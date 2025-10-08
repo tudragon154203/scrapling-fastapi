@@ -5,7 +5,6 @@ import pytest
 pytestmark = [pytest.mark.unit]
 
 
-
 def test_execution_context_not_test_env(monkeypatch):
     """Test that ExecutionContext correctly identifies non-test environment."""
     # Remove test environment variables

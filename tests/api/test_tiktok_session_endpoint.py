@@ -9,7 +9,6 @@ import pytest
 pytestmark = [pytest.mark.unit]
 
 
-
 class TestTikTokSessionEndpoint:
     """E2E tests for /tiktok/session endpoint"""
 

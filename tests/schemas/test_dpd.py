@@ -1,12 +1,8 @@
+from app.schemas.dpd import DPDCrawlRequest, DPDCrawlResponse
 import pytest
 from pydantic import ValidationError
 
-import pytest
-
 pytestmark = [pytest.mark.unit]
-
-
-from app.schemas.dpd import DPDCrawlRequest, DPDCrawlResponse
 
 
 class TestDPDCrawlRequest:

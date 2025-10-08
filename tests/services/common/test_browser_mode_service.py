@@ -7,7 +7,6 @@ import pytest
 pytestmark = [pytest.mark.unit]
 
 
-
 def test_browser_mode_enum():
     """Test that BrowserMode enum has the correct values."""
     assert BrowserMode.HEADLESS.value == "headless"

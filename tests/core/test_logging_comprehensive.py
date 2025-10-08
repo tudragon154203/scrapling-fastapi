@@ -2,15 +2,6 @@
 Comprehensive tests for core logging to achieve 80%+ coverage.
 """
 
-import logging
-import re
-from unittest.mock import MagicMock, patch
-
-import pytest
-
-pytestmark = [pytest.mark.unit]
-
-
 from app.core.logging import (
     RefererScrubbingFormatter,
     RefererScrubbingFilter,
@@ -21,6 +12,13 @@ from app.core.logging import (
     get_logger,
     _SCRUBBING_FILTER,
 )
+import logging
+import re
+from unittest.mock import MagicMock, patch
+
+import pytest
+
+pytestmark = [pytest.mark.unit]
 
 
 class TestRefererScrubbingFormatter:

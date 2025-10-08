@@ -6,7 +6,6 @@ import pytest
 pytestmark = [pytest.mark.unit]
 
 
-
 class DummySettings:
     """Simple settings stand-in for tests."""
     default_headless = True

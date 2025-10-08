@@ -5,7 +5,6 @@ import pytest
 pytestmark = [pytest.mark.unit]
 
 
-
 def test_load_returns_empty_list_for_empty_path():
     source = ProxyListFileSource("")
 

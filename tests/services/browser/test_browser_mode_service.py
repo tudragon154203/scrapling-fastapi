@@ -8,7 +8,6 @@ import pytest
 pytestmark = [pytest.mark.unit]
 
 
-
 @patch('specify_src.services.execution_context_service.ExecutionContextService.is_test_environment')
 def test_determine_mode_force_headful_true(mock_is_test_environment):
     """Test that determine_mode returns HEADFUL when force_headful is True and not in test environment."""

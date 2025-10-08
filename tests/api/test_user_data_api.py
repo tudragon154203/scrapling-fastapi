@@ -7,7 +7,6 @@ import pytest
 pytestmark = [pytest.mark.unit]
 
 
-
 class TestUserDataAPI:
     """Test suite for user data API endpoints."""
 

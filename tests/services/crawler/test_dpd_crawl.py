@@ -1,13 +1,9 @@
+from app.schemas.dpd import DPDCrawlRequest
+from app.services.crawler.dpd import DPDCrawler
 import pytest
 from unittest.mock import MagicMock
 
-import pytest
-
 pytestmark = [pytest.mark.unit]
-
-
-from app.services.crawler.dpd import DPDCrawler
-from app.schemas.dpd import DPDCrawlRequest
 
 
 @pytest.fixture

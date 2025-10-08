@@ -1,11 +1,7 @@
-import pytest
-
+from app.schemas.auspost import AuspostCrawlRequest
 import pytest
 
 pytestmark = [pytest.mark.unit]
-
-
-from app.schemas.auspost import AuspostCrawlRequest
 
 
 def test_auspost_request_requires_tracking_code():

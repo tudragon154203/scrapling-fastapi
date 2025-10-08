@@ -8,7 +8,6 @@ import pytest
 pytestmark = [pytest.mark.unit]
 
 
-
 class LogCaptureHandler(logging.Handler):
     """Custom handler that captures log records for testing."""
 

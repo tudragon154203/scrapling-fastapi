@@ -1,14 +1,10 @@
 """Unit tests for TikTok download schemas."""
 
+from app.schemas.tiktok.download import TikTokDownloadRequest, TikTokDownloadResponse, TikTokVideoInfo
 import pytest
 from pydantic import ValidationError
 
-import pytest
-
 pytestmark = [pytest.mark.unit]
-
-
-from app.schemas.tiktok.download import TikTokDownloadRequest, TikTokDownloadResponse, TikTokVideoInfo
 
 
 class TestTikTokDownloadRequest:

@@ -1,14 +1,10 @@
 """Unit tests for TikTok download actions."""
 
+from app.services.tiktok.download.actions.resolver import TikVidResolveAction
 import pytest
 from unittest.mock import Mock, patch
 
-import pytest
-
 pytestmark = [pytest.mark.unit]
-
-
-from app.services.tiktok.download.actions.resolver import TikVidResolveAction
 
 
 class TestTikVidResolveAction:

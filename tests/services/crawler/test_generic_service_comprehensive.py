@@ -2,17 +2,13 @@
 Comprehensive tests for generic crawl service to increase coverage.
 """
 
+from app.services.crawler.generic import GenericCrawler
+from app.schemas.crawl import CrawlRequest
 import pytest
 import sys
 import types
 
-import pytest
-
 pytestmark = [pytest.mark.unit]
-
-
-from app.schemas.crawl import CrawlRequest
-from app.services.crawler.generic import GenericCrawler
 
 
 def _install_fake_scrapling(monkeypatch, side_effects):
@@ -32,9 +28,12 @@ def _install_fake_scrapling(monkeypatch, side_effects):
             # treat action as HTTP status
             resp = types.SimpleNamespace()
             resp.status = int(action)
+            lorem_text = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. " * 20
             resp.html_content = (
                 f"<html><head><title>Test Page {idx+1}</title></head>"
-                f"<body><h1>Content</h1><p>This is test content for attempt {idx+1}.</p></body></html>"
+                f"<body><h1>Content</h1><p>This is test content for attempt {idx+1}.</p>"
+                f"<div>{lorem_text}</div>"
+                f"</body></html>"
             )
             return resp
 

@@ -7,7 +7,6 @@ import pytest
 pytestmark = [pytest.mark.unit]
 
 
-
 def _make_request():
     from app.schemas.crawl import CrawlRequest
 

@@ -7,7 +7,6 @@ import pytest
 pytestmark = [pytest.mark.unit]
 
 
-
 def _install_fake_scrapling_without_proxy(monkeypatch):
     """Install fake scrapling with a StealthyFetcher.fetch that does NOT support `proxy`.
 

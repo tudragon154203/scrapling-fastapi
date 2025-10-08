@@ -10,7 +10,6 @@ import pytest
 pytestmark = [pytest.mark.unit]
 
 
-
 class DummyExecutor:
     def __init__(self):
         self.calls = []
