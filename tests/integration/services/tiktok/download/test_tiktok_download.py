@@ -2,12 +2,9 @@
 
 import os
 import pytest
-import asyncio
-from pathlib import Path
 from unittest.mock import patch, AsyncMock
 
 from fastapi.testclient import TestClient
-from httpx import AsyncClient
 
 from app.main import app
 from app.services.tiktok.download.service import TikTokDownloadService
@@ -248,8 +245,6 @@ class TestTikTokDownloadIntegration:
         # Skip if not in integration test mode
         if not os.environ.get("RUN_INTEGRATION_TESTS"):
             pytest.skip("Set RUN_INTEGRATION_TESTS=1 to run this test")
-
-        service = TikTokDownloadService()
 
         # Test URL validation
         from app.services.tiktok.download.utils.helpers import is_valid_tiktok_url
