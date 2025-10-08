@@ -8,6 +8,9 @@ from app.services.tiktok.download.utils.helpers import (
     extract_video_metadata_from_url,
     format_file_size,
 )
+import pytest
+
+pytestmark = [pytest.mark.unit]
 
 
 class TestTikTokDownloadHelpers:

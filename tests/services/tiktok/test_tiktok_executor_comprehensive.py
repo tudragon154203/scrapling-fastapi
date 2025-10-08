@@ -111,7 +111,7 @@ class TestTiktokExecutorBrowserSetup:
 
         mock_fetcher_result = MagicMock()
         tiktok_executor.fetcher.fetch = MagicMock(return_value=mock_fetcher_result)
-        tiktok_executor.fetcher.detect_capabilities.return_value = {"supports_stealth": True}
+        tiktok_executor.fetcher.detect_capabilities = MagicMock(return_value={"supports_stealth": True})
 
         mock_args = {"_user_data_cleanup": MagicMock()}
         mock_headers = {"User-Agent": "test"}
