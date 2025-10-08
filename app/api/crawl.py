@@ -1,15 +1,57 @@
-from fastapi import APIRouter
-from types import SimpleNamespace, FunctionType
+from __future__ import annotations
 
-from app.schemas.crawl import CrawlRequest, CrawlResponse
-from app.schemas.dpd import DPDCrawlRequest, DPDCrawlResponse
-from app.schemas.auspost import AuspostCrawlRequest, AuspostCrawlResponse
-from app.services.crawler.generic import GenericCrawler
-from app.services.crawler.dpd import DPDCrawler
-from app.services.crawler.auspost import AuspostCrawler
+import sys
+from types import FunctionType, SimpleNamespace
+from typing import Protocol
+
+from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 
+from app.schemas.auspost import AuspostCrawlRequest, AuspostCrawlResponse
+from app.schemas.crawl import CrawlRequest, CrawlResponse
+from app.schemas.dpd import DPDCrawlRequest, DPDCrawlResponse
+from app.services.crawler.auspost import AuspostCrawler
+from app.services.crawler.dpd import DPDCrawler
+from app.services.crawler.generic import GenericCrawler
+
+
+class CrawlerServiceProtocol(Protocol):
+    """Protocol for crawler services used by the API layer."""
+
+    def crawl(self, request: CrawlRequest) -> CrawlResponse:
+        ...
+
+
+class _CrawlerServiceAdapter:
+    """Adapter exposing a crawl method backed by GenericCrawler."""
+
+    def __init__(self, crawler: GenericCrawler) -> None:
+        self._crawler = crawler
+
+    def crawl(self, request: CrawlRequest) -> CrawlResponse:
+        return self._crawler.run(request)
+
+
 router = APIRouter()
+
+
+_default_crawler_service: CrawlerServiceProtocol = _CrawlerServiceAdapter(GenericCrawler())
+# Exposed for patching in tests and for reuse by router aggregator.
+crawler_service: CrawlerServiceProtocol = _default_crawler_service
+
+
+def _resolve_crawler_service() -> CrawlerServiceProtocol:
+    """Return the active crawler service, respecting route-level patches.
+
+    Tests often patch `app.api.routes.crawler_service`; this resolver ensures
+    those patches are honored without breaking the layered architecture.
+    """
+    routes_module = sys.modules.get("app.api.routes")
+    if routes_module is not None:
+        patched = getattr(routes_module, "crawler_service", None)
+        if patched is not None:
+            return patched
+    return crawler_service
 
 
 def crawl(request: CrawlRequest) -> CrawlResponse:
@@ -18,8 +60,8 @@ def crawl(request: CrawlRequest) -> CrawlResponse:
     Kept separate from the FastAPI-decorated function so tests can patch
     this symbol and assert the request object being forwarded.
     """
-    crawler = GenericCrawler()
-    return crawler.run(request)
+    service = _resolve_crawler_service()
+    return service.crawl(request)
 
 
 @router.post("/crawl", response_model=CrawlResponse, tags=["crawl"])

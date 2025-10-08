@@ -53,6 +53,11 @@ def mock_executor():
     executor.browser = AsyncMock()
     executor.is_still_active.return_value = True
     executor.get_session_info.return_value = {"test": "info"}
+    # Allow dynamic action methods used in tests while retaining spec enforcement.
+    existing_methods = set(getattr(executor, "_mock_methods", []) or [])
+    existing_methods.add("test_action")
+    executor._mock_methods = tuple(existing_methods)
+    executor.test_action = AsyncMock()
     return executor
 
 

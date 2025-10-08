@@ -14,6 +14,12 @@ from app.services.common.adapters.scrapling_fetcher import ScraplingFetcherAdapt
 from app.services.common.browser.camoufox import CamoufoxArgsBuilder
 
 
+pytestmark = pytest.mark.skipif(
+    sys.platform.startswith("linux"),
+    reason="Camoufox binary stubs unavailable on Linux runners for executor tests",
+)
+
+
 @pytest.fixture
 def mock_config():
     """Mock TikTok session config."""

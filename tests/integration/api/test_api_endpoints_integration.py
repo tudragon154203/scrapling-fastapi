@@ -120,7 +120,8 @@ class TestAPIEndpointsIntegration:
 
         assert response.status_code == 200
         data = response.json()
-        assert "result" in data
+        assert data["status"] == "success"
+        assert "message" in data
 
     @patch('app.api.crawl.crawl_dpd')
     def test_dpd_endpoint_integration(self, mock_crawl_dpd):
@@ -279,7 +280,7 @@ class TestAPIEndpointsIntegration:
         for _ in range(5):
             response = self.client.post("/crawl", json={
                 "url": "https://example.com",
-                "user_data_dir": f"/tmp/test{_}"
+                "headers": {"X-Request-ID": f"req-{_}"}
             })
             responses.append(response)
 
