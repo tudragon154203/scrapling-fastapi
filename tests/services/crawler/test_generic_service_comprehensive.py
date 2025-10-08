@@ -374,7 +374,6 @@ class TestGenericCrawler:
 
         assert result.status == "success"
 
-    
     def test_crawl_invalid_url(self, service):
         """Test crawl with invalid URL."""
         # Invalid URL should be caught by Pydantic validation
