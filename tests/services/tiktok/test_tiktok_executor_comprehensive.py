@@ -448,9 +448,9 @@ class TestTiktokExecutorEdgeCases:
 
         tiktok_executor._cleanup_on_error.assert_called_once()
 
-    def test_init_with_no_proxy(self, mock_config):
+    def test_init_with_no_proxy(self, mock_config, mock_settings):
         """Test executor initialization without proxy."""
-        with patch("app.services.tiktok.tiktok_executor.get_settings", return_value=mock_settings()):
+        with patch("app.services.tiktok.tiktok_executor.get_settings", return_value=mock_settings):
             executor = TiktokExecutor(mock_config)
 
             assert executor.proxy is None
@@ -480,15 +480,15 @@ class TestTiktokExecutorIntegration:
     """Test integration scenarios."""
 
     @pytest.mark.asyncio
-    async def test_full_session_lifecycle(self, mock_config):
+    async def test_full_session_lifecycle(self, mock_config, mock_settings):
         """Test full session lifecycle."""
-        with patch("app.services.tiktok.tiktok_executor.get_settings", return_value=mock_settings()):
+        with patch("app.services.tiktok.tiktok_executor.get_settings", return_value=mock_settings):
             executor = TiktokExecutor(mock_config)
 
             # Mock the fetcher to avoid actual browser operations
             mock_result = MagicMock()
             executor.fetcher.fetch = MagicMock(return_value=mock_result)
-            executor.fetcher.detect_capabilities.return_value = {"supports_stealth": True}
+            executor.fetcher.detect_capabilities = MagicMock(return_value={"supports_stealth": True})
             executor.camoufox_builder.build = MagicMock(return_value=({}, {}))
             executor.arg_composer.compose = MagicMock(return_value={})
 
@@ -504,11 +504,11 @@ class TestTiktokExecutorIntegration:
             assert executor.browser is None
 
     @pytest.mark.asyncio
-    async def test_session_with_proxy(self, mock_config):
+    async def test_session_with_proxy(self, mock_config, mock_settings):
         """Test session with proxy configuration."""
         proxy = {"http": "http://proxy:8080", "https": "https://proxy:8080"}
 
-        with patch("app.services.tiktok.tiktok_executor.get_settings", return_value=mock_settings()):
+        with patch("app.services.tiktok.tiktok_executor.get_settings", return_value=mock_settings):
             executor = TiktokExecutor(mock_config, proxy=proxy)
 
             config = await executor.get_config()

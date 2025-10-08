@@ -104,15 +104,15 @@ class TestAPIEndpointsIntegration:
         assert data["status"] == "error"
         assert "NOT_LOGGED_IN" in str(data)
 
-    @patch('app.api.routes.browse_service')
-    def test_browse_endpoint_integration(self, mock_browse_service):
+    @patch('app.api.browse.browse')
+    def test_browse_endpoint_integration(self, mock_browse):
         """Test browse endpoint integration."""
-        # Mock successful browse
-        mock_browse_service.browse = MagicMock(return_value={
-            "status": "success",
-            "content": "<html>Browse result</html>",
-            "actions": []
-        })
+        # Mock successful browse - return a BrowseResponse object
+        from app.schemas.browse import BrowseResponse
+        mock_browse.return_value = BrowseResponse(
+            status="success",
+            message="Browser session completed successfully"
+        )
 
         response = self.client.post("/browse", json={
             "url": "https://example.com"
