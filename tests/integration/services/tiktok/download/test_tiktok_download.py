@@ -1,6 +1,5 @@
 """Integration tests for TikTok download endpoint."""
 
-import os
 import pytest
 from unittest.mock import patch, AsyncMock
 
@@ -89,15 +88,12 @@ class TestTikTokDownloadIntegration:
 
     @pytest.mark.integration
     @pytest.mark.slow
+    @pytest.mark.asyncio
     async def test_real_download_resolution(self):
         """
         Test actual TikTok video URL resolution with minimal mocking.
         This test makes real network calls and may be slow.
         """
-        # Skip if not in integration test mode
-        if not os.environ.get("RUN_INTEGRATION_TESTS"):
-            pytest.skip("Set RUN_INTEGRATION_TESTS=1 to run this test")
-
         service = TikTokDownloadService()
         request = TikTokDownloadRequest(url=DEMO_TIKTOK_URL, quality="HD")
 
@@ -124,15 +120,12 @@ class TestTikTokDownloadIntegration:
 
     @pytest.mark.integration
     @pytest.mark.slow
+    @pytest.mark.asyncio
     async def test_real_download_with_file_info(self):
         """
         Test actual download URL resolution and file info retrieval.
         This test makes real network calls and may be slow.
         """
-        # Skip if not in integration test mode
-        if not os.environ.get("RUN_INTEGRATION_TESTS"):
-            pytest.skip("Set RUN_INTEGRATION_TESTS=1 to run this test")
-
         service = TikTokDownloadService()
         request = TikTokDownloadRequest(url=DEMO_TIKTOK_URL)
 
@@ -237,15 +230,12 @@ class TestTikTokDownloadIntegration:
             assert response.status_code == 422
 
     @pytest.mark.integration
+    @pytest.mark.asyncio
     async def test_service_layer_directly_with_real_url(self):
         """
         Test the service layer directly with real URL but minimal mocking.
         This helps isolate the service logic from API layer concerns.
         """
-        # Skip if not in integration test mode
-        if not os.environ.get("RUN_INTEGRATION_TESTS"):
-            pytest.skip("Set RUN_INTEGRATION_TESTS=1 to run this test")
-
         # Test URL validation
         from app.services.tiktok.download.utils.helpers import is_valid_tiktok_url
         assert is_valid_tiktok_url(DEMO_TIKTOK_URL) is True
