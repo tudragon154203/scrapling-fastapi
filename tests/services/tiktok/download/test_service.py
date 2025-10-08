@@ -43,8 +43,8 @@ class TestTikTokDownloadService:
             "filename": "video.mp4"
         })
 
-        with patch('app.services.tiktok.download.service.TikVidVideoResolver', return_value=mock_resolver), \
-                patch('app.services.tiktok.download.service.VideoFileDownloader', return_value=mock_downloader):
+        with patch('app.services.tiktok.download.resolvers.video_url.TikVidVideoResolver', return_value=mock_resolver), \
+                patch('app.services.tiktok.download.downloaders.file.VideoFileDownloader', return_value=mock_downloader):
 
             result = await service.download_video(valid_request)
 
@@ -87,7 +87,7 @@ class TestTikTokDownloadService:
         mock_resolver = Mock(spec=TikVidVideoResolver)
         mock_resolver.resolve_video_url.side_effect = Exception("Navigation failed")
 
-        with patch('app.services.tiktok.download.service.TikVidVideoResolver', return_value=mock_resolver):
+        with patch('app.services.tiktok.download.resolvers.video_url.TikVidVideoResolver', return_value=mock_resolver):
             result = await service.download_video(valid_request)
 
         assert result.status == "error"
@@ -104,8 +104,8 @@ class TestTikTokDownloadService:
         mock_resolver.resolve_video_url.return_value = expected_url
         mock_downloader.get_file_info = AsyncMock(side_effect=Exception("Network error"))
 
-        with patch('app.services.tiktok.download.service.TikVidVideoResolver', return_value=mock_resolver), \
-                patch('app.services.tiktok.download.service.VideoFileDownloader', return_value=mock_downloader):
+        with patch('app.services.tiktok.download.resolvers.video_url.TikVidVideoResolver', return_value=mock_resolver), \
+                patch('app.services.tiktok.download.downloaders.file.VideoFileDownloader', return_value=mock_downloader):
 
             result = await service.download_video(valid_request)
 
@@ -119,7 +119,7 @@ class TestTikTokDownloadService:
         mock_resolver = Mock(spec=TikVidVideoResolver)
         mock_resolver.resolve_video_url.side_effect = Exception("navigation timeout")
 
-        with patch('app.services.tiktok.download.service.TikVidVideoResolver', return_value=mock_resolver):
+        with patch('app.services.tiktok.download.resolvers.video_url.TikVidVideoResolver', return_value=mock_resolver):
             result = await service.download_video(valid_request)
 
         assert result.status == "error"
@@ -131,7 +131,7 @@ class TestTikTokDownloadService:
         mock_resolver = Mock(spec=TikVidVideoResolver)
         mock_resolver.resolve_video_url.side_effect = Exception("no MP4 link found")
 
-        with patch('app.services.tiktok.download.service.TikVidVideoResolver', return_value=mock_resolver):
+        with patch('app.services.tiktok.download.resolvers.video_url.TikVidVideoResolver', return_value=mock_resolver):
             result = await service.download_video(valid_request)
 
         assert result.status == "error"
