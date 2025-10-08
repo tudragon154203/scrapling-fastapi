@@ -161,7 +161,7 @@ class TestTiktokExecutorBrowserSetup:
         """Test browser setup on non-Windows platform."""
         mock_fetcher_result = MagicMock()
         tiktok_executor.fetcher.fetch = MagicMock(return_value=mock_fetcher_result)
-        tiktok_executor.fetcher.detect_capabilities.return_value = {"supports_stealth": True}
+        tiktok_executor.fetcher.detect_capabilities = MagicMock(return_value={"supports_stealth": True})
 
         mock_args = {"_user_data_cleanup": MagicMock()}
         mock_headers = {}
@@ -180,7 +180,7 @@ class TestTiktokExecutorBrowserSetup:
         """Test browser setup when no user data cleanup."""
         mock_fetcher_result = MagicMock()
         tiktok_executor.fetcher.fetch = MagicMock(return_value=mock_fetcher_result)
-        tiktok_executor.fetcher.detect_capabilities.return_value = {"supports_stealth": True}
+        tiktok_executor.fetcher.detect_capabilities = MagicMock(return_value={"supports_stealth": True})
 
         mock_args = {}
         mock_headers = {}
@@ -462,7 +462,7 @@ class TestTiktokExecutorEdgeCases:
         """Test browser setup when fetch fails."""
         mock_fetcher_result = MagicMock()
         tiktok_executor.fetcher.fetch = MagicMock(return_value=mock_fetcher_result)
-        tiktok_executor.fetcher.detect_capabilities.return_value = {"supports_stealth": True}
+        tiktok_executor.fetcher.detect_capabilities = MagicMock(return_value={"supports_stealth": True})
 
         mock_args = {}
         mock_headers = {}
