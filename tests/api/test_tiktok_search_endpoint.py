@@ -3,6 +3,10 @@
 from unittest.mock import AsyncMock, patch
 from app.schemas.tiktok.search import TikTokSearchResponse
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 
 SAMPLE_SEARCH_RESULT = {
     "results": [
@@ -107,8 +111,11 @@ class TestTikTokSearchEndpoint:
         detail = response.json()["detail"]
         assert any("unexpected" in item.get("loc", [""])[-1] for item in detail)
 
-    def test_missing_force_headful_defaults_to_headless_and_respects_num_videos_limit(self, client):
+    @patch("app.services.tiktok.search.service.TikTokSearchService.search", new_callable=AsyncMock)
+    def test_missing_force_headful_defaults_to_headless_and_respects_num_videos_limit(self, mock_search, client):
         """Missing force_headful defaults to False and uses headless path."""
+        mock_search.return_value = SAMPLE_SEARCH_RESULT
+
         response = client.post("/tiktok/search", json={"query": "test", "numVideos": 15})
 
         assert response.status_code == 200
@@ -116,8 +123,11 @@ class TestTikTokSearchEndpoint:
         assert data["execution_mode"] == "headless"
         assert data["search_metadata"]["executed_path"] == "headless"
 
-    def test_invalid_force_headful_value(self, client):
+    @patch("app.services.tiktok.search.service.TikTokSearchService.search", new_callable=AsyncMock)
+    def test_invalid_force_headful_value(self, mock_search, client):
         """Values outside the accepted coercions should raise validation errors."""
+        mock_search.return_value = SAMPLE_SEARCH_RESULT
+
         response = client.post(
             "/tiktok/search",
             json={"query": "test", "force_headful": "maybe"},

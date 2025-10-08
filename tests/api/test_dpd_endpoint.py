@@ -1,9 +1,12 @@
 
+from fastapi.responses import JSONResponse
 import json
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
-from fastapi.responses import JSONResponse
+import pytest
+
+pytestmark = [pytest.mark.unit]
 
 
 def test_dpd_crawl_success_with_stub(monkeypatch, client):

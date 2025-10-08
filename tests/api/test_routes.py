@@ -1,6 +1,9 @@
+from app.api.routes import router
 from fastapi.routing import APIRoute
 
-from app.api.routes import router
+import pytest
+
+pytestmark = [pytest.mark.unit]
 
 
 EXPECTED_PATHS = {

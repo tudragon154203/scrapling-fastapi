@@ -1,8 +1,11 @@
 """Tests for shared TikTok search helpers."""
 
+from app.services.tiktok.search.multistep import TikTokMultiStepSearchService
 from typing import Any
 
-from app.services.tiktok.search.multistep import TikTokMultiStepSearchService
+import pytest
+
+pytestmark = [pytest.mark.unit]
 
 
 class DummyFetcher:

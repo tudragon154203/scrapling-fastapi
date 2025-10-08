@@ -1,10 +1,13 @@
+from app.services.browser.executors.browse_executor import BrowseExecutor
+from app.services.browser.browse import BrowseCrawler
+from app.schemas.browse import BrowseRequest
 from contextlib import contextmanager
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
-from app.schemas.browse import BrowseRequest
-from app.services.browser.browse import BrowseCrawler
-from app.services.browser.executors.browse_executor import BrowseExecutor
+import pytest
+
+pytestmark = [pytest.mark.unit]
 
 
 def test_browse_crawler_uses_browse_executor():

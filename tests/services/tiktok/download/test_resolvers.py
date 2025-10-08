@@ -1,10 +1,11 @@
 """Unit tests for TikTok download resolvers."""
 
+from app.services.tiktok.download.actions.resolver import TikVidResolveAction
+from app.services.tiktok.download.resolvers.video_url import TikVidVideoResolver
 import pytest
 from unittest.mock import Mock, patch
 
-from app.services.tiktok.download.resolvers.video_url import TikVidVideoResolver
-from app.services.tiktok.download.actions.resolver import TikVidResolveAction
+pytestmark = [pytest.mark.unit]
 
 
 class TestTikVidVideoResolver:

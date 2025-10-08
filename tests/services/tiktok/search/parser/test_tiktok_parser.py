@@ -5,6 +5,10 @@ from app.services.tiktok.search.parser.utils import parse_like_count
 from app.services.tiktok.search.parser.html_parser import extract_video_data_from_html
 from pathlib import Path
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 
 class TestTikTokParser:
     """Unit tests for TikTok HTML parsing functionality"""

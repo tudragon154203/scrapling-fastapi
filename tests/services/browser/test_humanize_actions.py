@@ -1,6 +1,3 @@
-import random
-from unittest.mock import MagicMock, patch
-
 from app.services.browser.actions.humanize import (
     human_pause,
     move_mouse_to_locator,
@@ -9,6 +6,12 @@ from app.services.browser.actions.humanize import (
     type_like_human,
     scroll_noise,
 )
+import random
+from unittest.mock import MagicMock, patch
+
+import pytest
+
+pytestmark = [pytest.mark.unit]
 
 
 class TestHumanizeActions:

@@ -5,6 +5,10 @@ from fastapi.testclient import TestClient
 from app.main import create_app
 from app.core.logging import setup_logger
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 
 class LogCaptureHandler(logging.Handler):
     """Custom handler that captures log records for testing."""

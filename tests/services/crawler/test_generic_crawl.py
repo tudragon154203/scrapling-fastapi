@@ -2,6 +2,10 @@ import os
 import sys
 import types
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 
 def _install_fake_scrapling(monkeypatch, side_effects):
     """Install a fake scrapling.fetchers.StealthyFetcher with programmable behavior."""

@@ -1,9 +1,10 @@
 """Unit tests for TikTok search request validation."""
 
+from app.schemas.tiktok.search import TikTokSearchRequest
 import pytest
 from pydantic import ValidationError
 
-from app.schemas.tiktok.search import TikTokSearchRequest
+pytestmark = [pytest.mark.unit]
 
 
 class TestForceHeadfulValidation:

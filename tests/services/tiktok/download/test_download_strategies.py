@@ -1,12 +1,13 @@
 """Unit tests for TikTok download strategies."""
 
+from app.services.tiktok.download.strategies.factory import TikTokDownloadStrategyFactory
+from app.services.tiktok.download.strategies.chromium import ChromiumDownloadStrategy
+from app.services.tiktok.download.strategies.camoufox import CamoufoxDownloadStrategy
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from app.services.tiktok.download.strategies.camoufox import CamoufoxDownloadStrategy
-from app.services.tiktok.download.strategies.chromium import ChromiumDownloadStrategy
-from app.services.tiktok.download.strategies.factory import TikTokDownloadStrategyFactory
+pytestmark = [pytest.mark.unit]
 
 
 class TestCamoufoxDownloadStrategy:

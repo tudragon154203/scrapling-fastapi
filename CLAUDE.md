@@ -16,7 +16,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **All tests**: `python -m pytest`
 - **Quick test run**: `python -m pytest -q`
 - **Verbose output**: `python -m pytest -v`
+- **Unit tests only**: `python -m pytest -m unit`
+- **Integration tests only**: `python -m pytest -m integration` (requires real network/browser)
 - **Integration tests**: `python -m pytest` (requires real network/browser)
+
+### Test Markers
+
+All test files must have proper pytest markers at the top of the file:
+- **Unit tests**: `pytestmark = [pytest.mark.unit]`
+- **Integration tests**: `pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("require_scrapling")]`
 
 ### Port Information
 

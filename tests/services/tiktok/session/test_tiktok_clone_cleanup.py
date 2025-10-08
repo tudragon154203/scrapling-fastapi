@@ -1,13 +1,14 @@
 """
 Test that TikTok session clone directories are properly cleaned up
 """
+from app.schemas.tiktok.session import TikTokSessionConfig
+from app.services.tiktok.tiktok_executor import TiktokExecutor
 import pytest
 import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock
 
-from app.services.tiktok.tiktok_executor import TiktokExecutor
-from app.schemas.tiktok.session import TikTokSessionConfig
+pytestmark = [pytest.mark.unit]
 
 
 class TestTikTokCloneCleanup:

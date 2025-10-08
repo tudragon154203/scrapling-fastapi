@@ -1,8 +1,11 @@
+from app.core import config
 import importlib
 import sys
 import types
 
-from app.core import config
+import pytest
+
+pytestmark = [pytest.mark.unit]
 
 
 def test_get_settings_env_vars(monkeypatch):

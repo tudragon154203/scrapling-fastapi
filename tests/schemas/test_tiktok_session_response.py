@@ -4,6 +4,8 @@ Contract tests for TikTok Session Response schema
 import pytest
 from pydantic import ValidationError
 
+pytestmark = [pytest.mark.unit]
+
 
 class TestTikTokSessionResponseSchema:
     """Test TikTokSessionResponse schema validation"""

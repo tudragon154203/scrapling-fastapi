@@ -1,9 +1,12 @@
+from app.services.browser.actions.scroll import ScrollDownAction
+import app.services.browser.actions.scroll as scroll_module
 import itertools
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
-import app.services.browser.actions.scroll as scroll_module
-from app.services.browser.actions.scroll import ScrollDownAction
+import pytest
+
+pytestmark = [pytest.mark.unit]
 
 
 def _make_page(wheel=True, evaluate=True, keyboard=True):

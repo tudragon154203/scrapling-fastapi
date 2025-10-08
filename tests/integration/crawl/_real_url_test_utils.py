@@ -4,7 +4,10 @@ import pytest
 from app.core.config import get_settings
 
 
-pytestmark = pytest.mark.integration
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.usefixtures("require_scrapling"),
+]
 
 
 # Disable proxies and keep retries minimal within this module to reduce flakiness/hangs

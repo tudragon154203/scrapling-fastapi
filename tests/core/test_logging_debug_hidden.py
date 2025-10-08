@@ -3,6 +3,10 @@ import io
 import sys
 from app.core.logging import setup_logger, RefererScrubbingFilter, RefererScrubbingFormatter
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 
 class LogCaptureHandler(logging.Handler):
     """Custom handler that captures log records for testing."""

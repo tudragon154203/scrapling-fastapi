@@ -5,6 +5,10 @@ from app.services.common.engine import CrawlerEngine
 from app.services.crawler.executors.retry_executor import RetryingExecutor
 from app.services.crawler.executors.single_executor import SingleAttemptExecutor
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 
 class DummyExecutor:
     def __init__(self):

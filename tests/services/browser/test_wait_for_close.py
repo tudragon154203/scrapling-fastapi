@@ -1,8 +1,9 @@
+from app.services.browser.actions.wait_for_close import WaitForUserCloseAction
 from unittest.mock import MagicMock
 
 import pytest
 
-from app.services.browser.actions.wait_for_close import WaitForUserCloseAction
+pytestmark = [pytest.mark.unit]
 
 
 class DummyCloseError(Exception):

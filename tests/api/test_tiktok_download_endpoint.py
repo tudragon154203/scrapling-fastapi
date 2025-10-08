@@ -8,6 +8,8 @@ from fastapi.testclient import TestClient
 from app.main import app
 from app.schemas.tiktok.download import TikTokDownloadResponse, TikTokVideoInfo
 
+pytestmark = [pytest.mark.unit]
+
 # Use the demo URL from the original demo script
 DEMO_TIKTOK_URL = "https://www.tiktok.com/@tieentiton/video/7530618987760209170"
 
@@ -17,7 +19,6 @@ client = TestClient(app)
 class TestTikTokDownloadEndpointUnit:
     """Unit tests for TikTok download endpoint functionality."""
 
-    @pytest.mark.unit
     def test_download_endpoint_success_routing(self):
         """Test successful download endpoint routing and response mapping."""
         with patch('app.api.tiktok.tiktok_download_service') as mock_service:
@@ -48,7 +49,6 @@ class TestTikTokDownloadEndpointUnit:
             assert data["file_size"] == 1024000
             assert data["execution_time"] == 12.5
 
-    @pytest.mark.unit
     def test_download_endpoint_invalid_url_error_routing(self):
         """Test download endpoint error mapping for invalid URLs."""
         with patch('app.api.tiktok.tiktok_download_service') as mock_service:
@@ -71,7 +71,6 @@ class TestTikTokDownloadEndpointUnit:
             assert data["error_code"] == "INVALID_URL"
             assert data["message"] == "Invalid TikTok URL provided"
 
-    @pytest.mark.unit
     def test_download_endpoint_navigation_failed_error_routing(self):
         """Test download endpoint error mapping for navigation failures."""
         with patch('app.api.tiktok.tiktok_download_service') as mock_service:
@@ -93,7 +92,6 @@ class TestTikTokDownloadEndpointUnit:
             assert data["status"] == "error"
             assert data["error_code"] == "NAVIGATION_FAILED"
 
-    @pytest.mark.unit
     def test_download_endpoint_no_download_link_error_routing(self):
         """Test download endpoint error mapping for missing download links."""
         with patch('app.api.tiktok.tiktok_download_service') as mock_service:
@@ -114,7 +112,6 @@ class TestTikTokDownloadEndpointUnit:
             assert data["status"] == "error"
             assert data["error_code"] == "NO_DOWNLOAD_LINK"
 
-    @pytest.mark.unit
     def test_download_endpoint_unknown_error_routing(self):
         """Test download endpoint error mapping for unknown errors."""
         with patch('app.api.tiktok.tiktok_download_service') as mock_service:
@@ -135,7 +132,6 @@ class TestTikTokDownloadEndpointUnit:
             assert data["status"] == "error"
             assert data["error_code"] == "UNKNOWN_ERROR"
 
-    @pytest.mark.unit
     def test_download_endpoint_request_validation_invalid_url_format(self):
         """Test request validation for invalid URL format."""
         response = client.post(
@@ -147,7 +143,6 @@ class TestTikTokDownloadEndpointUnit:
         data = response.json()
         assert "detail" in data
 
-    @pytest.mark.unit
     def test_download_endpoint_request_validation_missing_url(self):
         """Test request validation for missing URL field."""
         response = client.post(
@@ -159,7 +154,6 @@ class TestTikTokDownloadEndpointUnit:
         data = response.json()
         assert "detail" in data
 
-    @pytest.mark.unit
     def test_download_endpoint_request_validation_extra_fields(self):
         """Test request validation rejects extra fields."""
         response = client.post(
@@ -174,7 +168,6 @@ class TestTikTokDownloadEndpointUnit:
         data = response.json()
         assert "detail" in data
 
-    @pytest.mark.unit
     def test_download_endpoint_service_call_without_quality(self):
         """Test that service is called without quality parameter."""
         with patch('app.api.tiktok.tiktok_download_service') as mock_service:

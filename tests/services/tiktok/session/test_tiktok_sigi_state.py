@@ -1,10 +1,11 @@
 """Tests for parsing TikTok SIGI_STATE JSON payloads."""
+from app.services.tiktok.search.parser.json_parser import _from_sigi_state
 import json
 from typing import Dict, Any
 
 import pytest
 
-from app.services.tiktok.search.parser.json_parser import _from_sigi_state
+pytestmark = [pytest.mark.unit]
 
 
 def _wrap_sigi_state(data: Dict[str, Any]) -> str:

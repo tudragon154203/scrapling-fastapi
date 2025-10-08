@@ -1,3 +1,6 @@
+from app.schemas.crawl import CrawlRequest
+from app.services.crawler.proxy.health import get_health_tracker, reset_health_tracker
+from app.services.common.engine import CrawlerEngine
 import random
 import sys
 import types
@@ -5,9 +8,9 @@ import tempfile
 import os
 from unittest.mock import patch
 
-from app.services.common.engine import CrawlerEngine
-from app.services.crawler.proxy.health import get_health_tracker, reset_health_tracker
-from app.schemas.crawl import CrawlRequest
+import pytest
+
+pytestmark = [pytest.mark.unit]
 
 
 def _install_fake_scrapling_with_proxy_tracking(monkeypatch, side_effects):

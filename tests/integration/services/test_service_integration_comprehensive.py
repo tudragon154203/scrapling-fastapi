@@ -8,7 +8,12 @@ from app.schemas.crawl import CrawlRequest
 from app.schemas.browse import BrowseRequest
 
 
-@pytest.mark.integration
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.usefixtures("require_scrapling"),
+]
+
+
 class TestServicesIntegration:
     """Integration tests for service layer."""
 

@@ -1,11 +1,12 @@
 
+from app.schemas.crawl import CrawlRequest
+from app.services.common.engine import CrawlerEngine
+from app.schemas.browse import BrowseRequest, BrowseResponse
+from app.services.browser.browse import BrowseCrawler
 import pytest
 from unittest.mock import MagicMock, Mock, patch
 
-from app.services.browser.browse import BrowseCrawler
-from app.schemas.browse import BrowseRequest, BrowseResponse
-from app.services.common.engine import CrawlerEngine
-from app.schemas.crawl import CrawlRequest
+pytestmark = [pytest.mark.unit]
 
 
 @pytest.fixture

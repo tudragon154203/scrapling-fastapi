@@ -2,6 +2,10 @@ from specify_src.models.browser_mode import BrowserMode
 from specify_src.services.browser_mode_service import BrowserModeService
 from specify_src.services.execution_context_service import ExecutionContextService
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 
 def test_browser_mode_enum():
     """Test that BrowserMode enum has the correct values."""
