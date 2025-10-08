@@ -23,7 +23,6 @@ import app.services.tiktok.download.resolvers.video_url as resolvers_module
 
 if TYPE_CHECKING:
     from app.services.tiktok.download.downloaders.file import VideoFileDownloader
-    from app.services.tiktok.download.resolvers.video_url import TikVidVideoResolver
     from app.services.tiktok.download.strategies.base import TikTokDownloadStrategy
 
 

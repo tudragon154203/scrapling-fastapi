@@ -51,6 +51,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt -r requirements-test.txt
 
+      - name: Lint
+        run: flake8 app/ tests/
+
       - name: Fetch Camoufox resources
         env:
           CAMOUFOX_MAX_RETRIES: 3
@@ -63,9 +66,6 @@ jobs:
             ./.github/workflows/scripts/ci/fetch_camoufox.sh
           fi
         shell: bash
-
-      - name: Lint
-        run: flake8 app/ tests/
 
       - name: Run tests (skip integration)
         run: python -m pytest -q -m "not integration" --disable-warnings --maxfail=1
