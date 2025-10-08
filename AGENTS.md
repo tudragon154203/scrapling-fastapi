@@ -54,7 +54,8 @@ AI Agent Development Guidelines for Scrapling FastAPI Project
 ## Development Commands & Patterns
 
 ### Environment Setup
-- `python -m venv .venv` then `.venv/Scripts/activate` (or `source .venv/bin/activate`)
+- **DO NOT** create or use .venv virtual environments
+- Use the system's direct Python interpreter
 - `pip install -r requirements.txt` for runtime deps; add `-r requirements-test.txt` for testing
 
 ### Running the Application
@@ -125,6 +126,7 @@ AI Agent Development Guidelines for Scrapling FastAPI Project
 4. **REQUIRED** to use type hints throughout
 5. **MANDATORY** schema consistency with existing patterns
 6. **ESSENTIAL** to clean up intermediate files after implementation
+7. **FORBIDDEN** to create or use .venv virtual environments - use system Python directly
 
 ## Governance
 
