@@ -40,9 +40,9 @@ def mock_settings():
 
 
 @pytest.fixture
-def tiktok_executor(mock_config):
+def tiktok_executor(mock_config, mock_settings):
     """TikTok executor fixture."""
-    with patch("app.services.tiktok.tiktok_executor.get_settings", return_value=mock_settings()):
+    with patch("app.services.tiktok.tiktok_executor.get_settings", return_value=mock_settings):
         return TiktokExecutor(mock_config)
 
 
@@ -87,10 +87,10 @@ class TestTiktokExecutorConfiguration:
         assert config["wait_for_selector_state"] == "visible"
 
     @pytest.mark.asyncio
-    async def test_get_config_with_proxy(self, mock_config):
+    async def test_get_config_with_proxy(self, mock_config, mock_settings):
         """Test getting config with proxy."""
         proxy = {"http": "http://proxy:8080"}
-        with patch("app.services.tiktok.tiktok_executor.get_settings", return_value=mock_settings()):
+        with patch("app.services.tiktok.tiktok_executor.get_settings", return_value=mock_settings):
             executor = TiktokExecutor(mock_config, proxy=proxy)
             config = await executor.get_config()
 

@@ -15,14 +15,17 @@ from fastapi.responses import JSONResponse
 from app.schemas.tiktok.models import TikTokVideo
 from app.schemas.tiktok.search import TikTokSearchRequest, TikTokSearchResponse
 from app.schemas.tiktok.session import TikTokSessionRequest, TikTokSessionResponse
+from app.schemas.tiktok.download import TikTokDownloadRequest, TikTokDownloadResponse
 from app.services.tiktok.session import TiktokService
 from app.services.tiktok.search.service import TikTokSearchService
+from app.services.tiktok.download import TikTokDownloadService
 from specify_src.services.browser_mode_service import BrowserModeService
 
 
 router = APIRouter()
 # Keep the conventional name so tests can patch it
 tiktok_service = TiktokService()
+tiktok_download_service = TikTokDownloadService()
 
 
 @router.post("/tiktok/session", response_model=TikTokSessionResponse, tags=["Tiktok"])
@@ -195,3 +198,26 @@ async def tiktok_search_endpoint(payload: TikTokSearchRequest):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to create valid response: {exc}",
         )
+
+
+@router.post("/tiktok/download", response_model=TikTokDownloadResponse, tags=["Tiktok"])
+async def tiktok_download_endpoint(payload: TikTokDownloadRequest):
+    """Handle the TikTok video download workflow by delegating to the download service."""
+    result = await tiktok_download_service.download_video(payload)
+
+    if result.status == "success":
+        return result
+
+    # Map known error codes to HTTP status
+    code = (result.error_code or "").upper() if result.error_code else ""
+    status_map = {
+        "INVALID_URL": status.HTTP_400_BAD_REQUEST,
+        "INVALID_VIDEO_ID": status.HTTP_400_BAD_REQUEST,
+        "NAVIGATION_FAILED": status.HTTP_503_SERVICE_UNAVAILABLE,
+        "NO_DOWNLOAD_LINK": status.HTTP_404_NOT_FOUND,
+        "DOWNLOAD_FAILED": status.HTTP_500_INTERNAL_SERVER_ERROR,
+        "INVALID_VIDEO": status.HTTP_400_BAD_REQUEST,
+    }
+    http_status = status_map.get(code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    return JSONResponse(content=result.model_dump(exclude_none=True), status_code=http_status)

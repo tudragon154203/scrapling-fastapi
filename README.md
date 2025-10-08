@@ -51,7 +51,7 @@ scrapling-fastapi/
 - **Health Checks**: Built-in health check endpoint for monitoring.
 - **Advanced Web Scraping**: Utilizes Scrapling/Camoufox for stealthy browser automation.
 - **Specialized Crawlers**: Includes dedicated endpoints for DPD and AusPost tracking.
-- **TikTok Integration**: Provides endpoints for TikTok session management and content search with configurable browser execution mode.
+- **TikTok Integration**: Provides endpoints for TikTok session management, content search, and video downloads with configurable browser execution mode and strategy selection.
 - **User Data Persistence**: Supports persistent user profiles for maintaining sessions across requests.
 - **Humanized Actions**: Implements realistic user behavior (mouse movements, typing delays) to avoid bot detection.
 - **Configurable Browser Mode**: Control browser execution mode (headless/headful) for TikTok searches with automatic test environment override.
@@ -88,6 +88,10 @@ scrapling-fastapi/
    ```bash
    cp .env.example .env
    ```
+
+   **Key Environment Variables for TikTok Features:**
+   - `TIKTOK_DOWNLOAD_STRATEGY`: Download strategy for TikTok videos (`camoufox` or `chromium`, default: `chromium`)
+   - `TIKVID_BASE`: Base URL for TikVid resolver service (default: `https://tikvid.io/vi`)
 
    If you plan to use the Brave MCP server, copy `.claude/mcp.env.example` to
    `.claude/mcp.env` and provide your Brave Search API key via the
@@ -129,6 +133,29 @@ Integration tests only:
 
 ```bash
 python -m pytest -m integration
+```
+
+### Integration Test Prerequisites
+
+Some integration tests require browser automation dependencies. For TikTok-related integration tests:
+
+```bash
+# Install Camoufox browser engine for TikTok tests
+pip install camoufox
+```
+
+**Note**: TikTok integration tests (`tests/integration/services/tiktok/download/test_tiktok_download.py`) require Camoufox for browser automation. These tests are marked with `@pytest.mark.slow` and will be skipped if Camoufox is not installed.
+
+To run only the TikTok download integration tests:
+
+```bash
+python -m pytest tests/integration/services/tiktok/download/test_tiktok_download.py -v
+```
+
+To run integration tests serially (recommended for browser tests to avoid conflicts):
+
+```bash
+python -m pytest tests/integration/services/tiktok/download/test_tiktok_download.py -n 0
 ```
 
 ## Extending the Template

@@ -65,7 +65,8 @@ Option B — one‑liner
 ## Verify
 
 - Health: `http://localhost:5680/health`
-- Docs: `http://localhost:5680/docs`
+- API Documentation: `http://localhost:5680/docs` (Interactive OpenAPI/Swagger UI)
+- TikTok API Guide: See [docs/api.md](docs/api.md) for detailed TikTok API documentation
 
 ## Tests
 

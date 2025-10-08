@@ -80,6 +80,8 @@ try:
         tiktok_login_detection_timeout: int = Field(default=8, env="TIKTOK_LOGIN_DETECTION_TIMEOUT")
         tiktok_max_session_duration: int = Field(default=300, env="TIKTOK_MAX_SESSION_DURATION")
         tiktok_url: str = Field(default="https://www.tiktok.com/", env="TIKTOK_URL")
+        # TikTok download configuration
+        tiktok_download_strategy: str = Field(default="chromium", env="TIKTOK_DOWNLOAD_STRATEGY")
         model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="allow")
 
     @lru_cache()
@@ -144,6 +146,8 @@ except Exception:
         tiktok_login_detection_timeout: int = 8
         tiktok_max_session_duration: int = 300
         tiktok_url: str = "https://www.tiktok.com/"
+        # TikTok download configuration
+        tiktok_download_strategy: str = "chromium"
 
     @lru_cache()
     def get_settings() -> "Settings":
@@ -194,4 +198,5 @@ except Exception:
             tiktok_login_detection_timeout=int(os.getenv("TIKTOK_LOGIN_DETECTION_TIMEOUT", "8")),
             tiktok_max_session_duration=int(os.getenv("TIKTOK_MAX_SESSION_DURATION", "300")),
             tiktok_url=os.getenv("TIKTOK_URL", "https://www.tiktok.com/"),
+            tiktok_download_strategy=os.getenv("TIKTOK_DOWNLOAD_STRATEGY", "chromium"),
         )
