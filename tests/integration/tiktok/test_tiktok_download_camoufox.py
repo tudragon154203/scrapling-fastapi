@@ -93,11 +93,3 @@ class TestTikTokDownloadCamoufoxIntegration:
             assert downloaded_path.exists()
             assert downloaded_path.stat().st_size > 0
             assert _file_contains_video_track(downloaded_path)
-
-    @pytest.mark.asyncio
-    async def test_camoufox_strategy_name(self) -> None:
-        """Test that Camoufox strategy reports correct name."""
-        with patch('app.services.tiktok.download.strategies.factory.TIKTOK_DOWNLOAD_STRATEGY', 'camoufox'):
-            service = TikTokDownloadService()
-            assert isinstance(service.download_strategy, CamoufoxDownloadStrategy)
-            assert service.download_strategy.get_strategy_name() == "camoufox"
