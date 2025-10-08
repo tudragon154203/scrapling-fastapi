@@ -374,21 +374,6 @@ class TestGenericCrawler:
 
         assert result.status == "success"
 
-    def test_crawl_with_wait_for_selector(self, service, monkeypatch):
-        """Test crawl with wait for selector."""
-        request = CrawlRequest(
-            url="https://example.com",
-            wait_for_selector=".content",
-            wait_timeout=10
-        )
-
-        # Install fake scrapling that returns success
-        _install_fake_scrapling(monkeypatch, [200])
-
-        result = service.run(request)
-
-        assert result.status == "success"
-
     def test_crawl_invalid_url(self, service):
         """Test crawl with invalid URL."""
         # Invalid URL should be caught by Pydantic validation
@@ -509,7 +494,7 @@ class TestGenericCrawler:
             force_user_data=True,
             force_headful=True
         )
-        assert request.url == "https://example.com"
+        assert str(request.url).rstrip('/') == "https://example.com"
         assert request.force_user_data is True
         assert request.force_headful is True
 

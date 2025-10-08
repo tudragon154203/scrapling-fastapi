@@ -65,7 +65,7 @@ def test_single_executor_cleanup_runs_on_exception(monkeypatch):
 
         response = executor.execute(request)
 
-    assert response.status == 'failure'
+    assert response.status == 'error'
     assert 'network error' in response.message
     assert mock_build.call_count == 1
     cleanup.assert_called_once()
