@@ -67,7 +67,7 @@ class ChromiumDownloadStrategy(TikTokDownloadStrategy):
         result_holder = {}
 
         def _run_in_thread():
-            nonlocal last_exc, result_holder
+            nonlocal last_exc
             for attempt in range(1, 4):
                 components = self._build_chromium_fetch_kwargs(tiktok_url, quality_hint)
                 fetcher_class = components["fetcher"]
