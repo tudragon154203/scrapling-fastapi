@@ -411,10 +411,12 @@ class TestTiktokServiceSessionManagement:
     async def test_check_session_timeout_exists(self, tiktok_service, mock_executor):
         """Test check_session_timeout when session exists."""
         # Add a session
+        config = MagicMock()
+        config.max_session_duration = 3600
         record = SessionRecord(
             id="test-session",
             executor=mock_executor,
-            config=MagicMock(),
+            config=config,
             login_state=TikTokLoginState.LOGGED_IN,
             user_data_dir="/tmp/test"
         )
