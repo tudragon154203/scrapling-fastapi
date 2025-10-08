@@ -4,7 +4,7 @@ Integration tests for API endpoints to increase overall coverage.
 
 import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, AsyncMock
 
 from app.main import app
 
@@ -33,15 +33,13 @@ class TestAPIEndpointsIntegration:
     @patch('app.api.crawl.crawl')
     def test_crawl_endpoint_integration_success(self, mock_crawl):
         """Test crawl endpoint integration success."""
-        # Mock successful crawl - return a mock object with .json attribute
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.json = MagicMock(return_value={
-            "status": "success",
-            "html": "<html>Test content</html>",
-            "url": "https://example.com"
-        })
-        mock_crawl.return_value = mock_response
+        # Mock successful crawl - return a CrawlResponse object
+        from app.schemas.crawl import CrawlResponse
+        mock_crawl.return_value = CrawlResponse(
+            status="success",
+            url="https://example.com",
+            html="<html>Test content</html>"
+        )
 
         response = self.client.post("/crawl", json={
             "url": "https://example.com",
@@ -64,20 +62,22 @@ class TestAPIEndpointsIntegration:
         # Mock crawl failure
         mock_crawl.side_effect = Exception("Crawl failed")
 
-        response = self.client.post("/crawl", json={
-            "url": "https://example.com"
-        })
+        # TestClient raises exception for unhandled errors
+        with pytest.raises(Exception, match="Crawl failed"):
+            self.client.post("/crawl", json={
+                "url": "https://example.com"
+            })
 
-        assert response.status_code == 500
-
-    @patch('app.api.routes.tiktok_service')
+    @patch('app.api.tiktok.tiktok_service')
     def test_tiktok_session_endpoint_integration_success(self, mock_tiktok_service):
         """Test TikTok session endpoint integration success."""
-        # Mock successful session creation
-        mock_tiktok_service.create_session = MagicMock(return_value={
-            "status": "success",
-            "message": "Session created successfully"
-        })
+        # Mock successful session creation - async mock
+        from app.schemas.tiktok import TikTokSessionResponse
+        mock_response = TikTokSessionResponse(
+            status="success",
+            message="Session created successfully"
+        )
+        mock_tiktok_service.create_session = AsyncMock(return_value=mock_response)
 
         response = self.client.post("/tiktok/session", json={
             "user_data_dir": "/tmp/tiktok_data"
@@ -87,15 +87,17 @@ class TestAPIEndpointsIntegration:
         data = response.json()
         assert data["status"] == "success"
 
-    @patch('app.api.routes.tiktok_service')
+    @patch('app.api.tiktok.tiktok_service')
     def test_tiktok_session_endpoint_integration_not_logged_in(self, mock_tiktok_service):
         """Test TikTok session endpoint integration when not logged in."""
-        # Mock not logged in response
-        mock_tiktok_service.create_session = MagicMock(return_value={
-            "status": "error",
-            "message": "Not logged in to TikTok",
-            "error_details": {"code": "NOT_LOGGED_IN"}
-        })
+        # Mock not logged in response - return a proper TikTokSessionResponse object
+        from app.schemas.tiktok import TikTokSessionResponse
+        mock_response = TikTokSessionResponse(
+            status="error",
+            message="Not logged in to TikTok",
+            error_details={"code": "NOT_LOGGED_IN"}
+        )
+        mock_tiktok_service.create_session = AsyncMock(return_value=mock_response)
 
         response = self.client.post("/tiktok/session", json={})
 
@@ -123,17 +125,16 @@ class TestAPIEndpointsIntegration:
         data = response.json()
         assert "result" in data
 
-    @patch('app.api.routes.dpd_service')
-    def test_dpd_endpoint_integration(self, mock_dpd_service):
+    @patch('app.api.crawl.crawl_dpd')
+    def test_dpd_endpoint_integration(self, mock_crawl_dpd):
         """Test DPD endpoint integration."""
-        # Mock successful DPD tracking
-        mock_dpd_service.track = MagicMock(return_value={
-            "status": "success",
-            "tracking_info": {
-                "status": "delivered",
-                "location": "Local depot"
-            }
-        })
+        # Mock successful DPD tracking - return a DPDCrawlResponse object
+        from app.schemas.dpd import DPDCrawlResponse
+        mock_crawl_dpd.return_value = DPDCrawlResponse(
+            status="success",
+            tracking_code="1234567890",
+            html="<html>DPD tracking info: delivered at Local depot</html>"
+        )
 
         response = self.client.post("/crawl/dpd", json={
             "tracking_code": "1234567890"
@@ -141,19 +142,19 @@ class TestAPIEndpointsIntegration:
 
         assert response.status_code == 200
         data = response.json()
-        assert "result" in data
+        assert data["status"] == "success"
+        assert data["tracking_code"] == "1234567890"
 
-    @patch('app.api.routes.auspost_service')
-    def test_auspost_endpoint_integration(self, mock_auspost_service):
+    @patch('app.api.crawl.crawl_auspost')
+    def test_auspost_endpoint_integration(self, mock_crawl_auspost):
         """Test AusPost endpoint integration."""
-        # Mock successful AusPost tracking
-        mock_auspost_service.track = MagicMock(return_value={
-            "status": "success",
-            "tracking_info": {
-                "status": "in_transit",
-                "location": "Distribution center"
-            }
-        })
+        # Mock successful AusPost tracking - return a AuspostCrawlResponse object
+        from app.schemas.auspost import AuspostCrawlResponse
+        mock_crawl_auspost.return_value = AuspostCrawlResponse(
+            status="success",
+            tracking_code="1234567890",
+            html="<html>AusPost tracking info: in_transit at Distribution center</html>"
+        )
 
         response = self.client.post("/crawl/auspost", json={
             "tracking_code": "1234567890"
@@ -161,11 +162,12 @@ class TestAPIEndpointsIntegration:
 
         assert response.status_code == 200
         data = response.json()
-        assert "result" in data
+        assert data["status"] == "success"
+        assert data["tracking_code"] == "1234567890"
 
     def test_cors_headers_integration(self):
         """Test CORS headers are present."""
-        response = self.client.options("/health")
+        response = self.client.get("/health")
         assert "access-control-allow-origin" in response.headers
 
     def test_invalid_json_request(self):
