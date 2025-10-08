@@ -47,6 +47,7 @@ class TestCamoufoxArgsBuilder:
 
             with patch('app.services.common.browser.camoufox.Path') as mock_path:
                 mock_path.return_value.mkdir = MagicMock()
+                mock_path.return_value.resolve.return_value = "/tmp/clone"
                 with patch('app.services.common.browser.camoufox.os.access', return_value=True):
                     additional_args, extra_headers = CamoufoxArgsBuilder.build(payload, settings, caps)
 
@@ -65,7 +66,10 @@ class TestCamoufoxArgsBuilder:
         caps = {}
 
         with patch('app.services.common.browser.camoufox.Path') as mock_path:
-            mock_path.return_value.mkdir = MagicMock()
+            mock_path_instance = MagicMock()
+            mock_path_instance.mkdir = MagicMock()
+            mock_path_instance.resolve.return_value = "/tmp/master"
+            mock_path.return_value = mock_path_instance
             with patch('app.services.common.browser.camoufox.os.access', return_value=True):
                 additional_args, extra_headers = CamoufoxArgsBuilder.build(payload, settings, caps)
 
@@ -502,6 +506,7 @@ class TestCamoufoxArgsBuilderIntegration:
 
             with patch('app.services.common.browser.camoufox.Path') as mock_path:
                 mock_path.return_value.mkdir = MagicMock()
+                mock_path.return_value.resolve.return_value = "/tmp/clone"
                 with patch('app.services.common.browser.camoufox.os.access', return_value=True):
                     additional_args, extra_headers = CamoufoxArgsBuilder.build(payload, settings, caps)
 

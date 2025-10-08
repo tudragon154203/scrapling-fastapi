@@ -67,6 +67,18 @@ class TiktokService:
                     },
                 )
 
+            if login_state == TikTokLoginState.UNCERTAIN and not executor.browser:
+                await self._safe_cleanup_executor(executor)
+                return self._error_response(
+                    message="Not logged in to TikTok",
+                    code="NOT_LOGGED_IN",
+                    details={
+                        "details": "Unable to determine login state - no browser available",
+                        "method": "browser_unavailable",
+                        "timeout": config.login_detection_timeout,
+                    },
+                )
+
             if immediate_cleanup:
                 await self._safe_cleanup_executor(executor)
             else:

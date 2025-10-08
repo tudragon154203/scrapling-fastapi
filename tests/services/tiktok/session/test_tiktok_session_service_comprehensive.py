@@ -172,6 +172,10 @@ class TestTiktokServiceCreation:
         mock_executor_instance.browser = None  # No browser
         mock_executor_class.return_value = mock_executor_instance
 
+        mock_detector_instance = AsyncMock(spec=LoginDetector)
+        mock_detector_instance.detect_login_state.return_value = TikTokLoginState.UNCERTAIN
+        mock_detector_class.return_value = mock_detector_instance
+
         request = TikTokSessionRequest()
 
         # Execute

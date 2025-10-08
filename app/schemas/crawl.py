@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Dict
 
 from pydantic import AnyUrl, BaseModel, Field
 from pydantic.config import ConfigDict
@@ -22,6 +22,7 @@ class CrawlRequest(BaseModel):
                     "network_idle": False,
                     "force_headful": False,
                     "force_user_data": False,
+                    "headers": {"User-Agent": "CustomBot/1.0"},
                 }
             ]
         },
@@ -67,6 +68,13 @@ class CrawlRequest(BaseModel):
         default=False,
         description="Force use of persistent user data directory (defaults to False)",
         json_schema_extra={"default": False, "example": False},
+    )
+
+    # HTTP headers
+    headers: Optional[Dict[str, str]] = Field(
+        default=None,
+        description="Custom HTTP headers to send with the request (optional)",
+        json_schema_extra={"example": {"User-Agent": "CustomBot/1.0"}},
     )
 
 

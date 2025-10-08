@@ -101,6 +101,16 @@ class CamoufoxArgsBuilder:
             additional_args["locale"] = settings.camoufox_locale
             extra_headers = {"Accept-Language": settings.camoufox_locale}
 
+        # Merge headers from payload if available
+        if hasattr(payload, "headers") and payload.headers:
+            payload_headers = payload.headers
+            if isinstance(payload_headers, dict) and payload_headers:
+                if extra_headers:
+                    # Merge with existing headers (payload headers take precedence)
+                    extra_headers.update(payload_headers)
+                else:
+                    extra_headers = dict(payload_headers)
+
         win = CamoufoxArgsBuilder._parse_window_size(getattr(settings, "camoufox_window", None))
         if win:
             additional_args["window"] = win

@@ -75,7 +75,8 @@ class TestAuspostCrawl:
         settings = self._mock_settings()
         monkeypatch.setattr("app.core.config.get_settings", lambda: settings)
 
-        html = '<html><div>error</div></html>'
+        # Use very short HTML to trigger failure due to insufficient content length
+        html = ''
         calls = self._install_fake_scrapling(monkeypatch, html, side_effects=[404])
 
         req = AuspostCrawlRequest(tracking_code="36LB4503170001000930309")
