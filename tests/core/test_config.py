@@ -2,6 +2,11 @@ import importlib
 import sys
 import types
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
+
 from app.core import config
 
 

@@ -4,6 +4,11 @@ import sys
 from unittest.mock import patch
 from app.core.logging import setup_logger, get_log_level
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
+
 
 def test_debug_messages_suppressed_at_info_level():
     """Test that debug messages are suppressed when logging level is INFO."""

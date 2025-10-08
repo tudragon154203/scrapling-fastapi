@@ -1,5 +1,10 @@
 from fastapi.routing import APIRoute
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
+
 from app.api.routes import router
 
 

@@ -3,6 +3,11 @@
 from unittest.mock import AsyncMock, patch
 from app.schemas.tiktok.search import TikTokSearchResponse
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
+
 
 SAMPLE_SEARCH_RESULT = {
     "results": [

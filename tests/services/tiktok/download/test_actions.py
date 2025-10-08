@@ -3,6 +3,11 @@
 import pytest
 from unittest.mock import Mock, patch
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
+
 from app.services.tiktok.download.actions.resolver import TikVidResolveAction
 
 

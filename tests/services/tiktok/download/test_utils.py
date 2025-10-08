@@ -1,6 +1,10 @@
 """Unit tests for TikTok download utilities."""
 
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 from app.services.tiktok.download.utils.helpers import (
     extract_tiktok_video_id,
     is_valid_tiktok_url,

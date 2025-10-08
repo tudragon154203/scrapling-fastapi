@@ -5,7 +5,10 @@ import pytest
 from fastapi.testclient import TestClient
 from app.main import app
 
-pytestmark = pytest.mark.integration
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.usefixtures("require_scrapling"),
+]
 
 
 @pytest.fixture()

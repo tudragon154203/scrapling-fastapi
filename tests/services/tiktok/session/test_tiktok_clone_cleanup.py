@@ -6,6 +6,11 @@ import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
+
 from app.services.tiktok.tiktok_executor import TiktokExecutor
 from app.schemas.tiktok.session import TikTokSessionConfig
 

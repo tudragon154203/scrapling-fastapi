@@ -1,7 +1,11 @@
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+import pytest
+
 from app.schemas.browse import BrowseResponse
+
+pytestmark = [pytest.mark.unit]
 
 
 def test_browse_success_with_url(monkeypatch, client):

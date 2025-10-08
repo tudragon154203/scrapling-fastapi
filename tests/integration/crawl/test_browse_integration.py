@@ -11,7 +11,10 @@ from app.services.common.browser.user_data import FCNTL_AVAILABLE
 import logging
 logger = logging.getLogger(__name__)
 
-pytestmark = pytest.mark.integration
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.usefixtures("require_scrapling"),
+]
 
 
 @pytest.fixture()

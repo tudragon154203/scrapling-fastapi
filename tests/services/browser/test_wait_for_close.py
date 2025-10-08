@@ -2,6 +2,11 @@ from unittest.mock import MagicMock
 
 import pytest
 
+pytestmark = [pytest.mark.unit]
+
+
+import pytest
+
 from app.services.browser.actions.wait_for_close import WaitForUserCloseAction
 
 

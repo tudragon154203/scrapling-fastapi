@@ -2,6 +2,11 @@
 
 from typing import Any
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
+
 from app.services.tiktok.search.multistep import TikTokMultiStepSearchService
 
 

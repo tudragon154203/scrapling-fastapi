@@ -6,6 +6,11 @@ import pytest
 import sys
 import types
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
+
 from app.schemas.crawl import CrawlRequest
 from app.services.crawler.generic import GenericCrawler
 

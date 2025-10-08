@@ -3,6 +3,11 @@ import json
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
+
 from fastapi.responses import JSONResponse
 
 

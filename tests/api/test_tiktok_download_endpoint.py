@@ -8,6 +8,8 @@ from fastapi.testclient import TestClient
 from app.main import app
 from app.schemas.tiktok.download import TikTokDownloadResponse, TikTokVideoInfo
 
+pytestmark = [pytest.mark.unit]
+
 # Use the demo URL from the original demo script
 DEMO_TIKTOK_URL = "https://www.tiktok.com/@tieentiton/video/7530618987760209170"
 

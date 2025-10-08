@@ -1,6 +1,11 @@
 import sys
 import types
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
+
 from app.schemas.auspost import AuspostCrawlRequest
 from app.services.crawler.auspost import AuspostCrawler
 

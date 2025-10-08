@@ -4,6 +4,11 @@ E2E tests for TikTok Session endpoint
 from unittest.mock import patch, AsyncMock
 from app.schemas.tiktok.session import TikTokSessionResponse
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
+
 
 class TestTikTokSessionEndpoint:
     """E2E tests for /tiktok/session endpoint"""

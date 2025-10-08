@@ -1,6 +1,11 @@
 from app.services.browser.options.resolver import OptionsResolver
 from app.schemas.crawl import CrawlRequest
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
+
 
 class DummySettings:
     """Simple settings stand-in for tests."""

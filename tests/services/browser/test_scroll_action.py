@@ -2,6 +2,11 @@ import itertools
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
+
 import app.services.browser.actions.scroll as scroll_module
 from app.services.browser.actions.scroll import ScrollDownAction
 

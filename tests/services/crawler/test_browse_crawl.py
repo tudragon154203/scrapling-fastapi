@@ -1,6 +1,9 @@
 import pytest
 from unittest.mock import patch, MagicMock
 
+pytestmark = [pytest.mark.unit]
+
+
 from app.services.browser.browse import BrowseCrawler
 from app.schemas.browse import BrowseRequest, BrowseResponse
 from app.schemas.crawl import CrawlRequest

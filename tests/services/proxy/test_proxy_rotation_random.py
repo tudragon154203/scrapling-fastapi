@@ -5,6 +5,11 @@ import tempfile
 import os
 from unittest.mock import patch
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
+
 from app.services.common.engine import CrawlerEngine
 from app.services.crawler.proxy.health import get_health_tracker, reset_health_tracker
 from app.schemas.crawl import CrawlRequest

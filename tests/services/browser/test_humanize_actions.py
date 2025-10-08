@@ -1,6 +1,11 @@
 import random
 from unittest.mock import MagicMock, patch
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
+
 from app.services.browser.actions.humanize import (
     human_pause,
     move_mouse_to_locator,

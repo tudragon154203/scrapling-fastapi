@@ -3,6 +3,11 @@ import os
 from specify_src.models.browser_mode import BrowserMode
 from specify_src.services.browser_mode_service import BrowserModeService
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
+
 
 @patch('specify_src.services.execution_context_service.ExecutionContextService.is_test_environment')
 def test_determine_mode_force_headful_true(mock_is_test_environment):

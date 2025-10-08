@@ -1,5 +1,10 @@
 import pytest
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
+
 from app.schemas.auspost import AuspostCrawlRequest
 
 

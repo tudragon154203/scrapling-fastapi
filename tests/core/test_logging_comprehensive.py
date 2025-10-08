@@ -6,6 +6,11 @@ import logging
 import re
 from unittest.mock import MagicMock, patch
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
+
 from app.core.logging import (
     RefererScrubbingFormatter,
     RefererScrubbingFilter,

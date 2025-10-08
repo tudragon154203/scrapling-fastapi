@@ -6,6 +6,11 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
+
+pytestmark = [pytest.mark.unit]
+
+
+import pytest
 from app.services.common.browser.camoufox import CamoufoxArgsBuilder
 from app.services.common.types import FetchCapabilities
 

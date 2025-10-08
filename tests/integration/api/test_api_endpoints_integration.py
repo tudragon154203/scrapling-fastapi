@@ -9,7 +9,12 @@ from unittest.mock import patch, MagicMock
 from app.main import app
 
 
-@pytest.mark.integration
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.usefixtures("require_scrapling"),
+]
+
+
 class TestAPIEndpointsIntegration:
     """Integration tests for API endpoints."""
 

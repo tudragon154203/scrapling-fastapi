@@ -2,7 +2,10 @@ import pytest
 
 from tests.integration.crawl._real_url_test_utils import make_body, min_html_length
 
-pytestmark = pytest.mark.integration
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.usefixtures("require_scrapling"),
+]
 
 
 def test_crawl_ups(client):

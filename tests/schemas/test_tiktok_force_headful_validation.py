@@ -3,6 +3,11 @@
 import pytest
 from pydantic import ValidationError
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
+
 from app.schemas.tiktok.search import TikTokSearchRequest
 
 

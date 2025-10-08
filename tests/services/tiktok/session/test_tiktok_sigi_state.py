@@ -4,6 +4,11 @@ from typing import Dict, Any
 
 import pytest
 
+pytestmark = [pytest.mark.unit]
+
+
+import pytest
+
 from app.services.tiktok.search.parser.json_parser import _from_sigi_state
 
 

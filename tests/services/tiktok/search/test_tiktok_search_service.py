@@ -1,6 +1,11 @@
 
 import pytest
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
+
 from app.services.tiktok.search.multistep import TikTokMultiStepSearchService
 from app.services.tiktok.search.service import TikTokSearchService
 

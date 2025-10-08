@@ -2,6 +2,11 @@ from fastapi.testclient import TestClient
 from unittest.mock import Mock, patch
 from app.main import app
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
+
 
 class TestUserDataAPI:
     """Test suite for user data API endpoints."""

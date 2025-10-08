@@ -4,6 +4,11 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+pytestmark = [pytest.mark.unit]
+
+
+import pytest
+
 from app.services.tiktok.download.strategies.camoufox import CamoufoxDownloadStrategy
 from app.services.tiktok.download.strategies.chromium import ChromiumDownloadStrategy
 from app.services.tiktok.download.strategies.factory import TikTokDownloadStrategyFactory
