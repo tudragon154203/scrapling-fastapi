@@ -2,7 +2,6 @@
 
 import pytest
 from unittest.mock import AsyncMock, Mock, patch
-from pathlib import Path
 import httpx
 
 from app.services.tiktok.download.downloaders.file import VideoFileDownloader

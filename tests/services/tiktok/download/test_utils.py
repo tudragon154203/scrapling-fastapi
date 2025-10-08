@@ -1,6 +1,5 @@
 """Unit tests for TikTok download utilities."""
 
-import pytest
 
 from app.services.tiktok.download.utils.helpers import (
     extract_tiktok_video_id,

@@ -1,8 +1,7 @@
 """Unit tests for TikTok download resolvers."""
 
 import pytest
-from unittest.mock import Mock, patch, MagicMock
-from types import SimpleNamespace
+from unittest.mock import Mock, patch
 
 from app.services.tiktok.download.resolvers.video_url import TikVidVideoResolver
 from app.services.tiktok.download.actions.resolver import TikVidResolveAction
@@ -37,7 +36,7 @@ class TestTikVidVideoResolver:
         mock_action.result_links = [expected_mp4_url, "https://example.com/info.html"]
 
         with patch('app.services.tiktok.download.resolvers.video_url.ScraplingFetcherAdapter', return_value=mock_adapter), \
-             patch.object(resolver, '_build_camoufox_fetch_kwargs') as mock_build:
+                patch.object(resolver, '_build_camoufox_fetch_kwargs') as mock_build:
 
             mock_build.return_value = {
                 "adapter": mock_adapter,
@@ -67,7 +66,7 @@ class TestTikVidVideoResolver:
         mock_page_result.html_content = 'href="https://example.com/fallback.mp4"'
 
         with patch('app.services.tiktok.download.resolvers.video_url.ScraplingFetcherAdapter', return_value=mock_adapter), \
-             patch.object(resolver, '_build_camoufox_fetch_kwargs') as mock_build:
+                patch.object(resolver, '_build_camoufox_fetch_kwargs') as mock_build:
 
             mock_build.return_value = {
                 "adapter": mock_adapter,
@@ -91,6 +90,7 @@ class TestTikVidVideoResolver:
         mock_action = Mock(spec=TikVidResolveAction)
 
         call_count = 0
+
         def mock_fetch(*args, **kwargs):
             nonlocal call_count
             call_count += 1
@@ -100,7 +100,7 @@ class TestTikVidVideoResolver:
             return Mock()
 
         with patch('app.services.tiktok.download.resolvers.video_url.ScraplingFetcherAdapter', return_value=mock_adapter), \
-             patch.object(resolver, '_build_camoufox_fetch_kwargs') as mock_build:
+                patch.object(resolver, '_build_camoufox_fetch_kwargs') as mock_build:
 
             mock_build.return_value = {
                 "adapter": mock_adapter,
@@ -125,7 +125,7 @@ class TestTikVidVideoResolver:
         mock_adapter.fetch.side_effect = Exception("Persistent failure")
 
         with patch('app.services.tiktok.download.resolvers.video_url.ScraplingFetcherAdapter', return_value=mock_adapter), \
-             patch.object(resolver, '_build_camoufox_fetch_kwargs') as mock_build:
+                patch.object(resolver, '_build_camoufox_fetch_kwargs') as mock_build:
 
             mock_build.return_value = {
                 "adapter": mock_adapter,
@@ -176,15 +176,14 @@ class TestTikVidVideoResolver:
         mock_action = Mock(spec=TikVidResolveAction)
         mock_action.result_links = []
 
-        mock_payload = SimpleNamespace(force_user_data=True)
         mock_additional_args = {"user_data_dir": "/tmp/data"}
         mock_extra_headers = {"User-Agent": "test"}
         mock_fetch_kwargs = {"headless": False}
 
         with patch('app.services.tiktok.download.resolvers.video_url.ScraplingFetcherAdapter', return_value=mock_adapter), \
-             patch('app.services.tiktok.download.resolvers.video_url.TikVidResolveAction', return_value=mock_action), \
-             patch('app.services.tiktok.download.resolvers.video_url.CamoufoxArgsBuilder') as mock_builder, \
-             patch('app.services.tiktok.download.resolvers.video_url.FetchArgComposer') as mock_composer:
+                patch('app.services.tiktok.download.resolvers.video_url.TikVidResolveAction', return_value=mock_action), \
+                patch('app.services.tiktok.download.resolvers.video_url.CamoufoxArgsBuilder') as mock_builder, \
+                patch('app.services.tiktok.download.resolvers.video_url.FetchArgComposer') as mock_composer:
 
             mock_builder.build.return_value = (mock_additional_args, mock_extra_headers)
             mock_composer.compose.return_value = mock_fetch_kwargs

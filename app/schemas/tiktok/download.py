@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from typing import Any, Dict, Optional, Literal
-from pydantic import BaseModel, Field, HttpUrl, field_serializer
+from pydantic import BaseModel, Field, HttpUrl
 
 
 class TikTokDownloadRequest(BaseModel):

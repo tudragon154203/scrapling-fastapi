@@ -7,7 +7,6 @@ import os
 import re
 import sys
 import threading
-from types import SimpleNamespace
 from typing import Any, Dict, Optional
 
 # Import DynamicFetcher for Chromium support
@@ -107,7 +106,8 @@ class ChromiumDownloadStrategy(TikTokDownloadStrategy):
                     logger.warning(f"Chromium attempt {attempt} failed: {_format_exception(exc)}")
                     continue
 
-            result_holder["error"] = RuntimeError(f"Resolution failed after retries: {_format_exception(last_exc or RuntimeError('unknown error'))}")
+            result_holder["error"] = RuntimeError(
+                f"Resolution failed after retries: {_format_exception(last_exc or RuntimeError('unknown error'))}")
 
         # Run in a separate thread to avoid asyncio issues
         thread = threading.Thread(target=_run_in_thread)

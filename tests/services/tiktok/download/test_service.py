@@ -2,13 +2,10 @@
 
 import pytest
 from unittest.mock import AsyncMock, Mock, patch
-from pathlib import Path
-
 from app.services.tiktok.download.service import TikTokDownloadService
 from app.services.tiktok.download.resolvers.video_url import TikVidVideoResolver
 from app.services.tiktok.download.downloaders.file import VideoFileDownloader
-from app.schemas.tiktok.download import TikTokDownloadRequest, TikTokDownloadResponse
-from app.schemas.tiktok.download import TikTokVideoInfo
+from app.schemas.tiktok.download import TikTokDownloadRequest
 
 
 class TestTikTokDownloadService:
@@ -47,7 +44,7 @@ class TestTikTokDownloadService:
         })
 
         with patch('app.services.tiktok.download.service.TikVidVideoResolver', return_value=mock_resolver), \
-             patch('app.services.tiktok.download.service.VideoFileDownloader', return_value=mock_downloader):
+                patch('app.services.tiktok.download.service.VideoFileDownloader', return_value=mock_downloader):
 
             result = await service.download_video(valid_request)
 
@@ -108,7 +105,7 @@ class TestTikTokDownloadService:
         mock_downloader.get_file_info = AsyncMock(side_effect=Exception("Network error"))
 
         with patch('app.services.tiktok.download.service.TikVidVideoResolver', return_value=mock_resolver), \
-             patch('app.services.tiktok.download.service.VideoFileDownloader', return_value=mock_downloader):
+                patch('app.services.tiktok.download.service.VideoFileDownloader', return_value=mock_downloader):
 
             result = await service.download_video(valid_request)
 

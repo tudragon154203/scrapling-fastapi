@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-import re
 from typing import Any, List, Optional
 
 from app.services.browser.actions.base import BasePageAction

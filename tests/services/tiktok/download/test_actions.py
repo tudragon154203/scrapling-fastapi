@@ -1,7 +1,7 @@
 """Unit tests for TikTok download actions."""
 
 import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 
 from app.services.tiktok.download.actions.resolver import TikVidResolveAction
 
@@ -136,7 +136,7 @@ class TestTikVidResolveAction:
         mock_page.wait_for_timeout = Mock()
         mock_page.locator.return_value.count.return_value = 0
 
-        result = action._execute(mock_page)
+        action._execute(mock_page)
 
         # Verify field was filled
         mock_field.click.assert_called()
@@ -166,7 +166,7 @@ class TestTikVidResolveAction:
         mock_page.wait_for_timeout = Mock()
         mock_page.locator.return_value.count.return_value = 0
 
-        result = action._execute(mock_page)
+        action._execute(mock_page)
 
         # Verify keyboard insertion was used as fallback
         mock_page.keyboard.insert_text.assert_called_once_with(action.tiktok_url)
@@ -185,6 +185,7 @@ class TestTikVidResolveAction:
 
         # Mock button clicking - strategies 1, 2, 3 fail, 4 succeeds
         call_count = 0
+
         def mock_click_strategy(*args, **kwargs):
             nonlocal call_count
             call_count += 1
@@ -204,6 +205,7 @@ class TestTikVidResolveAction:
 
         # Create proper locator mock that handles different selectors
         locator_call_count = 0
+
         def locator_side_effect(selector):
             nonlocal locator_call_count
             locator_call_count += 1
@@ -221,7 +223,7 @@ class TestTikVidResolveAction:
         # Add count method for the final locator call
         mock_page.locator.return_value.count.return_value = 0
 
-        result = action._execute(mock_page)
+        action._execute(mock_page)
 
         # Verify multiple strategies were tried
         assert call_count == 4
@@ -326,7 +328,7 @@ class TestTikVidResolveAction:
             "https://example.com/absolute.mp4",  # Second link already absolute
         ])
 
-        result = action._execute(mock_page)
+        action._execute(mock_page)
 
         # Verify links were extracted
         assert len(action.result_links) == 2
@@ -374,7 +376,7 @@ class TestTikVidResolveAction:
         mock_page.locator.side_effect = mock_locator_side_effect
         mock_page.evaluate = Mock(return_value="https://example.com/video.mp4")
 
-        result = action._execute(mock_page)
+        action._execute(mock_page)
 
         # Verify link was found with second selector
         assert len(action.result_links) == 1

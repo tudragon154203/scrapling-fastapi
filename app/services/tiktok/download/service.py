@@ -67,7 +67,8 @@ class TikTokDownloadService:
                     execution_time=time.perf_counter() - start_time,
                 )
 
-            self.logger.info(f"[TikTokDownloadService] Resolving video ID: {video_id} using {self.download_strategy.get_strategy_name()} strategy")
+            self.logger.info(
+                f"[TikTokDownloadService] Resolving video ID: {video_id} using {self.download_strategy.get_strategy_name()} strategy")
 
             # Resolve the direct download URL using the selected strategy (non-blocking)
             download_url = await asyncio.to_thread(
