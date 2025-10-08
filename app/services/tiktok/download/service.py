@@ -14,7 +14,7 @@ from app.schemas.tiktok.download import (
     TikTokVideoInfo,
 )
 from app.services.tiktok.download.downloaders.file import VideoFileDownloader
-from app.services.tiktok.download.resolvers.video_url import TikVidVideoResolver
+from app.services.tiktok.download.strategies.factory import TikTokDownloadStrategyFactory
 from app.services.tiktok.download.utils.helpers import (
     extract_video_metadata_from_url,
     is_valid_tiktok_url,
@@ -29,6 +29,8 @@ class TikTokDownloadService:
     def __init__(self) -> None:
         self.settings = get_settings()
         self.logger = logging.getLogger(__name__)
+        self.strategy_factory = TikTokDownloadStrategyFactory()
+        self.download_strategy = self.strategy_factory.create_strategy(self.settings)
 
     async def download_video(self, request: TikTokDownloadRequest) -> TikTokDownloadResponse:
         """
@@ -65,14 +67,12 @@ class TikTokDownloadService:
                     execution_time=time.perf_counter() - start_time,
                 )
 
-            self.logger.info(f"[TikTokDownloadService] Resolving video ID: {video_id}")
+            self.logger.info(f"[TikTokDownloadService] Resolving video ID: {video_id} using {self.download_strategy.get_strategy_name()} strategy")
 
-            # Resolve the direct download URL (non-blocking)
-            resolver = TikVidVideoResolver(self.settings)
+            # Resolve the direct download URL using the selected strategy (non-blocking)
             download_url = await asyncio.to_thread(
-                resolver.resolve_video_url,
-                url_str,
-                None  # quality parameter removed
+                self.download_strategy.resolve_video_url,
+                url_str
             )
 
             self.logger.info(f"[TikTokDownloadService] Resolved download URL: {download_url}")

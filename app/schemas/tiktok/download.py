@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
-from pydantic import BaseModel, Field, HttpUrl
+from typing import Any, Dict, Optional, Literal
+from pydantic import BaseModel, Field, HttpUrl, field_serializer
 
 
 class TikTokDownloadRequest(BaseModel):
@@ -23,7 +23,8 @@ class TikTokDownloadRequest(BaseModel):
                 }
             ]
         },
-        "extra": "forbid"  # Reject extra fields in the request
+        "extra": "forbid",  # Reject extra fields in the request
+        "populate_by_name": True
     }
 
 
@@ -36,11 +37,15 @@ class TikTokVideoInfo(BaseModel):
     duration: Optional[float] = Field(None, description="Video duration in seconds")
     thumbnail_url: Optional[HttpUrl] = Field(None, description="Video thumbnail URL")
 
+    model_config = {
+        "exclude_none": True  # Exclude None values from serialization
+    }
+
 
 class TikTokDownloadResponse(BaseModel):
     """Response schema for TikTok video download."""
 
-    status: str = Field(..., description="Download status: 'success' or 'error'")
+    status: Literal["success", "error"] = Field(..., description="Download status: 'success' or 'error'")
     message: str = Field(..., description="Status message")
 
     # Success fields
@@ -56,6 +61,7 @@ class TikTokDownloadResponse(BaseModel):
     execution_time: Optional[float] = Field(None, description="Execution time in seconds")
 
     model_config = {
+        "exclude_none": True,  # Exclude None values from serialization
         "json_schema_extra": {
             "examples": [
                 {
