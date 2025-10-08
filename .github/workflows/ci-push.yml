@@ -1,15 +1,15 @@
-name: '🧪 CI - Push (Unit)'
+name: "🧪 CI - Push (Unit)"
 
 on:
   push:
     paths:
-      - 'app/**'
-      - 'tests/**'
-      - 'requirements-test.txt'
-      - 'requirements.txt'
-      - 'pytest.ini'
-      - '.flake8'
-      - '.pre-commit-config.yaml'
+      - "app/**"
+      - "tests/**"
+      - "requirements-test.txt"
+      - "requirements.txt"
+      - "pytest.ini"
+      - ".flake8"
+      - ".pre-commit-config.yaml"
   workflow_call:
 
 jobs:
@@ -51,9 +51,21 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt -r requirements-test.txt
 
+      - name: Fetch Camoufox resources
+        env:
+          CAMOUFOX_MAX_RETRIES: 3
+          CAMOUFOX_RETRY_DELAY: 10
+        run: |
+          if [ "$RUNNER_OS" == "Windows" ]; then
+            pwsh -ExecutionPolicy Bypass -File ./.github/workflows/scripts/ci/fetch_camoufox.ps1
+          else
+            chmod +x ./.github/workflows/scripts/ci/fetch_camoufox.sh
+            ./.github/workflows/scripts/ci/fetch_camoufox.sh
+          fi
+        shell: bash
+
       - name: Lint
         run: flake8 app/ tests/
 
       - name: Run tests (skip integration)
         run: python -m pytest -q -m "not integration" --disable-warnings --maxfail=1
-
