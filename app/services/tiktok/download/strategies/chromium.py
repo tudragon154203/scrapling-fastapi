@@ -2,12 +2,20 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 import re
 import sys
 import threading
 from typing import Any, Dict, Optional
+
+# Set proper event loop policy for Windows
+if sys.platform == "win32":
+    try:
+        asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+    except Exception:
+        pass
 
 # Import DynamicFetcher for Chromium support
 try:
@@ -182,9 +190,13 @@ class ChromiumDownloadStrategy(TikTokDownloadStrategy):
 
         # Create fetch kwargs for DynamicFetcher
         # Note: DynamicFetcher uses Playwright's Chromium by default
+        # Convert the action to a callable as expected by DynamicFetcher
+        def page_action_callable(page):
+            return resolve_action._execute(page)
+
         fetch_kwargs = {
             "headless": False,  # keep the browser visible for debugging
-            "page_action": resolve_action,
+            "page_action": page_action_callable,
             "timeout": 90000,  # 90 seconds in milliseconds
             "extra_headers": {"User-Agent": USER_AGENT},
             "network_idle": True,  # Wait for network to be idle

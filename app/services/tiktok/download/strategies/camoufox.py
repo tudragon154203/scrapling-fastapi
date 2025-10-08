@@ -133,6 +133,10 @@ class CamoufoxDownloadStrategy(TikTokDownloadStrategy):
         if extra_headers:
             headers.update(extra_headers)
 
+        # Convert the action to a callable as expected by StealthyFetcher
+        def page_action_callable(page):
+            return resolve_action._execute(page)
+
         fetch_kwargs = FetchArgComposer.compose(
             options={
                 "headless": False,  # keep the browser visible for debugging
@@ -146,7 +150,7 @@ class CamoufoxDownloadStrategy(TikTokDownloadStrategy):
             additional_args=additional_args or {},
             extra_headers=headers,
             settings=self.settings,
-            page_action=resolve_action,
+            page_action=page_action_callable,
         )
 
         return {
