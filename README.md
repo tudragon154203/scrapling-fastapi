@@ -126,7 +126,7 @@ python -m pytest -n 0
 Unit tests only:
 
 ```bash
-python -m pytest -m "not integration"
+python -m pytest -m unit
 ```
 
 Integration tests only:
@@ -134,6 +134,14 @@ Integration tests only:
 ```bash
 python -m pytest -m integration
 ```
+
+### Test Markers
+
+All test files use file-level pytest markers for categorization:
+- **Unit tests**: Marked with `pytestmark = [pytest.mark.unit]` at the top of the file
+- **Integration tests**: Marked with `pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("require_scrapling")]` at the top of the file
+
+This ensures proper test categorization and allows running specific test types using the marker selectors above.
 
 ### Integration Test Prerequisites
 
