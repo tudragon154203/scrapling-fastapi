@@ -26,6 +26,7 @@ except ImportError:
 
 from app.services.tiktok.download.actions.resolver import TikVidResolveAction
 from app.services.tiktok.download.strategies.base import TikTokDownloadStrategy
+from app.services.common.browser.user_data_chromium import ChromiumUserDataManager
 
 logger = logging.getLogger(__name__)
 
@@ -56,6 +57,10 @@ class ChromiumDownloadStrategy(TikTokDownloadStrategy):
     def __init__(self, settings: Any):
         self.settings = settings
         self.logger = logging.getLogger(__name__)
+        # Initialize Chromium user data manager
+        self.user_data_manager = ChromiumUserDataManager(
+            user_data_dir=getattr(settings, 'chromium_user_data_dir', None)
+        )
 
     def resolve_video_url(self, tiktok_url: str, quality_hint: Optional[str] = None) -> str:
         """
@@ -145,6 +150,17 @@ class ChromiumDownloadStrategy(TikTokDownloadStrategy):
         """
         resolve_action = TikVidResolveAction(tiktok_url, quality_hint)
 
+        # Get user data context for read mode (clone master profile)
+        user_data_cleanup = None
+        try:
+            user_data_context = self.user_data_manager.get_user_data_context('read')
+            effective_user_data_dir, user_data_cleanup = user_data_context.__enter__()
+            logger.debug(f"Using Chromium user data directory: {effective_user_data_dir}")
+        except Exception as e:
+            logger.warning(f"Failed to get Chromium user data context, falling back to temporary profile: {e}")
+            effective_user_data_dir = None
+            user_data_cleanup = None
+
         # Chromium-specific configuration for stealth and anti-detection
         additional_args = {
             # Browser arguments for stealth
@@ -188,6 +204,10 @@ class ChromiumDownloadStrategy(TikTokDownloadStrategy):
             },
         }
 
+        # Add user data directory if available
+        if effective_user_data_dir:
+            additional_args["user_data_dir"] = effective_user_data_dir
+
         # Create fetch kwargs for DynamicFetcher
         # Note: DynamicFetcher uses Playwright's Chromium by default
         # Convert the action to a callable as expected by DynamicFetcher
@@ -195,7 +215,7 @@ class ChromiumDownloadStrategy(TikTokDownloadStrategy):
             return resolve_action._execute(page)
 
         fetch_kwargs = {
-            "headless": False,  # keep the browser visible for debugging
+            "headless": True,  # Use headless mode for downloads
             "page_action": page_action_callable,
             "timeout": 90000,  # 90 seconds in milliseconds
             "extra_headers": {"User-Agent": USER_AGENT},

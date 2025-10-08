@@ -165,7 +165,7 @@ def test_browse_only_launches_once_without_retries(monkeypatch, client):
     # original_init = BrowseCrawler.__init__
     # original_run = BrowseCrawler.run
 
-    def mock_init(self, engine=None):
+    def mock_init(self, engine=None, browser_engine=None):
         nonlocal instantiation_count
         instantiation_count += 1
         # Call original init with mocked engine if provided
@@ -262,3 +262,129 @@ def test_browse_endpoint_mock_without_json_payload(monkeypatch, client):
     patched.assert_called_once()
     request_obj = patched.call_args.kwargs["request"]
     assert isinstance(request_obj, SimpleNamespace)
+
+
+def test_browse_success_with_camoufox_engine(monkeypatch, client):
+    """Test successful browse request with Camoufox engine."""
+    from app.services.browser.browse import BrowseCrawler
+    from app.schemas.browse import BrowserEngine
+
+    captured_payload = {}
+    captured_browser_engine = {}
+
+    def _fake_browse_init(self, browser_engine=None):
+        captured_browser_engine["engine"] = browser_engine
+
+    def _fake_browse_run(self, payload):
+        captured_payload["payload"] = payload
+        return BrowseResponse(
+            status="success",
+            message="Browser session completed successfully"
+        )
+
+    monkeypatch.setattr(BrowseCrawler, "__init__", _fake_browse_init)
+    monkeypatch.setattr(BrowseCrawler, "run", _fake_browse_run)
+
+    body = {
+        "url": "https://example.com",
+        "engine": "camoufox"
+    }
+    resp = client.post("/browse", json=body)
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["status"] == "success"
+    assert data["message"] == "Browser session completed successfully"
+
+    # Verify payload and engine were passed correctly
+    p = captured_payload["payload"]
+    assert str(p.url) == "https://example.com/"
+    assert captured_browser_engine["engine"] == BrowserEngine.CAMOUFOX
+
+
+def test_browse_success_with_chromium_engine(monkeypatch, client):
+    """Test successful browse request with Chromium engine."""
+    from app.services.browser.browse import BrowseCrawler
+    from app.schemas.browse import BrowserEngine
+
+    captured_payload = {}
+    captured_browser_engine = {}
+
+    def _fake_browse_init(self, browser_engine=None):
+        captured_browser_engine["engine"] = browser_engine
+
+    def _fake_browse_run(self, payload):
+        captured_payload["payload"] = payload
+        return BrowseResponse(
+            status="success",
+            message="Browser session completed successfully"
+        )
+
+    monkeypatch.setattr(BrowseCrawler, "__init__", _fake_browse_init)
+    monkeypatch.setattr(BrowseCrawler, "run", _fake_browse_run)
+
+    body = {
+        "url": "https://example.com",
+        "engine": "chromium"
+    }
+    resp = client.post("/browse", json=body)
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["status"] == "success"
+    assert data["message"] == "Browser session completed successfully"
+
+    # Verify payload and engine were passed correctly
+    p = captured_payload["payload"]
+    assert str(p.url) == "https://example.com/"
+    assert captured_browser_engine["engine"] == BrowserEngine.CHROMIUM
+
+
+def test_browse_defaults_to_camoufox_engine(monkeypatch, client):
+    """Test that browse request defaults to Camoufox engine when not specified."""
+    from app.services.browser.browse import BrowseCrawler
+    from app.schemas.browse import BrowserEngine
+
+    captured_payload = {}
+    captured_browser_engine = {}
+
+    def _fake_browse_init(self, browser_engine=None):
+        captured_browser_engine["engine"] = browser_engine
+
+    def _fake_browse_run(self, payload):
+        captured_payload["payload"] = payload
+        return BrowseResponse(
+            status="success",
+            message="Browser session completed successfully"
+        )
+
+    monkeypatch.setattr(BrowseCrawler, "__init__", _fake_browse_init)
+    monkeypatch.setattr(BrowseCrawler, "run", _fake_browse_run)
+
+    body = {
+        "url": "https://example.com"
+        # No engine specified - should default to camoufox
+    }
+    resp = client.post("/browse", json=body)
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["status"] == "success"
+
+    # Verify default engine was used
+    assert captured_browser_engine["engine"] == BrowserEngine.CAMOUFOX
+
+
+def test_browse_invalid_engine_rejected(client):
+    """Test that invalid engine values are rejected."""
+    body = {
+        "url": "https://example.com",
+        "engine": "invalid_engine"
+    }
+    resp = client.post("/browse", json=body)
+
+    assert resp.status_code == 422
+    error_detail = resp.json()
+    assert "detail" in error_detail
+    error_str = str(error_detail["detail"])
+    assert "engine" in error_str.lower()
