@@ -10,7 +10,7 @@ router = APIRouter()
 
 def browse(request: BrowseRequest) -> BrowseResponse:
     """Browse handler used by the API route."""
-    crawler = BrowseCrawler()
+    crawler = BrowseCrawler(browser_engine=request.engine)
     return crawler.run(request)
 
 
@@ -20,9 +20,15 @@ def browse_endpoint(payload: BrowseRequest):
 
     Launches a headful browser session for manual browsing to populate persistent user data.
     The browser remains open until manually closed by the user.
+
+    Supports both Camoufox (default) and Chromium engines via the engine parameter.
     """
+    # For backward compatibility and patched behavior
     if not isinstance(browse, FunctionType):
-        req_obj = SimpleNamespace(url=str(payload.url) if payload.url else None)
+        req_obj = SimpleNamespace(
+            url=str(payload.url) if payload.url else None,
+            engine=payload.engine
+        )
     else:
         req_obj = payload
 
