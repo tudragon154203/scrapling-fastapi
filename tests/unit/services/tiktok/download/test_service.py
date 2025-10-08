@@ -23,8 +23,7 @@ class TestTikTokDownloadService:
     def valid_request(self):
         """Create a valid download request."""
         return TikTokDownloadRequest(
-            url="https://www.tiktok.com/@username/video/1234567890",
-            quality="HD"
+            url="https://www.tiktok.com/@username/video/1234567890"
         )
 
     @pytest.fixture
@@ -63,8 +62,7 @@ class TestTikTokDownloadService:
     async def test_download_video_invalid_url(self, service):
         """Test download with invalid URL."""
         invalid_request = TikTokDownloadRequest(
-            url="https://example.com/not-tiktok/video/123",
-            quality="HD"
+            url="https://example.com/not-tiktok/video/123"
         )
 
         result = await service.download_video(invalid_request)
@@ -77,8 +75,7 @@ class TestTikTokDownloadService:
     async def test_download_video_no_video_id(self, service):
         """Test download with URL that has no extractable video ID."""
         invalid_request = TikTokDownloadRequest(
-            url="https://www.tiktok.com/@username",  # No video ID
-            quality="HD"
+            url="https://www.tiktok.com/@username"  # No video ID
         )
 
         result = await service.download_video(invalid_request)

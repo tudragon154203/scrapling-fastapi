@@ -131,6 +131,29 @@ Integration tests only:
 python -m pytest -m integration
 ```
 
+### Integration Test Prerequisites
+
+Some integration tests require browser automation dependencies. For TikTok-related integration tests:
+
+```bash
+# Install Camoufox browser engine for TikTok tests
+pip install camoufox
+```
+
+**Note**: TikTok integration tests (`tests/integration/services/tiktok/download/test_tiktok_download.py`) require Camoufox for browser automation. These tests are marked with `@pytest.mark.slow` and will be skipped if Camoufox is not installed.
+
+To run only the TikTok download integration tests:
+
+```bash
+python -m pytest tests/integration/services/tiktok/download/test_tiktok_download.py -v
+```
+
+To run integration tests serially (recommended for browser tests to avoid conflicts):
+
+```bash
+python -m pytest tests/integration/services/tiktok/download/test_tiktok_download.py -n 0
+```
+
 ## Extending the Template
 
 To use this template for your own project:

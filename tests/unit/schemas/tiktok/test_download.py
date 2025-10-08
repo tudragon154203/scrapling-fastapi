@@ -9,22 +9,12 @@ from app.schemas.tiktok.download import TikTokDownloadRequest, TikTokDownloadRes
 class TestTikTokDownloadRequest:
     """Test cases for TikTokDownloadRequest schema."""
 
-    def test_valid_request_with_quality(self):
-        """Test creating a valid request with quality."""
-        request = TikTokDownloadRequest(
-            url="https://www.tiktok.com/@username/video/1234567890",
-            quality="HD"
-        )
-        assert str(request.url) == "https://www.tiktok.com/@username/video/1234567890"
-        assert request.quality == "HD"
-
-    def test_valid_request_without_quality(self):
-        """Test creating a valid request without quality."""
+    def test_valid_request(self):
+        """Test creating a valid request."""
         request = TikTokDownloadRequest(
             url="https://www.tiktok.com/@username/video/1234567890"
         )
         assert str(request.url) == "https://www.tiktok.com/@username/video/1234567890"
-        assert request.quality is None
 
     def test_invalid_url_type(self):
         """Test validation error for invalid URL type."""
@@ -39,12 +29,11 @@ class TestTikTokDownloadRequest:
     def test_request_serialization(self):
         """Test request serialization."""
         request = TikTokDownloadRequest(
-            url="https://www.tiktok.com/@username/video/1234567890",
-            quality="HD"
+            url="https://www.tiktok.com/@username/video/1234567890"
         )
         data = request.model_dump()
         assert data["url"] == "https://www.tiktok.com/@username/video/1234567890"
-        assert data["quality"] == "HD"
+        assert "quality" not in data  # quality field should not exist
 
 
 class TestTikTokVideoInfo:

@@ -72,7 +72,7 @@ class TikTokDownloadService:
             download_url = await asyncio.to_thread(
                 resolver.resolve_video_url,
                 url_str,
-                request.quality
+                None  # quality parameter removed
             )
 
             self.logger.info(f"[TikTokDownloadService] Resolved download URL: {download_url}")

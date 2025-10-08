@@ -14,18 +14,12 @@ class TikTokDownloadRequest(BaseModel):
         description="Public TikTok video URL to download",
         examples=["https://www.tiktok.com/@username/video/1234567890"]
     )
-    quality: Optional[str] = Field(
-        default=None,
-        description="Preferred video quality (if available)",
-        examples=["HD", "SD"]
-    )
 
     model_config = {
         "json_schema_extra": {
             "examples": [
                 {
-                    "url": "https://www.tiktok.com/@tieentiton/video/7530618987760209170",
-                    "quality": "HD"
+                    "url": "https://www.tiktok.com/@tieentiton/video/7530618987760209170"
                 }
             ]
         },
