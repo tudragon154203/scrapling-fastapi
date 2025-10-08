@@ -96,7 +96,7 @@ class SingleAttemptExecutor(IExecutor):
             )
         except Exception as e:
             return CrawlResponse(
-                status="failure",
+                status="error",
                 url=request.url,
                 html=None,
                 message=f"Exception during crawl: {type(e).__name__}: {e}",
