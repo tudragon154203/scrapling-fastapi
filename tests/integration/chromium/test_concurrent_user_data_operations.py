@@ -1,11 +1,8 @@
 """Integration tests for concurrent Chromium user data operations."""
 
-import asyncio
-import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
