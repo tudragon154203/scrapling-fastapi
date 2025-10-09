@@ -201,6 +201,11 @@ class ChromiumDownloadStrategy(TikTokDownloadStrategy):
         fetcher_class = DynamicFetcher
         logger.debug("Using DynamicFetcher (ephemeral profile)")
 
+        # Determine headless mode based on force_headful flag
+        # When force_headful=False, enable headless mode with full parity features
+        # When force_headful=True, enforce headful mode
+        headless_mode = not force_headful
+
         # Browser arguments for stealth and anti-detection
         browser_args = [
             "--no-sandbox",
@@ -234,15 +239,26 @@ class ChromiumDownloadStrategy(TikTokDownloadStrategy):
             "--disable-features=IsolateOrigins,site-per-process",  # Reduce process overhead
         ]
 
+        # Add headless-specific parity arguments when in headless mode
+        if headless_mode:
+            headless_args = [
+                "--disable-background-networking",  # Prevent background requests interfering
+                "--no-default-browser-check",  # Prevent browser check dialogs
+                "--disable-features=TranslateUI,BlinkGenPropertyTrees",  # Reduce headless overhead
+                "--enable-automation",  # Enable automation mode for better headless support
+                "--password-store=basic",  # Use basic password store in headless
+                "--use-mock-keychain",  # Mock keychain for headless environments
+                "--disable-ipc-flooding-protection",  # Enhanced protection for headless
+                "--disable-component-update",  # Prevent component updates in headless
+                "--disable-domain-reliability",  # Disable domain reliability reporting
+                "--disable-features=AudioServiceOutOfProcess",  # Reduce process overhead
+            ]
+            browser_args.extend(headless_args)
+            logger.debug("Added headless-specific parity arguments for enhanced headless compatibility")
+
         # Create page action callable for fetchers
         def page_action_callable(page):
             return resolve_action._execute(page)
-
-        # Determine headless mode based on force_headful flag and parity state
-        # For now, headless parity is not fully implemented, so we default to headful
-        # when force_headful=False, but the structure is in place for future parity
-        headless_parity_enabled = False  # TODO: Implement headless parity features
-        headless_mode = not force_headful and headless_parity_enabled
 
         # Base fetch kwargs compatible with both fetchers
         # IMPORTANT: DynamicFetcher.fetch does not accept 'browser_args' directly.
@@ -255,6 +271,27 @@ class ChromiumDownloadStrategy(TikTokDownloadStrategy):
             "network_idle": False,  # Use domcontentloaded instead for faster loading
             "wait": 3000,  # Reduced wait time to 3 seconds
         }
+
+        # Add headless-specific parity configurations
+        if headless_mode:
+            # Enhanced waiting strategy for headless mode
+            fetch_kwargs.update({
+                "network_idle": True,  # Wait for network to be idle in headless mode
+                "wait": 5000,  # Slightly longer wait for headless stability
+                "timeout": 120000,  # Longer timeout for headless processing
+            })
+
+            # Additional headers for headless mode parity
+            fetch_kwargs["extra_headers"].update({
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+                "Accept-Language": "en-US,en;q=0.5",
+                "Accept-Encoding": "gzip, deflate, br",
+                "DNT": "1",
+                "Connection": "keep-alive",
+                "Upgrade-Insecure-Requests": "1",
+            })
+
+            logger.debug("Applied headless parity configurations for enhanced web interaction")
 
         # Inject browser args only for PersistentChromiumFetcher
         if fetcher_class == PersistentChromiumFetcher:

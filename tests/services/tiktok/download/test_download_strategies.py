@@ -201,14 +201,15 @@ class TestChromiumDownloadStrategy:
             assert call_args[0][0] == "https://www.tiktok.com/@test/video/456"
 
     def test_chromium_strategy_build_fetch_kwargs_headful_enforcement(self, strategy: ChromiumDownloadStrategy) -> None:
-        """Test that _build_chromium_fetch_kwargs method enforces headful mode."""
-        # Call the actual method to inspect the returned fetch kwargs
+        """Test that _build_chromium_fetch_kwargs method enforces headful mode when force_headful=True."""
+        # Call the actual method with force_headful=True to inspect the returned fetch kwargs
         result = strategy._build_chromium_fetch_kwargs(
             "https://www.tiktok.com/@test/video/456",
-            None  # quality_hint
+            None,  # quality_hint
+            True   # force_headful
         )
 
-        # Verify that headless is explicitly set to False
+        # Verify that headless is explicitly set to False when force_headful=True
         assert "fetch_kwargs" in result
         assert "headless" in result["fetch_kwargs"]
         assert result["fetch_kwargs"]["headless"] is False
@@ -307,14 +308,41 @@ class TestChromiumDownloadStrategy:
             force_headful=False
         )
 
-        # Verify that headless is set appropriately (should be True when force_headful=False and parity enabled)
+        # Verify that headless is set to True when force_headful=False
         assert "fetch_kwargs" in result
         assert "headless" in result["fetch_kwargs"]
+        assert result["fetch_kwargs"]["headless"] is True
 
-        # When force_headful=False, should allow headless mode (when parity is implemented)
-        # For now, this will still be False until parity is implemented
-        # This test verifies the structure is in place for future parity features
-        assert isinstance(result["fetch_kwargs"]["headless"], bool)
+        # Verify headless-specific parity configurations
+        assert result["fetch_kwargs"]["network_idle"] is True  # Headless uses network idle
+        assert result["fetch_kwargs"]["wait"] == 5000  # Headless uses longer wait
+        assert result["fetch_kwargs"]["timeout"] == 120000  # Headless uses longer timeout
+
+        # Verify additional headers for headless parity
+        headers = result["fetch_kwargs"]["extra_headers"]
+        assert "Accept" in headers
+        assert "Accept-Language" in headers
+        assert "Accept-Encoding" in headers
+        assert "DNT" in headers
+
+    def test_chromium_strategy_headful_mode_unchanged(self, strategy: ChromiumDownloadStrategy) -> None:
+        """Test that headful mode configurations remain unchanged."""
+        # Call the actual method with force_headful=True to check headful features
+        result = strategy._build_chromium_fetch_kwargs(
+            "https://www.tiktok.com/@test/video/456",
+            None,  # quality_hint
+            force_headful=True
+        )
+
+        # Verify that headless is set to False when force_headful=True
+        assert "fetch_kwargs" in result
+        assert "headless" in result["fetch_kwargs"]
+        assert result["fetch_kwargs"]["headless"] is False
+
+        # Verify headful configurations remain as expected
+        assert result["fetch_kwargs"]["network_idle"] is False  # Headful doesn't use network idle
+        assert result["fetch_kwargs"]["wait"] == 3000  # Headful uses shorter wait
+        assert result["fetch_kwargs"]["timeout"] == 90000  # Headful uses standard timeout
 
     def test_chromium_strategy_user_data_in_both_modes(self, strategy: ChromiumDownloadStrategy) -> None:
         """Test that user data management works in both headless and headful modes."""

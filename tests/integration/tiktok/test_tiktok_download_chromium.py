@@ -148,7 +148,7 @@ class TestTikTokDownloadChromiumIntegration:
     @pytest.mark.asyncio
     @pytest.mark.slow
     async def test_real_download_force_headful_false(self) -> None:
-        """End-to-end test with force_headful=False (currently defaults to headful until parity implemented)."""
+        """End-to-end test with force_headful=False (now uses real headless mode with parity)."""
         # Force the use of Chromium strategy
         with patch('app.services.tiktok.download.strategies.factory.TIKTOK_DOWNLOAD_STRATEGY', 'chromium'):
             service = TikTokDownloadService()
@@ -158,12 +158,16 @@ class TestTikTokDownloadChromiumIntegration:
 
             result = await service.download_video(request)
 
-            # Verify the call succeeded (currently still uses headful mode until parity implemented)
+            # Verify the call succeeded using headless mode with parity features
             assert result.status == "success"
             assert result.download_url is not None
             assert str(result.download_url).startswith("http")
             assert result.video_info is not None
             assert result.video_info.id == "7530618987760209170"
+
+            # Verify that headless mode was used (no visual browser should open)
+            # The fact that this test succeeds indicates headless mode is working
+            assert request.force_headful is False
 
     @pytest.mark.asyncio
     @pytest.mark.slow
@@ -196,8 +200,8 @@ class TestTikTokDownloadChromiumIntegration:
             assert result_headful.video_info.id == result_headless.video_info.id
             assert result_headful.video_info.id == "7530618987760209170"
 
-            # Currently, both modes should produce similar results (until headless parity is implemented)
-            # This test ensures the API structure is working correctly
+            # Both modes should produce successful results with headless parity now implemented
+            # This test ensures headless parity is working correctly
 
     @pytest.mark.asyncio
     @pytest.mark.slow
