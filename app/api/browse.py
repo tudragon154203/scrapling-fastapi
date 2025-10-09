@@ -23,16 +23,8 @@ def browse_endpoint(payload: BrowseRequest):
 
     Supports both Camoufox (default) and Chromium engines via the engine parameter.
     """
-    # For backward compatibility and patched behavior
-    if not isinstance(browse, FunctionType):
-        req_obj = SimpleNamespace(
-            url=str(payload.url) if payload.url else None,
-            engine=payload.engine
-        )
-    else:
-        req_obj = payload
+    result = browse(payload)
 
-    result = browse(request=req_obj)
     # If a proper BrowseResponse, map HTTP status code based on outcome
     if isinstance(result, BrowseResponse):
         if result.status == "success":
