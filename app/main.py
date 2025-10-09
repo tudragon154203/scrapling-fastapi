@@ -69,6 +69,7 @@ def create_app() -> FastAPI:
                 response.headers["Access-Control-Allow-Origin"] = "*"
 
         return response
+
     @app.exception_handler(RequestValidationError)
     async def custom_validation_exception_handler(request: Request, exc: RequestValidationError):
         raw_details = exc.errors()

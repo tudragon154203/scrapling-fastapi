@@ -1,11 +1,8 @@
 """Integration tests for concurrent Chromium user data operations."""
 
-import asyncio
-import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
@@ -169,7 +166,7 @@ class TestConcurrentUserDataOperations:
             acquisition_times.sort()
             for i in range(1, len(acquisition_times)):
                 # Each subsequent acquisition should wait at least the work duration
-                time_diff = acquisition_times[i] - acquisition_times[i-1]
+                time_diff = acquisition_times[i] - acquisition_times[i - 1]
                 assert time_diff >= 0.1, f"Write operations not properly serialized: {time_diff}"
 
     def test_mixed_read_write_operations(self, populated_manager):

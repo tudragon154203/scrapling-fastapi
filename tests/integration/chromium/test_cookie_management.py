@@ -1,11 +1,8 @@
 """Integration tests for Chromium cookie management functionality."""
 
 import json
-import sqlite3
-import tempfile
 import time
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
@@ -534,9 +531,6 @@ class TestChromiumCookieManagement:
 
     def test_cookie_metadata_tracking(self, user_data_manager, sample_cookies):
         """Test that cookie operations are properly tracked in metadata."""
-        # Get initial metadata
-        initial_metadata = user_data_manager.get_metadata()
-
         # Import cookies
         import_success = user_data_manager.import_cookies(sample_cookies)
         assert import_success is True

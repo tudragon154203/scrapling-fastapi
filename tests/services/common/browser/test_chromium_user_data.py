@@ -9,11 +9,10 @@ Tests cover:
 """
 
 import os
-import json
 import tempfile
 import shutil
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 import pytest
 
 from app.services.common.browser.user_data_chromium import (
@@ -267,7 +266,7 @@ class TestChromiumUserDataManager:
 
         with manager.get_user_data_context('write') as (_, cleanup):
             # Initially no fingerprint
-            fingerprint = manager.get_browserforge_fingerprint()
+            manager.get_browserforge_fingerprint()
             # May be None if generation failed, which is ok for this test
 
         cleanup()

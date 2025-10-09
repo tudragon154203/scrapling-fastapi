@@ -1,7 +1,5 @@
 """Integration tests for Chromium browse endpoint error handling and enhanced messages."""
 
-import json
-import tempfile
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
@@ -37,12 +35,11 @@ class TestChromiumBrowseErrorHandling:
 
     def test_lock_conflict_detailed_error(self, client):
         """Test detailed error message for lock conflicts."""
-        from app.services.common.browser.user_data_chromium import ChromiumUserDataManager
         import tempfile
 
         # Create a temporary user data directory
         with tempfile.TemporaryDirectory() as temp_dir:
-            user_data_dir = Path(temp_dir) / "chromium_test"
+            Path(temp_dir) / "chromium_test"
 
             # Mock the user data manager to simulate lock conflict
             with patch('app.services.browser.browse.ChromiumUserDataManager') as mock_manager_class:

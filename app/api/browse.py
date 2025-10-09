@@ -1,5 +1,4 @@
 from fastapi import APIRouter
-from types import SimpleNamespace, FunctionType
 
 from app.schemas.browse import BrowseRequest, BrowseResponse
 from app.services.browser.browse import BrowseCrawler

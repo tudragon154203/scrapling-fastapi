@@ -129,7 +129,7 @@ class TestChromiumUserDataWorkflows:
             mock_engine.run.return_value = mock_result
 
             # Run browse session
-            response = crawler.run(request)
+            crawler.run(request)
 
             # Check that fingerprint was generated
             master_dir = Path(base_dir) / 'master'
@@ -167,9 +167,9 @@ class TestChromiumUserDataWorkflows:
 
             # Try to resolve video URL
             try:
-                url = strategy.resolve_video_url("https://tiktok.com/@user/video/123")
+                strategy.resolve_video_url("https://tiktok.com/@user/video/123")
                 # Should not raise exception
-            except Exception as e:
+            except Exception:
                 # Expected since we're mocking, but check that user data was attempted
                 pass
 
@@ -201,7 +201,7 @@ class TestChromiumUserDataWorkflows:
             mock_fetcher.fetch.return_value = mock_result
 
             try:
-                url = strategy.resolve_video_url("https://tiktok.com/@user/video/123")
+                strategy.resolve_video_url("https://tiktok.com/@user/video/123")
             except Exception:
                 pass
 

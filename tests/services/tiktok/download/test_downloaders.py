@@ -128,8 +128,8 @@ class TestVideoFileDownloader:
 
         # Mock async iteration
         async def mock_aiter_bytes(chunk_size):
-            yield expected_content[:chunk_size//2]
-            yield expected_content[chunk_size//2:]
+            yield expected_content[:chunk_size // 2]
+            yield expected_content[chunk_size // 2:]
 
         mock_response.aiter_bytes = mock_aiter_bytes
 
@@ -172,8 +172,8 @@ class TestVideoFileDownloader:
 
         # Mock async iteration
         async def mock_aiter_bytes(chunk_size):
-            yield expected_content[:chunk_size//2]
-            yield expected_content[chunk_size//2:]
+            yield expected_content[:chunk_size // 2]
+            yield expected_content[chunk_size // 2:]
 
         mock_response.aiter_bytes = mock_aiter_bytes
 

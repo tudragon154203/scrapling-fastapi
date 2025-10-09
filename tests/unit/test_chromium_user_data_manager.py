@@ -4,9 +4,8 @@ import os
 import json
 import tempfile
 import shutil
-import unittest
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 import pytest
 

@@ -166,7 +166,7 @@ class TestChromiumDownloadStrategy:
             result = strategy.resolve_video_url("https://www.tiktok.com/@test/video/456")
 
             assert result == "https://example.com/video.mp4"
-            
+
             # Verify that headful mode is used
             mock_build.assert_called_once()
             call_args = mock_build.call_args
