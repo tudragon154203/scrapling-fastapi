@@ -135,4 +135,10 @@ AI Agent Development Guidelines for Scrapling FastAPI Project
 - **Versioning**: Semantic versioning with impact assessment
 - **Reference**: Use GEMINI.md for runtime development guidance
 
+## Backwards Compatibility
+
+- **Policy**: NO NEED for backwards compatibility
+- **Breaking Changes**: Allowed without migration requirements
+- **Focus**: Clean architecture and implementation over legacy support
+
 **Last Updated**: 2025-09-24 | **Constitution Version**: 1.4.2

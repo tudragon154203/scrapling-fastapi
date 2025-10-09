@@ -107,7 +107,11 @@ Some tests require real network/browser operations,  which will perform actual w
 - **Code Quality**: Must pass `flake8` linting for `app/` and `tests/` directories
 - **Location Rules**: Never place implementation code in `.specify/` directory
 
-### BACKWARDS COMPATIBILITY: DO NOT CARE
+## Backwards Compatibility
+
+- **Policy**: NO NEED for backwards compatibility
+- **Breaking Changes**: Allowed without migration requirements
+- **Focus**: Clean architecture and implementation over legacy support
 
 ### CUSTOM RULES
 
