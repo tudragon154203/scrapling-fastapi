@@ -143,7 +143,7 @@ class TestChromiumDownloadStrategy:
         assert strategy.get_strategy_name() == "chromium"
 
     def test_resolve_video_url_success(self, strategy: ChromiumDownloadStrategy) -> None:
-        """Test successful video URL resolution."""
+        """Test successful video URL resolution in headful mode."""
         with patch.object(strategy, '_build_chromium_fetch_kwargs') as mock_build:
             # Mock the components
             mock_fetcher_class = MagicMock()
@@ -166,6 +166,12 @@ class TestChromiumDownloadStrategy:
             result = strategy.resolve_video_url("https://www.tiktok.com/@test/video/456")
 
             assert result == "https://example.com/video.mp4"
+            
+            # Verify that headful mode is used
+            mock_build.assert_called_once()
+            call_args = mock_build.call_args
+            assert call_args[0][0] == "https://www.tiktok.com/@test/video/456"  # tiktok_url
+            assert call_args[0][1] is None  # quality_hint
 
 
 class TestTikTokDownloadStrategyFactory:

@@ -72,7 +72,7 @@ class TiktokExecutor(AbstractBrowsingExecutor):
             settings=self.settings,
             page_action=None
         )
-        # Launch browser using ScraplingFetcher
+        # Launch browser using ScraplingFetcher - it handles async/sync conflicts internally
         result = self.fetcher.fetch(config["url"], fetch_kwargs)
         # Create browser reference for compatibility
         self.browser = result

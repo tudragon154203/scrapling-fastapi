@@ -1,7 +1,7 @@
 from typing import Optional
 import os
 from functools import lru_cache
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic import BaseModel
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -38,7 +38,7 @@ try:
         # Camoufox user data directory (single profile dir)
         camoufox_user_data_dir: Optional[str] = Field(default=None)
         # Chromium user data directory (master/clone profile structure)
-        chromium_user_data_dir: Optional[str] = Field(default=None)
+        chromium_user_data_dir: Optional[str] = Field(default="data/chromium_profiles")
         # Camoufox stealth extras (optional, no API changes)
         camoufox_locale: Optional[str] = Field(default=None)  # e.g., "en-US,en;q=0.9"
         camoufox_window: Optional[str] = Field(default="1280x720")  # e.g., "1366x768"
@@ -91,6 +91,21 @@ try:
         tiktok_url: str = Field(default="https://www.tiktok.com/", env="TIKTOK_URL")
         # TikTok download configuration
         tiktok_download_strategy: str = Field(default="chromium", env="TIKTOK_DOWNLOAD_STRATEGY")
+
+        @field_validator('chromium_user_data_dir', mode='before')
+        def _sanitize_chromium_user_data_dir(cls, v: Optional[str]) -> Optional[str]:
+            if v is None:
+                return None
+            if isinstance(v, str):
+                s = v.strip()
+                if not s:
+                    return None
+                try:
+                    return os.path.abspath(s)
+                except Exception:
+                    return s
+            return v
+
         model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="allow")
 
     @lru_cache()
@@ -120,7 +135,7 @@ except Exception:
         # Camoufox user data directory (single profile dir)
         camoufox_user_data_dir: Optional[str] = None
         # Chromium user data directory (master/clone profile structure)
-        chromium_user_data_dir: Optional[str] = None
+        chromium_user_data_dir: Optional[str] = "data/chromium_profiles"
         # Camoufox stealth extras
         camoufox_locale: Optional[str] = None
         camoufox_window: Optional[str] = "1280x720"
@@ -184,7 +199,12 @@ except Exception:
             proxy_health_failure_threshold=int(os.getenv("PROXY_HEALTH_FAILURE_THRESHOLD", "2")),
             proxy_unhealthy_cooldown_minute=int(os.getenv("PROXY_UNHEALTHY_COOLDOWN_MINUTE", "30")),
             camoufox_user_data_dir=os.getenv("CAMOUFOX_USER_DATA_DIR"),
-            chromium_user_data_dir=os.getenv("CHROMIUM_USER_DATA_DIR"),
+            chromium_user_data_dir=(
+                os.path.abspath(os.getenv("CHROMIUM_USER_DATA_DIR").strip())
+                if os.getenv("CHROMIUM_USER_DATA_DIR")
+                and os.getenv("CHROMIUM_USER_DATA_DIR").strip()
+                else "data/chromium_profiles"
+            ),
             camoufox_locale=os.getenv("CAMOUFOX_LOCALE"),
             camoufox_window=os.getenv("CAMOUFOX_WINDOW"),
             camoufox_disable_coop=os.getenv("CAMOUFOX_DISABLE_COOP", "false").lower() in {"1", "true", "yes"},
