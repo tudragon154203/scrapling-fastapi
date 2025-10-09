@@ -5,9 +5,10 @@ import tempfile
 import uuid
 import logging
 import time
+import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Callable, ContextManager, Tuple, Optional, Dict, Any
+from typing import Callable, ContextManager, Tuple, Optional, Dict, Any, List
 
 try:
     import browserforge
@@ -347,17 +348,52 @@ class ChromiumUserDataManager:
             return None
 
         try:
-            # For now, return metadata about cookies
-            # In a real implementation, this would read the cookies file from the profile
-            metadata = self.get_metadata()
-            if metadata:
+            # Path to Chromium cookies database
+            cookies_db = self.master_dir / "Default" / "Cookies"
+
+            if not cookies_db.exists():
+                logger.debug(f"No cookies database found at {cookies_db}")
                 return {
                     "format": format,
-                    "profile_metadata": metadata,
-                    "cookies_available": True,
+                    "cookies": [],
+                    "profile_metadata": self.get_metadata(),
+                    "cookies_available": False,
                     "master_profile_path": str(self.master_dir)
                 }
-            return None
+
+            # Read cookies from SQLite database
+            cookies = self._read_cookies_from_db(cookies_db)
+
+            if format == "storage_state":
+                # Convert to Playwright storage_state format
+                storage_state = {
+                    "cookies": [
+                        {
+                            "name": cookie["name"],
+                            "value": cookie["value"],
+                            "domain": cookie["domain"],
+                            "path": cookie["path"],
+                            "expires": cookie.get("expires", -1),
+                            "httpOnly": cookie.get("httpOnly", False),
+                            "secure": cookie.get("secure", False),
+                            "sameSite": cookie.get("sameSite", "None")
+                        }
+                        for cookie in cookies
+                    ],
+                    "origins": []
+                }
+                return storage_state
+            else:
+                # JSON format
+                return {
+                    "format": format,
+                    "cookies": cookies,
+                    "profile_metadata": self.get_metadata(),
+                    "cookies_available": len(cookies) > 0,
+                    "master_profile_path": str(self.master_dir),
+                    "export_timestamp": time.time()
+                }
+
         except Exception as e:
             logger.warning(f"Failed to export cookies: {e}")
             return None
@@ -375,18 +411,343 @@ class ChromiumUserDataManager:
             logger.warning("Chromium user data management disabled, cannot import cookies")
             return False
 
+        if not self.master_dir.exists():
+            logger.warning(f"Chromium master profile not found at {self.master_dir}")
+            return False
+
         try:
-            # For now, log the import attempt
-            # In a real implementation, this would write cookies to the profile
-            logger.info(f"Importing cookies to Chromium master profile: {len(cookie_data)} items")
+            # Ensure Default directory exists
+            default_dir = self.master_dir / "Default"
+            default_dir.mkdir(parents=True, exist_ok=True)
 
-            # Update metadata to reflect cookie import
-            self.update_metadata({
-                "last_cookie_import": time.time(),
-                "cookie_import_status": "success"
-            })
+            # Path to Chromium cookies database
+            cookies_db = default_dir / "Cookies"
 
-            return True
+            # Extract cookies based on format
+            if cookie_data.get("format") == "storage_state":
+                cookies = cookie_data.get("cookies", [])
+            else:
+                cookies = cookie_data.get("cookies", [])
+
+            if not cookies:
+                logger.info("No cookies to import")
+                return True
+
+            # Import cookies to database
+            success = self._write_cookies_to_db(cookies_db, cookies)
+
+            if success:
+                # Update metadata to reflect cookie import
+                self.update_metadata({
+                    "last_cookie_import": time.time(),
+                    "cookie_import_count": len(cookies),
+                    "cookie_import_status": "success"
+                })
+                logger.info(f"Successfully imported {len(cookies)} cookies to Chromium master profile")
+                return True
+            else:
+                self.update_metadata({
+                    "last_cookie_import": time.time(),
+                    "cookie_import_status": "failed"
+                })
+                return False
+
         except Exception as e:
             logger.warning(f"Failed to import cookies: {e}")
+            self.update_metadata({
+                "last_cookie_import": time.time(),
+                "cookie_import_status": f"error: {str(e)}"
+            })
             return False
+
+    def _read_cookies_from_db(self, cookies_db: Path) -> List[Dict[str, Any]]:
+        """Read cookies from Chromium SQLite database."""
+        try:
+            # Create a temporary copy to avoid locking issues
+            temp_db = cookies_db.parent / f"temp_cookies_{uuid.uuid4().hex}.db"
+            shutil.copy2(cookies_db, temp_db)
+
+            cookies = []
+            with sqlite3.connect(temp_db) as conn:
+                conn.row_factory = sqlite3.Row
+                cursor = conn.cursor()
+
+                # Query cookies table
+                cursor.execute("""
+                    SELECT creation_utc, host_key, name, value, path, expires_utc,
+                           is_secure, is_httponly, samesite, last_access_utc,
+                           has_expires, is_persistent
+                    FROM cookies
+                    ORDER BY creation_utc DESC
+                """)
+
+                for row in cursor.fetchall():
+                    cookie = {
+                        "name": row["name"],
+                        "value": row["value"],
+                        "domain": row["host_key"],
+                        "path": row["path"],
+                        "expires": row["expires_utc"] if row["has_expires"] else -1,
+                        "httpOnly": bool(row["is_httponly"]),
+                        "secure": bool(row["is_secure"]),
+                        "sameSite": self._convert_samesite(row["samesite"]),
+                        "creationTime": row["creation_utc"],
+                        "lastAccessTime": row["last_access_utc"],
+                        "persistent": bool(row["is_persistent"])
+                    }
+                    cookies.append(cookie)
+
+            # Clean up temporary database
+            temp_db.unlink()
+            return cookies
+
+        except Exception as e:
+            logger.warning(f"Failed to read cookies from database: {e}")
+            return []
+
+    def _write_cookies_to_db(self, cookies_db: Path, cookies: List[Dict[str, Any]]) -> bool:
+        """Write cookies to Chromium SQLite database."""
+        try:
+            # Create database if it doesn't exist
+            if not cookies_db.exists():
+                self._create_cookies_database(cookies_db)
+
+            # Create a temporary copy for writing
+            temp_db = cookies_db.parent / f"temp_cookies_write_{uuid.uuid4().hex}.db"
+            if cookies_db.exists():
+                shutil.copy2(cookies_db, temp_db)
+            else:
+                self._create_cookies_database(temp_db)
+
+            with sqlite3.connect(temp_db) as conn:
+                cursor = conn.cursor()
+
+                # Insert or update cookies
+                for cookie in cookies:
+                    # Convert samesite back to database format
+                    samesite_db = self._convert_samesite_to_db(cookie.get("sameSite", "None"))
+
+                    cursor.execute("""
+                        INSERT OR REPLACE INTO cookies (
+                            creation_utc, host_key, name, value, path, expires_utc,
+                            is_secure, is_httponly, samesite, last_access_utc,
+                            has_expires, is_persistent
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """, (
+                        int(time.time() * 1000000),  # creation_utc in microseconds
+                        cookie.get("domain", ""),
+                        cookie.get("name", ""),
+                        cookie.get("value", ""),
+                        cookie.get("path", "/"),
+                        cookie.get("expires", -1),
+                        1 if cookie.get("secure", False) else 0,
+                        1 if cookie.get("httpOnly", False) else 0,
+                        samesite_db,
+                        int(time.time() * 1000000),  # last_access_utc in microseconds
+                        1 if cookie.get("expires", -1) != -1 else 0,
+                        1 if cookie.get("persistent", True) else 0
+                    ))
+
+                conn.commit()
+
+            # Replace original database with temporary one
+            if cookies_db.exists():
+                cookies_db.unlink()
+            shutil.move(temp_db, cookies_db)
+            return True
+
+        except Exception as e:
+            logger.warning(f"Failed to write cookies to database: {e}")
+            # Clean up temporary database if it exists
+            if 'temp_db' in locals() and temp_db.exists():
+                temp_db.unlink()
+            return False
+
+    def _create_cookies_database(self, cookies_db: Path) -> None:
+        """Create a new Chromium cookies database with proper schema."""
+        cookies_db.parent.mkdir(parents=True, exist_ok=True)
+
+        with sqlite3.connect(cookies_db) as conn:
+            cursor = conn.cursor()
+
+            # Create cookies table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS cookies (
+                    creation_utc INTEGER NOT NULL,
+                    host_key TEXT NOT NULL,
+                    name TEXT NOT NULL,
+                    value TEXT NOT NULL,
+                    path TEXT NOT NULL,
+                    expires_utc INTEGER NOT NULL,
+                    is_secure INTEGER NOT NULL,
+                    is_httponly INTEGER NOT NULL,
+                    samesite INTEGER NOT NULL,
+                    last_access_utc INTEGER NOT NULL,
+                    has_expires INTEGER NOT NULL DEFAULT 1,
+                    is_persistent INTEGER NOT NULL DEFAULT 1,
+                    priority INTEGER NOT NULL DEFAULT 1,
+                    encrypted_value BLOB DEFAULT '',
+                    samesite_scheme INTEGER NOT NULL DEFAULT 0,
+                    source_scheme INTEGER NOT NULL DEFAULT 0,
+                    UNIQUE (creation_utc, host_key, name, path)
+                )
+            """)
+
+            # Create indexes for performance
+            cursor.execute("CREATE INDEX IF NOT EXISTS cookies_domain_index ON cookies (host_key)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS cookies_name_index ON cookies (name)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS cookies_path_index ON cookies (path)")
+
+            conn.commit()
+
+    def _convert_samesite(self, samesite_int: int) -> str:
+        """Convert Chromium samesite integer to string."""
+        mapping = {
+            0: "None",
+            1: "Lax",
+            2: "Strict",
+            -1: "None"  # Unspecified
+        }
+        return mapping.get(samesite_int, "None")
+
+    def _convert_samesite_to_db(self, samesite_str: str) -> int:
+        """Convert samesite string to Chromium database integer."""
+        mapping = {
+            "None": 0,
+            "Lax": 1,
+            "Strict": 2,
+            "none": 0,
+            "lax": 1,
+            "strict": 2
+        }
+        return mapping.get(samesite_str, 0)
+
+    def cleanup_old_clones(self, max_age_hours: int = 24, max_count: int = 50) -> Dict[str, int]:
+        """Clean up old clone directories to prevent disk bloat.
+
+        Args:
+            max_age_hours: Maximum age of clone directories in hours
+            max_count: Maximum number of clone directories to keep
+
+        Returns:
+            Dictionary with cleanup statistics
+        """
+        if not self.enabled or not self.clones_dir.exists():
+            return {"cleaned": 0, "remaining": 0, "errors": 0}
+
+        try:
+            current_time = time.time()
+            max_age_seconds = max_age_hours * 3600
+            cleaned_count = 0
+            error_count = 0
+
+            # Get all clone directories with their stats
+            clone_stats = []
+            for clone_path in self.clones_dir.iterdir():
+                if clone_path.is_dir():
+                    try:
+                        stat = clone_path.stat()
+                        age_seconds = current_time - stat.st_mtime
+                        clone_stats.append({
+                            "path": clone_path,
+                            "age": age_seconds,
+                            "size": self._get_directory_size(clone_path)
+                        })
+                    except Exception as e:
+                        logger.warning(f"Failed to stat clone directory {clone_path}: {e}")
+                        error_count += 1
+
+            # Sort by age (oldest first) and size
+            clone_stats.sort(key=lambda x: (x["age"], -x["size"]))
+
+            # Determine which clones to remove
+            to_remove = []
+            remaining_count = len(clone_stats)
+
+            # Remove clones older than max_age_hours
+            for i, clone_stat in enumerate(clone_stats):
+                if clone_stat["age"] > max_age_seconds:
+                    to_remove.append(clone_stat)
+                elif i >= max_count:  # Keep only the most recent max_count clones
+                    to_remove.append(clone_stat)
+
+            # Remove the identified clones
+            for clone_stat in to_remove:
+                try:
+                    shutil.rmtree(clone_stat["path"], ignore_errors=True)
+                    cleaned_count += 1
+                    remaining_count -= 1
+                    logger.debug(f"Cleaned up old clone: {clone_stat['path']} "
+                               f"(age: {clone_stat['age']/3600:.1f}h, size: {clone_stat['size']}MB)")
+                except Exception as e:
+                    logger.warning(f"Failed to remove clone directory {clone_stat['path']}: {e}")
+                    error_count += 1
+
+            total_size_saved = sum(cs["size"] for cs in to_remove)
+            self.update_metadata({
+                "last_cleanup": current_time,
+                "last_cleanup_count": cleaned_count,
+                "last_cleanup_size_saved": total_size_saved,
+                "remaining_clones": remaining_count
+            })
+
+            logger.info(f"Cleanup completed: removed {cleaned_count} clones, "
+                       f"freed {total_size_saved}MB, {remaining_count} remaining, {error_count} errors")
+
+            return {
+                "cleaned": cleaned_count,
+                "remaining": remaining_count,
+                "errors": error_count,
+                "size_saved_mb": total_size_saved
+            }
+
+        except Exception as e:
+            logger.error(f"Failed to cleanup old clones: {e}")
+            return {"cleaned": 0, "remaining": 0, "errors": 1}
+
+    def get_disk_usage_stats(self) -> Dict[str, Any]:
+        """Get disk usage statistics for the user data directories.
+
+        Returns:
+            Dictionary with disk usage information
+        """
+        if not self.enabled:
+            return {"enabled": False}
+
+        try:
+            master_size = self._get_directory_size(self.master_dir) if self.master_dir.exists() else 0
+            clones_size = self._get_directory_size(self.clones_dir) if self.clones_dir.exists() else 0
+            total_size = master_size + clones_size
+
+            clone_count = len([d for d in self.clones_dir.iterdir() if d.is_dir()]) if self.clones_dir.exists() else 0
+
+            # Get metadata
+            metadata = self.get_metadata() or {}
+
+            return {
+                "enabled": True,
+                "master_size_mb": master_size,
+                "clones_size_mb": clones_size,
+                "total_size_mb": total_size,
+                "clone_count": clone_count,
+                "master_dir": str(self.master_dir),
+                "clones_dir": str(self.clones_dir),
+                "last_cleanup": metadata.get("last_cleanup"),
+                "last_cleanup_count": metadata.get("last_cleanup_count", 0),
+                "last_cleanup_size_saved": metadata.get("last_cleanup_size_saved", 0)
+            }
+
+        except Exception as e:
+            logger.warning(f"Failed to get disk usage stats: {e}")
+            return {"enabled": True, "error": str(e)}
+
+    def _get_directory_size(self, path: Path) -> float:
+        """Get directory size in megabytes."""
+        try:
+            total_bytes = 0
+            for item in path.rglob("*"):
+                if item.is_file():
+                    total_bytes += item.stat().st_size
+            return round(total_bytes / (1024 * 1024), 2)  # Convert to MB
+        except Exception:
+            return 0.0

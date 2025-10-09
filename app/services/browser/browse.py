@@ -130,6 +130,7 @@ class BrowseCrawler:
             # Use Chromium user data context in write mode
             from app.services.common.browser.user_data_chromium import ChromiumUserDataManager
             user_data_manager = ChromiumUserDataManager(user_data_dir)
+            self.user_data_manager = user_data_manager  # Store for error handling
 
             with user_data_manager.get_user_data_context('write') as (effective_dir, cleanup):
                 # Signal write-mode to Chromium executor via settings (runtime-only flags)
@@ -157,18 +158,48 @@ class BrowseCrawler:
         except RuntimeError as e:
             # Handle lock conflicts specifically
             if "already in use" in str(e) or "lock" in str(e).lower():
+                error_msg = (
+                    "Chromium profile is already in use by another session. "
+                    "To resolve this issue:\n"
+                    "1. Wait for the current session to complete\n"
+                    "2. Check if another browser instance is running\n"
+                    "3. If no session is active, manually remove the lock file: "
+                    f"{self.user_data_manager.lock_file}\n"
+                    "4. Consider using a different user data directory via CHROMIUM_USER_DATA_DIR environment variable"
+                )
                 logger.warning(f"Chromium profile locked: {e}")
                 return BrowseResponse(
                     status="failure",
-                    message="Chromium profile already in use by another session"
+                    message=error_msg
                 )
             # Re-raise other runtime errors
             raise
+        except ImportError as e:
+            error_msg = (
+                f"Chromium browser engine is not available: {str(e)}\n"
+                "To resolve this issue:\n"
+                "1. Install the required dependencies: pip install 'scrapling[chromium]'\n"
+                "2. Ensure Playwright browsers are installed: playwright install chromium\n"
+                "3. Alternatively, use the Camoufox engine by setting 'engine': 'camoufox' in your request"
+            )
+            logger.error(f"Chromium dependencies missing: {e}")
+            return BrowseResponse(
+                status="failure",
+                message=error_msg
+            )
         except Exception as e:
+            error_msg = (
+                f"Chromium browse session failed: {str(e)}\n"
+                "Troubleshooting steps:\n"
+                "1. Check that Chromium/Chrome is properly installed\n"
+                "2. Verify display settings if running in headful mode\n"
+                "3. Check available disk space for user data directory\n"
+                "4. Try running with Camoufox engine as an alternative"
+            )
             logger.error(f"Chromium browse session failed: {e}")
             return BrowseResponse(
                 status="failure",
-                message=f"Error: {str(e)}"
+                message=error_msg
             )
         finally:
             # Restore previous runtime settings
