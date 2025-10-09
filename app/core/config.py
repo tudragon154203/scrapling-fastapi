@@ -38,7 +38,7 @@ try:
         # Camoufox user data directory (single profile dir)
         camoufox_user_data_dir: Optional[str] = Field(default=None)
         # Chromium user data directory (master/clone profile structure)
-        chromium_user_data_dir: Optional[str] = Field(default=None)
+        chromium_user_data_dir: Optional[str] = Field(default="data/chromium_profiles")
         # Camoufox stealth extras (optional, no API changes)
         camoufox_locale: Optional[str] = Field(default=None)  # e.g., "en-US,en;q=0.9"
         camoufox_window: Optional[str] = Field(default="1280x720")  # e.g., "1366x768"
@@ -120,7 +120,7 @@ except Exception:
         # Camoufox user data directory (single profile dir)
         camoufox_user_data_dir: Optional[str] = None
         # Chromium user data directory (master/clone profile structure)
-        chromium_user_data_dir: Optional[str] = None
+        chromium_user_data_dir: Optional[str] = "data/chromium_profiles"
         # Camoufox stealth extras
         camoufox_locale: Optional[str] = None
         camoufox_window: Optional[str] = "1280x720"

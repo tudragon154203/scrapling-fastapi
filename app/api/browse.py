@@ -39,7 +39,7 @@ def browse_endpoint(payload: BrowseRequest):
             return result
         # failure: map to specific HTTP status codes
         message = (result.message or "").lower()
-        if "lock" in message or "exclusive" in message:
+        if "lock" in message or "exclusive" in message or "already in use" in message:
             return JSONResponse(content=result.model_dump(), status_code=409)
         return JSONResponse(content=result.model_dump(), status_code=500)
 

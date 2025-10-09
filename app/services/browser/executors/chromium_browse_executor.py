@@ -168,6 +168,12 @@ class ChromiumBrowseExecutor(IExecutor):
                 arg for arg in additional_args["browser_args"] if "--headless" not in arg
             ]
 
+        # Check if user data directory is provided via runtime settings
+        user_data_dir = getattr(settings, 'chromium_runtime_effective_user_data_dir', None)
+        if user_data_dir:
+            additional_args["user_data_dir"] = user_data_dir
+            logger.debug(f"Using Chromium user data directory: {user_data_dir}")
+
         # Create page action callable for DynamicFetcher
         def page_action_callable(page):
             if page_action:

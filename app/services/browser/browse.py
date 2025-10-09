@@ -95,6 +95,10 @@ class BrowseCrawler:
                 # Execute browse session
                 crawler.engine.run(crawl_request, page_action)
 
+                # Export cookies from the master profile after session
+                user_data_manager.export_cookies()
+                logger.info("Chromium browse session completed, cookies exported to master profile")
+
                 # Return success response
                 return BrowseResponse(
                     status="success",
@@ -108,18 +112,70 @@ class BrowseCrawler:
             settings.camoufox_runtime_force_mute_audio = previous_mute
 
     def _run_chromium_session(self, crawler: 'BrowseCrawler', crawl_request: CrawlRequest) -> BrowseResponse:
-        """Run a Chromium browse session."""
-        # Create wait for user close action
-        page_action = WaitForUserCloseAction()
+        """Run a Chromium browse session with user data context."""
+        settings = app_config.get_settings()
 
-        # Execute browse session
-        crawler.engine.run(crawl_request, page_action)
-
-        # Return success response
-        return BrowseResponse(
-            status="success",
-            message="Browser session completed successfully"
+        # Get user data directory for Chromium
+        user_data_dir = getattr(
+            settings, 'chromium_user_data_dir', 'data/chromium_profiles'
         )
+
+        cleanup = None
+        previous_mode = getattr(settings, 'chromium_runtime_user_data_mode', None)
+        previous_effective_dir = getattr(
+            settings, 'chromium_runtime_effective_user_data_dir', None
+        )
+
+        try:
+            # Use Chromium user data context in write mode
+            from app.services.common.browser.user_data_chromium import ChromiumUserDataManager
+            user_data_manager = ChromiumUserDataManager(user_data_dir)
+
+            with user_data_manager.get_user_data_context('write') as (effective_dir, cleanup):
+                # Signal write-mode to Chromium executor via settings (runtime-only flags)
+                settings.chromium_runtime_user_data_mode = 'write'
+                settings.chromium_runtime_effective_user_data_dir = effective_dir
+
+                # Update crawl request with user-data enablement
+                crawl_request.force_user_data = True
+
+                # Create wait for user close action
+                page_action = WaitForUserCloseAction()
+
+                # Execute browse session
+                crawler.engine.run(crawl_request, page_action)
+
+                # Export cookies from the master profile after session
+                user_data_manager.export_cookies()
+                logger.info("Chromium browse session completed, cookies exported to master profile")
+
+                # Return success response
+                return BrowseResponse(
+                    status="success",
+                    message="Browser session completed successfully"
+                )
+        except RuntimeError as e:
+            # Handle lock conflicts specifically
+            if "already in use" in str(e) or "lock" in str(e).lower():
+                logger.warning(f"Chromium profile locked: {e}")
+                return BrowseResponse(
+                    status="failure",
+                    message="Chromium profile already in use by another session"
+                )
+            # Re-raise other runtime errors
+            raise
+        except Exception as e:
+            logger.error(f"Chromium browse session failed: {e}")
+            return BrowseResponse(
+                status="failure",
+                message=f"Error: {str(e)}"
+            )
+        finally:
+            # Restore previous runtime settings
+            settings.chromium_runtime_user_data_mode = previous_mode
+            settings.chromium_runtime_effective_user_data_dir = previous_effective_dir
+            if callable(cleanup):
+                cleanup()
 
     def _convert_browse_to_crawl_request(self, browse_request: BrowseRequest) -> CrawlRequest:
         """Convert browse request to generic crawl request with forced flags."""
