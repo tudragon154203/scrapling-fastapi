@@ -33,18 +33,27 @@ class TestChromiumUserDataWorkflows:
         if os.path.exists(self.temp_dir):
             shutil.rmtree(self.temp_dir)
 
-    def test_browse_session_creates_master_profile(self):
+    def test_browse_session_creates_master_profile(self, tmp_path, monkeypatch):
         """Test that a browse session creates a master Chromium profile with full Chromium profile files."""
         # Create browse request for Chromium
         request = BrowseRequest(engine=BrowserEngine.CHROMIUM, url="https://example.com")
+
+        # Direct Chromium user data to a temporary directory and ensure settings reload
+        base_dir = tmp_path / "chromium_profiles"
+        monkeypatch.setenv("CHROMIUM_USER_DATA_DIR", str(base_dir))
+        settings = Settings()
+        monkeypatch.setattr('app.services.browser.browse.app_config.get_settings', lambda: settings)
 
         # Create browse crawler
         crawler = BrowseCrawler()
 
         # Mock the engine to avoid actual browser launch, but simulate what would happen
         with patch.object(crawler, 'engine') as mock_engine:
-            # Mock successful execution
-            mock_engine.run.return_value = None
+            # Mock successful execution with a success status so BrowseCrawler returns success
+            mock_result = MagicMock()
+            mock_result.status = "success"
+            mock_result.message = "Chromium executed"
+            mock_engine.run.return_value = mock_result
 
             # Run browse session
             response = crawler.run(request)
@@ -54,7 +63,7 @@ class TestChromiumUserDataWorkflows:
             assert "Chromium" in response.message
 
             # Check that master profile was created
-            master_dir = Path(self.temp_dir) / 'master'
+            master_dir = Path(base_dir) / 'master'
             assert master_dir.exists()
 
             # Check metadata file
@@ -92,7 +101,7 @@ class TestChromiumUserDataWorkflows:
 
     @patch('app.services.common.browser.user_data_chromium.BROWSERFORGE_AVAILABLE', True)
     @patch('app.services.common.browser.user_data_chromium.browserforge')
-    def test_browse_session_generates_fingerprint(self, mock_browserforge):
+    def test_browse_session_generates_fingerprint(self, tmp_path, monkeypatch, mock_browserforge):
         """Test that browse session generates BrowserForge fingerprint."""
         mock_browserforge.__version__ = '1.2.3'
         mock_browserforge.generate.return_value = {
@@ -101,19 +110,29 @@ class TestChromiumUserDataWorkflows:
             'screen': {'width': 1366, 'height': 768}
         }
 
+        # Direct Chromium user data to a temporary directory and ensure settings reload
+        base_dir = tmp_path / "chromium_profiles"
+        monkeypatch.setenv("CHROMIUM_USER_DATA_DIR", str(base_dir))
+        settings = Settings()
+        monkeypatch.setattr('app.services.browser.browse.app_config.get_settings', lambda: settings)
+
         # Create browse request for Chromium
         request = BrowseRequest(engine=BrowserEngine.CHROMIUM, url="https://example.com")
         crawler = BrowseCrawler()
 
         # Mock the engine to avoid actual browser launch
         with patch.object(crawler, 'engine') as mock_engine:
-            mock_engine.run.return_value = None
+            # Mock successful execution with a success status so BrowseCrawler proceeds and metadata/fingerprint are created
+            mock_result = MagicMock()
+            mock_result.status = "success"
+            mock_result.message = "Chromium executed"
+            mock_engine.run.return_value = mock_result
 
             # Run browse session
             response = crawler.run(request)
 
             # Check that fingerprint was generated
-            master_dir = Path(self.temp_dir) / 'master'
+            master_dir = Path(base_dir) / 'master'
             fingerprint_file = master_dir / 'browserforge_fingerprint.json'
             assert fingerprint_file.exists()
 

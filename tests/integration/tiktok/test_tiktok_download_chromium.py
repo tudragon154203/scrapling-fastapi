@@ -40,7 +40,7 @@ class TestTikTokDownloadChromiumIntegration:
         """Resolve a real TikTok URL via the download service using Chromium strategy.
 
         Note: This test requires actual browser automation and may be slow or flaky.
-        It tests the real integration with TikVid service.
+        It tests the real integration with TikVid service in headful mode.
         """
         # Force the use of Chromium strategy
         with patch('app.services.tiktok.download.strategies.factory.TIKTOK_DOWNLOAD_STRATEGY', 'chromium'):

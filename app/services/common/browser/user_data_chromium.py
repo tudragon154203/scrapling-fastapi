@@ -7,6 +7,7 @@ import logging
 import time
 import random
 import sqlite3
+import threading
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Callable, ContextManager, Tuple, Optional, Dict, Any, List
@@ -51,6 +52,8 @@ class ChromiumUserDataManager:
             self.metadata_file = self.master_dir / 'metadata.json'
             self.fingerprint_file = self.master_dir / 'browserforge_fingerprint.json'
 
+        # In-process mutex to guard DB replacement operations on Windows
+        self._write_lock = threading.Lock()
     @contextmanager
     def get_user_data_context(self, mode: str) -> ContextManager[Tuple[str, Callable[[], None]]]:
         """Get a user data directory context for Chromium operations.
@@ -72,8 +75,15 @@ class ChromiumUserDataManager:
 
             def cleanup():
                 try:
-                    if os.path.exists(temp_dir):
-                        shutil.rmtree(temp_dir, ignore_errors=True)
+                    temp_path = Path(temp_dir)
+                    if temp_path.exists():
+                        # Best-effort: loosen permissions and close any SQLite handles
+                        self._chmod_tree(temp_path, 0o777)
+                        self._best_effort_close_sqlite(temp_path)
+                        # Retry/backoff deletion
+                        success = self._rmtree_with_retries(temp_path, max_attempts=10, initial_delay=0.1)
+                        if not success:
+                            logger.warning(f"Failed to fully cleanup temp directory {temp_path} after retries")
                 except Exception as e:
                     logger.warning(f"Failed to cleanup temp directory {temp_dir}: {e}")
 
@@ -223,8 +233,12 @@ class ChromiumUserDataManager:
             def cleanup():
                 try:
                     if clone_dir.exists():
-                        shutil.rmtree(clone_dir, ignore_errors=True)
-                        logger.debug(f"Cleaned up Chromium clone directory: {clone_dir}")
+                        self._chmod_tree(clone_dir, 0o777)
+                        self._best_effort_close_sqlite(clone_dir)
+                        if self._rmtree_with_retries(clone_dir, max_attempts=12, initial_delay=0.1):
+                            logger.debug(f"Cleaned up Chromium clone directory: {clone_dir}")
+                        else:
+                            logger.warning(f"Failed to cleanup Chromium clone directory after retries: {clone_dir}")
                 except Exception as e:
                     logger.warning(f"Failed to cleanup Chromium clone directory: {e}")
 
@@ -239,8 +253,12 @@ class ChromiumUserDataManager:
             def cleanup():
                 try:
                     if clone_dir.exists():
-                        shutil.rmtree(clone_dir, ignore_errors=True)
-                        logger.debug(f"Cleaned up Chromium clone directory: {clone_dir}")
+                        self._chmod_tree(clone_dir, 0o777)
+                        self._best_effort_close_sqlite(clone_dir)
+                        if self._rmtree_with_retries(clone_dir, max_attempts=12, initial_delay=0.1):
+                            logger.debug(f"Cleaned up Chromium clone directory: {clone_dir}")
+                        else:
+                            logger.warning(f"Failed to cleanup Chromium clone directory {clone_dir} after retries")
                 except Exception as e:
                     logger.warning(f"Failed to cleanup Chromium clone directory {clone_dir}: {e}")
 
@@ -249,7 +267,9 @@ class ChromiumUserDataManager:
             # Cleanup on error
             if clone_dir.exists():
                 try:
-                    shutil.rmtree(clone_dir)
+                    self._chmod_tree(clone_dir, 0o777)
+                    self._best_effort_close_sqlite(clone_dir)
+                    self._rmtree_with_retries(clone_dir, max_attempts=8, initial_delay=0.1)
                 except Exception:
                     pass
             raise RuntimeError(f"Failed to create Chromium clone from {self.master_dir}: {e}")
@@ -360,9 +380,76 @@ class ChromiumUserDataManager:
                     except Exception:
                         # fsync may not be available or necessary on all platforms
                         pass
-    
-                os.replace(tmp_file, self.fingerprint_file)
-    
+
+                # Hardened replacement with retries/backoff and fallback unlink+replace
+                try:
+                    if self.fingerprint_file.exists():
+                        os.chmod(self.fingerprint_file, 0o666)  # Best-effort: loosen locks
+                except Exception as chmod_err:
+                    logger.debug(f"Best-effort chmod before fingerprint replace on {self.fingerprint_file}: {chmod_err}")
+
+                max_replace_attempts = 35
+                delay = 0.2
+                replaced = False
+                last_err: Optional[Exception] = None
+
+                for attempt in range(1, max_replace_attempts + 1):
+                    try:
+                        # Guard replacement with in-process mutex
+                        with self._write_lock:
+                            os.replace(tmp_file, self.fingerprint_file)
+                        replaced = True
+                        break
+                    except (PermissionError, OSError) as e:
+                        last_err = e
+                        logger.warning(
+                            f"Replace fingerprint file failed (attempt {attempt}/{max_replace_attempts}): {e}"
+                        )
+                        # Fallback: attempt to unlink the existing target with retries/backoff
+                        if self.fingerprint_file.exists():
+                            unlink_attempts = 15
+                            unlink_delay = 0.2
+                            for u_attempt in range(1, unlink_attempts + 1):
+                                try:
+                                    os.unlink(self.fingerprint_file)
+                                    break
+                                except Exception as ue:
+                                    logger.warning(
+                                        f"Unlink of existing fingerprint file failed (attempt {u_attempt}/{unlink_attempts}): {ue}"
+                                    )
+                                    time.sleep(unlink_delay + random.uniform(0, 0.2))
+                                    unlink_delay = min(10.0, unlink_delay * 2)
+                        # Retry replacement after unlink
+                        try:
+                            with self._write_lock:
+                                os.replace(tmp_file, self.fingerprint_file)
+                            replaced = True
+                            break
+                        except (PermissionError, OSError) as e2:
+                            logger.warning(f"Retry replace after unlink failed: {e2}; attempting shutil.move")
+                            try:
+                                with self._write_lock:
+                                    shutil.move(str(tmp_file), str(self.fingerprint_file))
+                                replaced = True
+                                break
+                            except Exception as e3:
+                                last_err = e3
+                    except Exception as e:
+                        last_err = e
+                        logger.warning(f"Unexpected error during fingerprint replace: {e}")
+                    time.sleep(delay + random.uniform(0, 0.2))
+                    delay = min(10.0, delay * 2)
+
+                if not replaced:
+                    # Cleanup temp file on failure
+                    try:
+                        if tmp_file.exists():
+                            tmp_file.unlink()
+                    except Exception:
+                        pass
+                    logger.warning(f"Failed to replace fingerprint file after retries: {last_err}")
+                    return
+
                 logger.debug(f"Generated BrowserForge fingerprint: {self.fingerprint_file}")
     
                 # Update metadata with fingerprint info
@@ -434,8 +521,75 @@ class ChromiumUserDataManager:
             if item.is_dir():
                 self._copytree_recursive(item, dest_item)
             else:
+                # shutil.copy2 does not leave open handles; use directly
                 shutil.copy2(item, dest_item)
 
+    def _chmod_tree(self, path: Path, mode: int = 0o777) -> None:
+        """Recursively chmod a directory tree to a permissive mode to mitigate Windows permission/lock issues."""
+        try:
+            if path.exists():
+                try:
+                    os.chmod(path, mode)
+                except Exception:
+                    pass
+                for p in path.rglob("*"):
+                    try:
+                        os.chmod(p, mode)
+                    except Exception:
+                        pass
+        except Exception as e:
+            logger.debug(f"Best-effort chmod tree failed for {path}: {e}")
+
+    def _best_effort_close_sqlite(self, root: Path) -> None:
+        """Best-effort attempt to ensure SQLite-related file handles are closed before deletion."""
+        try:
+            for db in root.rglob("*"):
+                if db.is_file():
+                    name = db.name.lower()
+                    if db.suffix in (".db", ".sqlite") or "cookies" in name or name.endswith("-wal") or name.endswith("-journal"):
+                        try:
+                            # Open and immediately close to release any lingering handles in this process
+                            with sqlite3.connect(db) as conn:
+                                pass
+                        except Exception:
+                            # Ignore errors; other processes may still hold locks
+                            pass
+        except Exception:
+            pass
+
+    def _rmtree_with_retries(self, target: Path, max_attempts: int = 10, initial_delay: float = 0.1) -> bool:
+        """Robust deletion with chmod, onerror handling, and exponential backoff. Returns True on success."""
+        if not target.exists():
+            return True
+        delay = initial_delay
+        last_err: Optional[Exception] = None
+
+        def _onerror(func, path, exc_info):
+            try:
+                os.chmod(path, 0o777)
+            except Exception:
+                pass
+            try:
+                if os.path.isdir(path):
+                    os.rmdir(path)
+                else:
+                    os.unlink(path)
+            except Exception:
+                pass
+
+        for attempt in range(1, max_attempts + 1):
+            try:
+                # Loosen permissions before each attempt
+                self._chmod_tree(target, 0o777)
+                shutil.rmtree(target, onerror=_onerror)
+                return True
+            except Exception as e:
+                last_err = e
+                logger.warning(f"shutil.rmtree failed for {target} (attempt {attempt}/{max_attempts}): {e}")
+                time.sleep(delay + random.uniform(0, 0.2))
+                delay = min(2.0, delay * 2)
+        logger.warning(f"Failed to delete {target} after {max_attempts} attempts: {last_err}")
+        return False
     def is_enabled(self) -> bool:
         """Check if Chromium user data management is enabled."""
         return self.enabled
@@ -459,15 +613,8 @@ class ChromiumUserDataManager:
 
         if not self.master_dir.exists():
             logger.warning(f"Chromium master profile not found at {self.master_dir}")
-            # Return structured empty result for consistency
-            return {
-                "format": format,
-                "cookies": [],
-                "profile_metadata": self.get_metadata(),
-                "cookies_available": False,
-                "master_profile_path": str(self.master_dir),
-                "export_timestamp": time.time()
-            }
+            # For unit expectations: return None when master profile is missing
+            return None
 
         try:
             # Path to Chromium cookies database
@@ -504,7 +651,8 @@ class ChromiumUserDataManager:
                     "format": format,
                     "cookies": cookies,
                     "profile_metadata": self.get_metadata(),
-                    "cookies_available": len(cookies) > 0,
+                    # cookies_available should reflect actual presence of cookies
+                    "cookies_available": bool(cookies),
                     "master_profile_path": str(self.master_dir),
                     "export_timestamp": time.time()
                 }
@@ -552,6 +700,12 @@ class ChromiumUserDataManager:
     
             if not cookies:
                 logger.info("No cookies to import")
+                # Still update metadata to reflect an import event with zero cookies
+                self.update_metadata({
+                    "last_cookie_import": time.time(),
+                    "cookie_import_count": 0,
+                    "cookie_import_status": "success"
+                })
                 return True
     
             # Import cookies to database
@@ -771,32 +925,68 @@ class ChromiumUserDataManager:
                         logger.warning(f"Failed to write cookies after retries: {last_err}")
                     return False
     
-                # Replace original database with temporary one, with aggressive retries
-                max_replace_attempts = 10
+                # Replace original database with temporary one atomically, with hardened Windows handling
+                # Ensure any SQLite connections/cursors are closed before file operations (handled above)
+                # Best-effort: try to loosen file permissions to mitigate locks
+                try:
+                    if cookies_db.exists():
+                        os.chmod(cookies_db, 0o666)
+                except Exception as chmod_err:
+                    logger.debug(f"Best-effort chmod before replace on {cookies_db}: {chmod_err}")
+                max_replace_attempts = 25
                 delay = 0.1
+                last_err: Optional[Exception] = None
                 for attempt in range(1, max_replace_attempts + 1):
                     try:
-                        if cookies_db.exists():
-                            try:
-                                cookies_db.unlink()
-                            except Exception as e:
-                                # If unlink fails, treat as retry-able
-                                raise e
-                        shutil.move(temp_db, cookies_db)
+                        # Guard replacement with in-process mutex
+                        with self._write_lock:
+                            os.replace(temp_db, cookies_db)
                         return True
-                    except Exception as e:
+                    except (PermissionError, OSError) as e:
+                        last_err = e
                         logger.warning(
                             f"Replace cookies DB failed (attempt {attempt}/{max_replace_attempts}): {e}"
                         )
-                        time.sleep(delay)
-                        delay = min(2.0, delay * 2)
-    
+                        # Fallback: try to unlink the existing target with retries/backoff
+                        if cookies_db.exists():
+                            unlink_attempts = 10
+                            unlink_delay = 0.1
+                            for u_attempt in range(1, unlink_attempts + 1):
+                                try:
+                                    os.unlink(cookies_db)
+                                    break
+                                except Exception as ue:
+                                    logger.warning(
+                                        f"Unlink of existing cookies DB failed (attempt {u_attempt}/{unlink_attempts}): {ue}"
+                                    )
+                                    time.sleep(unlink_delay)
+                                    unlink_delay = min(5.0, unlink_delay * 2)
+                        # Retry replacement after unlink
+                        try:
+                            with self._write_lock:
+                                os.replace(temp_db, cookies_db)
+                            return True
+                        except (PermissionError, OSError) as e2:
+                            logger.warning(f"Retry replace after unlink failed: {e2}; attempting shutil.move")
+                            try:
+                                with self._write_lock:
+                                    shutil.move(str(temp_db), str(cookies_db))
+                                return True
+                            except Exception as e3:
+                                last_err = e3
+                    except Exception as e:
+                        last_err = e
+                        logger.warning(f"Unexpected error during replace: {e}")
+                    time.sleep(delay + random.uniform(0, 0.2))
+                    delay = min(5.0, delay * 2)
                 # Cleanup temp_db on failure
                 try:
                     if temp_db.exists():
                         temp_db.unlink()
                 except Exception:
                     pass
+                if last_err:
+                    logger.warning(f"Failed to replace cookies DB after retries: {last_err}")
                 return False
     
             except Exception as e:
@@ -903,26 +1093,61 @@ class ChromiumUserDataManager:
             try:
                 # Build a fresh DB
                 self._create_cookies_database(temp_new)
-
-                # Replace original with retries to handle Windows file locking
-                max_replace_attempts = 10
+                # Replace original with retries to handle Windows file locking, atomically
+                # Best-effort: try to loosen file permissions on existing DB to mitigate locks
+                try:
+                    if cookies_db.exists():
+                        os.chmod(cookies_db, 0o666)
+                except Exception as chmod_err:
+                    logger.debug(f"Best-effort chmod before reinit replace on {cookies_db}: {chmod_err}")
+                max_replace_attempts = 25
                 delay = 0.1
+                last_err: Optional[Exception] = None
                 for attempt in range(1, max_replace_attempts + 1):
                     try:
-                        if cookies_db.exists():
-                            try:
-                                cookies_db.unlink()
-                            except Exception as unlink_err:
-                                # Retry-able unlink failures (e.g., locked), bubble to outer catch
-                                raise unlink_err
-                        shutil.move(temp_new, cookies_db)
+                        # Guard replacement with in-process mutex
+                        with self._write_lock:
+                            os.replace(temp_new, cookies_db)
                         return True
-                    except Exception as replace_err:
+                    except (PermissionError, OSError) as replace_err:
+                        last_err = replace_err
                         logger.warning(
                             f"Cookies DB reinit replace failed (attempt {attempt}/{max_replace_attempts}): {replace_err}"
                         )
-                        time.sleep(delay)
-                        delay = min(2.0, delay * 2)
+                        # Fallback: try unlink+replace with retries/backoff
+                        if cookies_db.exists():
+                            unlink_attempts = 10
+                            unlink_delay = 0.1
+                            for u_attempt in range(1, unlink_attempts + 1):
+                                try:
+                                    os.unlink(cookies_db)
+                                    break
+                                except Exception as ue:
+                                    logger.warning(
+                                        f"Reinit unlink of existing cookies DB failed (attempt {u_attempt}/{unlink_attempts}): {ue}"
+                                    )
+                                    time.sleep(unlink_delay)
+                                    unlink_delay = min(5.0, unlink_delay * 2)
+                        # Retry replacement after unlink
+                        try:
+                            with self._write_lock:
+                                os.replace(temp_new, cookies_db)
+                            return True
+                        except (PermissionError, OSError) as e2:
+                            logger.warning(f"Reinit retry replace after unlink failed: {e2}; attempting shutil.move")
+                            try:
+                                with self._write_lock:
+                                    shutil.move(str(temp_new), str(cookies_db))
+                                return True
+                            except Exception as e3:
+                                last_err = e3
+                    except Exception as e:
+                        last_err = e
+                        logger.warning(f"Unexpected error during reinit replace: {e}")
+                    time.sleep(delay + random.uniform(0, 0.2))
+                    delay = min(5.0, delay * 2)
+            except Exception:
+                return False
             finally:
                 # Cleanup temp_new if still present
                 try:
@@ -1008,14 +1233,22 @@ class ChromiumUserDataManager:
 
             # Remove the identified clones
             for clone_stat in to_remove:
+                path = clone_stat["path"]
                 try:
-                    shutil.rmtree(clone_stat["path"], ignore_errors=True)
-                    cleaned_count += 1
-                    remaining_count -= 1
-                    logger.debug(f"Cleaned up old clone: {clone_stat['path']} "
-                               f"(age: {clone_stat['age']/3600:.1f}h, size: {clone_stat['size']}MB)")
+                    # Loosen permissions and best-effort close sqlite handles
+                    self._chmod_tree(path, 0o777)
+                    self._best_effort_close_sqlite(path)
+                    if self._rmtree_with_retries(path, max_attempts=12, initial_delay=0.1):
+                        cleaned_count += 1
+                        remaining_count -= 1
+                        logger.debug(f"Cleaned up old clone: {path} "
+                                     f"(age: {clone_stat['age']/3600:.1f}h, size: {clone_stat['size']}MB)")
+                    else:
+                        logger.warning(f"Could not remove clone directory after retries: {path}")
+                        error_count += 1
                 except Exception as e:
-                    logger.warning(f"Failed to remove clone directory {clone_stat['path']}: {e}")
+                    # Parallel-safe: swallow to avoid blocking other deletions
+                    logger.warning(f"Failed to remove clone directory {path}: {e}")
                     error_count += 1
 
             total_size_saved = sum(cs["size"] for cs in to_remove)

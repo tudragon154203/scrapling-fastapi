@@ -147,7 +147,7 @@ def crawl_auspost_endpoint(payload: AuspostCrawlRequest):
     if not isinstance(crawl_auspost, FunctionType):
         req_obj = SimpleNamespace(
             tracking_code=payload.tracking_code,
-            details_url=payload.details_url,
+            details_url=getattr(payload, "details_url", None),
             force_user_data=payload.force_user_data,
             force_mute_audio=True,
         )

@@ -106,7 +106,7 @@ class ChromiumBrowseExecutor(IExecutor):
                 status="failure",
                 url=request.url,
                 html=None,
-                message=f"ImportError: {e} - install with: pip install 'scrapling[chromium]'",
+                message=f"ImportError: {e} - install with: pip install 'scrapling[chromium]' and run: playwright install chromium",
             )
         except Exception as e:
             # For browse operations, we should NOT retry on user close or similar errors

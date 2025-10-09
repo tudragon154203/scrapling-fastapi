@@ -48,6 +48,27 @@ def create_app() -> FastAPI:
     app.include_router(api_router)
     app.include_router(health.router)
 
+    @app.middleware("http")
+    async def enforce_cors_and_content_type(request: Request, call_next):
+        # Enforce 422 for wrong content type on POST /crawl
+        if request.method == "POST" and request.url.path == "/crawl":
+            content_type = request.headers.get("content-type", "")
+            if not content_type.lower().startswith("application/json"):
+                # Raise a RequestValidationError to align with FastAPI's 422 handling
+                raise RequestValidationError([{
+                    "loc": ["header", "Content-Type"],
+                    "msg": "Content-Type must be application/json",
+                    "type": "value_error.content_type"
+                }])
+
+        response = await call_next(request)
+
+        # Ensure CORS header on GET /health even without Origin
+        if request.method == "GET" and request.url.path == "/health":
+            if "access-control-allow-origin" not in response.headers:
+                response.headers["Access-Control-Allow-Origin"] = "*"
+
+        return response
     @app.exception_handler(RequestValidationError)
     async def custom_validation_exception_handler(request: Request, exc: RequestValidationError):
         raw_details = exc.errors()

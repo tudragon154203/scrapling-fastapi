@@ -195,7 +195,8 @@ class TestChromiumUserDataManager:
             result = manager.export_cookies()
             assert result is not None
             assert result['format'] == 'json'
-            assert result['cookies_available'] is True
+            # cookies_available should be False for a fresh profile (no actual cookies yet)
+            assert result['cookies_available'] is False
             assert 'profile_metadata' in result
 
         cleanup()

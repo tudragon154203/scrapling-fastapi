@@ -225,8 +225,8 @@ def test_browse_endpoint_builds_namespace_when_callable_object_patched(monkeypat
     assert resp.json()["message"] == "sentinel ok"
 
     req_obj = captured_request["request"]
-    assert isinstance(req_obj, SimpleNamespace)
-    assert req_obj.url == "https://example.com/"
+    assert isinstance(req_obj, BrowseRequest)
+    assert str(req_obj.url) == "https://example.com/"
 
 
 def test_browse_endpoint_handles_fallback_response_object(monkeypatch, client):
@@ -260,8 +260,8 @@ def test_browse_endpoint_mock_without_json_payload(monkeypatch, client):
     assert resp.json() == {}
 
     patched.assert_called_once()
-    request_obj = patched.call_args.kwargs["request"]
-    assert isinstance(request_obj, SimpleNamespace)
+    request_obj = list(patched.call_args.args)[0]
+    assert isinstance(request_obj, BrowseRequest)
 
 
 def test_browse_success_with_camoufox_engine(monkeypatch, client):

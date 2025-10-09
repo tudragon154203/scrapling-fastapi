@@ -110,7 +110,8 @@ class TestChromiumUserDataManager:
         manager = ChromiumUserDataManager(None)
 
         with manager.get_user_data_context('read') as (effective_dir, cleanup):
-            assert effective_dir.startswith('/tmp/chromium_temp_')
+            assert effective_dir.startswith(tempfile.gettempdir())
+            assert 'chromium_temp_' in effective_dir
             assert callable(cleanup)
             assert os.path.exists(effective_dir)
 

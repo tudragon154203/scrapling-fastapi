@@ -31,7 +31,7 @@ class TestTikTokDownloadService:
 
     @pytest.mark.asyncio
     async def test_download_video_success(self, service, valid_request):
-        """Test successful video download."""
+        """Test successful video download in headful mode."""
         mock_resolver = Mock(spec=TikVidVideoResolver)
         mock_downloader = Mock(spec=VideoFileDownloader)
 

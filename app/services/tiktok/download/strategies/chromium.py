@@ -231,7 +231,7 @@ class ChromiumDownloadStrategy(TikTokDownloadStrategy):
         # IMPORTANT: DynamicFetcher.fetch does not accept 'browser_args' directly.
         # Only PersistentChromiumFetcher supports passing Chromium launch args.
         fetch_kwargs = {
-            "headless": True,  # Use headless mode for downloads
+            "headless": False,  # Use headful mode for downloads
             "page_action": page_action_callable,
             "timeout": 90000,  # 90 seconds in milliseconds
             "extra_headers": {"User-Agent": USER_AGENT},
