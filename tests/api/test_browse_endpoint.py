@@ -3,7 +3,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from app.schemas.browse import BrowseResponse
+from app.schemas.browse import BrowseResponse, BrowseRequest
 
 pytestmark = [pytest.mark.unit]
 
