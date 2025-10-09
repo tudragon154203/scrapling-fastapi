@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 from typing import Any, List, Optional
 
 from app.services.browser.actions.base import BasePageAction
@@ -43,7 +42,7 @@ class TikVidResolveAction(BasePageAction):
         import time
         import logging
         logger = logging.getLogger(__name__)
-        
+
         start_time = time.time()
         logger.debug(f"Page type: {type(page)}, URL: {getattr(page, 'url', 'N/A')}")
 
@@ -83,7 +82,7 @@ class TikVidResolveAction(BasePageAction):
             "input[placeholder*='link']",
         ]
         field = self._first_visible(page, selectors, timeout=15000)
-        
+
         field_fill_start = time.time()
         try:
             field.click()
@@ -91,7 +90,7 @@ class TikVidResolveAction(BasePageAction):
             field.fill(self.tiktok_url)
             field_fill_time = time.time() - field_fill_start
             logger.debug(f"URL field filled in {field_fill_time:.2f}s")
-            
+
             # Check if we're meeting the 3.5s target for the overall page-to-field-fill process
             total_time = time.time() - start_time
             if total_time > 3.5:
@@ -100,7 +99,7 @@ class TikVidResolveAction(BasePageAction):
                 logger.info(f"  - Page setup and navigation: {total_time - field_fill_time:.2f}s")
             else:
                 logger.debug(f"PERFORMANCE: Page load to URL fill completed within target: {total_time:.2f}s")
-                 
+
         except Exception as exc:
             logger.warning(f"Field fill error: {_format_exception(exc)}")
             try:

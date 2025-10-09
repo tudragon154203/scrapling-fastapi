@@ -5,7 +5,6 @@ TikTok session service
 from __future__ import annotations
 
 import logging
-import os
 import uuid
 from pathlib import Path
 from typing import Any, Dict, Optional
