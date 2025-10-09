@@ -33,12 +33,13 @@ except ImportError:
 from app.services.tiktok.download.actions.resolver import TikVidResolveAction
 from app.services.tiktok.download.strategies.base import TikTokDownloadStrategy
 from app.services.common.browser.user_data_chromium import ChromiumUserDataManager
+from app.core.config import get_settings
 
 logger = logging.getLogger(__name__)
 
-# TikVid serves regional variants; default to Vietnamese because it currently
-# avoids the heavy advertisement overlays seen on the English page.
-TIKVID_BASE = os.environ.get("TIKVID_BASE", "https://tikvid.io/vi")
+# Get configuration values
+settings = get_settings()
+TIKVID_BASE = settings.tikvid_base
 USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
@@ -68,13 +69,14 @@ class ChromiumDownloadStrategy(TikTokDownloadStrategy):
             user_data_dir=getattr(settings, 'chromium_user_data_dir', None)
         )
 
-    def resolve_video_url(self, tiktok_url: str, quality_hint: Optional[str] = None) -> str:
+    def resolve_video_url(self, tiktok_url: str, quality_hint: Optional[str] = None, force_headful: bool = False) -> str:
         """
         Resolve the direct MP4 URL for a TikTok video using TikVid with Chromium.
 
         Args:
             tiktok_url: The TikTok video URL to resolve
             quality_hint: Optional quality preference (HD, SD, etc.)
+            force_headful: Whether to force headful mode (True=headful, False=allow headless with parity)
 
         Returns:
             Direct MP4 URL for the video
@@ -85,7 +87,7 @@ class ChromiumDownloadStrategy(TikTokDownloadStrategy):
         last_exc: Optional[Exception] = None
 
         for attempt in range(1, 4):
-            components = self._build_chromium_fetch_kwargs(tiktok_url, quality_hint)
+            components = self._build_chromium_fetch_kwargs(tiktok_url, quality_hint, force_headful)
             fetcher_class = components["fetcher"]
             fetch_kwargs: Dict[str, Any] = components["fetch_kwargs"]
             resolve_action: TikVidResolveAction = components["resolve_action"]
@@ -157,12 +159,18 @@ class ChromiumDownloadStrategy(TikTokDownloadStrategy):
         self,
         tiktok_url: str,
         quality_hint: Optional[str] = None,
+        force_headful: bool = False,
     ) -> Dict[str, Any]:
         """
         Compose Chromium fetcher keyword arguments for TikTok video resolution.
 
         This encapsulates the Chromium configuration for stealth and anti-detection,
         supporting both DynamicFetcher and PersistentChromiumFetcher.
+
+        Args:
+            tiktok_url: The TikTok video URL to resolve
+            quality_hint: Optional quality preference (HD, SD, etc.)
+            force_headful: Whether to force headful mode (True=headful, False=allow headless with parity)
         """
         resolve_action = TikVidResolveAction(tiktok_url, quality_hint)
 
@@ -221,22 +229,31 @@ class ChromiumDownloadStrategy(TikTokDownloadStrategy):
             "--disable-infobars",
             "--window-position=0,0",
             "--window-size=1920,1080",
+            "--blink-settings=imagesEnabled=false",  # Force disable images
+            "--disable-javascript-harmony-shipping",  # Faster JS execution
+            "--disable-features=IsolateOrigins,site-per-process",  # Reduce process overhead
         ]
 
         # Create page action callable for fetchers
         def page_action_callable(page):
             return resolve_action._execute(page)
 
+        # Determine headless mode based on force_headful flag and parity state
+        # For now, headless parity is not fully implemented, so we default to headful
+        # when force_headful=False, but the structure is in place for future parity
+        headless_parity_enabled = False  # TODO: Implement headless parity features
+        headless_mode = not force_headful and headless_parity_enabled
+
         # Base fetch kwargs compatible with both fetchers
         # IMPORTANT: DynamicFetcher.fetch does not accept 'browser_args' directly.
         # Only PersistentChromiumFetcher supports passing Chromium launch args.
         fetch_kwargs = {
-            "headless": False,  # Use headful mode for downloads
+            "headless": headless_mode,  # Conditional headless/headful mode
             "page_action": page_action_callable,
             "timeout": 90000,  # 90 seconds in milliseconds
             "extra_headers": {"User-Agent": USER_AGENT},
-            "network_idle": True,  # Wait for network to be idle
-            "wait": 5000,  # Wait 5 seconds after page loads
+            "network_idle": False,  # Use domcontentloaded instead for faster loading
+            "wait": 3000,  # Reduced wait time to 3 seconds
         }
 
         # Inject browser args only for PersistentChromiumFetcher
