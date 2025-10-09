@@ -37,15 +37,15 @@ class TestHeadlessParity:
         )
 
         # Both modes should have valid navigation configurations
-        assert result_headless["fetch_kwargs"]["headless"] == True
-        assert result_headful["fetch_kwargs"]["headless"] == False
+        assert result_headless["fetch_kwargs"]["headless"] is True
+        assert result_headful["fetch_kwargs"]["headless"] is False
 
         # Headless mode should have enhanced waiting for navigation parity
-        assert result_headless["fetch_kwargs"]["network_idle"] == True
+        assert result_headless["fetch_kwargs"]["network_idle"] is True
         assert result_headless["fetch_kwargs"]["wait"] == 5000
 
         # Headful mode maintains original timing
-        assert result_headful["fetch_kwargs"]["network_idle"] == False
+        assert result_headful["fetch_kwargs"]["network_idle"] is False
         assert result_headful["fetch_kwargs"]["wait"] == 3000
 
     def test_form_interaction_parity(self, strategy: ChromiumDownloadStrategy) -> None:
@@ -72,8 +72,8 @@ class TestHeadlessParity:
         # Additional headers are only added in headless mode for parity
 
         # Headless mode has enhanced automation support
-        assert result_headless["fetch_kwargs"]["headless"] == True
-        assert result_headful["fetch_kwargs"]["headless"] == False
+        assert result_headless["fetch_kwargs"]["headless"] is True
+        assert result_headful["fetch_kwargs"]["headless"] is False
 
     def test_click_interaction_parity(self, strategy: ChromiumDownloadStrategy) -> None:
         """Test click interaction parity between headless and headful modes."""
@@ -92,11 +92,11 @@ class TestHeadlessParity:
 
         # Headless mode should have longer timeout for click reliability
         assert result_headless["fetch_kwargs"]["timeout"] == 120000
-        assert result_headless["fetch_kwargs"]["headless"] == True
+        assert result_headless["fetch_kwargs"]["headless"] is True
 
         # Headful mode maintains standard timeout
         assert result_headful["fetch_kwargs"]["timeout"] == 90000
-        assert result_headful["fetch_kwargs"]["headless"] == False
+        assert result_headful["fetch_kwargs"]["headless"] is False
 
     def test_waiting_strategy_parity(self, strategy: ChromiumDownloadStrategy) -> None:
         """Test waiting strategy parity between headless and headful modes."""
@@ -114,12 +114,12 @@ class TestHeadlessParity:
         )
 
         # Headless mode uses network idle detection and longer waits
-        assert result_headless["fetch_kwargs"]["network_idle"] == True
+        assert result_headless["fetch_kwargs"]["network_idle"] is True
         assert result_headless["fetch_kwargs"]["wait"] == 5000
         assert result_headless["fetch_kwargs"]["timeout"] == 120000
 
         # Headful mode uses faster waiting strategy
-        assert result_headful["fetch_kwargs"]["network_idle"] == False
+        assert result_headful["fetch_kwargs"]["network_idle"] is False
         assert result_headful["fetch_kwargs"]["wait"] == 3000
         assert result_headful["fetch_kwargs"]["timeout"] == 90000
 
@@ -219,11 +219,11 @@ class TestHeadlessParity:
         )
 
         # Headless mode should be True when force_headful=False
-        assert result["fetch_kwargs"]["headless"] == True
+        assert result["fetch_kwargs"]["headless"] is True
         # Headful mode should be False when force_headful=True
-        assert result_headful["fetch_kwargs"]["headless"] == False
+        assert result_headful["fetch_kwargs"]["headless"] is False
 
         # Verify parity features are applied in headless mode
-        assert result["fetch_kwargs"]["network_idle"] == True
+        assert result["fetch_kwargs"]["network_idle"] is True
         assert result["fetch_kwargs"]["wait"] == 5000
         assert result["fetch_kwargs"]["timeout"] == 120000

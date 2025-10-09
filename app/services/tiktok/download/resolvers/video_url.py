@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-import os
 import re
 from types import SimpleNamespace
 from typing import Any, Dict, Optional
