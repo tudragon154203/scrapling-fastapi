@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import logging
-import os
 from typing import Any
 
+from app.core.config import get_settings
 from app.services.tiktok.download.strategies.base import TikTokDownloadStrategy
 from app.services.tiktok.download.strategies.camoufox import CamoufoxDownloadStrategy
 from app.services.tiktok.download.strategies.chromium import ChromiumDownloadStrategy
@@ -13,7 +13,8 @@ from app.services.tiktok.download.strategies.chromium import ChromiumDownloadStr
 logger = logging.getLogger(__name__)
 
 # Environment variable for strategy selection
-TIKTOK_DOWNLOAD_STRATEGY = os.environ.get("TIKTOK_DOWNLOAD_STRATEGY", "chromium").lower()
+settings = get_settings()
+TIKTOK_DOWNLOAD_STRATEGY = settings.tiktok_download_strategy.lower()
 
 
 class TikTokDownloadStrategyFactory:

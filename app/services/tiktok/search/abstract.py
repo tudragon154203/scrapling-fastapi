@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import os
 import sys
 from abc import ABC, abstractmethod
 from types import SimpleNamespace
 from typing import Any, Dict, List, Optional, Tuple, Union, cast
 
+from app.core.config import get_settings
 from app.services.tiktok.search.interfaces import TikTokSearchInterface
 from app.services.tiktok.protocols import CleanupCallable, SearchContext
 
@@ -34,10 +34,11 @@ class AbstractTikTokSearchService(ABC, TikTokSearchInterface):
     # Validation helpers -------------------------------------------------
     def _is_tests_env(self) -> bool:
         """Return whether the current execution is happening under tests or CI."""
+        settings = get_settings()
         return (
-            bool(os.environ.get("PYTEST_CURRENT_TEST")) or
-            os.environ.get("TESTING", "").lower() == "true" or
-            os.environ.get("CI", "").lower() == "true"
+            bool(settings.pytest_current_test) or
+            settings.testing or
+            settings.ci
         )
 
     def _normalize_queries(self, query: Union[str, List[str]]) -> Tuple[bool, Union[List[str], Dict[str, Any]]]:

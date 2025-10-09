@@ -6,6 +6,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.core.config import get_settings
 
 
 # Ensure project root on sys.path for imports like app.*
@@ -26,7 +27,8 @@ def test_auspost_real_flow_status_and_shape_with_humanization():
     due to inherent variability of live sites and anti-bot checks.
     """
     # Ensure humanization is enabled
-    original_value = os.environ.get("AUSPOST_HUMANIZE_ENABLED")
+    settings = get_settings()
+    original_value = str(settings.auspost_humanize_enabled).lower()
     os.environ["AUSPOST_HUMANIZE_ENABLED"] = "true"
 
     try:
@@ -78,7 +80,8 @@ def test_auspost_real_flow_status_and_shape_without_humanization():
     Verifies that the flow still works correctly in deterministic mode.
     """
     # Ensure humanization is disabled
-    original_value = os.environ.get("AUSPOST_HUMANIZE_ENABLED")
+    settings = get_settings()
+    original_value = str(settings.auspost_humanize_enabled).lower()
     os.environ["AUSPOST_HUMANIZE_ENABLED"] = "false"
 
     try:
