@@ -87,7 +87,7 @@ def sanitize_filename(filename: str) -> str:
     if len(sanitized) > 255:
         name, ext = sanitized.rsplit('.', 1) if '.' in sanitized else (sanitized, '')
         if ext:
-            sanitized = name[:255-len(ext)-1] + '.' + ext
+            sanitized = name[:255 - len(ext) - 1] + '.' + ext
         else:
             sanitized = sanitized[:255]
 

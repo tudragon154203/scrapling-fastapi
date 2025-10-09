@@ -1,11 +1,8 @@
 """Integration tests for Chromium cookie management functionality."""
 
 import json
-import sqlite3
-import tempfile
 import time
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 

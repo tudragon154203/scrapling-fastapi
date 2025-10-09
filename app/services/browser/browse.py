@@ -215,8 +215,7 @@ class BrowseCrawler:
                     "2. Backup and then delete the corrupted profile directory\n"
                     f"   Path: {getattr(app_config.get_settings(), 'chromium_runtime_effective_user_data_dir', None) or os.path.abspath(user_data_dir)}\n"
                     "3. Re-run the browse session to rebuild a fresh profile\n"
-                    "4. If issues persist, reinstall Playwright browsers: playwright install chromium"
-                )
+                    "4. If issues persist, reinstall Playwright browsers: playwright install chromium")
                 logger.error(f"Chromium profile corruption detected: {e}")
                 return BrowseResponse(
                     status="failure",
@@ -249,8 +248,7 @@ class BrowseCrawler:
                 "Troubleshooting:\n"
                 "1. Free up disk space for the Chromium user data directory\n"
                 f"2. Verify write permissions to: {getattr(app_config.get_settings(), 'chromium_runtime_effective_user_data_dir', None) or os.path.abspath(user_data_dir)}\n"
-                "3. Consider changing CHROMIUM_USER_DATA_DIR to a drive with more space"
-            )
+                "3. Consider changing CHROMIUM_USER_DATA_DIR to a drive with more space")
             # Highlight 'no space' explicitly when present
             if "no space" in msg_lower:
                 error_msg = "Disk space issue detected (No space left on device).\n" + error_msg
@@ -267,8 +265,7 @@ class BrowseCrawler:
                 "Troubleshooting:\n"
                 "1. Ensure the process has access permissions to the user data directory\n"
                 f"2. Check directory path: {getattr(app_config.get_settings(), 'chromium_runtime_effective_user_data_dir', None) or os.path.abspath(user_data_dir)}\n"
-                "3. Run the service with sufficient privileges or adjust directory ACLs"
-            )
+                "3. Run the service with sufficient privileges or adjust directory ACLs")
             logger.error(f"Chromium permission/access error: {e}")
             return BrowseResponse(
                 status="failure",

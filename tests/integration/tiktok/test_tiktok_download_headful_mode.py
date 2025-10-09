@@ -18,11 +18,11 @@ DEMO_TIKTOK_URL = "https://www.tiktok.com/@tieentiton/video/7530618987760209170"
 
 def test_tiktok_download_headful_mode_default():
     """Ensure TikTok download requests run in headful mode by default."""
-    
+
     request_payload = {"url": DEMO_TIKTOK_URL}
-    
+
     response = client.post("/tiktok/download", json=request_payload)
-    
+
     # Note: This test may fail due to external dependencies, but should verify the endpoint works
     # The actual headful mode behavior is verified in the strategy implementation
     if response.status_code == 200:
@@ -40,13 +40,13 @@ def test_tiktok_download_headful_mode_default():
 
 def test_tiktok_download_invalid_url():
     """Test TikTok download with invalid URL."""
-    
+
     request_payload = {"url": "https://example.com/not-tiktok/video/123"}
-    
+
     response = client.post("/tiktok/download", json=request_payload)
-    
+
     assert response.status_code == 400
-    
+
     data = response.json()
     assert data["status"] == "error"
     assert data["error_code"] == "INVALID_URL"
@@ -54,13 +54,13 @@ def test_tiktok_download_invalid_url():
 
 def test_tiktok_download_missing_url():
     """Test TikTok download with missing URL."""
-    
+
     request_payload = {}
-    
+
     response = client.post("/tiktok/download", json=request_payload)
-    
+
     assert response.status_code == 422
-    
+
     data = response.json()
     assert "detail" in data
     # Should contain validation error about missing url field

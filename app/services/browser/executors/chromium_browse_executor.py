@@ -155,11 +155,11 @@ class ChromiumBrowseExecutor(IExecutor):
 
     def _build_chromium_kwargs(self, request: CrawlRequest, settings, page_action: Optional[PageAction] = None) -> tuple:
         """Build Chromium-specific fetch kwargs.
-    
+
         Returns:
             Tuple of (fetch_kwargs, user_data_dir)
         """
-    
+
         # Chromium-specific configuration for browsing
         browser_args = [
             "--no-sandbox",
@@ -186,23 +186,23 @@ class ChromiumBrowseExecutor(IExecutor):
             "--window-position=0,0",
             "--window-size=1920,1080",
         ]
-    
+
         # Only add headless flag if explicitly requested (not for browse sessions)
         if not request.force_headful:
             browser_args.append("--headless")
-    
+
         # Resolve user_data_dir to absolute path if provided via runtime settings
         user_data_dir = getattr(settings, 'chromium_runtime_effective_user_data_dir', None)
         if user_data_dir:
             user_data_dir = os.path.abspath(user_data_dir)
             logger.debug(f"Using Chromium user data directory (absolute): {user_data_dir}")
-    
+
         # Create page action callable for fetchers
         def page_action_callable(page):
             if page_action:
                 return page_action._execute(page)
             return None
-    
+
         # Base fetch kwargs
         # IMPORTANT: DynamicFetcher.fetch does not accept 'browser_args' directly.
         # Only PersistentChromiumFetcher supports passing Chromium launch args.
@@ -216,13 +216,13 @@ class ChromiumBrowseExecutor(IExecutor):
         # Inject browser args only when using PersistentChromiumFetcher (i.e., user_data_dir present)
         if user_data_dir:
             fetch_kwargs["browser_args"] = browser_args
-    
+
         # Conditionally pass user_data_dir based on DynamicFetcher.fetch signature
         # and ensure additional_args["user_data_dir"] is set if supported.
         try:
             supports_user_data_dir = False
             supports_additional_args = False
-    
+
             if DYNAMIC_FETCHER_AVAILABLE and DynamicFetcher is not None:
                 try:
                     sig = inspect.signature(DynamicFetcher.fetch)
@@ -234,12 +234,12 @@ class ChromiumBrowseExecutor(IExecutor):
                     logger.debug(f"Failed to introspect DynamicFetcher.fetch signature: {e}")
                     supports_user_data_dir = False
                     supports_additional_args = False
-    
+
             if user_data_dir:
                 # Top-level user_data_dir if supported
                 if supports_user_data_dir:
                     fetch_kwargs["user_data_dir"] = user_data_dir
-    
+
                 # Ensure additional_args carries user_data_dir when supported
                 if supports_additional_args:
                     safe_additional_args = dict(fetch_kwargs.get("additional_args", {}))
@@ -247,12 +247,12 @@ class ChromiumBrowseExecutor(IExecutor):
                     fetch_kwargs["additional_args"] = safe_additional_args
         except Exception as e:
             logger.debug(f"Skipping user_data_dir injection due to error: {e}")
-    
+
         # Log browser mode for visibility
         if request.force_headful:
             logger.info("Starting Chromium in HEADFUL mode for browsing session")
             logger.info(f"URL: {request.url}")
         else:
             logger.info("Starting Chromium in HEADLESS mode")
-    
+
         return fetch_kwargs, user_data_dir
