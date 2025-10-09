@@ -124,3 +124,112 @@ class TestTikTokDownloadChromiumIntegration:
                     # Verify the call succeeded
                     assert result.status == "success"
                     assert result.download_url is not None
+
+    @pytest.mark.asyncio
+    @pytest.mark.slow
+    async def test_real_download_force_headful_true(self) -> None:
+        """End-to-end test with force_headful=True using real browser automation."""
+        # Force the use of Chromium strategy
+        with patch('app.services.tiktok.download.strategies.factory.TIKTOK_DOWNLOAD_STRATEGY', 'chromium'):
+            service = TikTokDownloadService()
+            assert isinstance(service.download_strategy, ChromiumDownloadStrategy)
+
+            request = TikTokDownloadRequest(url=DEMO_TIKTOK_URL, force_headful=True)
+
+            result = await service.download_video(request)
+
+            # Verify the call succeeded
+            assert result.status == "success"
+            assert result.download_url is not None
+            assert str(result.download_url).startswith("http")
+            assert result.video_info is not None
+            assert result.video_info.id == "7530618987760209170"
+
+    @pytest.mark.asyncio
+    @pytest.mark.slow
+    async def test_real_download_force_headful_false(self) -> None:
+        """End-to-end test with force_headful=False (currently defaults to headful until parity implemented)."""
+        # Force the use of Chromium strategy
+        with patch('app.services.tiktok.download.strategies.factory.TIKTOK_DOWNLOAD_STRATEGY', 'chromium'):
+            service = TikTokDownloadService()
+            assert isinstance(service.download_strategy, ChromiumDownloadStrategy)
+
+            request = TikTokDownloadRequest(url=DEMO_TIKTOK_URL, force_headful=False)
+
+            result = await service.download_video(request)
+
+            # Verify the call succeeded (currently still uses headful mode until parity implemented)
+            assert result.status == "success"
+            assert result.download_url is not None
+            assert str(result.download_url).startswith("http")
+            assert result.video_info is not None
+            assert result.video_info.id == "7530618987760209170"
+
+    @pytest.mark.asyncio
+    @pytest.mark.slow
+    async def test_download_parity_comparison(self) -> None:
+        """Compare results between force_headful=True and force_headful=False modes."""
+        # Force the use of Chromium strategy
+        with patch('app.services.tiktok.download.strategies.factory.TIKTOK_DOWNLOAD_STRATEGY', 'chromium'):
+            service = TikTokDownloadService()
+            assert isinstance(service.download_strategy, ChromiumDownloadStrategy)
+
+            # Test with force_headful=True
+            request_headful = TikTokDownloadRequest(url=DEMO_TIKTOK_URL, force_headful=True)
+            result_headful = await service.download_video(request_headful)
+
+            # Test with force_headful=False
+            request_headless = TikTokDownloadRequest(url=DEMO_TIKTOK_URL, force_headful=False)
+            result_headless = await service.download_video(request_headless)
+
+            # Both should succeed
+            assert result_headful.status == "success"
+            assert result_headless.status == "success"
+
+            # Both should return valid download URLs
+            assert result_headful.download_url is not None
+            assert result_headless.download_url is not None
+            assert str(result_headful.download_url).startswith("http")
+            assert str(result_headless.download_url).startswith("http")
+
+            # Video info should be consistent
+            assert result_headful.video_info.id == result_headless.video_info.id
+            assert result_headful.video_info.id == "7530618987760209170"
+
+            # Currently, both modes should produce similar results (until headless parity is implemented)
+            # This test ensures the API structure is working correctly
+
+    @pytest.mark.asyncio
+    @pytest.mark.slow
+    async def test_persistent_user_data_both_modes(self) -> None:
+        """Test user data management works in both headless and headful modes."""
+        import tempfile
+        import os
+
+        # Create a temporary directory for user data
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Set environment variable for chromium user data dir
+            with patch.dict(os.environ, {'CHROMIUM_USER_DATA_DIR': temp_dir}):
+                # Force the use of Chromium strategy
+                with patch('app.services.tiktok.download.strategies.factory.TIKTOK_DOWNLOAD_STRATEGY', 'chromium'):
+                    from app.core.config import Settings
+                    # Create settings with the temporary user data dir
+                    settings = Settings()
+                    settings.chromium_user_data_dir = temp_dir
+
+                    service = TikTokDownloadService(settings=settings)
+                    assert isinstance(service.download_strategy, ChromiumDownloadStrategy)
+
+                    # Test with force_headful=True (headful mode)
+                    request_headful = TikTokDownloadRequest(url=DEMO_TIKTOK_URL, force_headful=True)
+                    result_headful = await service.download_video(request_headful)
+
+                    # Test with force_headful=False (headless mode)
+                    request_headless = TikTokDownloadRequest(url=DEMO_TIKTOK_URL, force_headful=False)
+                    result_headless = await service.download_video(request_headless)
+
+                    # Both should succeed with persistent user data
+                    assert result_headful.status == "success"
+                    assert result_headless.status == "success"
+                    assert result_headful.download_url is not None
+                    assert result_headless.download_url is not None

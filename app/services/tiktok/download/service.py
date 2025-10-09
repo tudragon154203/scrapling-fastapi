@@ -105,6 +105,8 @@ class TikTokDownloadService:
                 download_url = await asyncio.to_thread(
                     self.download_strategy.resolve_video_url,
                     url_str,
+                    None,  # quality_hint - not currently used
+                    request.force_headful,
                 )
             else:
                 resolver = resolver_cls(self.settings)
