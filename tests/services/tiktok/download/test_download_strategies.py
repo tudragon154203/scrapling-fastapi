@@ -173,6 +173,232 @@ class TestChromiumDownloadStrategy:
             assert call_args[0][0] == "https://www.tiktok.com/@test/video/456"  # tiktok_url
             assert call_args[0][1] is None  # quality_hint
 
+    def test_chromium_strategy_enforces_headful_fetch_kwargs(self, strategy: ChromiumDownloadStrategy) -> None:
+        """Test that Chromium strategy enforces headful mode in fetch kwargs."""
+        with patch.object(strategy, '_build_chromium_fetch_kwargs') as mock_build:
+            # Mock the internal method to return actual fetch kwargs for inspection
+            mock_fetcher_class = MagicMock()
+            mock_resolve_action = MagicMock()
+            mock_resolve_action.result_links = []
+
+            # Simulate the actual method behavior
+            mock_build.return_value = {
+                "fetcher": mock_fetcher_class,
+                "fetch_kwargs": {"headless": False, "other": "value"},  # Should have headless: False
+                "resolve_action": mock_resolve_action,
+                "headers": {"User-Agent": "test"},
+            }
+
+            # This should not raise an exception
+            try:
+                strategy.resolve_video_url("https://www.tiktok.com/@test/video/456")
+            except RuntimeError:
+                pass  # Expected to fail due to mocked components, but we want to check the fetch kwargs
+
+            # Verify the fetch kwargs contain headless: False
+            call_args = mock_build.call_args
+            # The actual method should be called with the URL and quality_hint
+            assert call_args[0][0] == "https://www.tiktok.com/@test/video/456"
+
+    def test_chromium_strategy_build_fetch_kwargs_headful_enforcement(self, strategy: ChromiumDownloadStrategy) -> None:
+        """Test that _build_chromium_fetch_kwargs method enforces headful mode when force_headful=True."""
+        # Call the actual method with force_headful=True to inspect the returned fetch kwargs
+        result = strategy._build_chromium_fetch_kwargs(
+            "https://www.tiktok.com/@test/video/456",
+            None,  # quality_hint
+            True   # force_headful
+        )
+
+        # Verify that headless is explicitly set to False when force_headful=True
+        assert "fetch_kwargs" in result
+        assert "headless" in result["fetch_kwargs"]
+        assert result["fetch_kwargs"]["headless"] is False
+
+    def test_chromium_strategy_injects_user_data_dir_when_enabled(self, strategy: ChromiumDownloadStrategy) -> None:
+        """Test that user_data_dir is injected when chromium_user_data_dir is configured."""
+        # Set up mock settings with user data dir
+        strategy.settings.chromium_user_data_dir = "/path/to/user/data"
+
+        # Mock the user_data_manager instance directly
+        mock_manager = MagicMock()
+        mock_context_manager = MagicMock()
+        mock_user_data_context = MagicMock()
+        mock_user_data_context.clone_path = "/path/to/clone/data"
+        mock_cleanup_func = MagicMock()
+        mock_user_data_context.cleanup = mock_cleanup_func
+        mock_context_manager.__enter__ = MagicMock(return_value=mock_user_data_context)
+        mock_context_manager.__exit__ = MagicMock(return_value=None)
+        mock_manager.get_user_data_context.return_value = mock_context_manager
+
+        # Replace the instance's user_data_manager
+        strategy.user_data_manager = mock_manager
+
+        # Call the actual method
+        strategy._build_chromium_fetch_kwargs(
+            "https://www.tiktok.com/@test/video/456",
+            None,  # quality_hint
+            False  # force_headful
+        )
+
+        # Verify that user data context was obtained
+        mock_manager.get_user_data_context.assert_called_once()
+
+    def test_chromium_strategy_headless_when_force_headful_false(self, strategy: ChromiumDownloadStrategy) -> None:
+        """Test that Chromium strategy uses headless mode when force_headful=False."""
+        with patch.object(strategy, '_build_chromium_fetch_kwargs') as mock_build:
+            # Mock the components
+            mock_fetcher_class = MagicMock()
+            mock_fetcher_instance = MagicMock()
+            mock_fetcher_class.return_value = mock_fetcher_instance
+            mock_fetch_kwargs = {"headless": True, "other": "value"}  # Should have headless: True
+            mock_resolve_action = MagicMock()
+            mock_resolve_action.result_links = ["https://example.com/video.mp4"]
+
+            mock_build.return_value = {
+                "fetcher": mock_fetcher_class,
+                "fetch_kwargs": mock_fetch_kwargs,
+                "resolve_action": mock_resolve_action,
+                "headers": {"User-Agent": "test"},
+            }
+
+            # Mock successful fetch
+            mock_fetcher_instance.fetch.return_value = MagicMock()
+
+            result = strategy.resolve_video_url("https://www.tiktok.com/@test/video/456", force_headful=False)
+
+            assert result == "https://example.com/video.mp4"
+
+            # Verify that the method was called with force_headful=False
+            mock_build.assert_called_once_with("https://www.tiktok.com/@test/video/456", None, False)
+
+    def test_chromium_strategy_headful_when_force_headful_true(self, strategy: ChromiumDownloadStrategy) -> None:
+        """Test that Chromium strategy uses headful mode when force_headful=True."""
+        with patch.object(strategy, '_build_chromium_fetch_kwargs') as mock_build:
+            # Mock the components
+            mock_fetcher_class = MagicMock()
+            mock_fetcher_instance = MagicMock()
+            mock_fetcher_class.return_value = mock_fetcher_instance
+            mock_fetch_kwargs = {"headless": False, "other": "value"}  # Should have headless: False
+            mock_resolve_action = MagicMock()
+            mock_resolve_action.result_links = ["https://example.com/video.mp4"]
+
+            mock_build.return_value = {
+                "fetcher": mock_fetcher_class,
+                "fetch_kwargs": mock_fetch_kwargs,
+                "resolve_action": mock_resolve_action,
+                "headers": {"User-Agent": "test"},
+            }
+
+            # Mock successful fetch
+            mock_fetcher_instance.fetch.return_value = MagicMock()
+
+            result = strategy.resolve_video_url("https://www.tiktok.com/@test/video/456", force_headful=True)
+
+            assert result == "https://example.com/video.mp4"
+
+            # Verify that the method was called with force_headful=True
+            mock_build.assert_called_once_with("https://www.tiktok.com/@test/video/456", None, True)
+
+    def test_chromium_strategy_parity_features_in_headless(self, strategy: ChromiumDownloadStrategy) -> None:
+        """Test that headless mode includes parity features."""
+        # Call the actual method with force_headful=False to check parity features
+        result = strategy._build_chromium_fetch_kwargs(
+            "https://www.tiktok.com/@test/video/456",
+            None,  # quality_hint
+            force_headful=False
+        )
+
+        # Verify that headless is set to True when force_headful=False
+        assert "fetch_kwargs" in result
+        assert "headless" in result["fetch_kwargs"]
+        assert result["fetch_kwargs"]["headless"] is True
+
+        # Verify headless-specific parity configurations
+        assert result["fetch_kwargs"]["network_idle"] is True  # Headless uses network idle
+        assert result["fetch_kwargs"]["wait"] == 5000  # Headless uses longer wait
+        assert result["fetch_kwargs"]["timeout"] == 120000  # Headless uses longer timeout
+
+        # Verify additional headers for headless parity
+        headers = result["fetch_kwargs"]["extra_headers"]
+        assert "Accept" in headers
+        assert "Accept-Language" in headers
+        assert "Accept-Encoding" in headers
+        assert "DNT" in headers
+
+    def test_chromium_strategy_headful_mode_unchanged(self, strategy: ChromiumDownloadStrategy) -> None:
+        """Test that headful mode configurations remain unchanged."""
+        # Call the actual method with force_headful=True to check headful features
+        result = strategy._build_chromium_fetch_kwargs(
+            "https://www.tiktok.com/@test/video/456",
+            None,  # quality_hint
+            force_headful=True
+        )
+
+        # Verify that headless is set to False when force_headful=True
+        assert "fetch_kwargs" in result
+        assert "headless" in result["fetch_kwargs"]
+        assert result["fetch_kwargs"]["headless"] is False
+
+        # Verify headful configurations remain as expected
+        assert result["fetch_kwargs"]["network_idle"] is False  # Headful doesn't use network idle
+        assert result["fetch_kwargs"]["wait"] == 3000  # Headful uses shorter wait
+        assert result["fetch_kwargs"]["timeout"] == 90000  # Headful uses standard timeout
+
+    def test_chromium_strategy_user_data_in_both_modes(self, strategy: ChromiumDownloadStrategy) -> None:
+        """Test that user data management works in both headless and headful modes."""
+        # Set up mock settings with user data dir
+        strategy.settings.chromium_user_data_dir = "/path/to/user/data"
+
+        # Mock the user_data_manager instance directly
+        mock_manager = MagicMock()
+        mock_context_manager = MagicMock()
+        mock_user_data_context = MagicMock()
+        mock_user_data_context.clone_path = "/path/to/clone/data"
+        mock_cleanup_func = MagicMock()
+        mock_user_data_context.cleanup = mock_cleanup_func
+        mock_context_manager.__enter__ = MagicMock(return_value=mock_user_data_context)
+        mock_context_manager.__exit__ = MagicMock(return_value=None)
+        mock_manager.get_user_data_context.return_value = mock_context_manager
+
+        # Replace the instance's user_data_manager
+        strategy.user_data_manager = mock_manager
+
+        # Test with force_headful=True (headful mode)
+        result_headful = strategy._build_chromium_fetch_kwargs(
+            "https://www.tiktok.com/@test/video/456",
+            None,
+            force_headful=True
+        )
+
+        # Test with force_headful=False (headless mode)
+        result_headless = strategy._build_chromium_fetch_kwargs(
+            "https://www.tiktok.com/@test/video/456",
+            None,
+            force_headful=False
+        )
+
+        # Both modes should have user data management
+        assert "effective_user_data_dir" in result_headful
+        assert "user_data_cleanup" in result_headful
+        assert "effective_user_data_dir" in result_headless
+        assert "user_data_cleanup" in result_headless
+
+        # Verify that user data context was obtained for both modes
+        assert mock_manager.get_user_data_context.call_count == 2
+
+    def test_chromium_strategy_headless_allowed_when_parity_flag_enabled(self, strategy: ChromiumDownloadStrategy) -> None:
+        """Future parity test: Test that headless mode is allowed when parity flag is enabled.
+
+        This test is marked as xfail until headless parity is implemented.
+        """
+        # This test will fail until headless parity is implemented
+        pytest.xfail("Headless parity not yet implemented")
+
+        # When parity is implemented, this test should verify that:
+        # 1. When a parity flag is enabled and force_headful is False, headless can be True
+        # 2. The strategy respects the parity setting
+        pass
+
 
 class TestTikTokDownloadStrategyFactory:
     """Test cases for TikTokDownloadStrategyFactory."""

@@ -91,6 +91,14 @@ try:
         tiktok_url: str = Field(default="https://www.tiktok.com/", env="TIKTOK_URL")
         # TikTok download configuration
         tiktok_download_strategy: str = Field(default="chromium", env="TIKTOK_DOWNLOAD_STRATEGY")
+        # TikTok download resolver configuration
+        tikvid_base: str = Field(default="https://tikvid.io/vi", env="TIKVID_BASE")
+        # Request timeout settings
+        request_timeout_seconds: float = Field(default=90.0, env="REQUEST_TIMEOUT_SECONDS")
+        # Testing/CI environment detection
+        pytest_current_test: Optional[str] = Field(default=None, env="PYTEST_CURRENT_TEST")
+        testing: bool = Field(default=False, env="TESTING")
+        ci: bool = Field(default=False, env="CI")
 
         @field_validator('chromium_user_data_dir', mode='before')
         def _sanitize_chromium_user_data_dir(cls, v: Optional[str]) -> Optional[str]:
@@ -177,6 +185,14 @@ except Exception:
         tiktok_url: str = "https://www.tiktok.com/"
         # TikTok download configuration
         tiktok_download_strategy: str = "chromium"
+        # TikTok download resolver configuration
+        tikvid_base: str = "https://tikvid.io/vi"
+        # Request timeout settings
+        request_timeout_seconds: float = 90.0
+        # Testing/CI environment detection
+        pytest_current_test: Optional[str] = None
+        testing: bool = False
+        ci: bool = False
 
     @lru_cache()
     def get_settings() -> "Settings":
@@ -234,4 +250,9 @@ except Exception:
             tiktok_max_session_duration=int(os.getenv("TIKTOK_MAX_SESSION_DURATION", "300")),
             tiktok_url=os.getenv("TIKTOK_URL", "https://www.tiktok.com/"),
             tiktok_download_strategy=os.getenv("TIKTOK_DOWNLOAD_STRATEGY", "chromium"),
+            tikvid_base=os.getenv("TIKVID_BASE", "https://tikvid.io/vi"),
+            request_timeout_seconds=float(os.getenv("REQUEST_TIMEOUT_SECONDS", "90")),
+            pytest_current_test=os.getenv("PYTEST_CURRENT_TEST"),
+            testing=os.getenv("TESTING", "false").lower() in {"1", "true", "yes"},
+            ci=os.getenv("CI", "false").lower() in {"1", "true", "yes"},
         )

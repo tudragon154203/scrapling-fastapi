@@ -192,3 +192,110 @@ class TestTikTokDownloadEndpointUnit:
             # Verify the request object does not have quality field
             call_args = mock_service.download_video.call_args[0][0]
             assert not hasattr(call_args, 'quality') or call_args.quality is None
+
+    def test_download_endpoint_accepts_force_headful_true(self):
+        """Test that endpoint accepts force_headful=True and passes it to service."""
+        with patch('app.api.tiktok.tiktok_download_service') as mock_service:
+            mock_service.download_video = AsyncMock(return_value=TikTokDownloadResponse(
+                status="success",
+                message="Video download URL resolved successfully",
+                download_url="https://example.com/video.mp4",
+                video_info=TikTokVideoInfo(
+                    id="7530618987760209170",
+                    title="Test Video",
+                    author="testuser"
+                ),
+                execution_time=8.5
+            ))
+
+            response = client.post(
+                "/tiktok/download",
+                json={
+                    "url": DEMO_TIKTOK_URL,
+                    "force_headful": True
+                }
+            )
+
+            assert response.status_code == 200
+            data = response.json()
+            assert data["status"] == "success"
+            assert data["download_url"] == "https://example.com/video.mp4"
+            assert data["video_info"]["id"] == "7530618987760209170"
+            assert data["execution_time"] == 8.5
+
+            # Verify the service was called with the correct request object
+            mock_service.download_video.assert_called_once()
+            call_args = mock_service.download_video.call_args[0][0]
+            assert call_args.force_headful is True
+            assert str(call_args.url) == DEMO_TIKTOK_URL
+
+    def test_download_endpoint_accepts_force_headful_default_false(self):
+        """Test that endpoint works with backward compatibility when force_headful is not provided."""
+        with patch('app.api.tiktok.tiktok_download_service') as mock_service:
+            mock_service.download_video = AsyncMock(return_value=TikTokDownloadResponse(
+                status="success",
+                message="Video download URL resolved successfully",
+                download_url="https://example.com/video.mp4",
+                video_info=TikTokVideoInfo(id="7530618987760209170"),
+                execution_time=12.0
+            ))
+
+            response = client.post(
+                "/tiktok/download",
+                json={"url": DEMO_TIKTOK_URL}
+            )
+
+            assert response.status_code == 200
+            data = response.json()
+            assert data["status"] == "success"
+            assert data["download_url"] == "https://example.com/video.mp4"
+
+            # Verify the service was called with default force_headful=False
+            mock_service.download_video.assert_called_once()
+            call_args = mock_service.download_video.call_args[0][0]
+            assert call_args.force_headful is False
+            assert str(call_args.url) == DEMO_TIKTOK_URL
+
+    def test_download_endpoint_accepts_explicit_force_headful_false(self):
+        """Test that endpoint accepts force_headful=False explicitly."""
+        with patch('app.api.tiktok.tiktok_download_service') as mock_service:
+            mock_service.download_video = AsyncMock(return_value=TikTokDownloadResponse(
+                status="success",
+                message="Video download URL resolved successfully",
+                download_url="https://example.com/video.mp4",
+                video_info=TikTokVideoInfo(id="7530618987760209170"),
+                execution_time=11.0
+            ))
+
+            response = client.post(
+                "/tiktok/download",
+                json={
+                    "url": DEMO_TIKTOK_URL,
+                    "force_headful": False
+                }
+            )
+
+            assert response.status_code == 200
+            data = response.json()
+            assert data["status"] == "success"
+
+            # Verify the service was called with explicit force_headful=False
+            mock_service.download_video.assert_called_once()
+            call_args = mock_service.download_video.call_args[0][0]
+            assert call_args.force_headful is False
+            assert str(call_args.url) == DEMO_TIKTOK_URL
+
+    def test_download_endpoint_rejects_extra_fields_with_force_headful(self):
+        """Test that endpoint rejects extra fields even when force_headful is provided."""
+        response = client.post(
+            "/tiktok/download",
+            json={
+                "url": DEMO_TIKTOK_URL,
+                "force_headful": True,
+                "extra_field": "should_be_rejected"
+            }
+        )
+
+        assert response.status_code == 422  # Validation error for extra fields
+        data = response.json()
+        assert "detail" in data

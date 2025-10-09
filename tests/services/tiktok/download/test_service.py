@@ -151,3 +151,130 @@ class TestTikTokDownloadService:
         assert result.error_code == "TEST_ERROR"
         assert result.error_details == {"test": "detail"}
         assert result.execution_time == 1.5
+
+    @pytest.mark.asyncio
+    async def test_download_video_passes_force_headful_to_strategy(self, service, mock_settings):
+        """Test that download_video passes force_headful parameter to strategy."""
+        # Create a request with force_headful=True
+        request_with_headful = TikTokDownloadRequest(
+            url="https://www.tiktok.com/@username/video/1234567890",
+            force_headful=True
+        )
+
+        # Mock strategy to verify it receives the force_headful parameter
+        mock_strategy = Mock()
+        mock_strategy.resolve_video_url.return_value = "https://example.com/video.mp4"
+        mock_strategy.get_strategy_name.return_value = "chromium"
+
+        # Mock the downloader
+        mock_downloader = Mock(spec=VideoFileDownloader)
+        mock_downloader.get_file_info = AsyncMock(return_value={
+            "file_size": 1024000,
+            "filename": "video.mp4"
+        })
+
+        # Set up the service with mocked strategy
+        service.download_strategy = mock_strategy
+        service.settings.tiktok_download_strategy = "chromium"
+
+        with patch('app.services.tiktok.download.downloaders.file.VideoFileDownloader', return_value=mock_downloader):
+            result = await service.download_video(request_with_headful)
+
+        # Verify strategy was called with the force_headful parameter
+        mock_strategy.resolve_video_url.assert_called_once_with(
+            "https://www.tiktok.com/@username/video/1234567890",
+            None,  # quality_hint
+            True  # force_headful
+        )
+
+        assert result.status == "success"
+
+    @pytest.mark.asyncio
+    async def test_download_video_force_headful_default_behavior(self, service, mock_settings):
+        """Test that download_video handles default force_headful=False correctly."""
+        # Create a request without force_headful (defaults to False)
+        request_default = TikTokDownloadRequest(
+            url="https://www.tiktok.com/@username/video/1234567890"
+        )
+
+        # Mock strategy to verify it receives the default force_headful=False
+        mock_strategy = Mock()
+        mock_strategy.resolve_video_url.return_value = "https://example.com/video.mp4"
+        mock_strategy.get_strategy_name.return_value = "chromium"
+
+        # Mock the downloader
+        mock_downloader = Mock(spec=VideoFileDownloader)
+        mock_downloader.get_file_info = AsyncMock(return_value={
+            "file_size": 1024000,
+            "filename": "video.mp4"
+        })
+
+        # Set up the service with mocked strategy
+        service.download_strategy = mock_strategy
+        service.settings.tiktok_download_strategy = "chromium"
+
+        with patch('app.services.tiktok.download.downloaders.file.VideoFileDownloader', return_value=mock_downloader):
+            result = await service.download_video(request_default)
+
+        # Verify strategy was called with the default force_headful=False
+        mock_strategy.resolve_video_url.assert_called_once_with(
+            "https://www.tiktok.com/@username/video/1234567890",
+            None,  # quality_hint
+            False  # force_headful
+        )
+
+        assert result.status == "success"
+
+    @pytest.mark.asyncio
+    async def test_download_video_handles_both_force_headful_modes(self, service, mock_settings):
+        """Test download_video with both force_headful=True and force_headful=False scenarios."""
+        # Mock strategy
+        mock_strategy = Mock()
+        mock_strategy.resolve_video_url.return_value = "https://example.com/video.mp4"
+        mock_strategy.get_strategy_name.return_value = "chromium"
+
+        # Mock the downloader
+        mock_downloader = Mock(spec=VideoFileDownloader)
+        mock_downloader.get_file_info = AsyncMock(return_value={
+            "file_size": 1024000,
+            "filename": "video.mp4"
+        })
+
+        service.download_strategy = mock_strategy
+        service.settings.tiktok_download_strategy = "chromium"
+
+        with patch('app.services.tiktok.download.downloaders.file.VideoFileDownloader', return_value=mock_downloader):
+            # Test force_headful=True
+            request_true = TikTokDownloadRequest(
+                url="https://www.tiktok.com/@username/video/1234567890",
+                force_headful=True
+            )
+            result_true = await service.download_video(request_true)
+
+            # Verify the call
+            mock_strategy.resolve_video_url.assert_called_with(
+                "https://www.tiktok.com/@username/video/1234567890",
+                None,  # quality_hint
+                True  # force_headful
+            )
+
+            # Reset mock for next call
+            mock_strategy.reset_mock()
+
+            # Test force_headful=False
+            request_false = TikTokDownloadRequest(
+                url="https://www.tiktok.com/@username/video/1234567890",
+                force_headful=False
+            )
+            result_false = await service.download_video(request_false)
+
+            # Verify the call
+            mock_strategy.resolve_video_url.assert_called_with(
+                "https://www.tiktok.com/@username/video/1234567890",
+                None,  # quality_hint
+                False  # force_headful
+            )
+
+        # Both should succeed
+        assert result_true.status == "success"
+        assert result_false.status == "success"
