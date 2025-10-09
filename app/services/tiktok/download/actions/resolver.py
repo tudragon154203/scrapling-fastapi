@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any, List, Optional
 
 from app.services.browser.actions.base import BasePageAction
+from app.services.browser.actions.humanize import type_like_human, human_pause
 from app.core.config import get_settings
 
 # Get TikVid base URL from configuration
@@ -86,10 +87,13 @@ class TikVidResolveAction(BasePageAction):
         field_fill_start = time.time()
         try:
             field.click()
-            field.fill("")
-            field.fill(self.tiktok_url)
+            # Add a small human pause before typing
+            human_pause(0.1, 0.3)
+            # Use humanized typing instead of pure filling
+            # (type_like_human handles clearing the field internally)
+            type_like_human(field, self.tiktok_url)
             field_fill_time = time.time() - field_fill_start
-            logger.debug(f"URL field filled in {field_fill_time:.2f}s")
+            logger.debug(f"URL field typed in {field_fill_time:.2f}s")
 
             # Check if we're meeting the 3.5s target for the overall page-to-field-fill process
             total_time = time.time() - start_time
@@ -101,7 +105,7 @@ class TikVidResolveAction(BasePageAction):
                 logger.debug(f"PERFORMANCE: Page load to URL fill completed within target: {total_time:.2f}s")
 
         except Exception as exc:
-            logger.warning(f"Field fill error: {_format_exception(exc)}")
+            logger.warning(f"Field typing error: {_format_exception(exc)}")
             try:
                 page.keyboard.insert_text(self.tiktok_url)
             except Exception as exc2:
