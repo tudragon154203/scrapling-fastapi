@@ -36,6 +36,49 @@ class TestTikTokDownloadRequest:
         assert data["url"] == "https://www.tiktok.com/@username/video/1234567890"
         assert "quality" not in data  # quality field should not exist
 
+    def test_force_headful_default_false(self):
+        """Test that force_headful defaults to False when not provided."""
+        request = TikTokDownloadRequest(
+            url="https://www.tiktok.com/@username/video/1234567890"
+        )
+        assert request.force_headful is False
+
+    def test_force_headful_true_acceptance(self):
+        """Test that force_headful=True is accepted and stored correctly."""
+        request = TikTokDownloadRequest(
+            url="https://www.tiktok.com/@username/video/1234567890",
+            force_headful=True
+        )
+        assert request.force_headful is True
+
+    def test_force_headful_false_explicit(self):
+        """Test that force_headful=False is accepted and stored correctly."""
+        request = TikTokDownloadRequest(
+            url="https://www.tiktok.com/@username/video/1234567890",
+            force_headful=False
+        )
+        assert request.force_headful is False
+
+    def test_request_serialization_with_force_headful(self):
+        """Test request serialization includes force_headful when explicitly set."""
+        # Test with force_headful=True
+        request = TikTokDownloadRequest(
+            url="https://www.tiktok.com/@username/video/1234567890",
+            force_headful=True
+        )
+        data = request.model_dump(mode='json')
+        assert data["url"] == "https://www.tiktok.com/@username/video/1234567890"
+        assert data["force_headful"] is True
+
+        # Test with force_headful=False (explicit)
+        request = TikTokDownloadRequest(
+            url="https://www.tiktok.com/@username/video/1234567890",
+            force_headful=False
+        )
+        data = request.model_dump(mode='json')
+        assert data["url"] == "https://www.tiktok.com/@username/video/1234567890"
+        assert data["force_headful"] is False
+
 
 class TestTikTokVideoInfo:
     """Test cases for TikTokVideoInfo schema."""

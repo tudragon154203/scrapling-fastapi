@@ -93,3 +93,30 @@ class TestTikTokDownloadCamoufoxIntegration:
             assert downloaded_path.exists()
             assert downloaded_path.stat().st_size > 0
             assert _file_contains_video_track(downloaded_path)
+
+    @pytest.mark.asyncio
+    async def test_camoufox_unaffected_by_force_headful_field(self) -> None:
+        """Test that Camoufox strategy is unaffected by force_headful field in schema."""
+        # Force the use of Camoufox strategy
+        with patch('app.services.tiktok.download.strategies.factory.TIKTOK_DOWNLOAD_STRATEGY', 'camoufox'):
+            service = TikTokDownloadService()
+            assert isinstance(service.download_strategy, CamoufoxDownloadStrategy)
+
+            # Test with force_headful=True (should be ignored by Camoufox strategy)
+            request = TikTokDownloadRequest(url=DEMO_TIKTOK_URL, force_headful=True)
+
+            result = await service.download_video(request)
+
+            # Verify success - force_headful should not interfere with Camoufox
+            assert result.status == "success"
+            assert result.download_url is not None
+            assert result.video_info is not None
+
+            # Test with force_headful=False (default)
+            request_default = TikTokDownloadRequest(url=DEMO_TIKTOK_URL)
+
+            result_default = await service.download_video(request_default)
+
+            # Verify success
+            assert result_default.status == "success"
+            assert result_default.download_url is not None

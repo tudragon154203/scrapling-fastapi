@@ -14,12 +14,26 @@ class TikTokDownloadRequest(BaseModel):
         description="Public TikTok video URL to download",
         examples=["https://www.tiktok.com/@username/video/1234567890"]
     )
+    force_headful: bool = Field(
+        default=False,
+        description=(
+            "Force headful mode for Chromium-based downloads. Default False. "
+            "When True, enforces headful browser mode. When False, allows headless mode "
+            "(subject to strategy implementation and parity considerations)."
+        ),
+        examples=[False, True]
+    )
 
     model_config = {
         "json_schema_extra": {
             "examples": [
                 {
-                    "url": "https://www.tiktok.com/@tieentiton/video/7530618987760209170"
+                    "url": "https://www.tiktok.com/@tieentiton/video/7530618987760209170",
+                    "force_headful": False
+                },
+                {
+                    "url": "https://www.tiktok.com/@tieentiton/video/7530618987760209170",
+                    "force_headful": True
                 }
             ]
         },
