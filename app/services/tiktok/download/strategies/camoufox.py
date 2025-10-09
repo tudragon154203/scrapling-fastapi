@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import logging
-import os
 import re
 from types import SimpleNamespace
 from typing import Any, Dict, Optional
 
+from app.core.config import get_settings
 from app.services.common.adapters.scrapling_fetcher import FetchArgComposer, ScraplingFetcherAdapter
 from app.services.common.browser.camoufox import CamoufoxArgsBuilder
 from app.services.tiktok.download.actions.resolver import TikVidResolveAction
@@ -17,7 +17,8 @@ logger = logging.getLogger(__name__)
 
 # TikVid serves regional variants; default to Vietnamese because it currently
 # avoids the heavy advertisement overlays seen on the English page.
-TIKVID_BASE = os.environ.get("TIKVID_BASE", "https://tikvid.io/vi")
+settings = get_settings()
+TIKVID_BASE = settings.tikvid_base
 USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"

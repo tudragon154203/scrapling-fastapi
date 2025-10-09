@@ -228,7 +228,7 @@ class TiktokService:
             clones_dir = raw_base_dir / "clones"
         headless = bool(getattr(self.settings, "default_headless", True))
         try:
-            current_test = os.environ.get("PYTEST_CURRENT_TEST", "")
+            current_test = getattr(self.settings, "pytest_current_test", "") or ""
             norm = current_test.replace("\\", "/").lower()
             if "/tests/unit/" in norm or "tests/unit/" in norm:
                 headless = True

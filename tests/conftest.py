@@ -39,7 +39,8 @@ def test_app_with_logging_level(request):
         log_level_value = "INFO"  # Default if no marker
 
     # Set the environment variable for LOG_LEVEL
-    original_log_level_env = os.environ.get("LOG_LEVEL")
+    settings = get_settings()
+    original_log_level_env = settings.log_level
     os.environ["LOG_LEVEL"] = log_level_value
 
     # Clear settings cache to ensure new LOG_LEVEL is picked up

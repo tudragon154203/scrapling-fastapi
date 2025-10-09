@@ -464,16 +464,16 @@ class TestTikTokDownloadStrategyFactory:
 
     def test_strategy_execution(self, mock_settings: MagicMock) -> None:
         """Test that returned strategies can execute properly."""
-        # Test Camoufox strategy
-        with patch.dict("app.services.tiktok.download.strategies.factory.os.environ", {"TIKTOK_DOWNLOAD_STRATEGY": "camoufox"}):
+        # Test Camoufox strategy - patch the module-level variable
+        with patch("app.services.tiktok.download.strategies.factory.TIKTOK_DOWNLOAD_STRATEGY", "camoufox"):
             strategy = TikTokDownloadStrategyFactory.create_strategy(mock_settings)
             assert hasattr(strategy, 'resolve_video_url')
             assert callable(strategy.resolve_video_url)
             assert hasattr(strategy, 'get_strategy_name')
             assert callable(strategy.get_strategy_name)
 
-        # Test Chromium strategy
-        with patch.dict("app.services.tiktok.download.strategies.factory.os.environ", {"TIKTOK_DOWNLOAD_STRATEGY": "chromium"}):
+        # Test Chromium strategy - patch the module-level variable
+        with patch("app.services.tiktok.download.strategies.factory.TIKTOK_DOWNLOAD_STRATEGY", "chromium"):
             strategy = TikTokDownloadStrategyFactory.create_strategy(mock_settings)
             assert hasattr(strategy, 'resolve_video_url')
             assert callable(strategy.resolve_video_url)

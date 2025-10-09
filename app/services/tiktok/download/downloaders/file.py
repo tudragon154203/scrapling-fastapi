@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import logging
-import os
 from pathlib import Path
 from typing import Optional
 from urllib.parse import parse_qs, unquote, urlparse
+
+from app.core.config import get_settings
 
 try:
     import httpx
@@ -16,7 +17,8 @@ except Exception:  # pragma: no cover - httpx is provided by test dependencies
 logger = logging.getLogger(__name__)
 
 # Download configuration
-REQUEST_TIMEOUT_SECONDS = float(os.environ.get("REQUEST_TIMEOUT_SECONDS", "90"))
+settings = get_settings()
+REQUEST_TIMEOUT_SECONDS = settings.request_timeout_seconds
 USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
