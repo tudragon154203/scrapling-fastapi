@@ -550,7 +550,7 @@ class ChromiumUserDataManager:
                     if db.suffix in (".db", ".sqlite") or "cookies" in name or name.endswith("-wal") or name.endswith("-journal"):
                         try:
                             # Open and immediately close to release any lingering handles in this process
-                            with sqlite3.connect(db) as conn:
+                            with sqlite3.connect(db):
                                 pass
                         except Exception:
                             # Ignore errors; other processes may still hold locks
@@ -1157,6 +1157,8 @@ class ChromiumUserDataManager:
                         temp_new.unlink()
                 except Exception:
                     pass
+            if last_err:
+                logger.warning(f"Failed to replace cookies DB after retries: {last_err}")
             return False
         except Exception as e:
             logger.warning(f"Unexpected error ensuring cookies DB at {cookies_db}: {e}")
