@@ -71,10 +71,14 @@ class TestConcurrentUserDataOperations:
 
         yield user_data_manager
 
-        # Cleanup
-        if temp_user_data_dir.exists():
-            import shutil
-            shutil.rmtree(temp_user_data_dir)
+        # Cleanup using manager's base_path to avoid NameError
+        try:
+            base_path = Path(user_data_manager.base_path) if hasattr(user_data_manager, "base_path") else None
+            if base_path and base_path.exists():
+                import shutil
+                shutil.rmtree(base_path, ignore_errors=True)
+        except Exception:
+            pass
 
     def test_concurrent_read_operations(self, populated_manager):
         """Test that multiple read operations can run concurrently."""

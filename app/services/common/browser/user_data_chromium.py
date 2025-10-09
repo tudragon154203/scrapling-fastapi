@@ -5,6 +5,7 @@ import tempfile
 import uuid
 import logging
 import time
+import random
 import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
@@ -48,6 +49,7 @@ class ChromiumUserDataManager:
             self.clones_dir = self.base_path / 'clones'
             self.lock_file = self.base_path / 'chromium_profile.lock'
             self.metadata_file = self.master_dir / 'metadata.json'
+            self.fingerprint_file = self.master_dir / 'browserforge_fingerprint.json'
 
     @contextmanager
     def get_user_data_context(self, mode: str) -> ContextManager[Tuple[str, Callable[[], None]]]:
@@ -63,9 +65,9 @@ class ChromiumUserDataManager:
             ValueError: If mode is not 'read' or 'write'
             RuntimeError: If user data management is disabled or lock cannot be acquired
         """
+        # Disabled path: create a temporary profile and ensure auto-cleanup
         if not self.enabled:
             logger.warning("Chromium user data management disabled, using temporary profile")
-            # Return empty temporary directory for backward compatibility
             temp_dir = tempfile.mkdtemp(prefix="chromium_temp_")
 
             def cleanup():
@@ -75,11 +77,26 @@ class ChromiumUserDataManager:
                 except Exception as e:
                     logger.warning(f"Failed to cleanup temp directory {temp_dir}: {e}")
 
-            yield temp_dir, cleanup
+            cleanup_func: Optional[Callable[[], None]] = cleanup
+            try:
+                yield temp_dir, cleanup_func
+            except Exception as e:
+                logger.error(f"Error in Chromium user data context mode={mode}: {e}")
+                raise
+            finally:
+                try:
+                    if callable(cleanup_func):
+                        cleanup_func()
+                except Exception as e:
+                    logger.warning(f"Automatic cleanup failed for temp directory {temp_dir}: {e}")
             return
 
+        # Validate mode for enabled path
         if mode not in ('read', 'write'):
             raise ValueError(f"user_data_mode must be 'read' or 'write', got '{mode}'")
+
+        effective_dir: Optional[str] = None
+        cleanup_func: Optional[Callable[[], None]] = None
 
         try:
             if mode == 'write':
@@ -91,6 +108,12 @@ class ChromiumUserDataManager:
         except Exception as e:
             logger.error(f"Error in Chromium user data context mode={mode}: {e}")
             raise
+        finally:
+            try:
+                if callable(cleanup_func):
+                    cleanup_func()
+            except Exception as e:
+                logger.warning(f"Automatic cleanup failed for Chromium user data context: {e}")
 
     def _write_mode_context(self) -> Tuple[str, Callable[[], None]]:
         """Write mode context: uses master directory with exclusive lock."""
@@ -102,10 +125,34 @@ class ChromiumUserDataManager:
         lock_fd = None
         if not FCNTL_AVAILABLE:
             logger.warning("fcntl not available on this platform, using exclusive fallback")
-            # Use a simpler approach for systems without fcntl (like Windows)
-            if self.lock_file.exists():
+            # Robust exclusive file-based locking for Windows using os.open with O_CREAT|O_EXCL
+            # Small random jitter to reduce thundering herd
+            try:
+                time.sleep(random.uniform(0.01, 0.2))
+            except Exception:
+                pass
+
+            max_lock_attempts = 50
+            delay = 0.05
+            for attempt in range(1, max_lock_attempts + 1):
+                try:
+                    # Attempt to create the lock file exclusively; succeeds only if it doesn't exist
+                    lock_fd = os.open(str(self.lock_file), os.O_CREAT | os.O_EXCL | os.O_RDWR)
+                    # Keep the file descriptor open to maintain exclusivity for the duration of the context
+                    logger.debug(f"Acquired exclusive Windows lock for Chromium write mode on {self.master_dir}")
+                    break
+                except (FileExistsError, PermissionError) as e:
+                    # Lock is held by another process; retry with exponential backoff
+                    if attempt == max_lock_attempts:
+                        raise RuntimeError("Chromium profile already in use (write mode)")
+                    time.sleep(delay)
+                    delay = min(2.0, delay * 2)
+                except Exception as e:
+                    # Unexpected error - propagate with context
+                    raise RuntimeError(f"Failed to acquire Chromium profile lock: {e}")
+            else:
+                # Safety net: if loop completes without break, consider lock acquisition failed
                 raise RuntimeError("Chromium profile already in use (write mode)")
-            self.lock_file.touch()
         else:
             try:
                 lock_fd = os.open(self.lock_file, os.O_CREAT | os.O_WRONLY | os.O_TRUNC)
@@ -142,12 +189,17 @@ class ChromiumUserDataManager:
                     except Exception as e:
                         logger.warning(f"Failed to release fcntl lock: {e}")
                 else:
-                    # Windows: cleanup lock file
+                    # Windows: explicitly close descriptor and remove lock file
                     try:
+                        if lock_fd is not None:
+                            try:
+                                os.close(lock_fd)
+                            except Exception as e:
+                                logger.warning(f"Failed to close Windows lock fd: {e}")
                         if self.lock_file.exists():
                             self.lock_file.unlink()
                     except Exception as e:
-                        logger.warning(f"Failed to remove lock file: {e}")
+                        logger.warning(f"Failed to remove Windows lock file: {e}")
                 logger.debug(f"Released exclusive lock for Chromium write mode on {self.master_dir}")
             except Exception as e:
                 logger.warning(f"Failed to cleanup Chromium profile lock: {e}")
@@ -231,45 +283,107 @@ class ChromiumUserDataManager:
             except Exception as e:
                 logger.warning(f"Failed to create Chromium profile metadata: {e}")
 
+        # Even if metadata already exists, ensure fingerprint file is present when BrowserForge is available
+        if BROWSERFORGE_AVAILABLE:
+            try:
+                if not self.fingerprint_file.exists():
+                    self._generate_browserforge_fingerprint()
+            except Exception as e:
+                logger.warning(f"Failed to ensure BrowserForge fingerprint presence: {e}")
+
     def _generate_browserforge_fingerprint(self) -> None:
-        """Generate and store BrowserForge fingerprint for Chromium profile."""
-        if not BROWSERFORGE_AVAILABLE:
-            return
-
-        try:
-            # Generate fingerprint for Chromium
-            fingerprint = browserforge.generate(
-                browser='chrome',
-                os='windows',
-                mobile=False
-            )
-
-            # Store fingerprint in master profile
-            fingerprint_file = self.master_dir / 'browserforge_fingerprint.json'
-            with open(fingerprint_file, 'w') as f:
-                json.dump(fingerprint, f, indent=2, default=str)
-
-            logger.debug(f"Generated BrowserForge fingerprint: {fingerprint_file}")
-
-            # Update metadata with fingerprint info
-            self.update_metadata({
-                "browserforge_fingerprint_generated": True,
-                "browserforge_fingerprint_file": str(fingerprint_file)
-            })
-        except Exception as e:
-            logger.warning(f"Failed to generate BrowserForge fingerprint: {e}")
+            """Generate and store BrowserForge fingerprint for Chromium profile."""
+            if not self.enabled or not BROWSERFORGE_AVAILABLE:
+                return
+    
+            try:
+                # Ensure master directory exists
+                self.master_dir.mkdir(parents=True, exist_ok=True)
+    
+                # Resolve BrowserForge generate function robustly:
+                # 1) Prefer top-level browserforge.generate if present
+                # 2) Fallback to browserforge.fingerprint.generate if available
+                # 3) If all fail, create a minimal default fingerprint
+                gen_func = None
+                source = "fallback"
+    
+                try:
+                    if hasattr(browserforge, "generate") and callable(getattr(browserforge, "generate")):
+                        gen_func = getattr(browserforge, "generate")
+                        source = "browserforge.generate"
+                    else:
+                        try:
+                            from importlib import import_module
+                            bf_fp = import_module("browserforge.fingerprint")
+                            if hasattr(bf_fp, "generate") and callable(getattr(bf_fp, "generate")):
+                                gen_func = getattr(bf_fp, "generate")
+                                source = "browserforge.fingerprint.generate"
+                        except Exception:
+                            # Keep source="fallback"
+                            pass
+                except Exception:
+                    # Keep source="fallback"
+                    gen_func = None
+    
+                fingerprint: Dict[str, Any]
+                if gen_func is not None:
+                    try:
+                        fingerprint = gen_func(
+                            browser="chrome",
+                            os="windows",
+                            mobile=False
+                        )
+                    except Exception as e:
+                        logger.warning(f"BrowserForge generate failed, using fallback fingerprint: {e}")
+                        source = "fallback"
+                        fingerprint = {
+                            "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                                         "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                            "viewport": {"width": 1920, "height": 1080},
+                            "screen": {"width": 1920, "height": 1080, "pixelRatio": 1}
+                        }
+                else:
+                    fingerprint = {
+                        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                                     "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                        "viewport": {"width": 1920, "height": 1080},
+                        "screen": {"width": 1920, "height": 1080, "pixelRatio": 1}
+                    }
+    
+                # Persist fingerprint atomically to file system
+                tmp_file = self.fingerprint_file.with_suffix('.json.tmp')
+                with open(tmp_file, 'w') as f:
+                    json.dump(fingerprint, f, indent=2, default=str)
+                    try:
+                        f.flush()
+                        os.fsync(f.fileno())
+                    except Exception:
+                        # fsync may not be available or necessary on all platforms
+                        pass
+    
+                os.replace(tmp_file, self.fingerprint_file)
+    
+                logger.debug(f"Generated BrowserForge fingerprint: {self.fingerprint_file}")
+    
+                # Update metadata with fingerprint info
+                self.update_metadata({
+                    "browserforge_fingerprint_generated": True,
+                    "browserforge_fingerprint_file": str(self.fingerprint_file),
+                    "browserforge_fingerprint_source": source
+                })
+            except Exception as e:
+                logger.warning(f"Failed to generate BrowserForge fingerprint: {e}")
 
     def get_browserforge_fingerprint(self) -> Optional[Dict[str, Any]]:
         """Get stored BrowserForge fingerprint if available."""
-        if not BROWSERFORGE_AVAILABLE:
+        if not self.enabled or not BROWSERFORGE_AVAILABLE:
             return None
 
-        fingerprint_file = self.master_dir / 'browserforge_fingerprint.json'
-        if not fingerprint_file.exists():
+        if not self.fingerprint_file.exists():
             return None
 
         try:
-            with open(fingerprint_file, 'r') as f:
+            with open(self.fingerprint_file, 'r') as f:
                 return json.load(f)
         except Exception as e:
             logger.warning(f"Failed to read BrowserForge fingerprint: {e}")
@@ -345,21 +459,22 @@ class ChromiumUserDataManager:
 
         if not self.master_dir.exists():
             logger.warning(f"Chromium master profile not found at {self.master_dir}")
-            return None
+            # Return structured empty result for consistency
+            return {
+                "format": format,
+                "cookies": [],
+                "profile_metadata": self.get_metadata(),
+                "cookies_available": False,
+                "master_profile_path": str(self.master_dir),
+                "export_timestamp": time.time()
+            }
 
         try:
             # Path to Chromium cookies database
             cookies_db = self.master_dir / "Default" / "Cookies"
 
-            if not cookies_db.exists():
-                logger.debug(f"No cookies database found at {cookies_db}")
-                return {
-                    "format": format,
-                    "cookies": [],
-                    "profile_metadata": self.get_metadata(),
-                    "cookies_available": False,
-                    "master_profile_path": str(self.master_dir)
-                }
+            # Ensure database file and schema exist before any read
+            self._ensure_cookies_database(cookies_db)
 
             # Read cookies from SQLite database
             cookies = self._read_cookies_from_db(cookies_db)
@@ -400,42 +515,48 @@ class ChromiumUserDataManager:
 
     def import_cookies(self, cookie_data: Dict[str, Any]) -> bool:
         """Import cookies to the master profile.
-
+    
         Args:
             cookie_data: Cookie data in JSON or storage_state format
-
+    
         Returns:
             True if import succeeded, False otherwise
         """
         if not self.enabled:
             logger.warning("Chromium user data management disabled, cannot import cookies")
             return False
-
-        if not self.master_dir.exists():
-            logger.warning(f"Chromium master profile not found at {self.master_dir}")
-            return False
-
+    
+        # Proactively initialize the master profile directories to avoid premature failure
         try:
-            # Ensure Default directory exists
+            # Ensure base and master directories exist
+            self.base_path.mkdir(parents=True, exist_ok=True)
+            self.master_dir.mkdir(parents=True, exist_ok=True)
+            # Ensure Default subdirectory exists
             default_dir = self.master_dir / "Default"
             default_dir.mkdir(parents=True, exist_ok=True)
-
+            # Initialize metadata for a newly created master profile
+            self._ensure_metadata()
+        except Exception as e:
+            logger.warning(f"Failed to initialize Chromium master profile directories: {e}")
+            return False
+    
+        try:
             # Path to Chromium cookies database
             cookies_db = default_dir / "Cookies"
-
+    
             # Extract cookies based on format
             if cookie_data.get("format") == "storage_state":
                 cookies = cookie_data.get("cookies", [])
             else:
                 cookies = cookie_data.get("cookies", [])
-
+    
             if not cookies:
                 logger.info("No cookies to import")
                 return True
-
+    
             # Import cookies to database
             success = self._write_cookies_to_db(cookies_db, cookies)
-
+    
             if success:
                 # Update metadata to reflect cookie import
                 self.update_metadata({
@@ -451,7 +572,7 @@ class ChromiumUserDataManager:
                     "cookie_import_status": "failed"
                 })
                 return False
-
+    
         except Exception as e:
             logger.warning(f"Failed to import cookies: {e}")
             self.update_metadata({
@@ -461,113 +582,239 @@ class ChromiumUserDataManager:
             return False
 
     def _read_cookies_from_db(self, cookies_db: Path) -> List[Dict[str, Any]]:
-        """Read cookies from Chromium SQLite database."""
-        try:
-            # Create a temporary copy to avoid locking issues
-            temp_db = cookies_db.parent / f"temp_cookies_{uuid.uuid4().hex}.db"
-            shutil.copy2(cookies_db, temp_db)
+            """Read cookies from Chromium SQLite database with robust Windows lock handling."""
+            try:
+                # Ensure database file and schema exist before any read
+                self._ensure_cookies_database(cookies_db)
 
-            cookies = []
-            with sqlite3.connect(temp_db) as conn:
-                conn.row_factory = sqlite3.Row
-                cursor = conn.cursor()
-
-                # Query cookies table
-                cursor.execute("""
-                    SELECT creation_utc, host_key, name, value, path, expires_utc,
-                           is_secure, is_httponly, samesite, last_access_utc,
-                           has_expires, is_persistent
-                    FROM cookies
-                    ORDER BY creation_utc DESC
-                """)
-
-                for row in cursor.fetchall():
-                    cookie = {
-                        "name": row["name"],
-                        "value": row["value"],
-                        "domain": row["host_key"],
-                        "path": row["path"],
-                        "expires": row["expires_utc"] if row["has_expires"] else -1,
-                        "httpOnly": bool(row["is_httponly"]),
-                        "secure": bool(row["is_secure"]),
-                        "sameSite": self._convert_samesite(row["samesite"]),
-                        "creationTime": row["creation_utc"],
-                        "lastAccessTime": row["last_access_utc"],
-                        "persistent": bool(row["is_persistent"])
-                    }
-                    cookies.append(cookie)
-
-            # Clean up temporary database
-            temp_db.unlink()
-            return cookies
-
-        except Exception as e:
-            logger.warning(f"Failed to read cookies from database: {e}")
-            return []
+                # Create a temporary copy to avoid locking issues
+                temp_db = cookies_db.parent / f"temp_cookies_{uuid.uuid4().hex}.db"
+    
+                # Retry copying the locked database with exponential backoff
+                max_copy_attempts = 10
+                delay = 0.1
+                copied = False
+                for attempt in range(1, max_copy_attempts + 1):
+                    try:
+                        shutil.copy2(cookies_db, temp_db)
+                        copied = True
+                        break
+                    except Exception as e:
+                        logger.warning(
+                            f"Temp cookies copy failed (attempt {attempt}/{max_copy_attempts}): {e}"
+                        )
+                        time.sleep(delay)
+                        delay = min(2.0, delay * 2)
+                if not copied:
+                    logger.warning(f"Failed to copy cookies DB to temp file: {cookies_db}")
+                    return []
+    
+                # Read cookies with retries to handle transient sqlite3.OperationalError
+                cookies: List[Dict[str, Any]] = []
+                max_sql_attempts = 10
+                delay = 0.1
+                last_err: Optional[Exception] = None
+                for attempt in range(1, max_sql_attempts + 1):
+                    try:
+                        with sqlite3.connect(temp_db) as conn:
+                            conn.execute("PRAGMA busy_timeout = 5000")
+                            conn.row_factory = sqlite3.Row
+                            cursor = conn.cursor()
+                            cursor.execute("""
+                                SELECT creation_utc, host_key, name, value, path, expires_utc,
+                                       is_secure, is_httponly, samesite, last_access_utc,
+                                       has_expires, is_persistent
+                                FROM cookies
+                                ORDER BY creation_utc DESC
+                            """)
+                            for row in cursor.fetchall():
+                                cookie = {
+                                    "name": row["name"],
+                                    "value": row["value"],
+                                    "domain": row["host_key"],
+                                    "path": row["path"],
+                                    "expires": row["expires_utc"] if row["has_expires"] else -1,
+                                    "httpOnly": bool(row["is_httponly"]),
+                                    "secure": bool(row["is_secure"]),
+                                    "sameSite": self._convert_samesite(row["samesite"]),
+                                    "creationTime": row["creation_utc"],
+                                    "lastAccessTime": row["last_access_utc"],
+                                    "persistent": bool(row["is_persistent"])
+                                }
+                                cookies.append(cookie)
+                        break
+                    except sqlite3.OperationalError as e:
+                        last_err = e
+                        logger.warning(
+                            f"sqlite3 OperationalError reading cookies (attempt {attempt}/{max_sql_attempts}): {e}"
+                        )
+                        time.sleep(delay)
+                        delay = min(2.0, delay * 2)
+                    except Exception as e:
+                        last_err = e
+                        logger.warning(f"Unexpected error reading temp cookies DB: {e}")
+                        break
+    
+                # Clean up temporary database
+                try:
+                    temp_db.unlink()
+                except Exception:
+                    pass
+    
+                if cookies:
+                    return cookies
+    
+                if last_err:
+                    logger.warning(f"Failed to read cookies from database after retries: {last_err}")
+                return []
+    
+            except Exception as e:
+                logger.warning(f"Failed to read cookies from database: {e}")
+                # Ensure cleanup if temp_db was created
+                try:
+                    if 'temp_db' in locals() and temp_db.exists():
+                        temp_db.unlink()
+                except Exception:
+                    pass
+                return []
 
     def _write_cookies_to_db(self, cookies_db: Path, cookies: List[Dict[str, Any]]) -> bool:
-        """Write cookies to Chromium SQLite database."""
-        try:
-            # Create database if it doesn't exist
-            if not cookies_db.exists():
-                self._create_cookies_database(cookies_db)
-
-            # Create a temporary copy for writing
-            temp_db = cookies_db.parent / f"temp_cookies_write_{uuid.uuid4().hex}.db"
-            if cookies_db.exists():
-                shutil.copy2(cookies_db, temp_db)
-            else:
-                self._create_cookies_database(temp_db)
-
-            with sqlite3.connect(temp_db) as conn:
-                cursor = conn.cursor()
-
-                # Insert or update cookies
-                for cookie in cookies:
-                    # Convert samesite back to database format
-                    samesite_db = self._convert_samesite_to_db(cookie.get("sameSite", "None"))
-
-                    cursor.execute("""
-                        INSERT OR REPLACE INTO cookies (
-                            creation_utc, host_key, name, value, path, expires_utc,
-                            is_secure, is_httponly, samesite, last_access_utc,
-                            has_expires, is_persistent
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """, (
-                        int(time.time() * 1000000),  # creation_utc in microseconds
-                        cookie.get("domain", ""),
-                        cookie.get("name", ""),
-                        cookie.get("value", ""),
-                        cookie.get("path", "/"),
-                        cookie.get("expires", -1),
-                        1 if cookie.get("secure", False) else 0,
-                        1 if cookie.get("httpOnly", False) else 0,
-                        samesite_db,
-                        int(time.time() * 1000000),  # last_access_utc in microseconds
-                        1 if cookie.get("expires", -1) != -1 else 0,
-                        1 if cookie.get("persistent", True) else 0
-                    ))
-
-                conn.commit()
-
-            # Replace original database with temporary one
-            if cookies_db.exists():
-                cookies_db.unlink()
-            shutil.move(temp_db, cookies_db)
-            return True
-
-        except Exception as e:
-            logger.warning(f"Failed to write cookies to database: {e}")
-            # Clean up temporary database if it exists
-            if 'temp_db' in locals() and temp_db.exists():
-                temp_db.unlink()
-            return False
+            """Write cookies to Chromium SQLite database with robust Windows lock handling."""
+            try:
+                # Ensure database file and schema exist before any write
+                self._ensure_cookies_database(cookies_db)
+    
+                # Create a temporary copy for writing
+                temp_db = cookies_db.parent / f"temp_cookies_write_{uuid.uuid4().hex}.db"
+                if cookies_db.exists():
+                    # Retry copy with exponential backoff to avoid file locking
+                    max_copy_attempts = 10
+                    delay = 0.1
+                    copied = False
+                    for attempt in range(1, max_copy_attempts + 1):
+                        try:
+                            shutil.copy2(cookies_db, temp_db)
+                            copied = True
+                            break
+                        except Exception as e:
+                            logger.warning(
+                                f"Temp cookies write copy failed (attempt {attempt}/{max_copy_attempts}): {e}"
+                            )
+                            time.sleep(delay)
+                            delay = min(2.0, delay * 2)
+                    if not copied:
+                        logger.warning(f"Failed to copy cookies DB to temp file for write: {cookies_db}")
+                        return False
+                else:
+                    self._create_cookies_database(temp_db)
+    
+                # Insert/update with retries to handle sqlite3.OperationalError (database is locked)
+                max_sql_attempts = 10
+                delay = 0.1
+                sql_success = False
+                last_err: Optional[Exception] = None
+                for attempt in range(1, max_sql_attempts + 1):
+                    try:
+                        with sqlite3.connect(temp_db) as conn:
+                            conn.execute("PRAGMA busy_timeout = 5000")
+                            cursor = conn.cursor()
+    
+                            # Insert or update cookies
+                            for cookie in cookies:
+                                # Convert samesite back to database format
+                                samesite_db = self._convert_samesite_to_db(cookie.get("sameSite", "None"))
+    
+                                cursor.execute("""
+                                    INSERT OR REPLACE INTO cookies (
+                                        creation_utc, host_key, name, value, path, expires_utc,
+                                        is_secure, is_httponly, samesite, last_access_utc,
+                                        has_expires, is_persistent
+                                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                """, (
+                                    int(time.time() * 1000000),  # creation_utc in microseconds
+                                    cookie.get("domain", ""),
+                                    cookie.get("name", ""),
+                                    cookie.get("value", ""),
+                                    cookie.get("path", "/"),
+                                    cookie.get("expires", -1),
+                                    1 if cookie.get("secure", False) else 0,
+                                    1 if cookie.get("httpOnly", False) else 0,
+                                    samesite_db,
+                                    int(time.time() * 1000000),  # last_access_utc in microseconds
+                                    1 if cookie.get("expires", -1) != -1 else 0,
+                                    1 if cookie.get("persistent", True) else 0
+                                ))
+    
+                            conn.commit()
+                        sql_success = True
+                        break
+                    except sqlite3.OperationalError as e:
+                        last_err = e
+                        logger.warning(
+                            f"sqlite3 OperationalError writing cookies (attempt {attempt}/{max_sql_attempts}): {e}"
+                        )
+                        time.sleep(delay)
+                        delay = min(2.0, delay * 2)
+                    except Exception as e:
+                        last_err = e
+                        logger.warning(f"Unexpected error writing temp cookies DB: {e}")
+                        break
+    
+                if not sql_success:
+                    # Cleanup temp DB on failure
+                    try:
+                        if temp_db.exists():
+                            temp_db.unlink()
+                    except Exception:
+                        pass
+                    if last_err:
+                        logger.warning(f"Failed to write cookies after retries: {last_err}")
+                    return False
+    
+                # Replace original database with temporary one, with aggressive retries
+                max_replace_attempts = 10
+                delay = 0.1
+                for attempt in range(1, max_replace_attempts + 1):
+                    try:
+                        if cookies_db.exists():
+                            try:
+                                cookies_db.unlink()
+                            except Exception as e:
+                                # If unlink fails, treat as retry-able
+                                raise e
+                        shutil.move(temp_db, cookies_db)
+                        return True
+                    except Exception as e:
+                        logger.warning(
+                            f"Replace cookies DB failed (attempt {attempt}/{max_replace_attempts}): {e}"
+                        )
+                        time.sleep(delay)
+                        delay = min(2.0, delay * 2)
+    
+                # Cleanup temp_db on failure
+                try:
+                    if temp_db.exists():
+                        temp_db.unlink()
+                except Exception:
+                    pass
+                return False
+    
+            except Exception as e:
+                logger.warning(f"Failed to write cookies to database: {e}")
+                # Clean up temporary database if it exists
+                try:
+                    if 'temp_db' in locals() and temp_db.exists():
+                        temp_db.unlink()
+                except Exception:
+                    pass
+                return False
 
     def _create_cookies_database(self, cookies_db: Path) -> None:
         """Create a new Chromium cookies database with proper schema."""
         cookies_db.parent.mkdir(parents=True, exist_ok=True)
 
         with sqlite3.connect(cookies_db) as conn:
+            conn.execute("PRAGMA busy_timeout = 5000")
             cursor = conn.cursor()
 
             # Create cookies table
@@ -599,6 +846,94 @@ class ChromiumUserDataManager:
             cursor.execute("CREATE INDEX IF NOT EXISTS cookies_path_index ON cookies (path)")
 
             conn.commit()
+
+    def _ensure_cookies_database(self, cookies_db: Path) -> bool:
+        """Ensure the SQLite cookies DB exists with the expected schema; reinitialize if missing or corrupted.
+
+        Returns:
+            True if the database is ready for use, False if reinitialization failed.
+        """
+        try:
+            # Ensure parent directory exists (e.g., Default/)
+            cookies_db.parent.mkdir(parents=True, exist_ok=True)
+
+            # Create if missing
+            if not cookies_db.exists():
+                self._create_cookies_database(cookies_db)
+                return True
+
+            # Verify schema presence
+            with sqlite3.connect(cookies_db) as conn:
+                conn.execute("PRAGMA busy_timeout = 5000")
+                cursor = conn.cursor()
+                cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='cookies'")
+                row = cursor.fetchone()
+                if not row:
+                    # Table missing (possibly due to corruption or legacy); recreate schema in-place
+                    cursor.execute("""
+                        CREATE TABLE IF NOT EXISTS cookies (
+                            creation_utc INTEGER NOT NULL,
+                            host_key TEXT NOT NULL,
+                            name TEXT NOT NULL,
+                            value TEXT NOT NULL,
+                            path TEXT NOT NULL,
+                            expires_utc INTEGER NOT NULL,
+                            is_secure INTEGER NOT NULL,
+                            is_httponly INTEGER NOT NULL,
+                            samesite INTEGER NOT NULL,
+                            last_access_utc INTEGER NOT NULL,
+                            has_expires INTEGER NOT NULL DEFAULT 1,
+                            is_persistent INTEGER NOT NULL DEFAULT 1,
+                            priority INTEGER NOT NULL DEFAULT 1,
+                            encrypted_value BLOB DEFAULT '',
+                            samesite_scheme INTEGER NOT NULL DEFAULT 0,
+                            source_scheme INTEGER NOT NULL DEFAULT 0,
+                            UNIQUE (creation_utc, host_key, name, path)
+                        )
+                    """)
+                    cursor.execute("CREATE INDEX IF NOT EXISTS cookies_domain_index ON cookies (host_key)")
+                    cursor.execute("CREATE INDEX IF NOT EXISTS cookies_name_index ON cookies (name)")
+                    cursor.execute("CREATE INDEX IF NOT EXISTS cookies_path_index ON cookies (path)")
+                    conn.commit()
+            return True
+        except (sqlite3.DatabaseError, sqlite3.OperationalError) as e:
+            # Database file is not valid SQLite or locked beyond recovery: reinitialize
+            logger.warning(f"Cookies DB invalid or corrupted at {cookies_db}: {e}. Reinitializing.")
+            temp_new = cookies_db.parent / f"reinit_cookies_{uuid.uuid4().hex}.db"
+            try:
+                # Build a fresh DB
+                self._create_cookies_database(temp_new)
+
+                # Replace original with retries to handle Windows file locking
+                max_replace_attempts = 10
+                delay = 0.1
+                for attempt in range(1, max_replace_attempts + 1):
+                    try:
+                        if cookies_db.exists():
+                            try:
+                                cookies_db.unlink()
+                            except Exception as unlink_err:
+                                # Retry-able unlink failures (e.g., locked), bubble to outer catch
+                                raise unlink_err
+                        shutil.move(temp_new, cookies_db)
+                        return True
+                    except Exception as replace_err:
+                        logger.warning(
+                            f"Cookies DB reinit replace failed (attempt {attempt}/{max_replace_attempts}): {replace_err}"
+                        )
+                        time.sleep(delay)
+                        delay = min(2.0, delay * 2)
+            finally:
+                # Cleanup temp_new if still present
+                try:
+                    if temp_new.exists():
+                        temp_new.unlink()
+                except Exception:
+                    pass
+            return False
+        except Exception as e:
+            logger.warning(f"Unexpected error ensuring cookies DB at {cookies_db}: {e}")
+            return False
 
     def _convert_samesite(self, samesite_int: int) -> str:
         """Convert Chromium samesite integer to string."""

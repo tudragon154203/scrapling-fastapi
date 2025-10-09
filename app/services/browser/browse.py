@@ -1,4 +1,5 @@
 import logging
+import os
 
 import app.core.config as app_config
 from app.schemas.crawl import CrawlRequest
@@ -95,9 +96,8 @@ class BrowseCrawler:
                 # Execute browse session
                 crawler.engine.run(crawl_request, page_action)
 
-                # Export cookies from the master profile after session
-                user_data_manager.export_cookies()
-                logger.info("Chromium browse session completed, cookies exported to master profile")
+                # Log session completion for Camoufox
+                logger.info("Camoufox browse session completed")
 
                 # Return success response
                 return BrowseResponse(
@@ -133,9 +133,12 @@ class BrowseCrawler:
             self.user_data_manager = user_data_manager  # Store for error handling
 
             with user_data_manager.get_user_data_context('write') as (effective_dir, cleanup):
+                # Ensure absolute path for profile persistence
+                effective_dir = os.path.abspath(effective_dir) if effective_dir else None
+
                 # Signal write-mode to Chromium executor via settings (runtime-only flags)
                 settings.chromium_runtime_user_data_mode = 'write'
-                settings.chromium_runtime_effective_user_data_dir = effective_dir
+                settings.chromium_runtime_effective_user_data_dir = os.path.abspath(effective_dir) if effective_dir else None
 
                 # Update crawl request with user-data enablement
                 crawl_request.force_user_data = True
@@ -153,7 +156,7 @@ class BrowseCrawler:
                 # Return success response
                 return BrowseResponse(
                     status="success",
-                    message="Browser session completed successfully"
+                    message="Chromium browser session completed successfully"
                 )
         except RuntimeError as e:
             # Handle lock conflicts specifically

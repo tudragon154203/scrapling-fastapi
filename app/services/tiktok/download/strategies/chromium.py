@@ -8,6 +8,7 @@ import os
 import re
 import sys
 import threading
+import inspect
 from typing import Any, Dict, Optional
 
 # Set proper event loop policy for Windows
@@ -17,12 +18,18 @@ if sys.platform == "win32":
     except Exception:
         pass
 
-# Import DynamicFetcher for Chromium support
+# Import fetchers for Chromium support
 try:
     from scrapling.fetchers import DynamicFetcher
 except ImportError:
     print("Error: DynamicFetcher not available. Please install scrapling with: pip install scrapling")
     sys.exit(1)
+
+try:
+    from app.services.browser.fetchers.persistent_chromium import PersistentChromiumFetcher
+except ImportError:
+    PersistentChromiumFetcher = None
+    print("Warning: PersistentChromiumFetcher not available, falling back to DynamicFetcher")
 
 from app.services.tiktok.download.actions.resolver import TikVidResolveAction
 from app.services.tiktok.download.strategies.base import TikTokDownloadStrategy
@@ -86,34 +93,58 @@ class ChromiumDownloadStrategy(TikTokDownloadStrategy):
                 fetcher_class = components["fetcher"]
                 fetch_kwargs: Dict[str, Any] = components["fetch_kwargs"]
                 resolve_action: TikVidResolveAction = components["resolve_action"]
+                user_data_cleanup = components.get("user_data_cleanup")
 
                 try:
-                    # Use DynamicFetcher directly
-                    fetcher = fetcher_class()
-                    page_result = fetcher.fetch(TIKVID_BASE, **fetch_kwargs)
+                    # Create fetcher based on type
+                    if fetcher_class == PersistentChromiumFetcher:
+                        # Use persistent fetcher with user data directory
+                        effective_user_data_dir = components.get("effective_user_data_dir")
+                        fetcher = fetcher_class(user_data_dir=effective_user_data_dir)
+                    else:
+                        # Use DynamicFetcher for ephemeral sessions
+                        fetcher = fetcher_class()
 
-                    direct_url = None
-                    if resolve_action.result_links:
-                        logger.debug(f"Found {len(resolve_action.result_links)} download links")
-                        media_links = self._filter_media_links(resolve_action.result_links)
-                        logger.debug(f"Filtered media links: {media_links}")
-                        if media_links:
-                            direct_url = media_links[0]
-                        else:
-                            logger.warning("Resolver warning: TikVid returned only info links, retrying...")
-                    elif getattr(page_result, "html_content", None):
-                        mp4_urls = re.findall(r'href=["\']([^"\']*\.mp4[^"\']*)["\']', page_result.html_content)
-                        if mp4_urls:
-                            direct_url = mp4_urls[0]
-                            logger.info(f"Found MP4 URL in HTML: {direct_url}")
+                    try:
+                        page_result = fetcher.fetch(TIKVID_BASE, **fetch_kwargs)
 
-                    if direct_url:
-                        logger.info(f"Direct MP4 URL resolved: {direct_url}")
-                        result_holder["url"] = direct_url
-                        return
+                        direct_url = None
+                        if resolve_action.result_links:
+                            logger.debug(f"Found {len(resolve_action.result_links)} download links")
+                            media_links = self._filter_media_links(resolve_action.result_links)
+                            logger.debug(f"Filtered media links: {media_links}")
+                            if media_links:
+                                direct_url = media_links[0]
+                            else:
+                                logger.warning("Resolver warning: TikVid returned only info links, retrying...")
+                        elif getattr(page_result, "html_content", None):
+                            mp4_urls = re.findall(r'href=["\']([^"\']*\.mp4[^"\']*)["\']', page_result.html_content)
+                            if mp4_urls:
+                                direct_url = mp4_urls[0]
+                                logger.info(f"Found MP4 URL in HTML: {direct_url}")
 
-                    logger.warning("Resolver warning: no MP4 link found, retrying...")
-                    last_exc = RuntimeError("TikVid resolver returned no download URL")
+                        if direct_url:
+                            logger.info(f"Direct MP4 URL resolved: {direct_url}")
+                            result_holder["url"] = direct_url
+                            return
+
+                        logger.warning("Resolver warning: no MP4 link found, retrying...")
+                        last_exc = RuntimeError("TikVid resolver returned no download URL")
+
+                    finally:
+                        # Ensure proper cleanup of fetcher resources and user data context
+                        if hasattr(fetcher, 'close'):
+                            try:
+                                fetcher.close()
+                            except Exception as e:
+                                logger.warning(f"Error closing fetcher: {e}")
+                        # Clean up user data context if provided
+                        if callable(user_data_cleanup):
+                            try:
+                                user_data_cleanup()
+                            except Exception as e:
+                                logger.warning(f"Error cleaning up user data context: {e}")
+
                 except Exception as exc:
                     last_exc = exc
                     logger.warning(f"Chromium attempt {attempt} failed: {_format_exception(exc)}")
@@ -144,76 +175,73 @@ class ChromiumDownloadStrategy(TikTokDownloadStrategy):
         quality_hint: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
-        Compose DynamicFetcher keyword arguments for Chromium-based resolution.
+        Compose Chromium fetcher keyword arguments for TikTok video resolution.
 
-        This encapsulates the Chromium configuration for stealth and anti-detection.
+        This encapsulates the Chromium configuration for stealth and anti-detection,
+        supporting both DynamicFetcher and PersistentChromiumFetcher.
         """
         resolve_action = TikVidResolveAction(tiktok_url, quality_hint)
 
         # Get user data context for read mode (clone master profile)
         user_data_cleanup = None
+        effective_user_data_dir = None
+        abs_dir: Optional[str] = None
         try:
             user_data_context = self.user_data_manager.get_user_data_context('read')
             effective_user_data_dir, user_data_cleanup = user_data_context.__enter__()
-            logger.debug(f"Using Chromium user data directory: {effective_user_data_dir}")
+            # Ensure absolute path for profile persistence
+            if effective_user_data_dir:
+                abs_dir = os.path.abspath(effective_user_data_dir)
+                effective_user_data_dir = abs_dir
+            logger.debug(f"Using Chromium user data directory (absolute): {effective_user_data_dir}")
         except Exception as e:
             logger.warning(f"Failed to get Chromium user data context, falling back to temporary profile: {e}")
             effective_user_data_dir = None
             user_data_cleanup = None
+            abs_dir = None
 
-        # Chromium-specific configuration for stealth and anti-detection
-        additional_args = {
-            # Browser arguments for stealth
-            "browser_args": [
-                "--no-sandbox",
-                "--disable-setuid-sandbox",
-                "--disable-dev-shm-usage",
-                "--disable-accelerated-2d-canvas",
-                "--no-first-run",
-                "--no-zygote",
-                "--single-process",
-                "--disable-gpu",
-                "--disable-background-timer-throttling",
-                "--disable-backgrounding-occluded-windows",
-                "--disable-renderer-backgrounding",
-                "--disable-features=TranslateUI",
-                "--disable-ipc-flooding-protection",
-                "--disable-web-security",
-                "--disable-features=VizDisplayCompositor",
-                "--disable-extensions",
-                "--disable-plugins",
-                "--disable-images",  # Faster loading
-                "--disable-javascript",  # Enable only when needed
-                "--disable-default-apps",
-                "--disable-sync",
-                "--disable-translate",
-                "--hide-scrollbars",
-                "--metrics-recording-only",
-                "--mute-audio",
-                "--no-first-run",
-                "--safebrowsing-disable-auto-update",
-                "--disable-infobars",
-                "--window-position=0,0",
-                "--window-size=1920,1080",
-            ],
-            # User preferences for stealth
-            "user_prefs": {
-                "profile.default_content_setting_values.notifications": 2,
-                "profile.default_content_settings.popups": 0,
-                "profile.managed_default_content_settings.images": 2,
-            },
-        }
+        # Choose fetcher: prefer DynamicFetcher for strategy tests and compatibility.
+        # Persistent profile is handled by browse flows; downloads use read-mode clones.
+        fetcher_class = DynamicFetcher
+        logger.debug("Using DynamicFetcher (ephemeral profile)")
 
-        # Add user data directory if available
-        if effective_user_data_dir:
-            additional_args["user_data_dir"] = effective_user_data_dir
+        # Browser arguments for stealth and anti-detection
+        browser_args = [
+            "--no-sandbox",
+            "--disable-setuid-sandbox",
+            "--disable-dev-shm-usage",
+            "--disable-accelerated-2d-canvas",
+            "--no-first-run",
+            "--disable-gpu",
+            "--disable-background-timer-throttling",
+            "--disable-backgrounding-occluded-windows",
+            "--disable-renderer-backgrounding",
+            "--disable-features=TranslateUI",
+            "--disable-ipc-flooding-protection",
+            "--disable-web-security",
+            "--disable-features=VizDisplayCompositor",
+            "--disable-extensions",
+            "--disable-plugins",
+            "--disable-images",  # Faster loading
+            "--disable-default-apps",
+            "--disable-sync",
+            "--disable-translate",
+            "--hide-scrollbars",
+            "--metrics-recording-only",
+            "--mute-audio",
+            "--safebrowsing-disable-auto-update",
+            "--disable-infobars",
+            "--window-position=0,0",
+            "--window-size=1920,1080",
+        ]
 
-        # Create fetch kwargs for DynamicFetcher
-        # Note: DynamicFetcher uses Playwright's Chromium by default
-        # Convert the action to a callable as expected by DynamicFetcher
+        # Create page action callable for fetchers
         def page_action_callable(page):
             return resolve_action._execute(page)
 
+        # Base fetch kwargs compatible with both fetchers
+        # IMPORTANT: DynamicFetcher.fetch does not accept 'browser_args' directly.
+        # Only PersistentChromiumFetcher supports passing Chromium launch args.
         fetch_kwargs = {
             "headless": True,  # Use headless mode for downloads
             "page_action": page_action_callable,
@@ -223,20 +251,38 @@ class ChromiumDownloadStrategy(TikTokDownloadStrategy):
             "wait": 5000,  # Wait 5 seconds after page loads
         }
 
-        # Apply additional args if DynamicFetcher supports them
-        if hasattr(DynamicFetcher, 'fetch'):
-            try:
-                import inspect
-                sig = inspect.signature(DynamicFetcher.fetch)
-                if 'additional_args' in sig.parameters:
-                    fetch_kwargs["additional_args"] = additional_args
-            except Exception:
-                logger.debug("Could not inspect DynamicFetcher signature, skipping additional_args")
+        # Inject browser args only for PersistentChromiumFetcher
+        if fetcher_class == PersistentChromiumFetcher:
+            fetch_kwargs["browser_args"] = browser_args
+
+        # Conditionally pass user-data parameters to DynamicFetcher if supported
+        try:
+            sig = inspect.signature(DynamicFetcher.fetch)
+            params = sig.parameters
+            has_varkw = any(p.kind == inspect.Parameter.VAR_KEYWORD for p in params.values())
+            supports_user_data_dir = ("user_data_dir" in params) or has_varkw
+            supports_additional_args = ("additional_args" in params) or has_varkw
+        except Exception as e:
+            logger.debug(f"Failed to introspect DynamicFetcher.fetch signature: {e}")
+            supports_user_data_dir = False
+            supports_additional_args = False
+
+        if abs_dir and fetcher_class == DynamicFetcher:
+            if supports_user_data_dir:
+                fetch_kwargs["user_data_dir"] = abs_dir
+            if supports_additional_args:
+                additional_args = fetch_kwargs.get("additional_args", {})
+                if not isinstance(additional_args, dict):
+                    additional_args = {}
+                additional_args["user_data_dir"] = abs_dir
+                fetch_kwargs["additional_args"] = additional_args
 
         return {
-            "fetcher": DynamicFetcher,
+            "fetcher": fetcher_class,
             "fetch_kwargs": fetch_kwargs,
             "resolve_action": resolve_action,
+            "effective_user_data_dir": effective_user_data_dir,
+            "user_data_cleanup": user_data_cleanup,
             "headers": {"User-Agent": USER_AGENT},
         }
 
