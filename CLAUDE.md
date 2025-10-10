@@ -18,7 +18,30 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Verbose output**: `python -m pytest -v`
 - **Unit tests only**: `python -m pytest -m unit`
 - **Integration tests only**: `python -m pytest -m integration` (requires real network/browser)
-- **Integration tests**: `python -m pytest` (requires real network/browser)
+
+### Test Structure
+
+The test suite is organized into two main categories:
+
+```
+tests/
+├── unit/           # Unit tests (mocked, no network/browser dependencies)
+│   ├── api/        # API endpoint unit tests
+│   ├── core/       # Configuration, logging unit tests
+│   ├── schemas/    # Pydantic schema validation tests
+│   └── services/   # Business logic unit tests
+│       ├── browser/
+│       ├── common/
+│       ├── crawler/
+│       ├── proxy/
+│       └── tiktok/
+└── integration/    # Real network/browser tests only
+    ├── api/        # API integration tests
+    ├── chromium/   # Browser automation integration
+    ├── crawl/      # Crawling integration tests
+    ├── services/   # Service integration tests
+    └── tiktok/     # TikTok integration tests
+```
 
 ### Test Markers
 
