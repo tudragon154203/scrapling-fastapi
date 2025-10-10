@@ -97,6 +97,11 @@ class TestChromiumCookieManagement:
 
     def test_export_empty_profile(self, user_data_manager):
         """Test exporting cookies from an empty profile."""
+        # Initialize the master profile first to ensure it exists
+        with user_data_manager.get_user_data_context('write') as (effective_dir, cleanup):
+            # Just create the profile structure
+            cleanup()
+
         result = user_data_manager.export_cookies()
 
         assert result is not None
@@ -154,7 +159,15 @@ class TestChromiumCookieManagement:
 
     def test_import_storage_state_format(self, user_data_manager, storage_state_cookies):
         """Test importing cookies in storage_state format."""
-        success = user_data_manager.import_cookies(storage_state_cookies)
+        # Initialize the master profile first
+        with user_data_manager.get_user_data_context('write') as (effective_dir, cleanup):
+            cleanup()
+
+        # Add format indicator for storage_state format
+        formatted_cookies = storage_state_cookies.copy()
+        formatted_cookies["format"] = "storage_state"
+
+        success = user_data_manager.import_cookies(formatted_cookies)
         assert success is True
 
         # Verify cookies were imported
