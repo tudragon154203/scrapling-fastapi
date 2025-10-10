@@ -101,6 +101,65 @@ class TikVidVideoResolver:
 
         raise RuntimeError(f"Resolution failed after retries: {_format_exception(last_exc or RuntimeError('unknown error'))}")
 
+    async def resolve_video_url_async(self, tiktok_url: str, quality_hint: Optional[str] = None) -> str:
+        """
+        Resolve the direct MP4 URL for a TikTok video using TikVid asynchronously.
+
+        Args:
+            tiktok_url: The TikTok video URL to resolve
+            quality_hint: Optional quality preference (HD, SD, etc.)
+
+        Returns:
+            Direct MP4 URL for the video
+
+        Raises:
+            RuntimeError: If resolution fails after retries
+        """
+        last_exc: Optional[Exception] = None
+        for attempt in range(1, 4):
+            components = self._build_camoufox_fetch_kwargs(tiktok_url, quality_hint)
+            adapter: ScraplingFetcherAdapter = components["adapter"]
+            fetch_kwargs: Dict[str, Any] = components["fetch_kwargs"]
+            resolve_action: TikVidResolveAction = components["resolve_action"]
+            cleanup = components["cleanup"]
+
+            try:
+                page_result = await adapter.fetch_async(TIKVID_BASE, fetch_kwargs)
+            except Exception as exc:
+                last_exc = exc
+                logger.warning(f"Camoufox attempt {attempt} failed: {_format_exception(exc)}")
+                continue
+            finally:
+                if cleanup:
+                    try:
+                        cleanup()
+                    except Exception as exc:
+                        logger.warning(f"User data cleanup warning: {_format_exception(exc)}")
+
+            direct_url = None
+            if resolve_action.result_links:
+                logger.debug(f"Found {len(resolve_action.result_links)} download links")
+                media_links = self._filter_media_links(resolve_action.result_links)
+                logger.debug(f"Filtered media links: {media_links}")
+                if media_links:
+                    direct_url = media_links[0]
+                else:
+                    logger.warning("Resolver warning: TikVid returned only info links, retrying...")
+            elif getattr(page_result, "html_content", None):
+                mp4_urls = re.findall(r'href=["\']([^"\']*\.mp4[^"\']*)["\']', page_result.html_content)
+                if mp4_urls:
+                    direct_url = mp4_urls[0]
+                    logger.info(f"Found MP4 URL in HTML: {direct_url}")
+
+            if direct_url:
+                logger.info(f"Direct MP4 URL resolved: {direct_url}")
+                return direct_url
+
+            logger.warning("Resolver warning: no MP4 link found, retrying...")
+            last_exc = RuntimeError("TikVid resolver returned no download URL")
+
+        raise RuntimeError(f"Resolution failed after retries: {_format_exception(last_exc or RuntimeError('unknown error'))}")
+
     def _build_camoufox_fetch_kwargs(
         self,
         tiktok_url: str,

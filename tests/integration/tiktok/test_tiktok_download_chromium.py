@@ -109,21 +109,23 @@ class TestTikTokDownloadChromiumIntegration:
             with patch.dict(os.environ, {'CHROMIUM_USER_DATA_DIR': temp_dir}):
                 # Force the use of Chromium strategy
                 with patch('app.services.tiktok.download.strategies.factory.TIKTOK_DOWNLOAD_STRATEGY', 'chromium'):
-                    from app.core.config import Settings
-                    # Create settings with the temporary user data dir
-                    settings = Settings()
-                    settings.chromium_user_data_dir = temp_dir
+                    # Mock the settings to include the temporary user data dir
+                    with patch('app.services.tiktok.download.service.get_settings') as mock_get_settings:
+                        from app.core.config import Settings
+                        mock_settings = Settings()
+                        mock_settings.chromium_user_data_dir = temp_dir
+                        mock_get_settings.return_value = mock_settings
 
-                    service = TikTokDownloadService(settings=settings)
-                    assert isinstance(service.download_strategy, ChromiumDownloadStrategy)
+                        service = TikTokDownloadService()
+                        assert isinstance(service.download_strategy, ChromiumDownloadStrategy)
 
-                    request = TikTokDownloadRequest(url=DEMO_TIKTOK_URL)
+                        request = TikTokDownloadRequest(url=DEMO_TIKTOK_URL)
 
-                    result = await service.download_video(request)
+                        result = await service.download_video(request)
 
-                    # Verify the call succeeded
-                    assert result.status == "success"
-                    assert result.download_url is not None
+                        # Verify the call succeeded
+                        assert result.status == "success"
+                        assert result.download_url is not None
 
     @pytest.mark.asyncio
     @pytest.mark.slow
@@ -216,24 +218,26 @@ class TestTikTokDownloadChromiumIntegration:
             with patch.dict(os.environ, {'CHROMIUM_USER_DATA_DIR': temp_dir}):
                 # Force the use of Chromium strategy
                 with patch('app.services.tiktok.download.strategies.factory.TIKTOK_DOWNLOAD_STRATEGY', 'chromium'):
-                    from app.core.config import Settings
-                    # Create settings with the temporary user data dir
-                    settings = Settings()
-                    settings.chromium_user_data_dir = temp_dir
+                    # Mock the settings to include the temporary user data dir
+                    with patch('app.services.tiktok.download.service.get_settings') as mock_get_settings:
+                        from app.core.config import Settings
+                        mock_settings = Settings()
+                        mock_settings.chromium_user_data_dir = temp_dir
+                        mock_get_settings.return_value = mock_settings
 
-                    service = TikTokDownloadService(settings=settings)
-                    assert isinstance(service.download_strategy, ChromiumDownloadStrategy)
+                        service = TikTokDownloadService()
+                        assert isinstance(service.download_strategy, ChromiumDownloadStrategy)
 
-                    # Test with force_headful=True (headful mode)
-                    request_headful = TikTokDownloadRequest(url=DEMO_TIKTOK_URL, force_headful=True)
-                    result_headful = await service.download_video(request_headful)
+                        # Test with force_headful=True (headful mode)
+                        request_headful = TikTokDownloadRequest(url=DEMO_TIKTOK_URL, force_headful=True)
+                        result_headful = await service.download_video(request_headful)
 
-                    # Test with force_headful=False (headless mode)
-                    request_headless = TikTokDownloadRequest(url=DEMO_TIKTOK_URL, force_headful=False)
-                    result_headless = await service.download_video(request_headless)
+                        # Test with force_headful=False (headless mode)
+                        request_headless = TikTokDownloadRequest(url=DEMO_TIKTOK_URL, force_headful=False)
+                        result_headless = await service.download_video(request_headless)
 
-                    # Both should succeed with persistent user data
-                    assert result_headful.status == "success"
-                    assert result_headless.status == "success"
-                    assert result_headful.download_url is not None
-                    assert result_headless.download_url is not None
+                        # Both should succeed with persistent user data
+                        assert result_headful.status == "success"
+                        assert result_headless.status == "success"
+                        assert result_headful.download_url is not None
+                        assert result_headless.download_url is not None

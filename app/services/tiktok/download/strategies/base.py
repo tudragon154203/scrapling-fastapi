@@ -10,13 +10,32 @@ class TikTokDownloadStrategy(ABC):
     """Abstract base class for TikTok download strategies."""
 
     @abstractmethod
-    def resolve_video_url(self, tiktok_url: str, quality_hint: Optional[str] = None) -> str:
+    def resolve_video_url(self, tiktok_url: str, quality_hint: Optional[str] = None, force_headful: bool = False) -> str:
         """
         Resolve the direct MP4 URL for a TikTok video.
 
         Args:
             tiktok_url: The TikTok video URL to resolve
             quality_hint: Optional quality preference (HD, SD, etc.)
+            force_headful: Whether to force headful mode
+
+        Returns:
+            Direct MP4 URL for the video
+
+        Raises:
+            RuntimeError: If resolution fails
+        """
+        pass
+
+    @abstractmethod
+    async def resolve_video_url_async(self, tiktok_url: str, quality_hint: Optional[str] = None, force_headful: bool = False) -> str:
+        """
+        Resolve the direct MP4 URL for a TikTok video asynchronously.
+
+        Args:
+            tiktok_url: The TikTok video URL to resolve
+            quality_hint: Optional quality preference (HD, SD, etc.)
+            force_headful: Whether to force headful mode
 
         Returns:
             Direct MP4 URL for the video

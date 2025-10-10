@@ -144,6 +144,14 @@ class ScraplingFetcherAdapter(IFetchClient):
         params = args if isinstance(args, FetchParams) else FetchParams(args or {})
         return self._run_with_event_loop(url, params)
 
+    async def fetch_async(self, url: str, args: Union[FetchParams, Dict[str, Any], None]) -> Any:
+        """Fetch the given URL using StealthyFetcher asynchronously."""
+        logger.debug(f"Launching browser asynchronously for URL: {url}")
+        StealthyFetcher = self._get_stealthy_fetcher()
+        StealthyFetcher.adaptive = True
+        params = args if isinstance(args, FetchParams) else FetchParams(args or {})
+        return await self._execute_fetch_async(url, params)
+
     def _run_with_event_loop(self, url: str, params: FetchParams) -> Any:
         """Execute fetch directly or delegate to a background thread when needed."""
         if self._has_running_loop():
@@ -200,6 +208,16 @@ class ScraplingFetcherAdapter(IFetchClient):
     def _execute_fetch(self, url: str, params: FetchParams) -> Any:
         StealthyFetcher = self._get_stealthy_fetcher()
         return StealthyFetcher.fetch(url, **params.as_kwargs())
+
+    async def _execute_fetch_async(self, url: str, params: FetchParams) -> Any:
+        """Execute fetch asynchronously using StealthyFetcher's async methods."""
+        StealthyFetcher = self._get_stealthy_fetcher()
+        # Check if StealthyFetcher has async_fetch method
+        if hasattr(StealthyFetcher, 'async_fetch'):
+            return await StealthyFetcher.async_fetch(url, **params.as_kwargs())
+        else:
+            # Fallback: use asyncio.to_thread for the sync fetch method
+            return await asyncio.to_thread(self._execute_fetch, url, params)
 
     @staticmethod
     def _is_geoip_error(exc: Exception) -> bool:

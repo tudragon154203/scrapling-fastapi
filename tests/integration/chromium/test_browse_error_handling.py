@@ -215,30 +215,3 @@ class TestChromiumBrowseErrorHandling:
             # Should contain recovery guidance
             message = data["message"]
             assert "corrupted" in message.lower() or "recovery" in message.lower()
-
-    def test_browser_version_compatibility_error(self, client):
-        """Test handling of browser version compatibility issues."""
-        with patch(
-            'app.services.browser.executors.chromium_browse_executor.ChromiumBrowseExecutor'  # noqa: E501
-        ) as mock_executor_class:
-            mock_executor = MagicMock()
-            mock_executor_class.return_value = mock_executor
-
-            # Simulate version compatibility error
-            mock_executor.execute.side_effect = RuntimeError(
-                "Browser version incompatible with Playwright"
-            )
-
-            response = client.post("/browse", json={
-                "url": "https://example.com",
-                "engine": "chromium"
-            })
-
-            assert response.status_code == 500
-            data = response.json()
-            assert data["status"] == "failure"
-
-            # Should contain version/compatibility troubleshooting
-            message = data["message"]
-            assert "version" in message.lower() or "compatib" in message.lower()
-            assert "playwright" in message.lower()

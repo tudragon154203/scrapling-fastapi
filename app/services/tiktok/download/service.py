@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import time
 from typing import TYPE_CHECKING, Any, Dict, Optional
@@ -102,16 +101,14 @@ class TikTokDownloadService:
 
             # Resolve the direct download URL using either the configured strategy or the (possibly mocked) resolver.
             if use_strategy:
-                download_url = await asyncio.to_thread(
-                    self.download_strategy.resolve_video_url,
+                download_url = await self.download_strategy.resolve_video_url_async(
                     url_str,
                     None,  # quality_hint - not currently used
                     request.force_headful,
                 )
             else:
                 resolver = resolver_cls(self.settings)
-                download_url = await asyncio.to_thread(
-                    resolver.resolve_video_url,
+                download_url = await resolver.resolve_video_url_async(
                     url_str,
                 )
 
