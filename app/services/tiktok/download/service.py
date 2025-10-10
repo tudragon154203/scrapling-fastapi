@@ -33,8 +33,8 @@ _DEFAULT_TIKVID_RESOLVER = resolvers_module.TikVidVideoResolver
 class TikTokDownloadService:
     """Service for downloading TikTok videos by resolving direct URLs."""
 
-    def __init__(self) -> None:
-        self.settings = get_settings()
+    def __init__(self, settings: Optional[Any] = None) -> None:
+        self.settings = settings or get_settings()
         self.logger = logging.getLogger(__name__)
         self.strategy_factory = TikTokDownloadStrategyFactory()
         try:
