@@ -13,9 +13,10 @@ from pathlib import Path
 from typing import Callable, ContextManager, Tuple, Optional, Dict, Any, List
 
 try:
-    import browserforge
+    import browserforge  # type: ignore
     BROWSERFORGE_AVAILABLE = True
 except ImportError:
+    browserforge = None  # type: ignore
     BROWSERFORGE_AVAILABLE = False
 
 # fcntl is not available on Windows, so we need to handle this gracefully
@@ -479,37 +480,129 @@ class ChromiumUserDataManager:
 
     def update_metadata(self, updates: Dict[str, Any]) -> None:
         """Update metadata file with new information."""
-        if not self.enabled or not self.metadata_file.exists():
+        if not self.enabled:
             return
 
-        try:
-            # Read existing metadata
-            with open(self.metadata_file, 'r') as f:
-                metadata = json.load(f)
+        # Use the same write lock for metadata updates to prevent race conditions
+        with self._write_lock:
+            try:
+                # Ensure metadata file exists
+                if not self.metadata_file.exists():
+                    self._ensure_metadata()
 
-            # Update with new data
-            metadata.update(updates)
-            metadata["last_updated"] = time.time()
+                # If still doesn't exist, create minimal metadata
+                if not self.metadata_file.exists():
+                    metadata = {}
+                else:
+                    # Read existing metadata with retry for concurrent access
+                    max_read_attempts = 5
+                    delay = 0.01
+                    metadata = None
+                    for attempt in range(1, max_read_attempts + 1):
+                        try:
+                            with open(self.metadata_file, 'r') as f:
+                                content = f.read()
+                                if content.strip():
+                                    metadata = json.loads(content)
+                                else:
+                                    metadata = {}
+                            break
+                        except (json.JSONDecodeError, FileNotFoundError) as e:
+                            if attempt == max_read_attempts:
+                                # If we can't read the file, create fresh metadata
+                                logger.warning(f"Could not read metadata file after {max_read_attempts} attempts, creating fresh: {e}")
+                                metadata = {}
+                                break
+                            time.sleep(delay)
+                            delay = min(0.1, delay * 2)
+                        except Exception as e:
+                            if attempt == max_read_attempts:
+                                logger.warning(f"Unexpected error reading metadata file after {max_read_attempts} attempts: {e}")
+                                metadata = {}
+                                break
+                            time.sleep(delay)
+                            delay = min(0.1, delay * 2)
 
-            # Write back
-            with open(self.metadata_file, 'w') as f:
-                json.dump(metadata, f, indent=2)
+                    if metadata is None:
+                        metadata = {}
 
-            logger.debug(f"Updated Chromium profile metadata: {updates}")
-        except Exception as e:
-            logger.warning(f"Failed to update Chromium profile metadata: {e}")
+                # Update with new data
+                metadata.update(updates)
+                metadata["last_updated"] = time.time()
+
+                # Write atomically to reduce corruption risk
+                temp_file = self.metadata_file.with_suffix('.json.tmp')
+                try:
+                    with open(temp_file, 'w') as f:
+                        json.dump(metadata, f, indent=2)
+                        f.flush()
+                        # Try to sync to disk on platforms that support it
+                        try:
+                            os.fsync(f.fileno())
+                        except Exception:
+                            pass
+
+                    # Replace original file
+                    if self.metadata_file.exists():
+                        os.chmod(self.metadata_file, 0o666)
+                    os.replace(temp_file, self.metadata_file)
+
+                except Exception as e:
+                    # Cleanup temp file on failure
+                    try:
+                        if temp_file.exists():
+                            temp_file.unlink()
+                    except Exception:
+                        pass
+                    raise e
+
+                logger.debug(f"Updated Chromium profile metadata: {updates}")
+            except Exception as e:
+                logger.warning(f"Failed to update Chromium profile metadata: {e}")
 
     def get_metadata(self) -> Optional[Dict[str, Any]]:
         """Get current metadata from master profile."""
         if not self.enabled or not self.metadata_file.exists():
             return None
 
-        try:
-            with open(self.metadata_file, 'r') as f:
-                return json.load(f)
-        except Exception as e:
-            logger.warning(f"Failed to read Chromium profile metadata: {e}")
-            return None
+        # Use read lock for consistency with update_metadata
+        with self._write_lock:
+            try:
+                # Read with retry for concurrent access and corrupted files
+                max_read_attempts = 5
+                delay = 0.01
+                for attempt in range(1, max_read_attempts + 1):
+                    try:
+                        with open(self.metadata_file, 'r') as f:
+                            content = f.read()
+                            if not content.strip():
+                                return {}
+                            return json.loads(content)
+                    except json.JSONDecodeError as e:
+                        logger.warning(f"Corrupted metadata JSON (attempt {attempt}/{max_read_attempts}): {e}")
+                        if attempt == max_read_attempts:
+                            # Try to recreate metadata if it's corrupted
+                            try:
+                                logger.warning("Attempting to recreate corrupted metadata file")
+                                self.metadata_file.unlink()
+                                self._ensure_metadata()
+                                # Read the fresh metadata
+                                with open(self.metadata_file, 'r') as f:
+                                    return json.load(f)
+                            except Exception as recreate_e:
+                                logger.warning(f"Failed to recreate metadata: {recreate_e}")
+                                return {}
+                        time.sleep(delay)
+                        delay = min(0.1, delay * 2)
+                    except Exception as e:
+                        if attempt == max_read_attempts:
+                            logger.warning(f"Failed to read Chromium profile metadata after {max_read_attempts} attempts: {e}")
+                            return {}
+                        time.sleep(delay)
+                        delay = min(0.1, delay * 2)
+            except Exception as e:
+                logger.warning(f"Failed to read Chromium profile metadata: {e}")
+                return None
 
     def _copytree_recursive(self, src: Path, dst: Path) -> None:
         """Recursively copy directory tree, preserving metadata."""

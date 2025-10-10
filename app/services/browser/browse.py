@@ -1,3 +1,4 @@
+import importlib
 import logging
 import os
 
@@ -7,11 +8,42 @@ from app.schemas.browse import BrowseRequest, BrowseResponse, BrowserEngine
 from app.services.common.engine import CrawlerEngine
 from app.services.browser.actions.wait_for_close import WaitForUserCloseAction
 from app.services.common.browser import user_data as user_data_mod
+from app.services.common.browser import user_data_chromium
 from app.services.browser.executors.browse_executor import BrowseExecutor
 from app.services.browser.executors.chromium_browse_executor import ChromiumBrowseExecutor
-from app.services.common.browser.user_data_chromium import ChromiumUserDataManager
 
 logger = logging.getLogger(__name__)
+
+_ORIGINAL_MANAGER_CLS = user_data_chromium.ChromiumUserDataManager
+ChromiumUserDataManager = _ORIGINAL_MANAGER_CLS
+_ORIGINAL_EXECUTOR_CLS = ChromiumBrowseExecutor
+
+
+def _resolve_chromium_manager_cls():
+    """Return the Chromium user-data manager class, honoring test-time patches."""
+    override = globals().get("ChromiumUserDataManager", None)
+    module_cls = getattr(user_data_chromium, "ChromiumUserDataManager")
+
+    if override is not None and override is not _ORIGINAL_MANAGER_CLS:
+        return override
+    if module_cls is not _ORIGINAL_MANAGER_CLS:
+        return module_cls
+    return override or module_cls
+
+
+def _resolve_chromium_executor_cls():
+    """Return the Chromium browse executor class, honoring test-time patches."""
+    override = globals().get("ChromiumBrowseExecutor", None)
+    module_cls = getattr(
+        importlib.import_module("app.services.browser.executors.chromium_browse_executor"),
+        "ChromiumBrowseExecutor",
+    )
+
+    if override is not None and override is not _ORIGINAL_EXECUTOR_CLS:
+        return override
+    if module_cls is not _ORIGINAL_EXECUTOR_CLS:
+        return module_cls
+    return override or module_cls
 
 
 def user_data_context(*args, **kwargs):
@@ -27,7 +59,8 @@ class BrowseCrawler:
         if engine is None:
             # Create a browse-specific engine based on the selected browser engine
             if browser_engine == BrowserEngine.CHROMIUM:
-                browse_executor = ChromiumBrowseExecutor()
+                executor_cls = _resolve_chromium_executor_cls()
+                browse_executor = executor_cls()
                 # For Chromium, we don't have all the same components as Camoufox
                 self.engine = CrawlerEngine(executor=browse_executor)
             else:
@@ -69,7 +102,12 @@ class BrowseCrawler:
                 message=error_msg
             )
         except Exception as e:
-            logger.error(f"Browse session failed: {e}")
+            engine_label = getattr(request, "engine", BrowserEngine.CAMOUFOX)
+            try:
+                engine_name = getattr(engine_label, "value", str(engine_label))
+            except Exception:
+                engine_name = str(engine_label)
+            logger.error(f"{engine_name.capitalize()} browse session failed: {e}")
             return BrowseResponse(
                 status="failure",
                 message=f"Error: {str(e)}"
@@ -140,7 +178,8 @@ class BrowseCrawler:
 
         try:
             # Use Chromium user data context in write mode
-            user_data_manager = ChromiumUserDataManager(user_data_dir)
+            manager_cls = _resolve_chromium_manager_cls()
+            user_data_manager = manager_cls(user_data_dir)
             self.user_data_manager = user_data_manager  # Store for error handling
 
             with user_data_manager.get_user_data_context('write') as (effective_dir, cleanup):
@@ -191,13 +230,16 @@ class BrowseCrawler:
 
             # Handle lock conflicts specifically
             if "already in use" in msg_lower or "lock" in msg_lower or "exclusive" in msg_lower:
+                lock_file = None
+                manager = getattr(self, "user_data_manager", None)
+                if manager is not None:
+                    lock_file = getattr(manager, "lock_file", None)
                 error_msg = (
                     "Chromium profile is already in use by another session. "
                     "To resolve this issue:\n"
                     "1. Wait for the current session to complete\n"
                     "2. Check if another browser instance is running\n"
-                    "3. If no session is active, manually remove the lock file: "
-                    f"{getattr(self, 'user_data_manager', None) and self.user_data_manager.lock_file}\n"
+                    f"3. If no session is active, manually remove the lock file: {lock_file}\n"
                     "4. Consider using a different user data directory via CHROMIUM_USER_DATA_DIR environment variable"
                 )
                 logger.warning(f"Chromium profile locked: {e}")
@@ -208,17 +250,18 @@ class BrowseCrawler:
 
             # Profile corruption guidance
             if "corrupt" in msg_lower or "corrupted" in msg_lower or "database is corrupted" in msg_lower:
+                profile_path = (
+                    getattr(app_config.get_settings(), "chromium_runtime_effective_user_data_dir", None)
+                    or os.path.abspath(user_data_dir)
+                )
                 error_msg = (
                     f"Chromium user profile appears corrupted: {str(e)}\n"
                     "Recovery steps:\n"
                     "1. Close all Chromium/Chrome instances\n"
-                    "2. Backup and then delete the corrupted profile directory\n"
-                    "   Path: {}\n".format(
-                        getattr(app_config.get_settings(), 'chromium_runtime_effective_user_data_dir', None) or
-                        os.path.abspath(user_data_dir)
-                    ),
+                    f"2. Backup and then delete the corrupted profile directory\n   Path: {profile_path}\n"
                     "3. Re-run the browse session to rebuild a fresh profile\n"
-                    "4. If issues persist, reinstall Playwright browsers: playwright install chromium")
+                    "4. If issues persist, reinstall Playwright browsers: playwright install chromium"
+                )
                 logger.error(f"Chromium profile corruption detected: {e}")
                 return BrowseResponse(
                     status="failure",
@@ -246,15 +289,17 @@ class BrowseCrawler:
         except OSError as e:
             # Disk space or filesystem-related issues
             msg_lower = str(e).lower()
+            target_dir = (
+                getattr(app_config.get_settings(), "chromium_runtime_effective_user_data_dir", None)
+                or os.path.abspath(user_data_dir)
+            )
             error_msg = (
                 f"Disk space or filesystem error during Chromium browse: {str(e)}\n"
                 "Troubleshooting:\n"
                 "1. Free up disk space for the Chromium user data directory\n"
-                "2. Verify write permissions to: {}\n".format(
-                    getattr(app_config.get_settings(), 'chromium_runtime_effective_user_data_dir', None) or
-                    os.path.abspath(user_data_dir)
-                ),
-                "3. Consider changing CHROMIUM_USER_DATA_DIR to a drive with more space")
+                f"2. Verify write permissions to: {target_dir}\n"
+                "3. Consider changing CHROMIUM_USER_DATA_DIR to a drive with more space"
+            )
             # Highlight 'no space' explicitly when present
             if "no space" in msg_lower:
                 error_msg = "Disk space issue detected (No space left on device).\n" + error_msg
@@ -266,15 +311,17 @@ class BrowseCrawler:
 
         except PermissionError as e:
             # Permission issues
+            target_dir = (
+                getattr(app_config.get_settings(), "chromium_runtime_effective_user_data_dir", None)
+                or os.path.abspath(user_data_dir)
+            )
             error_msg = (
                 f"Permission error accessing Chromium user data: {str(e)}\n"
                 "Troubleshooting:\n"
                 "1. Ensure the process has access permissions to the user data directory\n"
-                "2. Check directory path: {}\n".format(
-                    getattr(app_config.get_settings(), 'chromium_runtime_effective_user_data_dir', None) or
-                    os.path.abspath(user_data_dir)
-                ),
-                "3. Run the service with sufficient privileges or adjust directory ACLs")
+                f"2. Check directory path: {target_dir}\n"
+                "3. Run the service with sufficient privileges or adjust directory ACLs"
+            )
             logger.error(f"Chromium permission/access error: {e}")
             return BrowseResponse(
                 status="failure",

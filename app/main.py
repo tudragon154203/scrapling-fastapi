@@ -54,12 +54,12 @@ def create_app() -> FastAPI:
         if request.method == "POST" and request.url.path == "/crawl":
             content_type = request.headers.get("content-type", "")
             if not content_type.lower().startswith("application/json"):
-                # Raise a RequestValidationError to align with FastAPI's 422 handling
-                raise RequestValidationError([{
+                error = {
                     "loc": ["header", "Content-Type"],
                     "msg": "Content-Type must be application/json",
-                    "type": "value_error.content_type"
-                }])
+                    "type": "value_error.content_type",
+                }
+                return JSONResponse(status_code=422, content={"detail": [error]})
 
         response = await call_next(request)
 
