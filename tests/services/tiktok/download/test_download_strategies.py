@@ -387,17 +387,30 @@ class TestChromiumDownloadStrategy:
         assert mock_manager.get_user_data_context.call_count == 2
 
     def test_chromium_strategy_headless_allowed_when_parity_flag_enabled(self, strategy: ChromiumDownloadStrategy) -> None:
-        """Future parity test: Test that headless mode is allowed when parity flag is enabled.
+        """Test that headless mode is allowed when force_headful=False (current default behavior)."""
+        # Test with force_headful=False (should allow headless by default)
+        result = strategy._build_chromium_fetch_kwargs(
+            "https://www.tiktok.com/@test/video/456",
+            None,  # quality_hint
+            force_headful=False
+        )
 
-        This test is marked as xfail until headless parity is implemented.
-        """
-        # This test will fail until headless parity is implemented
-        pytest.xfail("Headless parity not yet implemented")
+        # Verify that headless is set to True when force_headful is False (default behavior)
+        assert "fetch_kwargs" in result
+        assert "headless" in result["fetch_kwargs"]
+        assert result["fetch_kwargs"]["headless"] is True
 
-        # When parity is implemented, this test should verify that:
-        # 1. When a parity flag is enabled and force_headful is False, headless can be True
-        # 2. The strategy respects the parity setting
-        pass
+        # Test with force_headful=True (should enforce headful)
+        result_headful = strategy._build_chromium_fetch_kwargs(
+            "https://www.tiktok.com/@test/video/456",
+            None,  # quality_hint
+            force_headful=True
+        )
+
+        # Verify that headless is False when force_headful is True
+        assert "fetch_kwargs" in result_headful
+        assert "headless" in result_headful["fetch_kwargs"]
+        assert result_headful["fetch_kwargs"]["headless"] is False
 
 
 class TestTikTokDownloadStrategyFactory:
