@@ -517,7 +517,6 @@ class ChromiumUserDataManager:
             temp_file = self.metadata_file.with_suffix('.json.tmp')
             max_attempts = 10
             delay = 0.05
-            last_err = None
 
             for attempt in range(1, max_attempts + 1):
                 try:
@@ -532,7 +531,6 @@ class ChromiumUserDataManager:
                     break  # Success
 
                 except (PermissionError, OSError) as e:
-                    last_err = e
                     if attempt == max_attempts:
                         raise e
                     # Brief delay before retry
