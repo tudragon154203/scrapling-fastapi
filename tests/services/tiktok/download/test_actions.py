@@ -114,8 +114,10 @@ class TestTikVidResolveAction:
         assert result == mock_page
 
     @patch('app.services.tiktok.download.actions.resolver.TIKVID_BASE', 'https://tikvid.io/vi')
-    def test_execute_field_fill_success(self, action):
-        """Test successful field filling."""
+    @patch('app.services.tiktok.download.actions.resolver.type_like_human')
+    @patch('app.services.tiktok.download.actions.resolver.human_pause')
+    def test_execute_field_fill_success(self, mock_human_pause, mock_type_like_human, action):
+        """Test successful field filling with humanized typing."""
         mock_page = Mock()
         mock_page.url = "https://tikvid.io/vi"
         mock_page.wait_for_load_state = Mock()
@@ -124,6 +126,7 @@ class TestTikVidResolveAction:
         mock_field = Mock()
         mock_field.click = Mock()
         mock_field.fill = Mock()
+        mock_field.type = Mock()
         mock_page.locator = Mock(return_value=Mock(first=mock_field))
 
         # Mock button clicking
@@ -139,25 +142,31 @@ class TestTikVidResolveAction:
 
         action._execute(mock_page)
 
-        # Verify field was filled
+        # Verify humanized typing was used
         mock_field.click.assert_called()
-        mock_field.fill.assert_any_call("")
-        mock_field.fill.assert_any_call(action.tiktok_url)
+        mock_human_pause.assert_called()
+        mock_type_like_human.assert_called_once_with(mock_field, action.tiktok_url)
 
     @patch('app.services.tiktok.download.actions.resolver.TIKVID_BASE', 'https://tikvid.io/vi')
-    def test_execute_field_fill_fallback_keyboard(self, action):
-        """Test field filling fallback to keyboard insertion."""
+    @patch('app.services.tiktok.download.actions.resolver.type_like_human')
+    @patch('app.services.tiktok.download.actions.resolver.human_pause')
+    def test_execute_field_fill_fallback_keyboard(self, mock_human_pause, mock_type_like_human, action):
+        """Test field filling fallback to keyboard insertion when humanized typing fails."""
         mock_page = Mock()
         mock_page.url = "https://tikvid.io/vi"
         mock_page.wait_for_load_state = Mock()
 
-        # Mock field interaction where fill fails
+        # Mock field interaction where humanized typing fails
         mock_field = Mock()
         mock_field.click = Mock()
-        mock_field.fill = Mock(side_effect=[Exception("Fill failed"), None])
+        mock_field.fill = Mock()
+        mock_field.type = Mock()
         mock_page.locator = Mock(return_value=Mock(first=mock_field))
         mock_page.keyboard = Mock()
         mock_page.keyboard.insert_text = Mock()
+
+        # Make humanized typing fail to trigger fallback
+        mock_type_like_human.side_effect = Exception("Humanized typing failed")
 
         # Mock button clicking
         mock_field.press = Mock(return_value=None)  # First strategy succeeds
