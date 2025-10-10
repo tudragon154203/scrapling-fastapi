@@ -6,6 +6,8 @@ import httpx
 
 from app.services.tiktok.download.downloaders.file import VideoFileDownloader
 
+pytestmark = [pytest.mark.unit]
+
 
 class TestVideoFileDownloader:
     """Test cases for VideoFileDownloader."""

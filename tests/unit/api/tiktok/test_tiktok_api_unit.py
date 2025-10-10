@@ -5,6 +5,8 @@ from app.main import app
 from app.schemas.tiktok.search import TikTokSearchResponse
 from specify_src.models.browser_mode import BrowserMode
 
+pytestmark = [pytest.mark.unit]
+
 client = TestClient(app)
 
 

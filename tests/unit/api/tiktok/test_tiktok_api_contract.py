@@ -3,6 +3,8 @@ Contract tests for TikTok Session API
 """
 import pytest
 
+pytestmark = [pytest.mark.unit]
+
 
 class TestTikTokSessionAPIContract:
     """Test TikTok Session API contract compliance"""

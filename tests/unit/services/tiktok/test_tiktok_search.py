@@ -13,6 +13,7 @@ pytestmark = pytest.mark.unit
 def client() -> TestClient:
     return TestClient(app)
 
+
 SAMPLE_RESULT = {
     "results": [
         {
