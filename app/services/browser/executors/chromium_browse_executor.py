@@ -138,6 +138,27 @@ class ChromiumBrowseExecutor(IExecutor):
 
             # For other exceptions, return failure but don't retry
             logger.error(f"Chromium browse session failed with unexpected error: {e}")
+            dep_indicators = [
+                "executable doesn't exist",
+                "playwright install",
+                "chromium executable",
+                "missing playwright",
+            ]
+            error_payload = f"{type(e).__name__}: {e}".lower()
+            if any(marker in error_payload for marker in dep_indicators):
+                guidance = (
+                    "Chromium dependencies are not available: missing Playwright Chromium binaries.\n"
+                    "To resolve this issue:\n"
+                    "1. Install the required dependencies: pip install 'scrapling[chromium]'\n"
+                    "2. Ensure Playwright browsers are installed: playwright install chromium\n"
+                    "3. Alternatively, use the Camoufox engine by setting 'engine': 'camoufox' in your request"
+                )
+                return CrawlResponse(
+                    status="failure",
+                    url=request.url,
+                    html=None,
+                    message=guidance,
+                )
             return CrawlResponse(
                 status="failure",
                 url=request.url,

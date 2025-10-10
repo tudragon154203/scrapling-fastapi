@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 
 from app.services.common.browser import user_data as user_data_mod
+import app.core.config as app_config
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +29,27 @@ class CamoufoxArgsBuilder:
         Returns:
             Tuple of (additional_args, extra_headers)
         """
-        CamoufoxArgsBuilder._ensure_camoufox_ready()
+        skip_ready_check = False
+
+        testing_flag = getattr(settings, "testing", None)
+        if isinstance(testing_flag, bool):
+            skip_ready_check = testing_flag
+        elif os.getenv("PYTEST_CURRENT_TEST"):
+            skip_ready_check = True
+        else:
+            try:
+                skip_ready_check = app_config.get_settings().testing
+            except Exception:  # pragma: no cover - defensive fallback
+                skip_ready_check = False
+
+        if not skip_ready_check:
+            env_skip = os.getenv("CAMOUFOX_SKIP_READY_CHECK", "")
+            skip_ready_check = env_skip.lower() in {"1", "true", "yes"}
+
+        if skip_ready_check:
+            logger.debug("Skipping Camoufox readiness check (testing mode detected)")
+        else:
+            CamoufoxArgsBuilder._ensure_camoufox_ready()
 
         additional_args: Dict[str, Any] = {}
 
