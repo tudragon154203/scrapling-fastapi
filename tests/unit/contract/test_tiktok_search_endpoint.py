@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-pytestmark = pytest.mark.integration
+pytestmark = [pytest.mark.unit]
 
 CONTRACT_SAMPLE_RESULT = {
     "results": [

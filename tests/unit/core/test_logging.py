@@ -5,6 +5,8 @@ import pytest
 
 from app.core.logging import get_log_level, setup_logger, get_logger
 
+pytestmark = [pytest.mark.unit]
+
 
 @pytest.mark.parametrize(
     "level_str,expected",
