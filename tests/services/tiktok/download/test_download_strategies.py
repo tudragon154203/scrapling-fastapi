@@ -17,6 +17,8 @@ class TestCamoufoxDownloadStrategy:
     def mock_settings(self) -> MagicMock:
         """Create mock settings for testing."""
         settings = MagicMock()
+        # Explicitly set chromium_user_data_dir to None to avoid directory creation
+        settings.chromium_user_data_dir = None
         return settings
 
     @pytest.fixture
@@ -131,6 +133,8 @@ class TestChromiumDownloadStrategy:
     def mock_settings(self) -> MagicMock:
         """Create mock settings for testing."""
         settings = MagicMock()
+        # Explicitly set chromium_user_data_dir to None to avoid directory creation
+        settings.chromium_user_data_dir = None
         return settings
 
     @pytest.fixture
@@ -420,6 +424,8 @@ class TestTikTokDownloadStrategyFactory:
     def mock_settings(self) -> MagicMock:
         """Create mock settings for testing."""
         settings = MagicMock()
+        # Explicitly set chromium_user_data_dir to None to avoid directory creation
+        settings.chromium_user_data_dir = None
         return settings
 
     def test_create_strategy_camoufox(self, mock_settings: MagicMock) -> None:
