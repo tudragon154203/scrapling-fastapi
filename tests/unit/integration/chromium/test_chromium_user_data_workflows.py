@@ -1,4 +1,4 @@
-"""Integration tests for Chromium user data workflows."""
+"""Unit tests for Chromium user data workflows."""
 
 import os
 import json
@@ -14,11 +14,11 @@ from app.services.browser.browse import BrowseCrawler
 from app.schemas.browse import BrowseRequest, BrowserEngine
 from app.core.config import Settings
 
-pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("require_scrapling")]
+pytestmark = pytest.mark.unit
 
 
 class TestChromiumUserDataWorkflows:
-    """Integration tests for Chromium user data workflows."""
+    """Unit tests for Chromium user data workflows."""
 
     def setup_method(self):
         """Set up test environment."""

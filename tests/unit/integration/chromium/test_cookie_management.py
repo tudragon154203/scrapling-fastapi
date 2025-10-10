@@ -1,4 +1,4 @@
-"""Integration tests for Chromium cookie management functionality."""
+"""Unit tests for Chromium cookie management functionality."""
 
 import json
 import time
@@ -8,10 +8,7 @@ import pytest
 
 from app.services.common.browser.user_data_chromium import ChromiumUserDataManager
 
-pytestmark = [
-    pytest.mark.integration,
-    pytest.mark.usefixtures("require_scrapling"),
-]
+pytestmark = pytest.mark.unit
 
 
 class TestChromiumCookieManagement:

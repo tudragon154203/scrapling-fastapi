@@ -1,14 +1,19 @@
-"""Integration tests for Chromium browse endpoint error handling and enhanced messages."""
+"""Unit tests for Chromium browse endpoint error handling and enhanced messages."""
 
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
 import pytest
+from fastapi.testclient import TestClient
+from app.main import app
 
-pytestmark = [
-    pytest.mark.integration,
-    pytest.mark.usefixtures("require_scrapling"),
-]
+pytestmark = pytest.mark.unit
+
+
+@pytest.fixture
+def client() -> TestClient:
+    """Test client fixture for unit tests."""
+    return TestClient(app)
 
 
 class TestChromiumBrowseErrorHandling:

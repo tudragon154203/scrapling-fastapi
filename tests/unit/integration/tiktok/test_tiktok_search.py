@@ -1,31 +1,35 @@
-"""Integration tests for the TikTok search endpoint."""
+"""Unit tests for the TikTok search endpoint."""
 
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from fastapi.testclient import TestClient
+from app.main import app
 
-pytestmark = [
-    pytest.mark.integration,
-    pytest.mark.usefixtures("require_scrapling"),
-]
+pytestmark = pytest.mark.unit
+
+
+@pytest.fixture
+def client() -> TestClient:
+    return TestClient(app)
 
 SAMPLE_RESULT = {
     "results": [
         {
             "id": "abc123",
-            "caption": "Integration test video",
-            "authorHandle": "integration",
+            "caption": "Unit test video",
+            "authorHandle": "unit_test",
             "likeCount": 42,
             "uploadTime": "2024-01-01T00:00:00Z",
-            "webViewUrl": "https://www.tiktok.com/@integration/video/abc123",
+            "webViewUrl": "https://www.tiktok.com/@unit_test/video/abc123",
         }
     ],
     "totalResults": 1,
-    "query": "integration",
+    "query": "unit_test",
 }
 
 
-class TestTikTokSearchIntegration:
+class TestTikTokSearchUnit:
     """High-level behavior that exercises the FastAPI stack."""
 
     @patch("app.services.tiktok.search.service.TikTokSearchService.search", new_callable=AsyncMock)
@@ -35,7 +39,7 @@ class TestTikTokSearchIntegration:
 
         response = client.post(
             "/tiktok/search",
-            json={"query": "integration", "force_headful": False},
+            json={"query": "unit_test", "force_headful": False},
         )
 
         assert response.status_code == 200
@@ -54,7 +58,7 @@ class TestTikTokSearchIntegration:
         ):
             response = client.post(
                 "/tiktok/search",
-                json={"query": "integration", "force_headful": True},
+                json={"query": "unit_test", "force_headful": True},
             )
 
         assert response.status_code == 200
@@ -66,7 +70,7 @@ class TestTikTokSearchIntegration:
         """Legacy strategy payloads should be rejected with informative errors."""
         response = client.post(
             "/tiktok/search",
-            json={"query": "integration", "force_headful": True, "strategy": "legacy"},
+            json={"query": "unit_test", "force_headful": True, "strategy": "legacy"},
         )
 
         assert response.status_code == 422
