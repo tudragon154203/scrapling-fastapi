@@ -205,6 +205,10 @@ class ChromiumUserDataManager:
                         if lock_fd is not None:
                             try:
                                 os.close(lock_fd)
+                            except OSError as e:
+                                # Ignore EBADF (Bad file descriptor) errors as they're expected on Windows
+                                if e.errno != 9:  # EBADF
+                                    logger.warning(f"Failed to close Windows lock fd: {e}")
                             except Exception as e:
                                 logger.warning(f"Failed to close Windows lock fd: {e}")
                         if self.lock_file.exists():
@@ -483,17 +487,72 @@ class ChromiumUserDataManager:
             return
 
         try:
-            # Read existing metadata
-            with open(self.metadata_file, 'r') as f:
-                metadata = json.load(f)
+            # Read existing metadata with fallback for empty/invalid JSON
+            metadata = None
+            try:
+                with open(self.metadata_file, 'r') as f:
+                    content = f.read().strip()
+                    if content:
+                        metadata = json.loads(content)
+                    else:
+                        logger.warning("Metadata file is empty, creating new metadata")
+                        metadata = None
+            except (json.JSONDecodeError, IOError) as e:
+                logger.warning(f"Failed to read existing metadata, creating new: {e}")
+                metadata = None
+
+            # If we couldn't read valid metadata, create a fresh structure
+            if metadata is None:
+                metadata = {
+                    "version": "1.0",
+                    "created_at": time.time(),
+                    "profile_type": "chromium"
+                }
 
             # Update with new data
             metadata.update(updates)
             metadata["last_updated"] = time.time()
 
-            # Write back
-            with open(self.metadata_file, 'w') as f:
-                json.dump(metadata, f, indent=2)
+            # Write back atomically with retries for concurrent access
+            temp_file = self.metadata_file.with_suffix('.json.tmp')
+            max_attempts = 10
+            delay = 0.05
+            last_err = None
+
+            for attempt in range(1, max_attempts + 1):
+                try:
+                    with open(temp_file, 'w') as f:
+                        json.dump(metadata, f, indent=2)
+                        f.flush()
+                        os.fsync(f.fileno())
+
+                    # Replace original file with retry logic
+                    with self._write_lock:
+                        os.replace(temp_file, self.metadata_file)
+                    break  # Success
+
+                except (PermissionError, OSError) as e:
+                    last_err = e
+                    if attempt == max_attempts:
+                        raise e
+                    # Brief delay before retry
+                    time.sleep(delay)
+                    delay = min(1.0, delay * 2)
+                except Exception as e:
+                    # Cleanup temp file on non-retryable error
+                    if temp_file.exists():
+                        try:
+                            temp_file.unlink()
+                        except Exception:
+                            pass
+                    raise e
+
+            # Cleanup temp file if it still exists (shouldn't)
+            if temp_file.exists():
+                try:
+                    temp_file.unlink()
+                except Exception:
+                    pass
 
             logger.debug(f"Updated Chromium profile metadata: {updates}")
         except Exception as e:
@@ -506,7 +565,15 @@ class ChromiumUserDataManager:
 
         try:
             with open(self.metadata_file, 'r') as f:
-                return json.load(f)
+                content = f.read().strip()
+                if content:
+                    return json.loads(content)
+                else:
+                    logger.warning("Metadata file is empty")
+                    return None
+        except (json.JSONDecodeError, IOError) as e:
+            logger.warning(f"Failed to read Chromium profile metadata: {e}")
+            return None
         except Exception as e:
             logger.warning(f"Failed to read Chromium profile metadata: {e}")
             return None

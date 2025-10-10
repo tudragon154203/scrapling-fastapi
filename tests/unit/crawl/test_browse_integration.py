@@ -12,8 +12,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 pytestmark = [
-    pytest.mark.integration,
-    pytest.mark.usefixtures("require_scrapling"),
+    pytest.mark.unit,
 ]
 
 

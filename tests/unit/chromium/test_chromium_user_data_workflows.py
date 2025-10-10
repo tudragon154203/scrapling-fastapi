@@ -14,7 +14,7 @@ from app.services.browser.browse import BrowseCrawler
 from app.schemas.browse import BrowseRequest, BrowserEngine
 from app.core.config import Settings
 
-pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("require_scrapling")]
+pytestmark = [pytest.mark.unit]
 
 
 class TestChromiumUserDataWorkflows:
@@ -101,7 +101,7 @@ class TestChromiumUserDataWorkflows:
 
     @patch('app.services.common.browser.user_data_chromium.BROWSERFORGE_AVAILABLE', True)
     @patch('app.services.common.browser.user_data_chromium.browserforge')
-    def test_browse_session_generates_fingerprint(self, tmp_path, monkeypatch, mock_browserforge):
+    def test_browse_session_generates_fingerprint(self, mock_browserforge, tmp_path, monkeypatch):
         """Test that browse session generates BrowserForge fingerprint."""
         mock_browserforge.__version__ = '1.2.3'
         mock_browserforge.generate.return_value = {
