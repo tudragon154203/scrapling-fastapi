@@ -1,6 +1,7 @@
 """Integration tests for concurrent Chromium user data operations."""
 
 import time
+import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
@@ -308,13 +309,15 @@ class TestConcurrentUserDataOperations:
 
     def test_concurrent_cleanup_operations(self, user_data_manager):
         """Test concurrent cleanup operations."""
-        # Create some test clones
+        # Create some test clones by creating them manually without using context manager cleanup
         clone_dirs = []
         for i in range(20):
-            with user_data_manager.get_user_data_context('read') as (effective_dir, cleanup):
-                clone_dirs.append(Path(effective_dir))
-                # Don't cleanup - let them accumulate
-                time.sleep(0.01)
+            # Manually create clone directories to avoid automatic cleanup
+            clone_id = str(uuid.uuid4())
+            clone_dir = Path(user_data_manager.clones_dir) / clone_id
+            clone_dir.mkdir(parents=True, exist_ok=True)
+            clone_dirs.append(clone_dir)
+            time.sleep(0.01)
 
         cleanup_results = []
         errors = []

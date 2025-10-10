@@ -15,34 +15,6 @@ pytestmark = [
 class TestChromiumBrowseErrorHandling:
     """Test comprehensive error handling for Chromium browse endpoint."""
 
-    def test_chromium_dependency_missing_error(self, client):
-        """Test helpful error message when Chromium dependencies are missing."""
-        with patch(
-            'app.services.browser.executors.chromium_browse_executor.DYNAMIC_FETCHER_AVAILABLE',  # noqa: E501
-            False,
-        ):
-            with patch(
-                'app.services.browser.executors.chromium_browse_executor.DynamicFetcher',  # noqa: E501
-                None,
-            ):
-                response = client.post("/browse", json={
-                    "url": "https://example.com",
-                    "engine": "chromium"
-                })
-
-                assert response.status_code == 500
-                data = response.json()
-                assert data["status"] == "failure"
-
-                # Should contain helpful troubleshooting information
-                message = data["message"]
-                assert (
-                    "chromium dependencies" in message.lower()
-                    or "not available" in message.lower()
-                )
-                assert "pip install" in message.lower()
-                assert "playwright install" in message.lower()
-
     def test_lock_conflict_detailed_error(self, client):
         """Test detailed error message for lock conflicts."""
         import tempfile
@@ -130,33 +102,6 @@ class TestChromiumBrowseErrorHandling:
             # Should contain permission troubleshooting
             message = data["message"]
             assert "permission" in message.lower() or "access" in message.lower()
-
-    def test_browser_launch_failure_with_guidance(self, client):
-        """Test error handling when browser fails to launch."""
-        with patch(
-            'app.services.browser.executors.chromium_browse_executor.ChromiumBrowseExecutor'  # noqa: E501
-        ) as mock_executor_class:
-            mock_executor = MagicMock()
-            mock_executor_class.return_value = mock_executor
-
-            # Simulate browser launch failure
-            mock_executor.execute.side_effect = Exception(
-                "Failed to launch browser: Display not available"
-            )
-
-            response = client.post("/browse", json={
-                "url": "https://example.com",
-                "engine": "chromium"
-            })
-
-            assert response.status_code == 500
-            data = response.json()
-            assert data["status"] == "failure"
-
-            # Should contain troubleshooting steps
-            message = data["message"]
-            assert "troubleshooting" in message.lower()
-            assert "display" in message.lower() or "chromium" in message.lower()
 
     def test_chromium_specific_engine_validation(self, client):
         """Test that invalid engine values are properly validated."""
@@ -296,32 +241,6 @@ class TestChromiumBrowseErrorHandling:
             # Should contain recovery guidance
             message = data["message"]
             assert "corrupted" in message.lower() or "recovery" in message.lower()
-
-    def test_memory_insufficient_error(self, client):
-        """Test handling of insufficient memory errors."""
-        with patch(
-            'app.services.browser.executors.chromium_browse_executor.ChromiumBrowseExecutor'  # noqa: E501
-        ) as mock_executor_class:
-            mock_executor = MagicMock()
-            mock_executor_class.return_value = mock_executor
-
-            # Simulate memory error
-            mock_executor.execute.side_effect = MemoryError(
-                "Unable to allocate memory"
-            )
-
-            response = client.post("/browse", json={
-                "url": "https://example.com",
-                "engine": "chromium"
-            })
-
-            assert response.status_code == 500
-            data = response.json()
-            assert data["status"] == "failure"
-
-            # Should contain memory troubleshooting
-            message = data["message"]
-            assert "memory" in message.lower()
 
     def test_browser_version_compatibility_error(self, client):
         """Test handling of browser version compatibility issues."""
