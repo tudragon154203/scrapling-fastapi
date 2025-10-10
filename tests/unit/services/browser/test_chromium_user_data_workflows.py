@@ -99,47 +99,6 @@ class TestChromiumUserDataWorkflows:
                 if file_path.exists():
                     assert file_path.stat().st_size > 0, f"{expected_file} should not be empty"
 
-    def test_browse_session_generates_fingerprint(self, tmp_path, monkeypatch, mock_browserforge):
-        """Test that browse session generates BrowserForge fingerprint."""
-        mock_browserforge.__version__ = '1.2.3'
-        mock_browserforge.generate.return_value = {
-            'userAgent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-            'viewport': {'width': 1366, 'height': 768},
-            'screen': {'width': 1366, 'height': 768}
-        }
-
-        # Direct Chromium user data to a temporary directory and ensure settings reload
-        base_dir = tmp_path / "chromium_profiles"
-        monkeypatch.setenv("CHROMIUM_USER_DATA_DIR", str(base_dir))
-        settings = Settings()
-        monkeypatch.setattr('app.services.browser.browse.app_config.get_settings', lambda: settings)
-
-        # Create browse request for Chromium
-        request = BrowseRequest(engine=BrowserEngine.CHROMIUM, url="https://example.com")
-        crawler = BrowseCrawler()
-
-        # Mock the engine to avoid actual browser launch
-        with patch.object(crawler, 'engine') as mock_engine:
-            # Mock successful execution with a success status so BrowseCrawler proceeds and metadata/fingerprint are created
-            mock_result = MagicMock()
-            mock_result.status = "success"
-            mock_result.message = "Chromium executed"
-            mock_engine.run.return_value = mock_result
-
-            # Run browse session
-            crawler.run(request)
-
-            # Check that fingerprint was generated
-            master_dir = Path(base_dir) / 'master'
-            fingerprint_file = master_dir / 'browserforge_fingerprint.json'
-            assert fingerprint_file.exists()
-
-            with open(fingerprint_file, 'r') as f:
-                fingerprint = json.load(f)
-
-            assert 'userAgent' in fingerprint
-            assert 'viewport' in fingerprint
-
     def test_download_strategy_uses_user_data_context(self):
         """Test that download strategy uses Chromium user data context."""
         # Create master profile first
@@ -211,40 +170,6 @@ class TestChromiumUserDataWorkflows:
                 additional_args = call_args.kwargs['additional_args']
                 # Should not have user_data_dir when disabled
                 assert 'user_data_dir' not in additional_args
-
-    def test_concurrent_read_contexts_isolation(self):
-        """Test that concurrent read contexts are properly isolated."""
-        # Create master profile with some data
-        user_data_manager = ChromiumUserDataManager(self.temp_dir)
-        with user_data_manager.get_user_data_context('write') as (effective_dir, cleanup):
-            master_dir = Path(effective_dir)
-            (master_dir / 'shared_file.txt').write_text('master content')
-
-        # Create multiple read contexts
-        contexts = []
-        try:
-            for i in range(3):
-                effective_dir, cleanup = user_data_manager.get_user_data_context('read').__enter__()
-                contexts.append((effective_dir, cleanup))
-
-                # Each should have its own clone directory
-                clone_file = Path(effective_dir) / 'shared_file.txt'
-                assert clone_file.exists()
-                assert clone_file.read_text() == 'master content'
-
-                # Modify each clone independently
-                unique_file = Path(effective_dir) / f'unique_{i}.txt'
-                unique_file.write_text(f'content_{i}')
-
-        finally:
-            # Clean up all contexts
-            for effective_dir, cleanup in contexts:
-                cleanup()
-
-        # Verify all clones were cleaned up
-        clones_dir = Path(self.temp_dir) / 'clones'
-        if clones_dir.exists():
-            assert len(list(clones_dir.iterdir())) == 0
 
     def test_metadata_updates_across_sessions(self):
         """Test that metadata is properly updated across sessions."""

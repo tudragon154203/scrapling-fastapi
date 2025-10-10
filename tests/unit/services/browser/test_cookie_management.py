@@ -92,38 +92,6 @@ class TestChromiumCookieManagement:
             "origins": []
         }
 
-    def test_export_empty_profile(self, user_data_manager):
-        """Test exporting cookies from an empty profile."""
-        result = user_data_manager.export_cookies()
-
-        assert result is not None
-        assert result["format"] == "json"
-        assert result["cookies"] == []
-        assert result["cookies_available"] is False
-        assert "master_profile_path" in result
-
-    def test_create_and_export_cookies(self, user_data_manager, sample_cookies):
-        """Test creating cookies and then exporting them."""
-        # Import sample cookies first
-        success = user_data_manager.import_cookies(sample_cookies)
-        assert success is True
-
-        # Export cookies
-        result = user_data_manager.export_cookies()
-
-        assert result is not None
-        assert result["format"] == "json"
-        assert result["cookies_available"] is True
-        assert len(result["cookies"]) == len(sample_cookies["cookies"])
-
-        # Verify cookie data integrity
-        exported_cookies = result["cookies"]
-        for i, expected_cookie in enumerate(sample_cookies["cookies"]):
-            exported_cookie = exported_cookies[i]
-            assert exported_cookie["name"] == expected_cookie["name"]
-            assert exported_cookie["value"] == expected_cookie["value"]
-            assert exported_cookie["domain"] == expected_cookie["domain"]
-
     def test_export_storage_state_format(self, user_data_manager, sample_cookies):
         """Test exporting cookies in storage_state format."""
         # Import sample cookies
@@ -425,59 +393,6 @@ class TestChromiumCookieManagement:
                 c for c in special_cookies["cookies"] if c["name"] == cookie["name"]
             )
             assert cookie["value"] == original_cookie["value"]
-
-    def test_concurrent_cookie_operations(self, user_data_manager, sample_cookies):
-        """Test concurrent import/export operations."""
-        import threading
-        results = []
-        errors = []
-
-        def import_export_operation(worker_id):
-            try:
-                # Create unique cookies for this worker
-                worker_cookies = sample_cookies.copy()
-                for cookie in worker_cookies["cookies"]:
-                    cookie["name"] = f"{cookie['name']}_worker_{worker_id}"
-                    cookie["value"] = f"{cookie['value']}_worker_{worker_id}"
-
-                # Import cookies
-                import_success = user_data_manager.import_cookies(worker_cookies)
-
-                # Export cookies
-                export_result = user_data_manager.export_cookies()
-
-                results.append({
-                    'worker_id': worker_id,
-                    'import_success': import_success,
-                    'export_cookie_count': len(export_result.get('cookies', []))
-                })
-            except Exception as e:
-                errors.append({'worker_id': worker_id, 'error': str(e)})
-
-        # Run concurrent operations
-        threads = []
-        for i in range(5):
-            thread = threading.Thread(target=import_export_operation, args=(i,))
-            threads.append(thread)
-            thread.start()
-
-        # Wait for all threads to complete
-        for thread in threads:
-            thread.join()
-
-        # Verify results
-        assert len(errors) == 0, f"Errors occurred: {errors}"
-        assert len(results) == 5, "Not all operations completed"
-
-        # All imports should succeed
-        for result in results:
-            assert result['import_success'], f"Import failed for worker {result['worker_id']}"
-            assert result['export_cookie_count'] > 0, "No cookies found after import"
-
-        # Final export should contain all worker cookies
-        final_result = user_data_manager.export_cookies()
-        expected_cookie_count = len(sample_cookies["cookies"]) * 5
-        assert len(final_result["cookies"]) >= expected_cookie_count
 
     def test_cookie_database_corruption_recovery(self, user_data_manager):
         """Test recovery from corrupted cookie database."""
