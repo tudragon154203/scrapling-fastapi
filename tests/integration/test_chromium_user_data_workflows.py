@@ -222,16 +222,17 @@ class TestChromiumUserDataWorkflows:
             master_dir = Path(effective_dir)
             (master_dir / 'shared_file.txt').write_text('master content')
 
-        # Create multiple read contexts
+        # Create multiple read contexts using proper context managers
         contexts = []
         try:
             for i in range(3):
-                effective_dir, cleanup = user_data_manager.get_user_data_context('read').__enter__()
-                contexts.append((effective_dir, cleanup))
+                context = user_data_manager.get_user_data_context('read')
+                effective_dir, cleanup = context.__enter__()
+                contexts.append((context, effective_dir, cleanup))
 
                 # Each should have its own clone directory
                 clone_file = Path(effective_dir) / 'shared_file.txt'
-                assert clone_file.exists()
+                assert clone_file.exists(), f"shared_file.txt should exist in clone {effective_dir}"
                 assert clone_file.read_text() == 'master content'
 
                 # Modify each clone independently
@@ -239,9 +240,12 @@ class TestChromiumUserDataWorkflows:
                 unique_file.write_text(f'content_{i}')
 
         finally:
-            # Clean up all contexts
-            for effective_dir, cleanup in contexts:
-                cleanup()
+            # Clean up all contexts using proper exit
+            for context, effective_dir, cleanup in contexts:
+                try:
+                    context.__exit__(None, None, None)
+                except Exception:
+                    pass  # Ignore cleanup errors
 
         # Verify all clones were cleaned up
         clones_dir = Path(self.temp_dir) / 'clones'
