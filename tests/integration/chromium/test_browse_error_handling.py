@@ -69,7 +69,7 @@ class TestChromiumBrowseErrorHandling:
                 "engine": "chromium"
             })
 
-            assert response.status_code == 200
+            assert response.status_code == 500
             data = response.json()
             assert data["status"] == "failure"
 
@@ -95,7 +95,7 @@ class TestChromiumBrowseErrorHandling:
                 "engine": "chromium"
             })
 
-            assert response.status_code == 200
+            assert response.status_code == 500
             data = response.json()
             assert data["status"] == "failure"
 
@@ -182,7 +182,7 @@ class TestChromiumBrowseErrorHandling:
                 "engine": "chromium"
             })
 
-            assert response.status_code == 200
+            assert response.status_code == 500
             data = response.json()
             assert data["status"] == "failure"
 
@@ -208,7 +208,7 @@ class TestChromiumBrowseErrorHandling:
                 "engine": "chromium"
             })
 
-            assert response.status_code == 200
+            assert response.status_code == 500
             data = response.json()
             assert data["status"] == "failure"
 
@@ -234,7 +234,7 @@ class TestChromiumBrowseErrorHandling:
                 "engine": "chromium"
             })
 
-            assert response.status_code == 200
+            assert response.status_code == 500
             data = response.json()
             assert data["status"] == "failure"
 
