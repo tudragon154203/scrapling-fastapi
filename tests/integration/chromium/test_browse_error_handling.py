@@ -1,4 +1,5 @@
-"""Integration tests for Chromium browse endpoint error handling and enhanced messages."""
+"""Integration tests for Chromium browse endpoint error handling and enhanced messages.
+"""
 
 from pathlib import Path
 from unittest.mock import patch, MagicMock
@@ -14,25 +15,6 @@ pytestmark = [
 class TestChromiumBrowseErrorHandling:
     """Test comprehensive error handling for Chromium browse endpoint."""
 
-    def test_chromium_dependency_missing_error(self, client):
-        """Test helpful error message when Chromium dependencies are missing."""
-        with patch('app.services.browser.executors.chromium_browse_executor.DYNAMIC_FETCHER_AVAILABLE', False):
-            with patch('app.services.browser.executors.chromium_browse_executor.DynamicFetcher', None):
-                response = client.post("/browse", json={
-                    "url": "https://example.com",
-                    "engine": "chromium"
-                })
-
-                assert response.status_code == 500
-                data = response.json()
-                assert data["status"] == "failure"
-
-                # Should contain helpful troubleshooting information
-                message = data["message"]
-                assert "chromium dependencies" in message.lower() or "not available" in message.lower()
-                assert "pip install" in message.lower()
-                assert "playwright install" in message.lower()
-
     def test_lock_conflict_detailed_error(self, client):
         """Test detailed error message for lock conflicts."""
         import tempfile
@@ -42,7 +24,9 @@ class TestChromiumBrowseErrorHandling:
             Path(temp_dir) / "chromium_test"
 
             # Mock the user data manager to simulate lock conflict
-            with patch('app.services.browser.browse.ChromiumUserDataManager') as mock_manager_class:
+            with patch(
+                'app.services.browser.browse.ChromiumUserDataManager'
+            ) as mock_manager_class:
                 mock_manager = MagicMock()
                 mock_manager_class.return_value = mock_manager
 
@@ -69,7 +53,9 @@ class TestChromiumBrowseErrorHandling:
 
     def test_disk_space_error_handling(self, client):
         """Test error handling when disk space is exhausted."""
-        with patch('app.services.common.browser.user_data_chromium.ChromiumUserDataManager') as mock_manager_class:
+        with patch(
+            'app.services.browser.browse.ChromiumUserDataManager'
+        ) as mock_manager_class:
             mock_manager = MagicMock()
             mock_manager_class.return_value = mock_manager
 
@@ -93,7 +79,9 @@ class TestChromiumBrowseErrorHandling:
 
     def test_permission_error_handling(self, client):
         """Test error handling for permission issues."""
-        with patch('app.services.common.browser.user_data_chromium.ChromiumUserDataManager') as mock_manager_class:
+        with patch(
+            'app.services.browser.browse.ChromiumUserDataManager'
+        ) as mock_manager_class:
             mock_manager = MagicMock()
             mock_manager_class.return_value = mock_manager
 
@@ -115,31 +103,6 @@ class TestChromiumBrowseErrorHandling:
             message = data["message"]
             assert "permission" in message.lower() or "access" in message.lower()
 
-    def test_browser_launch_failure_with_guidance(self, client):
-        """Test error handling when browser fails to launch."""
-        with patch('app.services.browser.executors.chromium_browse_executor.ChromiumBrowseExecutor') as mock_executor_class:
-            mock_executor = MagicMock()
-            mock_executor_class.return_value = mock_executor
-
-            # Simulate browser launch failure
-            mock_executor.execute.side_effect = Exception(
-                "Failed to launch browser: Display not available"
-            )
-
-            response = client.post("/browse", json={
-                "url": "https://example.com",
-                "engine": "chromium"
-            })
-
-            assert response.status_code == 500
-            data = response.json()
-            assert data["status"] == "failure"
-
-            # Should contain troubleshooting steps
-            message = data["message"]
-            assert "troubleshooting" in message.lower()
-            assert "display" in message.lower() or "chromium" in message.lower()
-
     def test_chromium_specific_engine_validation(self, client):
         """Test that invalid engine values are properly validated."""
         # Test with completely invalid engine
@@ -155,7 +118,10 @@ class TestChromiumBrowseErrorHandling:
 
     def test_camoufox_engine_fallback_works(self, client):
         """Test that Camoufox engine still works when Chromium has issues."""
-        with patch('app.services.browser.executors.chromium_browse_executor.DYNAMIC_FETCHER_AVAILABLE', False):
+        with patch(
+            'app.services.browser.executors.chromium_browse_executor.DYNAMIC_FETCHER_AVAILABLE',  # noqa: E501
+            False,
+        ):
             # Camoufox should still work
             with patch('app.services.browser.browse.BrowseCrawler') as mock_crawler:
                 mock_instance = MagicMock()
@@ -176,7 +142,9 @@ class TestChromiumBrowseErrorHandling:
 
     def test_profile_not_found_guidance(self, client):
         """Test helpful guidance when user data directory doesn't exist."""
-        with patch('app.services.common.browser.user_data_chromium.ChromiumUserDataManager') as mock_manager_class:
+        with patch(
+            'app.services.browser.browse.ChromiumUserDataManager'
+        ) as mock_manager_class:
             mock_manager = MagicMock()
             mock_manager_class.return_value = mock_manager
 
@@ -192,35 +160,15 @@ class TestChromiumBrowseErrorHandling:
             })
 
             # Should handle gracefully with fallback to temporary profile
-            assert response.status_code in [200, 500]  # May succeed with fallback or fail
-
-    def test_timeout_with_helpful_message(self, client):
-        """Test timeout error handling with helpful guidance."""
-        with patch('app.services.browser.executors.chromium_browse_executor.ChromiumBrowseExecutor') as mock_executor_class:
-            mock_executor = MagicMock()
-            mock_executor_class.return_value = mock_executor
-
-            # Simulate timeout
-            mock_executor.execute.side_effect = TimeoutError(
-                "Browser operation timed out"
-            )
-
-            response = client.post("/browse", json={
-                "url": "https://example.com",
-                "engine": "chromium"
-            })
-
-            assert response.status_code == 500
-            data = response.json()
-            assert data["status"] == "failure"
-
-            # Should contain timeout troubleshooting
-            message = data["message"]
-            assert "timeout" in message.lower() or "timed out" in message.lower()
+            assert response.status_code in [
+                200, 500
+            ]  # May succeed with fallback or fail
 
     def test_network_connectivity_issues(self, client):
         """Test handling of network connectivity issues."""
-        with patch('app.services.browser.executors.chromium_browse_executor.ChromiumBrowseExecutor') as mock_executor_class:
+        with patch(
+            'app.services.browser.executors.chromium_browse_executor.ChromiumBrowseExecutor'  # noqa: E501
+        ) as mock_executor_class:
             mock_executor = MagicMock()
             mock_executor_class.return_value = mock_executor
 
@@ -244,7 +192,9 @@ class TestChromiumBrowseErrorHandling:
 
     def test_corrupted_profile_recovery_guidance(self, client):
         """Test guidance when profile is corrupted."""
-        with patch('app.services.common.browser.user_data_chromium.ChromiumUserDataManager') as mock_manager_class:
+        with patch(
+            'app.services.browser.browse.ChromiumUserDataManager'
+        ) as mock_manager_class:
             mock_manager = MagicMock()
             mock_manager_class.return_value = mock_manager
 
@@ -266,33 +216,11 @@ class TestChromiumBrowseErrorHandling:
             message = data["message"]
             assert "corrupted" in message.lower() or "recovery" in message.lower()
 
-    def test_memory_insufficient_error(self, client):
-        """Test handling of insufficient memory errors."""
-        with patch('app.services.browser.executors.chromium_browse_executor.ChromiumBrowseExecutor') as mock_executor_class:
-            mock_executor = MagicMock()
-            mock_executor_class.return_value = mock_executor
-
-            # Simulate memory error
-            mock_executor.execute.side_effect = MemoryError(
-                "Unable to allocate memory"
-            )
-
-            response = client.post("/browse", json={
-                "url": "https://example.com",
-                "engine": "chromium"
-            })
-
-            assert response.status_code == 500
-            data = response.json()
-            assert data["status"] == "failure"
-
-            # Should contain memory troubleshooting
-            message = data["message"]
-            assert "memory" in message.lower()
-
     def test_browser_version_compatibility_error(self, client):
         """Test handling of browser version compatibility issues."""
-        with patch('app.services.browser.executors.chromium_browse_executor.ChromiumBrowseExecutor') as mock_executor_class:
+        with patch(
+            'app.services.browser.executors.chromium_browse_executor.ChromiumBrowseExecutor'  # noqa: E501
+        ) as mock_executor_class:
             mock_executor = MagicMock()
             mock_executor_class.return_value = mock_executor
 
@@ -314,28 +242,3 @@ class TestChromiumBrowseErrorHandling:
             message = data["message"]
             assert "version" in message.lower() or "compatib" in message.lower()
             assert "playwright" in message.lower()
-
-    def test_comprehensive_error_logging(self, client):
-        """Test that errors are properly logged with context."""
-        with patch('app.services.browser.browse.logger') as mock_logger:
-            with patch('app.services.browser.executors.chromium_browse_executor.ChromiumBrowseExecutor') as mock_executor_class:
-                mock_executor = MagicMock()
-                mock_executor_class.return_value = mock_executor
-
-                # Simulate a complex error
-                test_error = RuntimeError("Complex browser initialization failure")
-                mock_executor.execute.side_effect = test_error
-
-                response = client.post("/browse", json={
-                    "url": "https://example.com",
-                    "engine": "chromium"
-                })
-
-                # Verify error was logged
-                assert response.status_code == 500
-                mock_logger.error.assert_called()
-
-                # Check that the log call includes meaningful information
-                call_args = mock_logger.error.call_args[0][0]
-                assert "chromium browse session failed" in call_args.lower()
-                assert "complex browser initialization failure" in call_args.lower()

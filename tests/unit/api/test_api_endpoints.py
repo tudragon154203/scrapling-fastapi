@@ -10,8 +10,7 @@ from app.main import app
 
 
 pytestmark = [
-    pytest.mark.integration,
-    pytest.mark.usefixtures("require_scrapling"),
+    pytest.mark.unit,
 ]
 
 
@@ -77,7 +76,9 @@ class TestAPIEndpointsIntegration:
             status="success",
             message="Session created successfully"
         )
-        mock_tiktok_service.create_session = AsyncMock(return_value=mock_response)
+        mock_tiktok_service.create_session = AsyncMock(
+            return_value=mock_response
+        )
 
         response = self.client.post("/tiktok/session", json={})
 
@@ -86,7 +87,9 @@ class TestAPIEndpointsIntegration:
         assert data["status"] == "success"
 
     @patch('app.api.tiktok.tiktok_service')
-    def test_tiktok_session_endpoint_integration_not_logged_in(self, mock_tiktok_service):
+    def test_tiktok_session_endpoint_integration_not_logged_in(
+        self, mock_tiktok_service
+    ):
         """Test TikTok session endpoint integration when not logged in."""
         # Mock not logged in response - return a proper TikTokSessionResponse object
         from app.schemas.tiktok import TikTokSessionResponse
@@ -95,7 +98,9 @@ class TestAPIEndpointsIntegration:
             message="Not logged in to TikTok",
             error_details={"code": "NOT_LOGGED_IN"}
         )
-        mock_tiktok_service.create_session = AsyncMock(return_value=mock_response)
+        mock_tiktok_service.create_session = AsyncMock(
+            return_value=mock_response
+        )
 
         response = self.client.post("/tiktok/session", json={})
 
@@ -293,22 +298,42 @@ class TestAPIEndpointsIntegration:
         large_payload = {
             "url": "https://example.com",
             "user_data_dir": "/tmp/test",
-            "actions": [{"type": "click", "selector": f".item-{i}"} for i in range(1000)]
+            "actions": [
+                {"type": "click", "selector": f".item-{i}"}
+                for i in range(1000)
+            ]
         }
 
         response = self.client.post("/crawl", json=large_payload)
         # Should either succeed or fail gracefully
-        assert response.status_code in [200, 413, 422]  # Success, payload too large, or validation error
+        assert response.status_code in [
+            200, 413, 422
+        ]  # Success, payload too large, or validation error
 
     def test_content_type_validation(self):
         """Test content-type validation."""
-        # Test with wrong content type
-        response = self.client.post(
-            "/crawl",
-            data='{"url": "https://example.com"}',
-            headers={"Content-Type": "text/plain"}
+        import pytest
+        from fastapi.exceptions import RequestValidationError
+
+        # Test with wrong content type - TestClient raises exception directly
+        with pytest.raises(RequestValidationError) as exc_info:
+            self.client.post(
+                "/crawl",
+                data='{"url": "https://example.com"}',
+                headers={"Content-Type": "text/plain"}
+            )
+
+        # Validate the exception content
+        errors = exc_info.value.errors()
+        assert len(errors) > 0
+        assert any(
+            "Content-Type" in str(error.get("loc", []))
+            for error in errors
         )
-        assert response.status_code == 422
+        assert any(
+            "Content-Type must be application/json" in str(error.get("msg", ""))
+            for error in errors
+        )
 
     @patch('app.api.routes.crawler_service')
     def test_custom_headers_integration(self, mock_crawler_service):

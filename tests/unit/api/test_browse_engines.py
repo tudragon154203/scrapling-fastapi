@@ -8,8 +8,7 @@ import pytest
 import time
 
 pytestmark = [
-    pytest.mark.integration,
-    pytest.mark.usefixtures("require_scrapling")
+    pytest.mark.unit,
 ]
 
 

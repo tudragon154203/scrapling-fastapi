@@ -5,8 +5,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 pytestmark = [
-    pytest.mark.integration,
-    pytest.mark.usefixtures("require_scrapling"),
+    pytest.mark.unit,
 ]
 
 SAMPLE_RESULT = {

@@ -12,8 +12,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 pytestmark = [
-    pytest.mark.integration,
-    pytest.mark.usefixtures("require_scrapling"),
+    pytest.mark.unit,
 ]
 
 
@@ -398,7 +397,7 @@ class TestBrowseE2E:
         # Track browse crawler instantiation to ensure no retries
         instantiation_count = 0
 
-        def mock_browse_crawler_init(self, engine=None):
+        def mock_browse_crawler_init(self, engine=None, browser_engine=None):
             nonlocal instantiation_count
             instantiation_count += 1
 
