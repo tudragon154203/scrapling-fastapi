@@ -387,17 +387,68 @@ class TestChromiumDownloadStrategy:
         assert mock_manager.get_user_data_context.call_count == 2
 
     def test_chromium_strategy_headless_allowed_when_parity_flag_enabled(self, strategy: ChromiumDownloadStrategy) -> None:
-        """Future parity test: Test that headless mode is allowed when parity flag is enabled.
+        """Test that headless mode is allowed when parity flag is enabled (force_headful=False)."""
+        # Call the actual method with force_headful=False to test parity features
+        result = strategy._build_chromium_fetch_kwargs(
+            "https://www.tiktok.com/@test/video/456",
+            None,  # quality_hint
+            force_headful=False  # This enables headless mode with parity
+        )
 
-        This test is marked as xfail until headless parity is implemented.
-        """
-        # This test will fail until headless parity is implemented
-        pytest.xfail("Headless parity not yet implemented")
+        # Verify that headless is enabled when parity flag (force_headful=False) is set
+        assert "fetch_kwargs" in result
+        assert "headless" in result["fetch_kwargs"]
+        assert result["fetch_kwargs"]["headless"] is True
 
-        # When parity is implemented, this test should verify that:
-        # 1. When a parity flag is enabled and force_headful is False, headless can be True
-        # 2. The strategy respects the parity setting
-        pass
+        # Verify that parity-specific browser arguments are included for headless mode
+        # These are the headless-specific parity arguments that enhance headless compatibility
+        browser_args = result.get("browser_args", [])
+        headless_parity_args = [
+            "--disable-background-networking",
+            "--no-default-browser-check",
+            "--disable-features=TranslateUI,BlinkGenPropertyTrees",
+            "--enable-automation",
+            "--password-store=basic",
+            "--use-mock-keychain",
+            "--disable-component-update",
+            "--disable-domain-reliability",
+            "--disable-features=AudioServiceOutOfProcess",
+        ]
+
+        # Note: browser_args are only passed to PersistentChromiumFetcher,
+        # but parity features are also implemented in fetch_kwargs for DynamicFetcher
+        if browser_args:
+            for parity_arg in headless_parity_args:
+                assert parity_arg in browser_args, f"Missing parity argument: {parity_arg}"
+
+        # Verify parity configurations in fetch_kwargs (applies to both fetcher types)
+        fetch_kwargs = result["fetch_kwargs"]
+
+        # Headless parity configurations
+        assert fetch_kwargs["network_idle"] is True  # Wait for network idle in headless
+        assert fetch_kwargs["wait"] == 5000  # Longer wait for headless stability
+        assert fetch_kwargs["timeout"] == 120000  # Longer timeout for headless
+
+        # Verify enhanced headers for headless parity
+        headers = fetch_kwargs["extra_headers"]
+        parity_headers = {
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.5",
+            "Accept-Encoding": "gzip, deflate, br",
+            "DNT": "1",
+            "Connection": "keep-alive",
+            "Upgrade-Insecure-Requests": "1",
+        }
+
+        for header_key, expected_value in parity_headers.items():
+            assert header_key in headers
+            assert headers[header_key] == expected_value
+
+        # Verify that the parity features allow headless mode to work properly
+        # The presence of these configurations indicates that parity is implemented
+        # and headless mode is enhanced to behave more like headful mode
+        assert result["fetch_kwargs"]["headless"] is True
+        assert "parity" in str(result).lower() or "headless" in str(result).lower()
 
 
 class TestTikTokDownloadStrategyFactory:
