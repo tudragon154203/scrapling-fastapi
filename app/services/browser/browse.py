@@ -82,6 +82,10 @@ class BrowseCrawler:
             settings, 'camoufox_user_data_dir', 'data/camoufox_profiles'
         )
 
+        # Ensure user_data_dir is not None
+        if user_data_dir is None:
+            user_data_dir = 'data/camoufox_profiles'
+
         previous_mute = bool(
             getattr(settings, 'camoufox_runtime_force_mute_audio', False)
         )
@@ -208,17 +212,19 @@ class BrowseCrawler:
 
             # Profile corruption guidance
             if "corrupt" in msg_lower or "corrupted" in msg_lower or "database is corrupted" in msg_lower:
+                user_data_path = (
+                    getattr(app_config.get_settings(), 'chromium_runtime_effective_user_data_dir', None) or
+                    os.path.abspath(user_data_dir)
+                )
                 error_msg = (
                     f"Chromium user profile appears corrupted: {str(e)}\n"
                     "Recovery steps:\n"
                     "1. Close all Chromium/Chrome instances\n"
                     "2. Backup and then delete the corrupted profile directory\n"
-                    "   Path: {}\n".format(
-                        getattr(app_config.get_settings(), 'chromium_runtime_effective_user_data_dir', None) or
-                        os.path.abspath(user_data_dir)
-                    ),
+                    f"   Path: {user_data_path}\n"
                     "3. Re-run the browse session to rebuild a fresh profile\n"
-                    "4. If issues persist, reinstall Playwright browsers: playwright install chromium")
+                    "4. If issues persist, reinstall Playwright browsers: playwright install chromium"
+                )
                 logger.error(f"Chromium profile corruption detected: {e}")
                 return BrowseResponse(
                     status="failure",
@@ -246,15 +252,17 @@ class BrowseCrawler:
         except OSError as e:
             # Disk space or filesystem-related issues
             msg_lower = str(e).lower()
+            user_data_path = (
+                getattr(app_config.get_settings(), 'chromium_runtime_effective_user_data_dir', None) or
+                os.path.abspath(user_data_dir)
+            )
             error_msg = (
                 f"Disk space or filesystem error during Chromium browse: {str(e)}\n"
                 "Troubleshooting:\n"
-                "1. Free up disk space for the Chromium user data directory\n"
-                "2. Verify write permissions to: {}\n".format(
-                    getattr(app_config.get_settings(), 'chromium_runtime_effective_user_data_dir', None) or
-                    os.path.abspath(user_data_dir)
-                ),
-                "3. Consider changing CHROMIUM_USER_DATA_DIR to a drive with more space")
+                f"1. Free up disk space for the Chromium user data directory\n"
+                f"2. Verify write permissions to: {user_data_path}\n"
+                "3. Consider changing CHROMIUM_USER_DATA_DIR to a drive with more space"
+            )
             # Highlight 'no space' explicitly when present
             if "no space" in msg_lower:
                 error_msg = "Disk space issue detected (No space left on device).\n" + error_msg
@@ -266,15 +274,17 @@ class BrowseCrawler:
 
         except PermissionError as e:
             # Permission issues
+            user_data_path = (
+                getattr(app_config.get_settings(), 'chromium_runtime_effective_user_data_dir', None) or
+                os.path.abspath(user_data_dir)
+            )
             error_msg = (
                 f"Permission error accessing Chromium user data: {str(e)}\n"
                 "Troubleshooting:\n"
                 "1. Ensure the process has access permissions to the user data directory\n"
-                "2. Check directory path: {}\n".format(
-                    getattr(app_config.get_settings(), 'chromium_runtime_effective_user_data_dir', None) or
-                    os.path.abspath(user_data_dir)
-                ),
-                "3. Run the service with sufficient privileges or adjust directory ACLs")
+                f"2. Check directory path: {user_data_path}\n"
+                "3. Run the service with sufficient privileges or adjust directory ACLs"
+            )
             logger.error(f"Chromium permission/access error: {e}")
             return BrowseResponse(
                 status="failure",
