@@ -358,7 +358,7 @@ class TestConcurrentUserDataOperations:
         assert len(cleanup_results) == 3, f"Expected 3 cleanup operations, got {len(cleanup_results)}"
 
         # Check if any clones were cleaned up (it's possible none were left after our cleanup above)
-        total_cleaned = sum(result['cleaned'] for result in cleanup_results)
+        _ = sum(result['cleaned'] for result in cleanup_results)  # Store in underscore (_) to indicate unused
         # We don't assert total_cleaned > 0 since our manual cleanup might have already removed them
         # Instead, we verify that the cleanup operation completed without errors
 

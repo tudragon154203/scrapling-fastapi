@@ -99,8 +99,6 @@ class TestChromiumUserDataWorkflows:
                 if file_path.exists():
                     assert file_path.stat().st_size > 0, f"{expected_file} should not be empty"
 
-    @patch('app.services.common.browser.user_data_chromium.BROWSERFORGE_AVAILABLE', True)
-    @patch('app.services.common.browser.user_data_chromium.browserforge')
     def test_browse_session_generates_fingerprint(self, tmp_path, monkeypatch, mock_browserforge):
         """Test that browse session generates BrowserForge fingerprint."""
         mock_browserforge.__version__ = '1.2.3'

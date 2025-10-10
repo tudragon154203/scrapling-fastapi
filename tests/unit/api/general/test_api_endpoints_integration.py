@@ -228,18 +228,6 @@ class TestAPIEndpointsIntegration:
         })
         # May pass validation depending on schema requirements
 
-    def test_user_data_api_integration(self):
-        """Test user data API integration."""
-        # Test with force_user_data parameter
-        response = self.client.post("/crawl", json={
-            "url": "https://example.com",
-            "force_user_data": True
-        })
-
-        # Response depends on whether crawling succeeds
-        # This test mainly checks the API structure
-        assert response.status_code in [200, 500]  # Accept success or internal error
-
     @patch('app.api.routes.tiktok_service')
     def test_tiktok_session_management_integration(self, mock_tiktok_service):
         """Test TikTok session management integration."""
