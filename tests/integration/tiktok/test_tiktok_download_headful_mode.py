@@ -36,31 +36,3 @@ def test_tiktok_download_headful_mode_default():
         assert response.status_code in [400, 404, 500, 503]
         data = response.json()
         assert "error" in data or "message" in data
-
-
-def test_tiktok_download_invalid_url():
-    """Test TikTok download with invalid URL."""
-
-    request_payload = {"url": "https://example.com/not-tiktok/video/123"}
-
-    response = client.post("/tiktok/download", json=request_payload)
-
-    assert response.status_code == 400
-
-    data = response.json()
-    assert data["status"] == "error"
-    assert data["error_code"] == "INVALID_URL"
-
-
-def test_tiktok_download_missing_url():
-    """Test TikTok download with missing URL."""
-
-    request_payload = {}
-
-    response = client.post("/tiktok/download", json=request_payload)
-
-    assert response.status_code == 422
-
-    data = response.json()
-    assert "detail" in data
-    # Should contain validation error about missing url field

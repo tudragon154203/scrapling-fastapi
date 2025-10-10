@@ -67,7 +67,8 @@ AI Agent Development Guidelines for Scrapling FastAPI Project
 ### Testing
 - `python -m pytest` executes the full suite in parallel (`-n auto` is set)
 - `python -m pytest -n 0` for deterministic debugging
-- `python -m pytest -m integration` for browser-backed scenarios
+- `python -m pytest -m unit` for unit tests only (mocked, fast)
+- `python -m pytest -m integration` for browser-backed scenarios (requires real network/browser)
 - `pre-commit run --all-files` mirrors CI formatting
 
 ## Project Structure & Module Organization
@@ -85,9 +86,31 @@ AI Agent Development Guidelines for Scrapling FastAPI Project
 - **main.py**: FastAPI application factory
 
 ### Testing Structure (tests/)
-- Mirrors app/ structure with unit test suites
+- **unit/**: Unit tests (mocked, no network/browser dependencies)
+  - **api/**: API endpoint unit tests
+  - **core/**: Configuration, logging unit tests
+  - **schemas/**: Pydantic schema validation tests
+  - **services/**: Business logic unit tests
+    - **browser/**: Browser automation unit tests
+    - **common/**: Common service unit tests
+    - **crawler/**: Web scraping service unit tests
+    - **proxy/**: Proxy rotation unit tests
+    - **tiktok/**: TikTok service unit tests
+  - **chromium/**: Chromium-specific unit tests
+  - **crawl/**: Crawling unit tests
+  - **tiktok/**: TikTok unit tests
 - **integration/**: End-to-end scenarios requiring real browser/network
+  - **api/**: API integration tests
+  - **chromium/**: Browser automation integration tests
+  - **crawl/**: Crawling integration tests
+  - **services/**: Service integration tests
+  - **tiktok/**: TikTok integration tests
 - **conftest.py**: Shared test fixtures and factories
+
+### Test Markers & Execution
+- **Unit tests**: `pytestmark = [pytest.mark.unit]` - Use mocks, no network/browser dependencies
+- **Integration tests**: `pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("require_scrapling")]` - Real network/browser operations
+- **Execution**: `python -m pytest -m unit` for unit tests, `python -m pytest -m integration` for integration tests
 
 ### Additional Directories
 - **docs/**: Architecture documentation
@@ -106,10 +129,15 @@ AI Agent Development Guidelines for Scrapling FastAPI Project
 
 ## Testing Guidelines
 
-- Place unit tests beside the feature they cover (e.g., `tests/services/crawler/test_retry.py`)
-- Adhere to `pytest.ini` patterns: files `test_*.py`, classes `Test*`, functions `test_*`
-- Mark network or browser-dependent work with `@pytest.mark.integration`; use `@pytest.mark.asyncio` for coroutine tests
-- Capture new fixtures in `tests/conftest.py` and prefer factories over hard-coded literals
+- **Unit Tests**: Place in `tests/unit/` organized by feature (e.g., `tests/unit/services/crawler/test_retry.py`)
+- **Integration Tests**: Place in `tests/integration/` for real network/browser scenarios
+- **Markers**: Always include proper pytest markers at file level:
+  - Unit tests: `pytestmark = [pytest.mark.unit]`
+  - Integration tests: `pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("require_scrapling")]`
+- **Patterns**: Follow `pytest.ini` patterns: files `test_*.py`, classes `Test*`, functions `test_*`
+- **Async**: Use `@pytest.mark.asyncio` for coroutine tests
+- **Fixtures**: Capture new fixtures in `tests/conftest.py` and prefer factories over hard-coded literals
+- **Dependencies**: Unit tests should never depend on external services or real browsers
 
 ## Commit & Pull Request Guidelines
 
@@ -141,4 +169,4 @@ AI Agent Development Guidelines for Scrapling FastAPI Project
 - **Breaking Changes**: Allowed without migration requirements
 - **Focus**: Clean architecture and implementation over legacy support
 
-**Last Updated**: 2025-09-24 | **Constitution Version**: 1.4.2
+**Last Updated**: 2025-10-10 | **Constitution Version**: 1.4.2
