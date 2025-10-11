@@ -88,7 +88,8 @@ class AbstractTikTokSearchService(ABC, TikTokSearchInterface):
     # Context helpers ----------------------------------------------------
     def _prepare_context(self, *, in_tests: bool, force_headful: bool = False) -> SearchContext:
         """Compose fetch dependencies needed to perform an independent search."""
-        from app.services.common.adapters.scrapling_fetcher import ScraplingFetcherAdapter, FetchArgComposer
+        from app.services.common.adapters.scrapling_fetcher import ScraplingFetcherAdapter
+        from app.services.common.adapters.fetch_arg_composer import FetchArgComposer
         from app.services.common.browser.camoufox import CamoufoxArgsBuilder
 
         self.logger.debug(

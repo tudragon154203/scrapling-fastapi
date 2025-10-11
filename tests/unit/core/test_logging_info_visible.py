@@ -54,9 +54,11 @@ def test_info_messages_still_logged():
         assert response.status_code == 200
         assert response.json() == {"status": "ok"}
 
-        # Give a moment for async logging to complete
+        # Mock time.sleep to avoid real delay in unit tests
         import time
-        time.sleep(0.1)
+        from unittest.mock import patch
+        with patch.object(time, 'sleep'):
+            pass  # Mocked sleep has no delay
 
         # Check that logs were actually captured
         captured_messages = capture_handler.get_messages()

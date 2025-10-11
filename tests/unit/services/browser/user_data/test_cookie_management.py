@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from app.services.common.browser.user_data_chromium import ChromiumUserDataManager
+from app.services.common.browser.user_data import ChromiumUserDataManager
 
 pytestmark = pytest.mark.unit
 

@@ -1,5 +1,5 @@
 """
-Unit tests for API endpoints to increase overall coverage.
+Integration tests for API endpoints to increase overall coverage.
 """
 
 import pytest
@@ -8,12 +8,11 @@ from unittest.mock import patch, MagicMock, AsyncMock
 
 from app.main import app
 
-
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("require_scrapling")]
 
 
 class TestAPIEndpointsIntegration:
-    """Unit tests for API endpoints."""
+    """Integration tests for API endpoints."""
 
     def setup_method(self):
         """Setup test client."""

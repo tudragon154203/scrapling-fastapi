@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 import pytest
 
-from app.services.common.browser.user_data_chromium import ChromiumUserDataManager
+from app.services.common.browser.user_data import ChromiumUserDataManager
 
 pytestmark = [pytest.mark.unit]
 
@@ -117,8 +117,8 @@ class TestChromiumUserDataManager:
         # Temp directory should be cleaned up
         assert not os.path.exists(effective_dir)
 
-    @patch('app.services.common.browser.user_data_chromium.BROWSERFORGE_AVAILABLE', True)
-    @patch('app.services.common.browser.user_data_chromium.browserforge')
+    @patch('app.services.common.browser.profile_manager.BROWSERFORGE_AVAILABLE', True)
+    @patch('app.services.common.browser.profile_manager.browserforge')
     def test_metadata_creation_with_browserforge(self, mock_browserforge):
         """Test metadata creation when BrowserForge is available."""
         mock_browserforge.__version__ = '1.2.3'
@@ -145,7 +145,7 @@ class TestChromiumUserDataManager:
         fingerprint_file = Path(effective_dir) / 'browserforge_fingerprint.json'
         assert fingerprint_file.exists()
 
-    @patch('app.services.common.browser.user_data_chromium.BROWSERFORGE_AVAILABLE', False)
+    @patch('app.services.common.browser.profile_manager.BROWSERFORGE_AVAILABLE', False)
     def test_metadata_creation_without_browserforge(self):
         """Test metadata creation when BrowserForge is not available."""
         # Trigger metadata creation
@@ -186,7 +186,7 @@ class TestChromiumUserDataManager:
         fingerprint = self.user_data_manager.get_browserforge_fingerprint()
         assert fingerprint == fingerprint_data
 
-    @patch('app.services.common.browser.user_data_chromium.BROWSERFORGE_AVAILABLE', False)
+    @patch('app.services.common.browser.profile_manager.BROWSERFORGE_AVAILABLE', False)
     def test_get_browserforge_fingerprint_unavailable(self):
         """Test getting fingerprint when BrowserForge is unavailable."""
         fingerprint = self.user_data_manager.get_browserforge_fingerprint()
