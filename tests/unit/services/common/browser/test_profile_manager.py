@@ -63,12 +63,15 @@ class TestChromiumProfileManager:
     @pytest.mark.unit
     def test_ensure_metadata_existing_valid(self, profile_manager, sample_metadata):
         """Test ensure_metadata with existing valid metadata."""
-        # Create existing metadata file
-        with patch('builtins.open', mock_open()):
-            with patch('json.load', return_value=sample_metadata):
-                with patch.object(profile_manager, 'update_metadata') as mock_update:
-                    profile_manager.ensure_metadata()
-                    mock_update.assert_not_called()
+        # Create existing metadata file - PROPERLY mock file existence check
+        with patch.object(profile_manager, 'metadata_file') as mock_file:
+            mock_file.exists.return_value = True
+            with patch.object(profile_manager, 'fingerprint_file') as mock_fingerprint:
+                mock_fingerprint.exists.return_value = True
+                with patch.object(profile_manager, 'read_metadata', return_value=sample_metadata):
+                    with patch.object(profile_manager, 'update_metadata') as mock_update:
+                        profile_manager.ensure_metadata()
+                        mock_update.assert_not_called()
 
     @pytest.mark.unit
     def test_ensure_metadata_browserforge_available(self, profile_manager, sample_metadata):

@@ -133,8 +133,9 @@ class TestFileLock:
         with patch('app.services.common.browser.locks.FCNTL_AVAILABLE', False):
             with patch('os.open') as mock_open:
                 mock_open.side_effect = PermissionError("Permission denied")
-
-                result = file_lock.acquire()
+                # Mock time.sleep to avoid actual delays during retries
+                with patch('time.sleep'):
+                    result = file_lock.acquire()
 
                 assert result is False
                 assert file_lock.lock_fd is None

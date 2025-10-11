@@ -515,7 +515,12 @@ class TestAtomicFileReplace:
         source = tmp_path / "nonexistent.txt"
         destination = tmp_path / "destination.txt"
 
-        result = atomic_file_replace(source, destination)
+        # Mock os.replace to fail immediately to avoid retry delays
+        with patch('os.replace', side_effect=FileNotFoundError("No such file or directory")), \
+                patch('os.unlink', side_effect=FileNotFoundError("No such file or directory")), \
+                patch('shutil.move', side_effect=FileNotFoundError("No such file or directory")), \
+                patch('time.sleep'):  # Mock sleep to avoid delays
+            result = atomic_file_replace(source, destination)
 
         assert result is False
 
