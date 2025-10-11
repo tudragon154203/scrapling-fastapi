@@ -21,8 +21,10 @@ class DPDCrawler:
         crawl_request = self._convert_dpd_to_crawl_request(request)
         # Execute crawl with engine (no page action needed for DPD)
         crawl_response = self.engine.run(crawl_request)
+        # Normalize 'error' status to 'failure' to match schema expectations
+        normalized_status = "failure" if crawl_response.status == "error" else crawl_response.status
         return DPDCrawlResponse(
-            status=crawl_response.status,
+            status=normalized_status,
             tracking_code=request.tracking_code,
             html=crawl_response.html,
             message=crawl_response.message,

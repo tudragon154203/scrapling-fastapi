@@ -63,7 +63,7 @@ class TestChromiumUserDataManager:
     def test_write_mode_context(self):
         """Test write mode context manager."""
         with self.user_data_manager.get_user_data_context('write') as (effective_dir, cleanup):
-            assert effective_dir == str(self.user_data_manager.master_dir)
+            assert effective_dir == str(self.user_data_manager.path_manager.master_dir)
             assert callable(cleanup)
             assert os.path.exists(effective_dir)
 
@@ -74,8 +74,8 @@ class TestChromiumUserDataManager:
     def test_read_mode_context_without_master(self):
         """Test read mode context when master doesn't exist."""
         with self.user_data_manager.get_user_data_context('read') as (effective_dir, cleanup):
-            assert effective_dir != str(self.user_data_manager.master_dir)
-            assert effective_dir.startswith(str(self.user_data_manager.clones_dir))
+            assert effective_dir != str(self.user_data_manager.path_manager.master_dir)
+            assert effective_dir.startswith(str(self.user_data_manager.path_manager.clones_dir))
             assert callable(cleanup)
             assert os.path.exists(effective_dir)
 
@@ -85,14 +85,14 @@ class TestChromiumUserDataManager:
     def test_read_mode_context_with_master(self):
         """Test read mode context when master exists."""
         # Create master directory with some content
-        master_dir = self.user_data_manager.master_dir
+        master_dir = self.user_data_manager.path_manager.master_dir
         master_dir.mkdir(parents=True, exist_ok=True)
         test_file = master_dir / 'test.txt'
         test_file.write_text('test content')
 
         with self.user_data_manager.get_user_data_context('read') as (effective_dir, cleanup):
-            assert effective_dir != str(self.user_data_manager.master_dir)
-            assert effective_dir.startswith(str(self.user_data_manager.clones_dir))
+            assert effective_dir != str(self.user_data_manager.path_manager.master_dir)
+            assert effective_dir.startswith(str(self.user_data_manager.path_manager.clones_dir))
 
             # Check that content was cloned
             cloned_file = Path(effective_dir) / 'test.txt'
@@ -181,7 +181,7 @@ class TestChromiumUserDataManager:
             'userAgent': 'test-agent',
             'viewport': {'width': 1920, 'height': 1080}
         }
-        fingerprint_file = self.user_data_manager.master_dir / 'browserforge_fingerprint.json'
+        fingerprint_file = self.user_data_manager.path_manager.master_dir / 'browserforge_fingerprint.json'
         fingerprint_file.parent.mkdir(parents=True, exist_ok=True)
         with open(fingerprint_file, 'w') as f:
             json.dump(fingerprint_data, f)
@@ -249,14 +249,14 @@ class TestChromiumUserDataManager:
         # which is complex in unit tests
         with self.user_data_manager.get_user_data_context('write') as (effective_dir1, cleanup1):
             # First context should work
-            assert effective_dir1 == str(self.user_data_manager.master_dir)
+            assert effective_dir1 == str(self.user_data_manager.path_manager.master_dir)
 
             # Try to get second write context - should fail on some platforms
             # Note: This test might behave differently on Windows vs Unix
             try:
                 with self.user_data_manager.get_user_data_context('write') as (effective_dir2, cleanup2):
                     # If we get here, the platform doesn't support proper locking
-                    assert effective_dir2 == str(self.user_data_manager.master_dir)
+                    assert effective_dir2 == str(self.user_data_manager.path_manager.master_dir)
             except RuntimeError:
                 # Expected on platforms that support file locking
                 pass
@@ -273,8 +273,8 @@ class TestChromiumUserDataManager:
             for i in range(3):
                 effective_dir, cleanup = self.user_data_manager.get_user_data_context('read').__enter__()
                 contexts.append((effective_dir, cleanup))
-                assert effective_dir.startswith(str(self.user_data_manager.clones_dir))
-                assert effective_dir != str(self.user_data_manager.master_dir)
+                assert effective_dir.startswith(str(self.user_data_manager.path_manager.clones_dir))
+                assert effective_dir != str(self.user_data_manager.path_manager.master_dir)
         finally:
             # Clean up all contexts
             for effective_dir, cleanup in contexts:

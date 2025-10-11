@@ -248,7 +248,7 @@ class TestTikTokURLParamSearchService:
             "app.services.common.adapters.scrapling_fetcher.ScraplingFetcherAdapter",
             return_value=fetcher,
         ) as mock_fetcher_cls, patch(
-            "app.services.common.adapters.scrapling_fetcher.FetchArgComposer",
+            "app.services.common.adapters.fetch_arg_composer.FetchArgComposer",
             return_value=composer,
         ) as mock_composer_cls, patch(
             "app.services.common.browser.camoufox.CamoufoxArgsBuilder",

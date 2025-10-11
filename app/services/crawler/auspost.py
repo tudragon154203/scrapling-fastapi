@@ -75,8 +75,10 @@ class AuspostCrawler:
         tracking_code: str
     ) -> AuspostCrawlResponse:
         """Convert generic crawl response to AusPost-specific response."""
+        # Normalize 'error' status to 'failure' to match schema expectations
+        normalized_status = "failure" if crawl_response.status == "error" else crawl_response.status
         return AuspostCrawlResponse(
-            status=crawl_response.status,
+            status=normalized_status,
             tracking_code=tracking_code,
             html=crawl_response.html,
             message=crawl_response.message

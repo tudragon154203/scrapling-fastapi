@@ -70,7 +70,7 @@ class TestFileLock:
                         str(temp_lock_file),
                         os.O_CREAT | os.O_WRONLY | os.O_TRUNC
                     )
-                    mock_flock.assert_called_once_with(42, 0 | 4)  # LOCK_EX | LOCK_NB
+                    mock_flock.assert_called_once_with(42, 6)  # LOCK_EX | LOCK_NB
 
     @pytest.mark.unit
     def test_acquire_windows_file_exists(self, file_lock, temp_lock_file):

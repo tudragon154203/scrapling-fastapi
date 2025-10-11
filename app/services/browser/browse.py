@@ -118,7 +118,7 @@ class BrowseCrawler:
         settings = app_config.get_settings()
         user_data_dir = getattr(
             settings, 'camoufox_user_data_dir', 'data/camoufox_profiles'
-        )
+        ) or 'data/camoufox_profiles'
 
         previous_mute = bool(
             getattr(settings, 'camoufox_runtime_force_mute_audio', False)
