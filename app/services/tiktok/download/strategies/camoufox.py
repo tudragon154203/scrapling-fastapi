@@ -8,7 +8,8 @@ from types import SimpleNamespace
 from typing import Any, Dict, Optional
 
 from app.core.config import get_settings
-from app.services.common.adapters.scrapling_fetcher import FetchArgComposer, ScraplingFetcherAdapter
+from app.services.common.adapters.scrapling_fetcher import ScraplingFetcherAdapter
+from app.services.common.adapters.fetch_arg_composer import FetchArgComposer
 from app.services.common.browser.camoufox import CamoufoxArgsBuilder
 from app.services.tiktok.download.actions.resolver import TikVidResolveAction
 from app.services.tiktok.download.strategies.base import TikTokDownloadStrategy

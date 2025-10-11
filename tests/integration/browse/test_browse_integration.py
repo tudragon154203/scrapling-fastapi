@@ -11,7 +11,7 @@ from app.services.common.browser.user_data import FCNTL_AVAILABLE
 import logging
 logger = logging.getLogger(__name__)
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("require_scrapling")]
 
 
 @pytest.fixture()
@@ -43,7 +43,7 @@ def existing_user_data_dir(temp_user_data_dir):
 
 
 class TestBrowseE2E:
-    """Unit tests for browse endpoint with user data directory loading and saving."""
+    """Integration tests for browse endpoint with user data directory loading and saving."""
 
     def test_browse_with_existing_user_data_loading(self, monkeypatch, client, existing_user_data_dir):
         """Test that user data directory is loaded successfully on browser open.

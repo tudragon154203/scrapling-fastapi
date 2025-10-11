@@ -6,7 +6,8 @@ from typing import Optional
 import app.core.config as app_config
 from app.schemas.crawl import CrawlRequest, CrawlResponse
 from app.services.common.interfaces import IExecutor, PageAction
-from app.services.common.adapters.scrapling_fetcher import ScraplingFetcherAdapter, FetchArgComposer
+from app.services.common.adapters.scrapling_fetcher import ScraplingFetcherAdapter
+from app.services.common.adapters.fetch_arg_composer import FetchArgComposer
 from app.services.browser.options.resolver import OptionsResolver
 from app.services.common.browser.camoufox import CamoufoxArgsBuilder
 

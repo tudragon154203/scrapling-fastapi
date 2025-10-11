@@ -29,51 +29,46 @@ class TestCamoufoxArgsBuilder:
         assert "firefox_user_prefs" in additional_args
         assert additional_args["firefox_user_prefs"]["dom.audiochannel.mutedByDefault"] is True
 
-    def test_build_with_force_user_data_success(self):
+    def test_build_with_force_user_data_success(self, tmp_path):
         """Test build method with force_user_data successful setup."""
         payload = MagicMock()
         payload.force_user_data = True
         settings = MagicMock()
-        settings.camoufox_user_data_dir = "/tmp/user_data"
+        settings.camoufox_user_data_dir = str(tmp_path)
         settings._camoufox_user_data_mode = "read"
         settings._camoufox_effective_user_data_dir = None
         caps = {}
 
         with patch('app.services.common.browser.camoufox.user_data_mod') as mock_user_data:
             mock_context = MagicMock()
-            mock_context.__enter__ = MagicMock(return_value=("/tmp/clone", MagicMock()))
+            clone_dir = tmp_path / "clone"
+            clone_dir.mkdir()
+            mock_cleanup = MagicMock()
+            mock_context.__enter__ = MagicMock(return_value=(str(clone_dir), mock_cleanup))
             mock_context.__exit__ = MagicMock(return_value=None)
             mock_user_data.user_data_context.return_value = mock_context
 
-            with patch('app.services.common.browser.camoufox.Path') as mock_path:
-                mock_path.return_value.mkdir = MagicMock()
-                mock_path.return_value.resolve.return_value = "/tmp/clone"
-                with patch('app.services.common.browser.camoufox.os.access', return_value=True):
-                    additional_args, extra_headers = CamoufoxArgsBuilder.build(payload, settings, caps)
+            additional_args, extra_headers = CamoufoxArgsBuilder.build(payload, settings, caps)
 
-        assert additional_args["user_data_dir"] == "/tmp/clone"
+        assert additional_args["user_data_dir"] == str(clone_dir)
         assert "_user_data_cleanup" in additional_args
         assert additional_args["firefox_user_prefs"]["dom.audiochannel.mutedByDefault"] is True
 
-    def test_build_with_force_user_data_write_mode(self):
+    def test_build_with_force_user_data_write_mode(self, tmp_path):
         """Test build method with write mode user data."""
         payload = MagicMock()
         payload.force_user_data = True
         settings = MagicMock()
-        settings.camoufox_user_data_dir = "/tmp/user_data"
+        settings.camoufox_user_data_dir = str(tmp_path)
         settings.camoufox_runtime_user_data_mode = "write"
-        settings.camoufox_runtime_effective_user_data_dir = "/tmp/master"
+        master_dir = tmp_path / "master"
+        master_dir.mkdir()
+        settings.camoufox_runtime_effective_user_data_dir = str(master_dir)
         caps = {}
 
-        with patch('app.services.common.browser.camoufox.Path') as mock_path:
-            mock_path_instance = MagicMock()
-            mock_path_instance.mkdir = MagicMock()
-            mock_path_instance.resolve.return_value = "/tmp/master"
-            mock_path.return_value = mock_path_instance
-            with patch('app.services.common.browser.camoufox.os.access', return_value=True):
-                additional_args, extra_headers = CamoufoxArgsBuilder.build(payload, settings, caps)
+        additional_args, extra_headers = CamoufoxArgsBuilder.build(payload, settings, caps)
 
-        assert additional_args["user_data_dir"] == "/tmp/master"
+        assert additional_args["user_data_dir"] == str(master_dir)
         assert "_user_data_cleanup" not in additional_args
 
     def test_build_user_data_permission_error(self):
@@ -383,57 +378,55 @@ class TestCamoufoxArgsBuilderEdgeCases:
         # Should not crash
         assert "firefox_user_prefs" in additional_args
 
-    def test_build_user_data_directory_creation_fails(self):
+    def test_build_user_data_directory_creation_fails(self, tmp_path):
         """Test build when directory creation fails."""
         payload = MagicMock()
         payload.force_user_data = True
         settings = MagicMock()
-        settings.camoufox_user_data_dir = "/tmp/user_data"
+        settings.camoufox_user_data_dir = str(tmp_path)
         settings._camoufox_user_data_mode = "read"
         settings._camoufox_effective_user_data_dir = None
         caps = {}
 
         with patch('app.services.common.browser.camoufox.user_data_mod') as mock_user_data:
             mock_context = MagicMock()
-            mock_context.__enter__ = MagicMock(return_value=("/tmp/clone", MagicMock()))
+            clone_dir = tmp_path / "clone"
+            clone_dir.mkdir()  # Create it successfully first
+            mock_cleanup = MagicMock()
+            mock_context.__enter__ = MagicMock(return_value=(str(clone_dir), mock_cleanup))
             mock_context.__exit__ = MagicMock(return_value=None)
             mock_user_data.user_data_context.return_value = mock_context
 
-            with patch('app.services.common.browser.camoufox.Path') as mock_path:
-                mock_path_instance = MagicMock()
-                mock_path_instance.mkdir.side_effect = OSError("Creation failed")
-                mock_path.return_value = mock_path_instance
-
+            # Now mock Path.mkdir to raise OSError for the second call
+            with patch.object(Path, 'mkdir', side_effect=OSError("Creation failed")):
                 with patch('app.services.common.browser.camoufox.warnings') as mock_warnings:
                     additional_args, extra_headers = CamoufoxArgsBuilder.build(payload, settings, caps)
 
         assert additional_args.get("user_data_dir") is None
         mock_warnings.warn.assert_called_once()
 
-    def test_build_user_data_directory_not_writable(self):
+    def test_build_user_data_directory_not_writable(self, tmp_path):
         """Test build when directory is not writable."""
         payload = MagicMock()
         payload.force_user_data = True
         settings = MagicMock()
-        settings.camoufox_user_data_dir = "/tmp/user_data"
+        settings.camoufox_user_data_dir = str(tmp_path)
         settings._camoufox_user_data_mode = "read"
         settings._camoufox_effective_user_data_dir = None
         caps = {}
 
         with patch('app.services.common.browser.camoufox.user_data_mod') as mock_user_data:
             mock_context = MagicMock()
-            mock_context.__enter__ = MagicMock(return_value=("/tmp/clone", MagicMock()))
+            clone_dir = tmp_path / "clone"
+            clone_dir.mkdir()
+            mock_cleanup = MagicMock()
+            mock_context.__enter__ = MagicMock(return_value=(str(clone_dir), mock_cleanup))
             mock_context.__exit__ = MagicMock(return_value=None)
             mock_user_data.user_data_context.return_value = mock_context
 
-            with patch('app.services.common.browser.camoufox.Path') as mock_path:
-                mock_path_instance = MagicMock()
-                mock_path_instance.mkdir = MagicMock()
-                mock_path.return_value = mock_path_instance
-
-                with patch('app.services.common.browser.camoufox.os.access', return_value=False):
-                    with patch('app.services.common.browser.camoufox.warnings') as mock_warnings:
-                        additional_args, extra_headers = CamoufoxArgsBuilder.build(payload, settings, caps)
+            with patch('app.services.common.browser.camoufox.os.access', return_value=False):
+                with patch('app.services.common.browser.camoufox.warnings') as mock_warnings:
+                    additional_args, extra_headers = CamoufoxArgsBuilder.build(payload, settings, caps)
 
         assert additional_args.get("user_data_dir") is None
         mock_warnings.warn.assert_called_once()
@@ -455,26 +448,26 @@ class TestCamoufoxArgsBuilderEdgeCases:
             assert "firefox_user_prefs" in additional_args
             assert additional_args["firefox_user_prefs"]["dom.audiochannel.mutedByDefault"] is True
 
-    def test_build_logging_debug(self):
+    def test_build_logging_debug(self, tmp_path):
         """Test that debug logging is called appropriately."""
         payload = MagicMock()
         payload.force_user_data = True
         settings = MagicMock()
-        settings.camoufox_user_data_dir = "/tmp/user_data"
+        settings.camoufox_user_data_dir = str(tmp_path)
         caps = {}
 
         with patch('app.services.common.browser.camoufox.logger') as mock_logger:
             # Mock user_data_mod to avoid actual file operations
             with patch('app.services.common.browser.camoufox.user_data_mod') as mock_user_data:
                 mock_context = MagicMock()
-                mock_context.__enter__ = MagicMock(return_value=("/tmp/clone", MagicMock()))
+                clone_dir = tmp_path / "clone"
+                clone_dir.mkdir()
+                mock_cleanup = MagicMock()
+                mock_context.__enter__ = MagicMock(return_value=(str(clone_dir), mock_cleanup))
                 mock_context.__exit__ = MagicMock(return_value=None)
                 mock_user_data.user_data_context.return_value = mock_context
 
-                with patch('app.services.common.browser.camoufox.Path') as mock_path:
-                    mock_path.return_value.mkdir = MagicMock()
-                    with patch('app.services.common.browser.camoufox.os.access', return_value=True):
-                        CamoufoxArgsBuilder.build(payload, settings, caps)
+                CamoufoxArgsBuilder.build(payload, settings, caps)
 
         # Verify debug logging was called
         mock_logger.debug.assert_called()
@@ -483,13 +476,13 @@ class TestCamoufoxArgsBuilderEdgeCases:
 class TestCamoufoxArgsBuilderIntegration:
     """Integration tests for CamoufoxArgsBuilder."""
 
-    def test_full_build_integration(self):
+    def test_full_build_integration(self, tmp_path):
         """Test full build integration with all settings."""
         payload = MagicMock()
         payload.force_user_data = True
         payload.force_mute_audio = True
         settings = MagicMock()
-        settings.camoufox_user_data_dir = "/tmp/user_data"
+        settings.camoufox_user_data_dir = str(tmp_path)
         settings.camoufox_disable_coop = True
         settings.camoufox_virtual_display = ":99"
         settings.camoufox_locale = "en-US"
@@ -500,18 +493,17 @@ class TestCamoufoxArgsBuilderIntegration:
 
         with patch('app.services.common.browser.camoufox.user_data_mod') as mock_user_data:
             mock_context = MagicMock()
-            mock_context.__enter__ = MagicMock(return_value=("/tmp/clone", MagicMock()))
+            clone_dir = tmp_path / "clone"
+            clone_dir.mkdir()
+            mock_cleanup = MagicMock()
+            mock_context.__enter__ = MagicMock(return_value=(str(clone_dir), mock_cleanup))
             mock_context.__exit__ = MagicMock(return_value=None)
             mock_user_data.user_data_context.return_value = mock_context
 
-            with patch('app.services.common.browser.camoufox.Path') as mock_path:
-                mock_path.return_value.mkdir = MagicMock()
-                mock_path.return_value.resolve.return_value = "/tmp/clone"
-                with patch('app.services.common.browser.camoufox.os.access', return_value=True):
-                    additional_args, extra_headers = CamoufoxArgsBuilder.build(payload, settings, caps)
+            additional_args, extra_headers = CamoufoxArgsBuilder.build(payload, settings, caps)
 
         # Verify all expected arguments are present
-        assert additional_args["user_data_dir"] == "/tmp/clone"
+        assert additional_args["user_data_dir"] == str(clone_dir)
         assert "_user_data_cleanup" in additional_args
         assert additional_args["disable_coop"] is True
         assert additional_args["virtual_display"] == ":99"

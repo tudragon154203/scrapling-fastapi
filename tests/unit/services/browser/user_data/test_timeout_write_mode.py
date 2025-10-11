@@ -1,5 +1,5 @@
 from app.services.common.types import FetchCapabilities
-from app.services.common.adapters.scrapling_fetcher import FetchArgComposer
+from app.services.common.adapters.fetch_arg_composer import FetchArgComposer
 from app.services.browser.options.resolver import OptionsResolver
 from app.schemas.crawl import CrawlRequest
 import sys

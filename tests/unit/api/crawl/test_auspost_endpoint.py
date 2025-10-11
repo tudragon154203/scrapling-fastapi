@@ -12,7 +12,6 @@ pytestmark = [pytest.mark.unit]
 def test_auspost_crawl_success_with_stub(monkeypatch, client):
     from app.services.crawler.auspost import AuspostCrawler
     from app.schemas.auspost import AuspostCrawlResponse
-    import threading
 
     captured_payload = {}
 
@@ -28,33 +27,8 @@ def test_auspost_crawl_success_with_stub(monkeypatch, client):
 
     body = {"tracking_code": "36LB4503170001000930309"}
 
-    def test_with_timeout():
-        return client.post("/crawl/auspost", json=body)
-
-    # Add timeout wrapper to prevent hanging
-    def run_with_timeout(func, timeout=45):
-        result = [None]
-        exception = [None]
-
-        def target():
-            try:
-                result[0] = func()
-            except Exception as e:
-                exception[0] = e
-
-        thread = threading.Thread(target=target)
-        thread.start()
-        thread.join(timeout)
-
-        if thread.is_alive():
-            raise TimeoutError(f"Test timed out after {timeout} seconds")
-
-        if exception[0]:
-            raise exception[0]
-
-        return result[0]
-
-    resp = run_with_timeout(test_with_timeout)
+    # Direct client call - no real threading needed for unit tests
+    resp = client.post("/crawl/auspost", json=body)
 
     assert resp.status_code == 200
     data = resp.json()
@@ -72,7 +46,6 @@ def test_auspost_crawl_success_with_stub(monkeypatch, client):
 def test_auspost_crawl_with_all_flags(monkeypatch, client):
     from app.services.crawler.auspost import AuspostCrawler
     from app.schemas.auspost import AuspostCrawlResponse
-    import threading
 
     captured_payload = {}
 
@@ -92,33 +65,8 @@ def test_auspost_crawl_with_all_flags(monkeypatch, client):
         "force_headful": False,
     }
 
-    def test_with_timeout():
-        return client.post("/crawl/auspost", json=body)
-
-    # Add timeout wrapper to prevent hanging
-    def run_with_timeout(func, timeout=45):
-        result = [None]
-        exception = [None]
-
-        def target():
-            try:
-                result[0] = func()
-            except Exception as e:
-                exception[0] = e
-
-        thread = threading.Thread(target=target)
-        thread.start()
-        thread.join(timeout)
-
-        if thread.is_alive():
-            raise TimeoutError(f"Test timed out after {timeout} seconds")
-
-        if exception[0]:
-            raise exception[0]
-
-        return result[0]
-
-    resp = run_with_timeout(test_with_timeout)
+    # Direct client call - no real threading needed for unit tests
+    resp = client.post("/crawl/auspost", json=body)
 
     assert resp.status_code == 200
     data = resp.json()
@@ -147,7 +95,6 @@ def test_auspost_crawl_rejects_empty_tracking_code(client):
 def test_auspost_crawl_accepts_full_details_url(monkeypatch, client):
     from app.services.crawler.auspost import AuspostCrawler
     from app.schemas.auspost import AuspostCrawlResponse
-    import threading
 
     captured_payload = {}
 
@@ -163,33 +110,8 @@ def test_auspost_crawl_accepts_full_details_url(monkeypatch, client):
 
     url = "https://auspost.com.au/mypost/track/details/36LB45032230"
 
-    def test_with_timeout():
-        return client.post("/crawl/auspost", json={"tracking_code": url})
-
-    # Add timeout wrapper to prevent hanging
-    def run_with_timeout(func, timeout=45):
-        result = [None]
-        exception = [None]
-
-        def target():
-            try:
-                result[0] = func()
-            except Exception as e:
-                exception[0] = e
-
-        thread = threading.Thread(target=target)
-        thread.start()
-        thread.join(timeout)
-
-        if thread.is_alive():
-            raise TimeoutError(f"Test timed out after {timeout} seconds")
-
-        if exception[0]:
-            raise exception[0]
-
-        return result[0]
-
-    resp = run_with_timeout(test_with_timeout)
+    # Direct client call - no real threading needed for unit tests
+    resp = client.post("/crawl/auspost", json={"tracking_code": url})
 
     assert resp.status_code == 200
     data = resp.json()

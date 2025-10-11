@@ -9,8 +9,23 @@ router = APIRouter()
 
 def browse(request: BrowseRequest) -> BrowseResponse:
     """Browse handler used by the API route."""
-    crawler = BrowseCrawler(browser_engine=request.engine)
-    return crawler.run(request)
+    try:
+        crawler = BrowseCrawler(browser_engine=request.engine)
+        return crawler.run(request)
+    except ImportError as e:
+        # Handle ImportError during BrowseCrawler initialization
+        from app.schemas.browse import BrowseResponse
+        error_msg = (
+            f"Chromium dependencies are not available: {str(e)}\n"
+            "To resolve this issue:\n"
+            "1. Install the required dependencies: pip install 'scrapling[chromium]'\n"
+            "2. Ensure Playwright browsers are installed: playwright install chromium\n"
+            "3. Alternatively, use the Camoufox engine by setting 'engine': 'camoufox' in your request"
+        )
+        return BrowseResponse(
+            status="failure",
+            message=error_msg
+        )
 
 
 @router.post("/browse", response_model=BrowseResponse, tags=["browse"])
