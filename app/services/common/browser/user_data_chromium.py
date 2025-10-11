@@ -48,6 +48,9 @@ class ChromiumUserDataManager:
         self.user_data_dir = user_data_dir
         self.enabled = user_data_dir is not None
 
+        # Store base path as Path object
+        self._base_path = Path(user_data_dir) if user_data_dir else None
+
         # Initialize extracted managers
         self.path_manager = ChromiumPathManager(user_data_dir)
         self._write_lock = threading.Lock()  # In-process mutex for DB replacement operations
@@ -58,6 +61,11 @@ class ChromiumUserDataManager:
                 self.path_manager.fingerprint_file
             )
             self.cookie_manager = ChromiumCookieManager(self.path_manager.get_cookies_db_path())
+
+    @property
+    def base_path(self) -> Optional[Path]:
+        """Base user data directory for the Chromium manager."""
+        return self._base_path
 
     @contextmanager
     def get_user_data_context(self, mode: str) -> ContextManager[Tuple[str, Callable[[], None]]]:
