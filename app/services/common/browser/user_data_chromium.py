@@ -8,6 +8,7 @@ import logging
 import threading
 import time
 from contextlib import contextmanager
+from pathlib import Path
 from typing import Callable, ContextManager, Dict, Any, Optional, Tuple
 
 from app.services.common.browser.cookies import ChromiumCookieManager
@@ -47,6 +48,9 @@ class ChromiumUserDataManager:
         self.user_data_dir = user_data_dir
         self.enabled = user_data_dir is not None
 
+        # Store base path as Path object
+        self._base_path = Path(user_data_dir) if user_data_dir else None
+
         # Initialize extracted managers
         self.path_manager = ChromiumPathManager(user_data_dir)
         self._write_lock = threading.Lock()  # In-process mutex for DB replacement operations
@@ -57,6 +61,11 @@ class ChromiumUserDataManager:
                 self.path_manager.fingerprint_file
             )
             self.cookie_manager = ChromiumCookieManager(self.path_manager.get_cookies_db_path())
+
+    @property
+    def base_path(self) -> Optional[Path]:
+        """Base user data directory for the Chromium manager."""
+        return self._base_path
 
     @contextmanager
     def get_user_data_context(self, mode: str) -> ContextManager[Tuple[str, Callable[[], None]]]:
@@ -392,6 +401,16 @@ class ChromiumUserDataManager:
         except Exception as e:
             logger.error(f"Failed to cleanup old clones: {e}")
             return {"cleaned": 0, "remaining": 0, "errors": 1}
+
+    def _copytree_recursive(self, src: Path, dst: Path) -> None:
+        """Recursively copy Chromium user data from src to dst, delegating to common utility.
+
+        Args:
+            src: Source directory to copy from
+            dst: Destination directory to copy to
+        """
+        from app.services.common.browser.utils import copytree_recursive
+        copytree_recursive(src, dst)
 
     def get_disk_usage_stats(self) -> Dict[str, Any]:
         """Get disk usage statistics for the user data directories.
