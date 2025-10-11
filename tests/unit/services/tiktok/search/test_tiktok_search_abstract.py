@@ -37,7 +37,7 @@ def test_prepare_context_sets_force_mute_audio(monkeypatch):
         lambda: DummyFetcher(),
     )
     monkeypatch.setattr(
-        "app.services.common.adapters.scrapling_fetcher.FetchArgComposer",
+        "app.services.common.adapters.fetch_arg_composer.FetchArgComposer",
         lambda: DummyComposer(),
     )
     monkeypatch.setattr(
