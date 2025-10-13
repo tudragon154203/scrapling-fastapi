@@ -181,7 +181,7 @@ Created comprehensive unit tests in `tests/services/test_retry_strategy.py`:
 - Public proxy file loading
 
 ### Integration Tests
-Updated integration tests in `tests/integration/test_generic_crawl_integration.py` to verify compatibility with retry settings.
+Updated integration tests in `tests/integration/crawl/generic/test_basic_crawl.py` to verify compatibility with retry settings.
 
 ### Testing Plan
 - Unit tests (new):
@@ -191,7 +191,7 @@ Updated integration tests in `tests/integration/test_generic_crawl_integration.p
     - Verify exponential backoff calculation (mock `time.sleep`).
     - Proxy plan ordering given env (no proxies, only public, public+private).
 - Integration test (extend):
-  - Update `tests/integration/test_generic_crawl_integration.py` to set env vars for small `MAX_RETRIES=2` and assert behavior with a known fast URL plus an invalid URL.
+  - Update `tests/integration/crawl/generic/test_basic_crawl.py` to set env vars for small `MAX_RETRIES=2` and assert behavior with a known fast URL plus an invalid URL.
 - Non-goals for this sprint:
   - End-to-end validation of third-party proxy uptime (out of scope; covered by unit stubs).
 

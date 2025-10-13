@@ -215,7 +215,7 @@ Create/edit an E2E test for the /tiktok/session endpoint and ensure it passes. S
 
 ### Changes Made
 1. **Test File Organization**
-   - Created comprehensive integration test in `tests/integration/test_tiktok_session_integration.py`
+   - Created comprehensive integration test in `tests/integration/tiktok/test_session_endpoint.py`
    - Removed failing unit test file `tests/api/test_tiktok_session_unit.py`
    - Kept working integration test that uses real user data configuration
 
@@ -240,7 +240,7 @@ Create/edit an E2E test for the /tiktok/session endpoint and ensure it passes. S
 - **Error Handling**: Tests various error conditions (409, 500, 504, etc.)
 
 ### Files Modified
-- `tests/integration/test_tiktok_session_integration.py` (created/updated)
+- `tests/integration/tiktok/test_session_endpoint.py` (created/updated)
 - `tests/api/test_tiktok_session_unit.py` (removed)
 - `docs/memory-bank/progress.md` (updated)
 

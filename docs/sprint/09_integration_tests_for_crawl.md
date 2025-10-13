@@ -30,7 +30,7 @@
 
 **Implementation Notes**
 
-- Tests live under `tests/integration/test_crawl_real_urls.py`.
+- Tests live under `tests/integration/crawl/` in organized subdirectories: `carriers/`, `generic/`, `features/`, and `endpoints/`.
 - Each URL is a dedicated test function for clearer reporting and triage.
 - Uses the FastAPI `TestClient` (`tests/conftest.py`) to call the live app.
 - Relies on `scrapling` being installed and available. If the `StealthyFetcher` cannot run (e.g., Playwright issues), the service may fall back to a lightweight HTTP fetch; pages protected by heavy client-side rendering or bot protections may still require the full stealth path to succeed.

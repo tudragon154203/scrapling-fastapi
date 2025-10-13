@@ -57,7 +57,7 @@
 - [ ] T008 [P] Contract test for invalid parameter validation in tests/contract/test_invalid_parameter.py
 - [ ] T009 [P] Integration test for default search behavior in tests/integration/test_default_search.py
 - [ ] T010 [P] Integration test for headful search behavior in tests/integration/test_headful_search.py
-- [ ] T011 [P] Integration test for test environment behavior in tests/integration/test_test_env_search.py
+- [ ] T011 [P] Integration test for test environment behavior in tests/integration/tiktok/test_environment_search_behavior.py
 
 ## Phase 3.3: Core Implementation (ONLY after tests are failing)
 - [ ] T012 [P] BrowserMode enum in specify_src/models/browser_mode.py
@@ -104,7 +104,7 @@ Task: "Contract test for invalid parameter validation in tests/contract/test_inv
 # Launch T009-T011 together:
 Task: "Integration test for default search behavior in tests/integration/test_default_search.py"
 Task: "Integration test for headful search behavior in tests/integration/test_headful_search.py"
-Task: "Integration test for test environment behavior in tests/integration/test_test_env_search.py"
+Task: "Integration test for test environment behavior in tests/integration/tiktok/test_environment_search_behavior.py"
 
 # Launch T012-T014 together:
 Task: "BrowserMode enum in specify_src/models/browser_mode.py"
