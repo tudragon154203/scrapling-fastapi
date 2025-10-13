@@ -162,7 +162,7 @@ TikTokSessionConfig(
 
 **Testing:**
 - ✅ API contract tests (`tests/api/test_tiktok_session_endpoint.py`)
-- ✅ Integration tests (`tests/integration/test_tiktok_session_integration.py`)
+- ✅ Integration tests (`tests/integration/tiktok/test_session_endpoint.py`)
 - ✅ Login detection unit tests (`tests/services/tiktok/test_tiktok_login_detection.py`)
 - ✅ Schema validation tests
 
@@ -196,7 +196,7 @@ TikTokSessionConfig(
 - ✅ Content-Type validation
 - ✅ CORS header preservation
 
-**Integration Tests** (`tests/integration/test_tiktok_session_integration.py`)
+**Integration Tests** (`tests/integration/tiktok/test_session_endpoint.py`)
 - ✅ Real browser session creation
 - ✅ Login state verification
 - ✅ Error handling for various scenarios
@@ -228,7 +228,7 @@ python -m pytest tests/ -k tiktok -v
 python -m pytest tests/api/test_tiktok_session_endpoint.py -v
 
 # Run integration tests
-python -m pytest tests/integration/test_tiktok_session_integration.py -v
+python -m pytest tests/integration/tiktok/test_session_endpoint.py -v
 
 # Run login detection tests
 python -m pytest tests/services/tiktok/test_tiktok_login_detection.py -v
