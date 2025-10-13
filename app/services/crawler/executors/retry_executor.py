@@ -15,6 +15,7 @@ from app.services.common.browser.camoufox import CamoufoxArgsBuilder
 from app.services.crawler.proxy.plan import AttemptPlanner
 from app.services.crawler.proxy.health import get_health_tracker
 from app.services.crawler.proxy.redact import redact_proxy
+from app.services.crawler.utils.iframe_extractor import IframeExtractor
 
 logger = logging.getLogger(__name__)
 
@@ -74,6 +75,7 @@ class RetryingExecutor(IExecutor):
         self.backoff_policy = backoff_policy or BackoffPolicy.from_settings(app_config.get_settings())
         self.attempt_planner = attempt_planner or AttemptPlanner()
         self.health_tracker = health_tracker or get_health_tracker()
+        self.iframe_extractor = IframeExtractor(fetch_client)
 
     def execute(self, request: CrawlRequest, page_action: Optional[PageAction] = None) -> CrawlResponse:
         """Execute crawl with retry and proxy strategy."""
@@ -229,7 +231,23 @@ class RetryingExecutor(IExecutor):
             )
             min_len = int(getattr(settings, "min_html_content_length", 500) or 0)
             html_has_doc = bool(html and "<html" in (html.lower() if isinstance(html, str) else ""))
+
+            # Process iframes if we have successful HTML content
             if status == 200 and html and html_len >= min_len:
+                try:
+                    # Extract iframe content and embed it
+                    processed_html, iframe_results = self.iframe_extractor.extract_iframes(
+                        html, str(request.url), fetch_kwargs
+                    )
+                    html = processed_html
+
+                    if iframe_results:
+                        logger.debug(f"Attempt {attempt_number} processed {len(iframe_results)} iframe(s)")
+
+                except Exception as e:
+                    logger.warning(f"Attempt {attempt_number} failed to process iframes: {e}")
+                    # Continue with original HTML if iframe processing fails
+
                 logger.debug(f"Attempt {attempt_number} outcome: success (html-ok)")
                 return AttemptResult(CrawlResponse(status="success", url=request.url, html=html), None)
             if status != 200:
