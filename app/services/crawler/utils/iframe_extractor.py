@@ -2,6 +2,7 @@
 
 import logging
 import re
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import List, Optional, Tuple
 from urllib.parse import urljoin, urlparse
 
@@ -43,52 +44,23 @@ class IframeExtractor:
 
         # Process iframes from end to start to maintain position indices
         iframe_matches = list(iframes)
-        for match in reversed(iframe_matches):
-            iframe_tag = match.group(0)
-            src_url = match.group(1)
 
-            # Skip iframes without src or with internal/srcless attributes
-            if self._should_skip_iframe(src_url):
-                logger.debug(f"Skipping iframe with src: {src_url}")
-                continue
+        if len(iframe_matches) > 1:
+            # Use parallel processing for multiple iframes
+            iframe_results = self._extract_iframes_parallel(iframe_matches, base_url, fetch_kwargs)
+        else:
+            # Use sequential processing for single iframe
+            iframe_results = self._extract_iframes_sequential(iframe_matches, base_url, fetch_kwargs)
 
-            # Resolve relative URL to absolute
-            absolute_url = urljoin(base_url, src_url)
-
-            # Validate URL
-            if not self._is_valid_url(absolute_url):
-                logger.warning(f"Invalid iframe URL: {absolute_url}")
-                continue
-
-            try:
-                # Fetch iframe content
-                iframe_content = self._fetch_iframe_content(absolute_url, fetch_kwargs)
-
-                if iframe_content:
-                    # Create result record
-                    iframe_result = {
-                        "src": src_url,
-                        "absolute_url": absolute_url,
-                        "content": iframe_content,
-                        "original_tag": iframe_tag
-                    }
-                    iframe_results.append(iframe_result)
-
-                    # Replace iframe tag with content embedded inside
-                    content_wrapper = f'<iframe>{iframe_content}</iframe>'
-                    processed_html = (
-                        processed_html[:match.start()] +
-                        content_wrapper +
-                        processed_html[match.end():]
-                    )
-
-                else:
-                    logger.warning(f"Failed to fetch content for iframe: {absolute_url}")
-
-            except Exception as e:
-                logger.error(f"Error processing iframe {absolute_url}: {e}")
-                # Keep original iframe tag if processing fails
-                continue
+        # Replace iframe tags with their content
+        for match, result in zip(iframe_matches, iframe_results):
+            if result and result.get("content"):
+                content_wrapper = f'<iframe>{result["content"]}</iframe>'
+                processed_html = (
+                    processed_html[:match.start()] +
+                    content_wrapper +
+                    processed_html[match.end():]
+                )
 
         return processed_html, iframe_results
 
@@ -183,3 +155,116 @@ class IframeExtractor:
             else self._DEFAULT_TIMEOUT_MS
         )
         return params
+
+    def _extract_iframes_parallel(self, iframe_matches, base_url: str, fetch_kwargs: Optional[dict] = None) -> List[dict]:
+        """Extract iframe content in parallel using ThreadPoolExecutor."""
+        iframe_tasks = []
+
+        for match in iframe_matches:
+            iframe_tag = match.group(0)
+            src_url = match.group(1)
+
+            # Skip iframes without src or with internal/srcless attributes
+            if self._should_skip_iframe(src_url):
+                logger.debug(f"Skipping iframe with src: {src_url}")
+                iframe_tasks.append(None)
+                continue
+
+            # Resolve relative URL to absolute
+            absolute_url = urljoin(base_url, src_url)
+
+            # Validate URL
+            if not self._is_valid_url(absolute_url):
+                logger.warning(f"Invalid iframe URL: {absolute_url}")
+                iframe_tasks.append(None)
+                continue
+
+            # Prepare task for parallel processing
+            iframe_tasks.append({
+                "match": match,
+                "src_url": src_url,
+                "absolute_url": absolute_url,
+                "iframe_tag": iframe_tag
+            })
+
+        # Process iframes in parallel
+        results = [None] * len(iframe_tasks)
+
+        with ThreadPoolExecutor(max_workers=min(len(iframe_tasks), 5)) as executor:
+            # Create future tasks
+            future_to_index = {}
+            for i, task in enumerate(iframe_tasks):
+                if task is not None:
+                    future = executor.submit(
+                        self._process_single_iframe,
+                        task["src_url"],
+                        task["absolute_url"],
+                        task["iframe_tag"],
+                        fetch_kwargs
+                    )
+                    future_to_index[future] = i
+
+            # Collect results as they complete
+            for future in as_completed(future_to_index):
+                index = future_to_index[future]
+                try:
+                    result = future.result()
+                    results[index] = result
+                except Exception as e:
+                    logger.error(f"Error processing iframe in parallel: {e}")
+                    results[index] = None
+
+        return results
+
+    def _extract_iframes_sequential(self, iframe_matches, base_url: str, fetch_kwargs: Optional[dict] = None) -> List[dict]:
+        """Extract iframe content sequentially (original behavior)."""
+        results = []
+
+        for match in iframe_matches:
+            iframe_tag = match.group(0)
+            src_url = match.group(1)
+
+            # Skip iframes without src or with internal/srcless attributes
+            if self._should_skip_iframe(src_url):
+                logger.debug(f"Skipping iframe with src: {src_url}")
+                results.append(None)
+                continue
+
+            # Resolve relative URL to absolute
+            absolute_url = urljoin(base_url, src_url)
+
+            # Validate URL
+            if not self._is_valid_url(absolute_url):
+                logger.warning(f"Invalid iframe URL: {absolute_url}")
+                results.append(None)
+                continue
+
+            # Process single iframe
+            result = self._process_single_iframe(src_url, absolute_url, iframe_tag, fetch_kwargs)
+            results.append(result)
+
+        return results
+
+    def _process_single_iframe(self, src_url: str, absolute_url: str, iframe_tag: str,
+                               fetch_kwargs: Optional[dict] = None) -> Optional[dict]:
+        """Process a single iframe and return result."""
+        try:
+            # Fetch iframe content
+            iframe_content = self._fetch_iframe_content(absolute_url, fetch_kwargs)
+
+            if iframe_content:
+                # Create result record
+                iframe_result = {
+                    "src": src_url,
+                    "absolute_url": absolute_url,
+                    "content": iframe_content,
+                    "original_tag": iframe_tag
+                }
+                return iframe_result
+            else:
+                logger.warning(f"Failed to fetch content for iframe: {absolute_url}")
+                return None
+
+        except Exception as e:
+            logger.error(f"Error processing iframe {absolute_url}: {e}")
+            return None

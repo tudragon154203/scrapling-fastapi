@@ -116,8 +116,10 @@ class TestIframeExtractor:
 
         result_html, results = self.extractor.extract_iframes(html, base_url, {})
 
-        assert len(results) == 0  # No successful extractions
-        assert result_html == html  # Original HTML unchanged
+        # Should have one result (None) for the failed iframe
+        assert len(results) == 1
+        assert results[0] is None  # Failed extraction returns None
+        assert result_html == html  # Original HTML unchanged (no replacement)
 
     def test_extract_iframes_empty_content(self):
         """Test handling of empty iframe content."""
@@ -132,8 +134,10 @@ class TestIframeExtractor:
 
         result_html, results = self.extractor.extract_iframes(html, base_url, {})
 
-        assert len(results) == 0  # No successful extractions
-        assert result_html == html  # Original HTML unchanged
+        # Should have one result (None) for the empty content iframe
+        assert len(results) == 1
+        assert results[0] is None  # Empty content returns None
+        assert result_html == html  # Original HTML unchanged (no replacement)
 
     def test_extract_iframes_with_multiple_iframes(self):
         """Test processing multiple iframes."""
@@ -248,3 +252,151 @@ class TestIframeExtractor:
         assert summary["failed_iframes"] == 1
         assert len(summary["iframe_sources"]) == 3
         assert "https://example1.com" in summary["iframe_sources"]
+
+    def test_parallel_iframe_extraction_with_multiple_iframes(self):
+        """Test that multiple iframes are processed in parallel."""
+        import time
+
+        def mock_fetch_side_effect(url, kwargs):
+            # Simulate network delay for each iframe
+            time.sleep(0.1)  # 100ms delay
+            if "external1.com" in url:
+                return SimpleNamespace(html_content="<html><body>Content 1</body></html>", status=200)
+            elif "external2.com" in url:
+                return SimpleNamespace(html_content="<html><body>Content 2</body></html>", status=200)
+            elif "external3.com" in url:
+                return SimpleNamespace(html_content="<html><body>Content 3</body></html>", status=200)
+            else:
+                raise Exception("Unexpected URL")
+
+        self.mock_fetch_client.fetch.side_effect = mock_fetch_side_effect
+
+        html = '''
+        <html>
+            <body>
+                <iframe src="https://external1.com/content1"></iframe>
+                <iframe src="https://external2.com/content2"></iframe>
+                <iframe src="https://external3.com/content3"></iframe>
+            </body>
+        </html>
+        '''
+        base_url = "https://example.com"
+
+        start_time = time.time()
+        result_html, results = self.extractor.extract_iframes(html, base_url, {})
+        end_time = time.time()
+
+        # Should complete much faster than sequential (0.3s) due to parallel processing
+        processing_time = end_time - start_time
+        assert processing_time < 0.25, f"Parallel processing took too long: {processing_time}s"
+
+        assert len(results) == 3
+        assert self.mock_fetch_client.fetch.call_count == 3
+
+        # Verify all content is present
+        assert "Content 1" in result_html
+        assert "Content 2" in result_html
+        assert "Content 3" in result_html
+
+    def test_sequential_iframe_extraction_with_single_iframe(self):
+        """Test that single iframe uses sequential processing."""
+        mock_page = SimpleNamespace(
+            html_content="<html><body>Single content</body></html>",
+            status=200
+        )
+        self.mock_fetch_client.fetch.return_value = mock_page
+
+        html = '<html><body><iframe src="https://external.com/content"></iframe></body></html>'
+        base_url = "https://example.com"
+
+        result_html, results = self.extractor.extract_iframes(html, base_url, {})
+
+        assert len(results) == 1
+        assert results[0]["content"] == "<html><body>Single content</body></html>"
+        assert "Single content" in result_html
+        self.mock_fetch_client.fetch.assert_called_once()
+
+    def test_parallel_iframe_extraction_with_mixed_success_failure(self):
+        """Test parallel processing with some successful and some failed iframe fetches."""
+        def mock_fetch_side_effect(url, kwargs):
+            if "external1.com" in url:
+                return SimpleNamespace(html_content="<html><body>Success 1</body></html>", status=200)
+            elif "external2.com" in url:
+                raise Exception("Network error for iframe 2")
+            elif "external3.com" in url:
+                return SimpleNamespace(html_content="", status=200)  # Empty content
+            else:
+                raise Exception("Unexpected URL")
+
+        self.mock_fetch_client.fetch.side_effect = mock_fetch_side_effect
+
+        html = '''
+        <html>
+            <body>
+                <iframe src="https://external1.com/content1"></iframe>
+                <iframe src="https://external2.com/content2"></iframe>
+                <iframe src="https://external3.com/content3"></iframe>
+            </body>
+        </html>
+        '''
+        base_url = "https://example.com"
+
+        result_html, results = self.extractor.extract_iframes(html, base_url, {})
+
+        # Only 1 successful result (external1.com)
+        successful_results = [r for r in results if r and r.get("content")]
+        assert len(successful_results) == 1
+        assert "Success 1" in successful_results[0]["content"]
+        assert "Success 1" in result_html
+
+        # Verify all fetch attempts were made
+        assert self.mock_fetch_client.fetch.call_count == 3
+
+    def test_parallel_iframe_extraction_preserves_order(self):
+        """Test that parallel processing preserves iframe order in the final HTML."""
+        def mock_fetch_side_effect(url, kwargs):
+            if "external1.com" in url:
+                return SimpleNamespace(html_content="<html><body>Content 1</body></html>", status=200)
+            elif "external2.com" in url:
+                return SimpleNamespace(html_content="<html><body>Content 2</body></html>", status=200)
+            elif "external3.com" in url:
+                return SimpleNamespace(html_content="<html><body>Content 3</body></html>", status=200)
+            else:
+                raise Exception("Unexpected URL")
+
+        self.mock_fetch_client.fetch.side_effect = mock_fetch_side_effect
+
+        html = '''
+        <html>
+            <body>
+                <p>Before iframes</p>
+                <iframe src="https://external1.com/content1"></iframe>
+                <p>Middle 1</p>
+                <iframe src="https://external2.com/content2"></iframe>
+                <p>Middle 2</p>
+                <iframe src="https://external3.com/content3"></iframe>
+                <p>After iframes</p>
+            </body>
+        </html>
+        '''
+        base_url = "https://example.com"
+
+        result_html, results = self.extractor.extract_iframes(html, base_url, {})
+
+        # Verify content appears in the correct order
+        assert "Before iframes" in result_html
+        assert "Content 1" in result_html
+        assert "Middle 1" in result_html
+        assert "Content 2" in result_html
+        assert "Middle 2" in result_html
+        assert "Content 3" in result_html
+        assert "After iframes" in result_html
+
+        # Verify order in result matches original HTML order
+        srcs = [r["src"] for r in results if r]
+        expected_order = [
+            "https://external1.com/content1",
+            "https://external2.com/content2",
+            "https://external3.com/content3"
+        ]
+        assert srcs == expected_order
