@@ -10,6 +10,7 @@ from app.services.common.adapters.scrapling_fetcher import ScraplingFetcherAdapt
 from app.services.common.adapters.fetch_arg_composer import FetchArgComposer
 from app.services.browser.options.resolver import OptionsResolver
 from app.services.common.browser.camoufox import CamoufoxArgsBuilder
+from app.services.crawler.utils.iframe_extractor import IframeExtractor
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +26,7 @@ class SingleAttemptExecutor(IExecutor):
         self.options_resolver = options_resolver or OptionsResolver()
         self.arg_composer = arg_composer or FetchArgComposer()
         self.camoufox_builder = camoufox_builder or CamoufoxArgsBuilder()
+        self.iframe_extractor = IframeExtractor(fetch_client)
 
     def _select_proxy(self, settings) -> Optional[str]:
         """Return the proxy to use for the single attempt."""
@@ -73,6 +75,22 @@ class SingleAttemptExecutor(IExecutor):
             status_code = getattr(page, "status", None)
             html = getattr(page, "html_content", None)
             min_len = int(getattr(settings, "min_html_content_length", 500) or 0)
+
+            # Process iframes if we have HTML content
+            if html:
+                try:
+                    # Extract iframe content and embed it
+                    processed_html, iframe_results = self.iframe_extractor.extract_iframes(
+                        html, str(request.url), fetch_kwargs
+                    )
+                    html = processed_html
+
+                    if iframe_results:
+                        logger.info(f"Processed {len(iframe_results)} iframe(s)")
+
+                except Exception as e:
+                    logger.warning(f"Failed to process iframes: {e}")
+                    # Continue with original HTML if iframe processing fails
 
             # Treat any 2xx status as potentially successful
             if isinstance(status_code, int) and 200 <= status_code < 300:
