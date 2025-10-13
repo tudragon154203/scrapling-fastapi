@@ -102,8 +102,8 @@ class TestIframeExtractor:
         fetch_call = self.mock_fetch_client.fetch.call_args
         params = fetch_call.args[1]
         assert isinstance(params, FetchParams)
-        assert params.get("timeout") == 10000
-        assert params.get("network_idle") is False
+        assert params.get("timeout") == 20000
+        assert params.get("network_idle") is True
         assert "timeout_seconds" not in params
 
     def test_extract_iframes_fetch_failure(self):
@@ -203,8 +203,8 @@ class TestIframeExtractor:
         fetch_call = self.mock_fetch_client.fetch.call_args
         params = fetch_call.args[1]
         assert isinstance(params, FetchParams)
-        assert params.get("network_idle") is False
-        assert params.get("timeout") == 10000
+        assert params.get("network_idle") is True
+        assert params.get("timeout") == 20000
         assert params.get("custom_header") == 'value'
         assert "timeout_seconds" not in params
 
@@ -225,8 +225,8 @@ class TestIframeExtractor:
         fetch_call = self.mock_fetch_client.fetch.call_args
         iframe_params = fetch_call.args[1]
         assert isinstance(iframe_params, FetchParams)
-        assert iframe_params.get("timeout") == 10000
-        assert iframe_params.get("network_idle") is False
+        assert iframe_params.get("timeout") == 20000
+        assert iframe_params.get("network_idle") is True
         assert iframe_params.get("proxy") == "http://proxy"
 
         # Ensure the original params remain unchanged
