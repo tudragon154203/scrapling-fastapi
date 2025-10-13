@@ -1,9 +1,11 @@
-from app.services.crawler.auspost import AuspostCrawler
-from app.schemas.auspost import AuspostCrawlRequest
 import sys
 import types
 
 import pytest
+
+from app.schemas.auspost import AuspostCrawlRequest
+from app.schemas.crawl import CrawlRequest, CrawlResponse
+from app.services.crawler.auspost import AuspostCrawler
 
 pytestmark = [pytest.mark.unit]
 
@@ -120,3 +122,88 @@ class TestAuspostCrawl:
         assert res.status == "success"
         assert res.tracking_code == "ABC123"
         assert calls["count"] >= 1
+
+    def test_crawl_auspost_fallback_success(self, monkeypatch):
+        settings = self._mock_settings()
+        monkeypatch.setattr("app.core.config.get_settings", lambda: settings)
+
+        tracking_code = "TRACK123"
+        responses = [
+            CrawlResponse(
+                status="failure",
+                url="https://auspost.com.au/mypost/track/search",
+                html=None,
+                message="NotImplementedError",
+            ),
+            CrawlResponse(
+                status="success",
+                url=f"https://auspost.com.au/mypost/track/details/{tracking_code}",
+                html="<html>tracking</html>",
+                message=None,
+            ),
+        ]
+
+        class FakeEngine:
+            def __init__(self):
+                self.calls = []
+
+            def run(self, request, page_action):
+                index = len(self.calls)
+                self.calls.append((request, page_action))
+                return responses[index]
+
+        engine = FakeEngine()
+        crawler = AuspostCrawler(engine=engine)
+
+        result = crawler.run(AuspostCrawlRequest(tracking_code=tracking_code))
+
+        assert result.status == "success"
+        assert result.tracking_code == tracking_code
+        assert result.html == "<html>tracking</html>"
+        assert len(engine.calls) == 2
+
+        fallback_request, fallback_action = engine.calls[1]
+        assert isinstance(fallback_request, CrawlRequest)
+        assert str(fallback_request.url) == (
+            f"https://auspost.com.au/mypost/track/details/{tracking_code}"
+        )
+        assert fallback_action is None
+
+    def test_crawl_auspost_fallback_failure_propagates_original(self, monkeypatch):
+        settings = self._mock_settings()
+        monkeypatch.setattr("app.core.config.get_settings", lambda: settings)
+
+        tracking_code = "TRACK456"
+        responses = [
+            CrawlResponse(
+                status="failure",
+                url="https://auspost.com.au/mypost/track/search",
+                html=None,
+                message="NotImplementedError",
+            ),
+            CrawlResponse(
+                status="failure",
+                url=f"https://auspost.com.au/mypost/track/details/{tracking_code}",
+                html=None,
+                message="fallback failure",
+            ),
+        ]
+
+        class FakeEngine:
+            def __init__(self):
+                self.calls = []
+
+            def run(self, request, page_action):
+                index = len(self.calls)
+                self.calls.append((request, page_action))
+                return responses[index]
+
+        engine = FakeEngine()
+        crawler = AuspostCrawler(engine=engine)
+
+        result = crawler.run(AuspostCrawlRequest(tracking_code=tracking_code))
+
+        assert result.status == "failure"
+        assert result.tracking_code == tracking_code
+        assert result.message == "NotImplementedError"
+        assert len(engine.calls) == 2
