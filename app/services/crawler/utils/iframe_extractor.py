@@ -52,8 +52,9 @@ class IframeExtractor:
             # Use sequential processing for single iframe
             iframe_results = self._extract_iframes_sequential(iframe_matches, base_url, fetch_kwargs)
 
-        # Replace iframe tags with their content
-        for match, result in zip(iframe_matches, iframe_results):
+        # Replace iframe tags with their content. Iterate from the end so the
+        # string slicing indices remain valid after earlier replacements.
+        for match, result in reversed(list(zip(iframe_matches, iframe_results))):
             if result and result.get("content"):
                 content_wrapper = f'<iframe>{result["content"]}</iframe>'
                 processed_html = (
