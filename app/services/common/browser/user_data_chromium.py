@@ -67,6 +67,29 @@ class ChromiumUserDataManager:
         """Base user data directory for the Chromium manager."""
         return self._base_path
 
+    @property
+    def master_dir(self) -> Optional[Path]:
+        """Expose master profile directory for backwards-compatible access."""
+
+        if not self.enabled or not getattr(self.path_manager, "enabled", False):
+            return None
+        return self.path_manager.master_dir
+
+    @property
+    def clones_dir(self) -> Optional[Path]:
+        """Expose clones directory for backwards-compatible access."""
+
+        if not self.enabled or not getattr(self.path_manager, "enabled", False):
+            return None
+        return self.path_manager.clones_dir
+
+    def _get_directory_size(self, directory: Path) -> float:
+        """Return the size of ``directory`` in megabytes, tolerating missing paths."""
+
+        if not directory.exists():
+            return 0.0
+        return get_directory_size(directory)
+
     @contextmanager
     def get_user_data_context(self, mode: str) -> ContextManager[Tuple[str, Callable[[], None]]]:
         """Get a user data directory context for Chromium operations.
