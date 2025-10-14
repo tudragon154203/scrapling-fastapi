@@ -182,7 +182,7 @@ class BrowseCrawler:
             user_data_manager = manager_cls(user_data_dir)
             self.user_data_manager = user_data_manager  # Store for error handling
 
-            with user_data_manager.context_manager.get_user_data_context('write') as (effective_dir, cleanup):
+            with user_data_manager.get_user_data_context('write') as (effective_dir, cleanup):
                 # Ensure absolute path for profile persistence
                 effective_dir = os.path.abspath(effective_dir) if effective_dir else None
 

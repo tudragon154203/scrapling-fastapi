@@ -8,6 +8,7 @@ import os
 import re
 import sys
 import inspect
+from contextlib import ExitStack
 from typing import Any, Dict, Optional
 
 # Set proper event loop policy for Windows
@@ -179,16 +180,43 @@ class ChromiumDownloadStrategy(TikTokDownloadStrategy):
         effective_user_data_dir = None
         abs_dir: Optional[str] = None
         if self.user_data_manager.is_enabled():
+            context_stack = ExitStack()
+            cleanup_registered = False
+
+            def release_context() -> None:
+                nonlocal cleanup_registered
+                if cleanup_registered:
+                    return
+                cleanup_registered = True
+                try:
+                    context_stack.close()
+                except Exception as cleanup_exc:  # pragma: no cover - defensive logging
+                    logger.warning("Error cleaning up Chromium user data context: %s", cleanup_exc)
+
             try:
-                user_data_context = self.user_data_manager.context_manager.get_user_data_context('read')
-                effective_user_data_dir, user_data_cleanup = user_data_context.__enter__()
-                # Ensure absolute path for profile persistence
+                effective_user_data_dir, _cleanup = context_stack.enter_context(
+                    self.user_data_manager.get_user_data_context('read')
+                )
                 if effective_user_data_dir:
                     abs_dir = os.path.abspath(effective_user_data_dir)
                     effective_user_data_dir = abs_dir
-                logger.debug(f"Using Chromium user data directory (absolute): {effective_user_data_dir}")
+                user_data_cleanup = release_context
+                logger.debug(
+                    "Using Chromium user data directory (absolute): %s",
+                    effective_user_data_dir,
+                )
             except Exception as e:
-                logger.warning(f"Failed to get Chromium user data context, falling back to temporary profile: {e}")
+                try:
+                    context_stack.close()
+                except Exception as cleanup_exc:  # pragma: no cover - defensive logging
+                    logger.debug(
+                        "Error closing Chromium user data context stack after failure: %s",
+                        cleanup_exc,
+                    )
+                logger.warning(
+                    "Failed to get Chromium user data context, falling back to temporary profile: %s",
+                    e,
+                )
                 effective_user_data_dir = None
                 user_data_cleanup = None
                 abs_dir = None
