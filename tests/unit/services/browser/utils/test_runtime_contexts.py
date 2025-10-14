@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from contextlib import contextmanager
 
 from app.services.browser.utils.runtime_contexts import (
@@ -67,10 +68,11 @@ def test_chromium_runtime_context_sets_absolute_path_and_restores():
     manager = DummyManager()
 
     with ChromiumRuntimeContext(settings, manager, mode="write") as (effective_dir, provided_cleanup):
-        assert effective_dir.endswith("relative/path")
+        expected_suffix = os.path.join("relative", "path")
+        assert effective_dir.endswith(expected_suffix)
         assert provided_cleanup is cleanup
         assert settings.chromium_runtime_user_data_mode == "write"
-        assert settings.chromium_runtime_effective_user_data_dir.endswith("relative/path")
+        assert settings.chromium_runtime_effective_user_data_dir.endswith(expected_suffix)
 
     assert settings.chromium_runtime_user_data_mode == "read"
     assert settings.chromium_runtime_effective_user_data_dir == "/existing/chromium"
