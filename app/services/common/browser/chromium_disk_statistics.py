@@ -47,7 +47,9 @@ class ChromiumDiskStatistics:
                 else 0
             )
 
-            metadata = self._profile_manager.read_metadata() if self._profile_manager else {}
+            metadata = (
+                self._profile_manager.read_metadata() if self._profile_manager else {}
+            ) or {}
 
             stats: DiskUsageStats = {
                 "enabled": True,
