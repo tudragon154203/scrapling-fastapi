@@ -140,3 +140,29 @@ def test_crawl_endpoint_mock_without_json_payload(monkeypatch):
     assert req_obj.network_idle is False
     assert req_obj.force_headful is False
     assert req_obj.force_user_data is True
+
+
+def test_crawl_rejects_non_json_content_type(monkeypatch, client):
+    """Ensure middleware blocks non-JSON requests before hitting crawler."""
+    from app.api import crawl as crawl_module
+
+    crawl_spy = MagicMock()
+    monkeypatch.setattr(crawl_module, "crawl", crawl_spy)
+
+    response = client.post(
+        "/crawl",
+        data="plain text body",
+        headers={"Content-Type": "text/plain"},
+    )
+
+    assert response.status_code == 422
+    assert response.json() == {
+        "detail": [
+            {
+                "loc": ["header", "Content-Type"],
+                "msg": "Content-Type must be application/json",
+                "type": "value_error.content_type",
+            }
+        ]
+    }
+    crawl_spy.assert_not_called()
