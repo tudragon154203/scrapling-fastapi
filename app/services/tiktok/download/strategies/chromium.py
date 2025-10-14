@@ -4,10 +4,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import os
 import re
 import sys
-import inspect
 from typing import Any, Dict, Optional
 
 # Set proper event loop policy for Windows
@@ -21,19 +19,35 @@ if sys.platform == "win32":
 try:
     from scrapling.fetchers import DynamicFetcher
 except ImportError:
-    print("Error: DynamicFetcher not available. Please install scrapling with: pip install scrapling")
+    print(
+        "Error: DynamicFetcher not available. Please install scrapling with: pip install scrapling"
+    )
     sys.exit(1)
 
 try:
-    from app.services.browser.fetchers.persistent_chromium import PersistentChromiumFetcher
+    from app.services.browser.fetchers.persistent_chromium import (
+        PersistentChromiumFetcher,
+    )
 except ImportError:
     PersistentChromiumFetcher = None
-    print("Warning: PersistentChromiumFetcher not available, falling back to DynamicFetcher")
+    print(
+        "Warning: PersistentChromiumFetcher not available, falling back to DynamicFetcher"
+    )
 
+from app.core.config import get_settings
+from app.services.common.browser.user_data_chromium import ChromiumUserDataManager
 from app.services.tiktok.download.actions.resolver import TikVidResolveAction
 from app.services.tiktok.download.strategies.base import TikTokDownloadStrategy
-from app.services.common.browser.user_data_chromium import ChromiumUserDataManager
-from app.core.config import get_settings
+from app.services.tiktok.download.strategies.chromium_args import (
+    apply_headless_modifiers,
+    build_browser_args,
+)
+from app.services.tiktok.download.strategies.chromium_user_data import (
+    ChromiumUserDataContextProvider,
+)
+from app.services.tiktok.download.strategies.fetcher_support import (
+    fetch_method_supports_argument,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -66,10 +80,18 @@ class ChromiumDownloadStrategy(TikTokDownloadStrategy):
         self.logger = logging.getLogger(__name__)
         # Initialize Chromium user data manager
         self.user_data_manager = ChromiumUserDataManager(
-            user_data_dir=getattr(settings, 'chromium_user_data_dir', None)
+            user_data_dir=getattr(settings, "chromium_user_data_dir", None)
+        )
+        self.user_data_context_provider = ChromiumUserDataContextProvider(
+            self.user_data_manager
         )
 
-    def resolve_video_url(self, tiktok_url: str, quality_hint: Optional[str] = None, force_headful: bool = False) -> str:
+    def resolve_video_url(
+        self,
+        tiktok_url: str,
+        quality_hint: Optional[str] = None,
+        force_headful: bool = False,
+    ) -> str:
         """
         Resolve the direct MP4 URL for a TikTok video using TikVid with Chromium.
 
@@ -87,7 +109,9 @@ class ChromiumDownloadStrategy(TikTokDownloadStrategy):
         last_exc: Optional[Exception] = None
 
         for attempt in range(1, 4):
-            components = self._build_chromium_fetch_kwargs(tiktok_url, quality_hint, force_headful)
+            components = self._build_chromium_fetch_kwargs(
+                tiktok_url, quality_hint, force_headful
+            )
             fetcher_class = components["fetcher"]
             fetch_kwargs: Dict[str, Any] = components["fetch_kwargs"]
             resolve_action: TikVidResolveAction = components["resolve_action"]
@@ -109,15 +133,24 @@ class ChromiumDownloadStrategy(TikTokDownloadStrategy):
 
                     direct_url = None
                     if resolve_action.result_links:
-                        logger.debug(f"Found {len(resolve_action.result_links)} download links")
-                        media_links = self._filter_media_links(resolve_action.result_links)
+                        logger.debug(
+                            f"Found {len(resolve_action.result_links)} download links"
+                        )
+                        media_links = self._filter_media_links(
+                            resolve_action.result_links
+                        )
                         logger.debug(f"Filtered media links: {media_links}")
                         if media_links:
                             direct_url = media_links[0]
                         else:
-                            logger.warning("Resolver warning: TikVid returned only info links, retrying...")
+                            logger.warning(
+                                "Resolver warning: TikVid returned only info links, retrying..."
+                            )
                     elif getattr(page_result, "html_content", None):
-                        mp4_urls = re.findall(r'href=["\']([^"\']*\.mp4[^"\']*)["\']', page_result.html_content)
+                        mp4_urls = re.findall(
+                            r'href=["\']([^"\']*\.mp4[^"\']*)["\']',
+                            page_result.html_content,
+                        )
                         if mp4_urls:
                             direct_url = mp4_urls[0]
                             logger.info(f"Found MP4 URL in HTML: {direct_url}")
@@ -131,7 +164,7 @@ class ChromiumDownloadStrategy(TikTokDownloadStrategy):
 
                 finally:
                     # Ensure proper cleanup of fetcher resources and user data context
-                    if hasattr(fetcher, 'close'):
+                    if hasattr(fetcher, "close"):
                         try:
                             fetcher.close()
                         except Exception as e:
@@ -145,11 +178,14 @@ class ChromiumDownloadStrategy(TikTokDownloadStrategy):
 
             except Exception as exc:
                 last_exc = exc
-                logger.warning(f"Chromium attempt {attempt} failed: {_format_exception(exc)}")
+                logger.warning(
+                    f"Chromium attempt {attempt} failed: {_format_exception(exc)}"
+                )
                 continue
 
         raise RuntimeError(
-            f"Resolution failed after retries: {_format_exception(last_exc or RuntimeError('unknown error'))}")
+            f"Resolution failed after retries: {_format_exception(last_exc or RuntimeError('unknown error'))}"
+        )
 
     def get_strategy_name(self) -> str:
         """Get the name of this strategy."""
@@ -174,27 +210,10 @@ class ChromiumDownloadStrategy(TikTokDownloadStrategy):
         """
         resolve_action = TikVidResolveAction(tiktok_url, quality_hint)
 
-        # Get user data context for read mode (clone master profile) ONLY when enabled
-        user_data_cleanup = None
-        effective_user_data_dir = None
-        abs_dir: Optional[str] = None
-        if self.user_data_manager.is_enabled():
-            try:
-                user_data_context = self.user_data_manager.get_user_data_context('read')
-                effective_user_data_dir, user_data_cleanup = user_data_context.__enter__()
-                # Ensure absolute path for profile persistence
-                if effective_user_data_dir:
-                    abs_dir = os.path.abspath(effective_user_data_dir)
-                    effective_user_data_dir = abs_dir
-                logger.debug(f"Using Chromium user data directory (absolute): {effective_user_data_dir}")
-            except Exception as e:
-                logger.warning(f"Failed to get Chromium user data context, falling back to temporary profile: {e}")
-                effective_user_data_dir = None
-                user_data_cleanup = None
-                abs_dir = None
-        else:
-            # When disabled, do not inject user_data_dir into fetch kwargs or additional args
-            logger.debug("Chromium user data management disabled; not injecting user_data_dir")
+        # Acquire user data context using dedicated provider
+        user_data_context = self.user_data_context_provider.acquire_read_context()
+        effective_user_data_dir = user_data_context.effective_dir
+        user_data_cleanup = user_data_context.cleanup
 
         # Choose fetcher: prefer DynamicFetcher for strategy tests and compatibility.
         # Persistent profile is handled by browse flows; downloads use read-mode clones.
@@ -207,54 +226,11 @@ class ChromiumDownloadStrategy(TikTokDownloadStrategy):
         headless_mode = not force_headful
 
         # Browser arguments for stealth and anti-detection
-        browser_args = [
-            "--no-sandbox",
-            "--disable-setuid-sandbox",
-            "--disable-dev-shm-usage",
-            "--disable-accelerated-2d-canvas",
-            "--no-first-run",
-            "--disable-gpu",
-            "--disable-background-timer-throttling",
-            "--disable-backgrounding-occluded-windows",
-            "--disable-renderer-backgrounding",
-            "--disable-features=TranslateUI",
-            "--disable-ipc-flooding-protection",
-            "--disable-web-security",
-            "--disable-features=VizDisplayCompositor",
-            "--disable-extensions",
-            "--disable-plugins",
-            "--disable-images",  # Faster loading
-            "--disable-default-apps",
-            "--disable-sync",
-            "--disable-translate",
-            "--hide-scrollbars",
-            "--metrics-recording-only",
-            "--mute-audio",
-            "--safebrowsing-disable-auto-update",
-            "--disable-infobars",
-            "--window-position=0,0",
-            "--window-size=1920,1080",
-            "--blink-settings=imagesEnabled=false",  # Force disable images
-            "--disable-javascript-harmony-shipping",  # Faster JS execution
-            "--disable-features=IsolateOrigins,site-per-process",  # Reduce process overhead
-        ]
-
-        # Add headless-specific parity arguments when in headless mode
+        browser_args = build_browser_args(headless_mode)
         if headless_mode:
-            headless_args = [
-                "--disable-background-networking",  # Prevent background requests interfering
-                "--no-default-browser-check",  # Prevent browser check dialogs
-                "--disable-features=TranslateUI,BlinkGenPropertyTrees",  # Reduce headless overhead
-                "--enable-automation",  # Enable automation mode for better headless support
-                "--password-store=basic",  # Use basic password store in headless
-                "--use-mock-keychain",  # Mock keychain for headless environments
-                "--disable-ipc-flooding-protection",  # Enhanced protection for headless
-                "--disable-component-update",  # Prevent component updates in headless
-                "--disable-domain-reliability",  # Disable domain reliability reporting
-                "--disable-features=AudioServiceOutOfProcess",  # Reduce process overhead
-            ]
-            browser_args.extend(headless_args)
-            logger.debug("Added headless-specific parity arguments for enhanced headless compatibility")
+            logger.debug(
+                "Added headless-specific parity arguments for enhanced headless compatibility"
+            )
 
         # Create page action callable for fetchers
         def page_action_callable(page):
@@ -274,49 +250,22 @@ class ChromiumDownloadStrategy(TikTokDownloadStrategy):
 
         # Add headless-specific parity configurations
         if headless_mode:
-            # Enhanced waiting strategy for headless mode
-            fetch_kwargs.update({
-                "network_idle": True,  # Wait for network to be idle in headless mode
-                "wait": 5000,  # Slightly longer wait for headless stability
-                "timeout": 120000,  # Longer timeout for headless processing
-            })
-
-            # Additional headers for headless mode parity
-            fetch_kwargs["extra_headers"].update({
-                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-                "Accept-Language": "en-US,en;q=0.5",
-                "Accept-Encoding": "gzip, deflate, br",
-                "DNT": "1",
-                "Connection": "keep-alive",
-                "Upgrade-Insecure-Requests": "1",
-            })
-
-            logger.debug("Applied headless parity configurations for enhanced web interaction")
+            fetch_kwargs = apply_headless_modifiers(fetch_kwargs)
+            logger.debug(
+                "Applied headless parity configurations for enhanced web interaction"
+            )
 
         # Inject browser args only for PersistentChromiumFetcher
         if fetcher_class == PersistentChromiumFetcher:
             fetch_kwargs["browser_args"] = browser_args
 
         # Conditionally pass user-data parameters to DynamicFetcher if supported
-        try:
-            sig = inspect.signature(DynamicFetcher.fetch)
-            params = sig.parameters
-            has_varkw = any(p.kind == inspect.Parameter.VAR_KEYWORD for p in params.values())
-            supports_user_data_dir = ("user_data_dir" in params) or has_varkw
-            supports_additional_args = ("additional_args" in params) or has_varkw
-        except Exception as e:
-            logger.debug(f"Failed to introspect DynamicFetcher.fetch signature: {e}")
-            supports_user_data_dir = False
-            supports_additional_args = False
-
-        if abs_dir and fetcher_class == DynamicFetcher:
-            if supports_user_data_dir:
-                fetch_kwargs["user_data_dir"] = abs_dir
-            if supports_additional_args:
-                additional_args = fetch_kwargs.get("additional_args", {})
-                if not isinstance(additional_args, dict):
-                    additional_args = {}
-                additional_args["user_data_dir"] = abs_dir
+        if effective_user_data_dir and fetcher_class == DynamicFetcher:
+            if fetch_method_supports_argument(DynamicFetcher, "user_data_dir"):
+                fetch_kwargs["user_data_dir"] = effective_user_data_dir
+            if fetch_method_supports_argument(DynamicFetcher, "additional_args"):
+                additional_args = dict(fetch_kwargs.get("additional_args", {}))
+                additional_args["user_data_dir"] = effective_user_data_dir
                 fetch_kwargs["additional_args"] = additional_args
 
         return {
@@ -330,6 +279,7 @@ class ChromiumDownloadStrategy(TikTokDownloadStrategy):
 
     def _filter_media_links(self, links: list) -> list:
         """Filter download links to find actual media files."""
+
         def _looks_like_media(link: str) -> bool:
             lowered = link.lower()
             if ".mp4" in lowered:
