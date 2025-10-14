@@ -1,36 +1,20 @@
-"""
-Unit tests for Chromium user data management functionality.
-
-Tests cover:
-- ChromiumUserDataManager context behaviors
-- Cookie export/import operations
-- Profile creation and cleanup
-- BrowserForge fingerprint generation
-"""
+"""Unit tests for Chromium user data manager orchestration."""
 
 import os
 import tempfile
 import shutil
 from pathlib import Path
 from unittest.mock import patch
+
 import pytest
 
-from app.services.common.browser.user_data_chromium import (
-    ChromiumUserDataManager
-)
+from app.services.common.browser.user_data_chromium import ChromiumUserDataManager
 from app.services.common.browser.locks import FCNTL_AVAILABLE
 from app.services.common.browser.profile_manager import BROWSERFORGE_AVAILABLE
 
 
 class TestChromiumUserDataManager:
     """Test ChromiumUserDataManager behaviors."""
-
-    @pytest.fixture
-    def temp_data_dir(self):
-        """Create temporary data directory for testing."""
-        temp_dir = tempfile.mkdtemp()
-        yield Path(temp_dir)
-        shutil.rmtree(temp_dir, ignore_errors=True)
 
     @pytest.fixture
     def manager(self, temp_data_dir):

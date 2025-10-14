@@ -180,7 +180,7 @@ class ChromiumDownloadStrategy(TikTokDownloadStrategy):
         abs_dir: Optional[str] = None
         if self.user_data_manager.is_enabled():
             try:
-                user_data_context = self.user_data_manager.get_user_data_context('read')
+                user_data_context = self.user_data_manager.context_manager.get_user_data_context('read')
                 effective_user_data_dir, user_data_cleanup = user_data_context.__enter__()
                 # Ensure absolute path for profile persistence
                 if effective_user_data_dir:
