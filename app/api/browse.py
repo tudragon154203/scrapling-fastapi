@@ -1,5 +1,7 @@
 from fastapi import APIRouter
 
+import re
+
 from app.schemas.browse import BrowseRequest, BrowseResponse
 from app.services.browser.browse import BrowseCrawler
 from fastapi.responses import JSONResponse
@@ -44,8 +46,7 @@ def browse_endpoint(payload: BrowseRequest):
         if result.status == "success":
             return result
         # failure: map to specific HTTP status codes
-        message = (result.message or "").lower()
-        if "lock" in message or "exclusive" in message or "already in use" in message:
+        if _is_profile_lock_conflict(result.message):
             return JSONResponse(content=result.model_dump(), status_code=409)
         return JSONResponse(content=result.model_dump(), status_code=500)
 
@@ -55,3 +56,25 @@ def browse_endpoint(payload: BrowseRequest):
     if isinstance(body, dict):
         return JSONResponse(content=body, status_code=int(status_code))
     return JSONResponse(content={}, status_code=int(status_code))
+
+
+def _is_profile_lock_conflict(message: str | None) -> bool:
+    """Detect whether a failure message indicates a profile lock conflict."""
+
+    normalized = (message or "").lower()
+    if not normalized:
+        return False
+
+    targeted_terms = (
+        "already in use",
+        "exclusive lock",
+        "lock file",
+        "profile lock",
+    )
+    if any(term in normalized for term in targeted_terms):
+        return True
+
+    return bool(
+        re.search(r"\block\b", normalized)
+        or re.search(r"\blocked\b", normalized)
+    )
