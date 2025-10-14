@@ -6,6 +6,7 @@ import os  # noqa: F401 - used in patches
 import platform  # noqa: F401 - used in patches
 from pathlib import Path
 from unittest.mock import MagicMock, patch
+from unittest.mock import call
 
 import pytest
 
@@ -315,7 +316,8 @@ class TestCamoufoxArgsBuilderHelpers:
 
         result = CamoufoxArgsBuilder._resolve_path("user_data")
 
-        mock_abspath.assert_called_once_with("user_data")
+        user_data_calls = [c for c in mock_abspath.call_args_list if c == call("user_data")]
+        assert len(user_data_calls) == 1
         assert result == "/home/user/user_data"
 
     @patch('app.services.common.browser.camoufox.platform.system')

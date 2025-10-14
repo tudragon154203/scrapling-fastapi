@@ -37,6 +37,12 @@ BASE_CHROMIUM_BROWSER_ARGS: Sequence[str] = (
     "--disable-features=IsolateOrigins,site-per-process",
 )
 
+HEADFUL_QUIET_BROWSER_ARGS: Sequence[str] = (
+    "--start-minimized",
+    "--disable-notifications",
+    "--disable-features=CalculateNativeWinOcclusion",
+)
+
 HEADLESS_ONLY_BROWSER_ARGS: Sequence[str] = (
     "--disable-background-networking",
     "--no-default-browser-check",
@@ -69,6 +75,7 @@ HEADLESS_HEADER_UPDATES: Dict[str, str] = {
 def build_browser_args(headless: bool) -> List[str]:
     """Build Chromium browser arguments for the desired mode."""
     args = list(BASE_CHROMIUM_BROWSER_ARGS)
+    args.extend(flag for flag in HEADFUL_QUIET_BROWSER_ARGS if flag not in args)
     if headless:
         args.extend(HEADLESS_ONLY_BROWSER_ARGS)
     return args
