@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Any, Iterable
+from typing import Any, Iterable, Tuple
 
 from app.services.browser.actions.humanize import (
     click_like_human,
@@ -15,8 +15,22 @@ from app.services.browser.actions.humanize import (
 
 try:
     from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
-except Exception:  # pragma: no cover - Playwright might be unavailable in tests
+except ImportError:  # pragma: no cover - Playwright might be unavailable in tests
     PlaywrightTimeoutError = TimeoutError  # type: ignore[misc, assignment]
+
+
+DEFAULT_SEARCH_INPUT_SELECTORS: Tuple[str, ...] = (
+    'input[data-e2e="search-input"]',
+    'input[data-e2e="top-search-input"]',
+    'input[placeholder*="Search"]',
+    'input[aria-label*="Search"]',
+    'input[type="search"]',
+    'input[type="text"]',
+    'input[class*="search"]',
+    'input[data-testid="search-input"]',
+    'input[name="search"]',
+    'input[role="combobox"]',
+)
 
 
 def wait_for_network_idle(
@@ -38,10 +52,16 @@ class SearchUIController:
         *,
         logger: logging.Logger,
         search_button_selectors: Iterable[str],
+        search_input_selectors: Iterable[str] | None,
         ui_ready_pause: float,
     ) -> None:
         self._logger = logger
         self._search_button_selectors = tuple(search_button_selectors)
+        self._search_input_selectors = (
+            tuple(search_input_selectors)
+            if search_input_selectors is not None
+            else DEFAULT_SEARCH_INPUT_SELECTORS
+        )
         self._ui_ready_pause = ui_ready_pause
 
     def wait_for_initial_load(self, page: Any) -> None:
@@ -75,11 +95,12 @@ class SearchUIController:
             return search_query
 
     def enter_search_query(
-        self, page: Any, search_input: Any, search_query: str
+        self, page: Any, search_input: Any | None, search_query: str
     ) -> None:
         """Type the search query either in the input or via keyboard."""
-        if search_input:
-            self._type_into_search_input(page, search_input, search_query)
+        target_input = search_input or self._find_search_input(page)
+        if target_input:
+            self._type_into_search_input(page, target_input, search_query)
             return
 
         try:
@@ -87,6 +108,24 @@ class SearchUIController:
             page.keyboard.type(search_query)
         except Exception as exc:
             self._logger.warning("Fallback typing failed: %s", exc)
+
+    def _find_search_input(self, page: Any) -> Any | None:
+        """Locate a search input element using known selectors."""
+        for selector in self._search_input_selectors:
+            try:
+                input_element = page.query_selector(selector)
+                if input_element:
+                    self._logger.debug(
+                        "Found search input with selector: %s", selector
+                    )
+                    return input_element
+            except Exception as exc:
+                self._logger.debug(
+                    "Search input selector %s failed: %s", selector, exc
+                )
+
+        self._logger.debug("No search input located; will fall back to keyboard typing")
+        return None
 
     def submit_search(self, page: Any) -> None:
         """Trigger search submission."""

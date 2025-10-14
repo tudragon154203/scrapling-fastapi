@@ -32,6 +32,19 @@ class TikTokAutoSearchAction(BasePageAction):
         '.css-udify9-5e6d46e3--StyledTUXSearchButton',
     ]
 
+    SEARCH_INPUT_SELECTORS = [
+        'input[data-e2e="search-input"]',
+        'input[data-e2e="top-search-input"]',
+        'input[placeholder*="Search"]',
+        'input[aria-label*="Search"]',
+        'input[type="search"]',
+        'input[type="text"]',
+        'input[class*="search"]',
+        'input[data-testid="search-input"]',
+        'input[name="search"]',
+        'input[role="combobox"]',
+    ]
+
     RESULT_SELECTORS = [
         '[data-e2e="search-result-item"]',
         '[data-e2e="search-general-item"]',
@@ -87,6 +100,7 @@ class TikTokAutoSearchAction(BasePageAction):
         self.ui_controller = ui_controller or SearchUIController(
             logger=self.logger,
             search_button_selectors=self.SEARCH_BUTTON_SELECTORS,
+            search_input_selectors=self.SEARCH_INPUT_SELECTORS,
             ui_ready_pause=self.UI_READY_PAUSE,
         )
         self.results_monitor = results_monitor or SearchResultsMonitor(

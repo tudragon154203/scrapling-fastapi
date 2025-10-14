@@ -14,6 +14,7 @@ def controller():
     return SearchUIController(
         logger=Mock(),
         search_button_selectors=["button"],
+        search_input_selectors=["input"],
         ui_ready_pause=0,
     )
 
@@ -46,6 +47,7 @@ def test_enter_search_query_types_into_input(monkeypatch, controller):
 
 def test_enter_search_query_keyboard_fallback_when_no_input(monkeypatch, controller):
     page = Mock()
+    page.query_selector.return_value = None
     monkeypatch.setattr(
         "app.services.tiktok.search.actions.ui_controls.human_pause",
         lambda *_args, **_kwargs: None,
@@ -54,3 +56,19 @@ def test_enter_search_query_keyboard_fallback_when_no_input(monkeypatch, control
     controller.enter_search_query(page, None, "query")
 
     page.keyboard.type.assert_called_once_with("query")
+
+
+def test_enter_search_query_locates_input(monkeypatch, controller):
+    page = Mock()
+    search_input = Mock()
+    page.query_selector.return_value = search_input
+    type_like_human = Mock()
+    monkeypatch.setattr(
+        "app.services.tiktok.search.actions.ui_controls.type_like_human",
+        type_like_human,
+    )
+
+    controller.enter_search_query(page, None, "query")
+
+    type_like_human.assert_called_once_with(search_input, "query", delay_ms_range=(50, 100))
+    page.keyboard.type.assert_not_called()
