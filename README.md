@@ -122,6 +122,12 @@ Run all tests:
 python -m pytest
 ```
 
+To collect coverage reports locally, run pytest with coverage enabled (mirroring the default CI configuration):
+
+```bash
+python -m pytest --cov
+```
+
 Run the suite serially if needed:
 
 ```bash
