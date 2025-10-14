@@ -8,6 +8,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from app.services.tiktok.download.strategies.chromium_args import (
+    HEADFUL_QUIET_BROWSER_ARGS,
     HEADLESS_ONLY_BROWSER_ARGS,
     apply_headless_modifiers,
     build_browser_args,
@@ -50,6 +51,12 @@ class TestChromiumBrowserArgs:
     def test_headless_args_include_all_flags(self) -> None:
         args = build_browser_args(headless=True)
         for flag in HEADLESS_ONLY_BROWSER_ARGS:
+            assert flag in args
+
+    def test_headful_args_include_quiet_flags(self) -> None:
+        args = build_browser_args(headless=False)
+
+        for flag in HEADFUL_QUIET_BROWSER_ARGS:
             assert flag in args
 
 
