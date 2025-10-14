@@ -281,21 +281,19 @@ class TestChromiumUserDataManager:
                 cleanup()
 
     def test_copytree_recursive(self):
-        """Test the recursive directory copy function."""
-        # Create source structure
+        """Test the recursive directory copy utility."""
+        from app.services.common.browser.utils import copytree_recursive
+
         src_dir = Path(self.temp_dir) / 'src'
         src_dir.mkdir()
 
-        # Create nested structure
         (src_dir / 'file1.txt').write_text('content1')
         (src_dir / 'subdir').mkdir()
         (src_dir / 'subdir' / 'file2.txt').write_text('content2')
 
-        # Copy to destination
         dst_dir = Path(self.temp_dir) / 'dst'
-        self.user_data_manager._copytree_recursive(src_dir, dst_dir)
+        copytree_recursive(src_dir, dst_dir)
 
-        # Verify copy
         assert dst_dir.exists()
         assert (dst_dir / 'file1.txt').exists()
         assert (dst_dir / 'file1.txt').read_text() == 'content1'
