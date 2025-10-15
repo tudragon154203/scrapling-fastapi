@@ -41,6 +41,17 @@ def test_user_data_context_modes(
     fcntl_available: bool,
 ) -> None:
     monkeypatch.setattr(user_data, "FCNTL_AVAILABLE", fcntl_available)
+    if fcntl_available and not hasattr(user_data, "fcntl"):
+        class _DummyFcntl:
+            LOCK_EX = 1
+            LOCK_NB = 2
+            LOCK_UN = 8
+
+            @staticmethod
+            def flock(_fd: int, _operation: int) -> None:
+                return None
+
+        monkeypatch.setattr(user_data, "fcntl", _DummyFcntl)
 
     if mode == "read":
         seed_master(user_data_base)
