@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import MagicMock
+from unittest.mock import ANY, MagicMock
 from types import SimpleNamespace
 
 from app.services.crawler.utils.iframe_extractor import IframeExtractor
@@ -400,3 +400,66 @@ class TestIframeExtractor:
             "https://external3.com/content3"
         ]
         assert srcs == expected_order
+
+    def test_nested_iframes_deduplicate_duplicate_sources(self):
+        """Nested iframes pointing to the same source should only fetch once."""
+        mock_page = SimpleNamespace(
+            html_content="<html><body>Nested content</body></html>",
+            status=200,
+        )
+        self.mock_fetch_client.fetch.return_value = mock_page
+
+        html = """
+        <html>
+            <body>
+                <iframe src="https://external.com/shared">
+                    <div>
+                        <iframe src="https://external.com/shared"></iframe>
+                    </div>
+                </iframe>
+            </body>
+        </html>
+        """
+        base_url = "https://example.com"
+
+        result_html, results = self.extractor.extract_iframes(html, base_url, {})
+
+        assert len(results) == 2
+        assert all(r for r in results)
+        assert results[0]["absolute_url"] == "https://external.com/shared"
+        assert results[1]["absolute_url"] == "https://external.com/shared"
+        assert "Nested content" in result_html
+        self.mock_fetch_client.fetch.assert_called_once_with(
+            "https://external.com/shared", ANY,
+        )
+
+    def test_nested_iframe_error_is_suppressed_in_parallel_mode(self):
+        """Errors raised while fetching nested iframe content should be suppressed."""
+
+        def fetch_side_effect(url, kwargs):
+            if "outer" in url:
+                return SimpleNamespace(
+                    html_content="<html><body>Outer success</body></html>",
+                    status=200,
+                )
+            raise RuntimeError("Network failure")
+
+        self.mock_fetch_client.fetch.side_effect = fetch_side_effect
+
+        html = """
+        <div>
+            <iframe src="https://external.com/outer"></iframe>
+            <iframe src="https://external.com/inner"></iframe>
+        </div>
+        """
+        base_url = "https://example.com"
+
+        result_html, results = self.extractor.extract_iframes(html, base_url, {})
+
+        assert len(results) == 2
+        successful_results = [r for r in results if r]
+        assert len(successful_results) == 1
+        assert "Outer success" in successful_results[0]["content"]
+        assert 'src="https://external.com/inner"' in result_html
+        assert "Outer success" in result_html
+        assert self.mock_fetch_client.fetch.call_count == 2
