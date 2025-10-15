@@ -215,11 +215,6 @@ class ChromiumDownloadStrategy(TikTokDownloadStrategy):
         effective_user_data_dir = user_data_context.effective_dir
         user_data_cleanup = user_data_context.cleanup
 
-        # Choose fetcher: prefer DynamicFetcher for strategy tests and compatibility.
-        # Persistent profile is handled by browse flows; downloads use read-mode clones.
-        fetcher_class = DynamicFetcher
-        logger.debug("Using DynamicFetcher (ephemeral profile)")
-
         # Determine headless mode based on force_headful flag
         # When force_headful=False, enable headless mode with full parity features
         # When force_headful=True, enforce headful mode
@@ -231,6 +226,23 @@ class ChromiumDownloadStrategy(TikTokDownloadStrategy):
             logger.debug(
                 "Added headless-specific parity arguments for enhanced headless compatibility"
             )
+
+        # Choose fetcher based on headful/headless mode:
+        # - Use DynamicFetcher for headless mode (lightweight, ephemeral)
+        # - Use PersistentChromiumFetcher for headful mode (supports browser args for silent mode)
+        if headless_mode:
+            fetcher_class = DynamicFetcher
+            logger.debug("Using DynamicFetcher (headless, ephemeral profile)")
+        else:
+            if PersistentChromiumFetcher is None:
+                logger.warning(
+                    "PersistentChromiumFetcher not available, falling back to DynamicFetcher for headful mode. "
+                    "Browser may appear instead of running silently."
+                )
+                fetcher_class = DynamicFetcher
+            else:
+                fetcher_class = PersistentChromiumFetcher
+                logger.debug("Using PersistentChromiumFetcher (headful with silent mode support)")
 
         # Create page action callable for fetchers
         def page_action_callable(page):
@@ -255,9 +267,13 @@ class ChromiumDownloadStrategy(TikTokDownloadStrategy):
                 "Applied headless parity configurations for enhanced web interaction"
             )
 
-        # Inject browser args only for PersistentChromiumFetcher
+        # Inject browser args only for PersistentChromiumFetcher (headful mode)
         if fetcher_class == PersistentChromiumFetcher:
             fetch_kwargs["browser_args"] = browser_args
+            logger.debug("Applied browser arguments for silent headful mode")
+        else:
+            # For DynamicFetcher, ensure browser_args are not passed (not supported)
+            logger.debug("DynamicFetcher mode: browser arguments not applied")
 
         # Conditionally pass user-data parameters to DynamicFetcher if supported
         if effective_user_data_dir and fetcher_class == DynamicFetcher:
