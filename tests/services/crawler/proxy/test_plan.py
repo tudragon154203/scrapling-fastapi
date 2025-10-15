@@ -1,6 +1,11 @@
 import types
 
+import pytest
+
 from app.services.crawler.proxy.plan import AttemptPlanner
+
+
+pytestmark = pytest.mark.unit
 
 
 def build_settings(**overrides):

@@ -1,4 +1,9 @@
+import pytest
+
 from app.services.crawler.proxy.redact import redact_proxy
+
+
+pytestmark = pytest.mark.unit
 
 
 def test_redact_proxy_with_credentials_and_port_masks_sensitive_parts():
