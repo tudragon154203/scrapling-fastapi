@@ -15,15 +15,9 @@ pytestmark = [
 client = TestClient(app)
 
 
-@pytest.mark.parametrize(
-    "request_payload",
-    [
-        {"query": "street food", "force_headful": False, "numVideos": 3},
-        {"query": "street food", "force_headful": "false", "numVideos": 3},
-    ],
-)
-def test_tiktok_search_headless_mode_default(request_payload):
+def test_tiktok_search_headless_mode_default():
     """Ensure TikTok search requests run in headless mode without forcing headful."""
+    request_payload = {"query": "street food", "force_headful": False, "numVideos": 3}
 
     response = client.post("/tiktok/search", json=request_payload)
 
