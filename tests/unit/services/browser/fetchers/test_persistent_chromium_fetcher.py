@@ -123,6 +123,80 @@ def test_fetch_with_persistent_context(monkeypatch: pytest.MonkeyPatch) -> None:
     assert fake_context.new_page_called == 1
 
 
+def test_fetch_reuses_profile_directory(monkeypatch: pytest.MonkeyPatch, tmp_path: Any) -> None:
+    persistent_calls: list[dict[str, Any]] = []
+    created_contexts: list[FakeContext] = []
+
+    def launch_persistent_context(**kwargs: Any) -> FakeContext:
+        persistent_calls.append(dict(kwargs))
+        context = FakeContext(page=FakePage(html="<html>call</html>"))
+        created_contexts.append(context)
+        return context
+
+    fake_playwright = SimpleNamespace(
+        chromium=SimpleNamespace(
+            launch_persistent_context=launch_persistent_context,
+            launch=Mock(name="unused_launch"),
+        )
+    )
+
+    monkeypatch.setattr(
+        persistent_chromium,
+        "sync_playwright",
+        lambda: FakeSyncManager(fake_playwright),
+    )
+
+    fetcher = persistent_chromium.PersistentChromiumFetcher(user_data_dir=str(tmp_path))
+
+    results = [
+        fetcher.fetch(f"https://example.com/{idx}")
+        for idx in range(2)
+    ]
+
+    expected_user_data_dir = os.path.abspath(tmp_path)
+    assert [call["user_data_dir"] for call in persistent_calls] == [
+        expected_user_data_dir,
+        expected_user_data_dir,
+    ]
+    assert len(created_contexts) == 2
+    assert all(context.new_page_called == 1 for context in created_contexts)
+
+    for result in results:
+        result.page.close()
+
+
+def test_fetch_with_proxy_arguments(monkeypatch: pytest.MonkeyPatch) -> None:
+    persistent_kwargs: Dict[str, Any] = {}
+
+    def launch_persistent_context(**kwargs: Any) -> FakeContext:
+        persistent_kwargs.update(kwargs)
+        return FakeContext(page=FakePage(html="<html>proxy</html>"))
+
+    fake_playwright = SimpleNamespace(
+        chromium=SimpleNamespace(
+            launch_persistent_context=launch_persistent_context,
+            launch=Mock(name="unused_launch"),
+        )
+    )
+
+    monkeypatch.setattr(
+        persistent_chromium,
+        "sync_playwright",
+        lambda: FakeSyncManager(fake_playwright),
+    )
+
+    fetcher = persistent_chromium.PersistentChromiumFetcher(user_data_dir="profile")
+    proxy_arg = "--proxy-server=http://127.0.0.1:8080"
+
+    fetcher.fetch(
+        "https://example.com/proxy",
+        browser_args=[proxy_arg],
+    )
+
+    assert persistent_kwargs["args"] == [proxy_arg]
+    assert persistent_kwargs["user_data_dir"] == os.path.abspath("profile")
+
+
 def test_fetch_ephemeral_context_cleans_up_on_error(monkeypatch: pytest.MonkeyPatch) -> None:
     goto_error = RuntimeError("navigation failed")
     fake_page = FakePage(html="<html>boom</html>", goto_error=goto_error)
@@ -165,6 +239,37 @@ def test_fetch_ephemeral_context_cleans_up_on_error(monkeypatch: pytest.MonkeyPa
     }
     assert fake_page.closed is True
     assert fetcher.context is fake_context
+
+
+def test_fetch_ephemeral_launch_failure_logs_and_raises(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def launch(**kwargs: Any) -> FakeBrowser:
+        raise RuntimeError("launch failed")
+
+    fake_playwright = SimpleNamespace(
+        chromium=SimpleNamespace(
+            launch=launch,
+            launch_persistent_context=Mock(name="unused_persistent"),
+        )
+    )
+
+    monkeypatch.setattr(
+        persistent_chromium,
+        "sync_playwright",
+        lambda: FakeSyncManager(fake_playwright),
+    )
+
+    logger_mock = Mock()
+    monkeypatch.setattr(persistent_chromium, "logger", logger_mock)
+
+    fetcher = persistent_chromium.PersistentChromiumFetcher()
+
+    with pytest.raises(RuntimeError):
+        fetcher.fetch("https://example.com/launch-error")
+
+    assert fetcher.context is None
+    logger_mock.error.assert_called_once()
 
 
 def test_cleanup_methods_close_resources() -> None:
