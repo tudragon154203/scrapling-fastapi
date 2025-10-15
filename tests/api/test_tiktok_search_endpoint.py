@@ -7,6 +7,7 @@ from fastapi.responses import JSONResponse
 from app.api.tiktok import tiktok_search_endpoint
 from app.schemas.tiktok.search import TikTokSearchRequest, TikTokSearchResponse
 from app.services.tiktok.search.service import TikTokSearchService
+from specify_src.services.execution_context_service import ExecutionContextService
 
 
 @pytest.mark.asyncio
@@ -85,6 +86,12 @@ async def test_tiktok_search_endpoint_rejects_unknown_extras(monkeypatch):
 async def test_tiktok_search_endpoint_normalizes_service_payload(monkeypatch):
     captured_calls = {}
 
+    monkeypatch.setattr(
+        ExecutionContextService,
+        "is_test_environment",
+        staticmethod(lambda: False),
+    )
+
     async def fake_search(self, query, num_videos):
         captured_calls["query"] = query
         captured_calls["num_videos"] = num_videos
@@ -135,9 +142,9 @@ async def test_tiktok_search_endpoint_normalizes_service_payload(monkeypatch):
     assert response.totalResults == 2
     assert response.query == "foo, bar"
 
-    assert response.execution_mode == "headless"
+    assert response.execution_mode == "headful"
     metadata = response.search_metadata
-    assert metadata.executed_path == "headless"
+    assert metadata.executed_path == "browser-based"
     assert metadata.execution_time >= 0
     expected_hash = hashlib.md5(
         json.dumps(payload.model_dump(mode="json"), sort_keys=True).encode()
