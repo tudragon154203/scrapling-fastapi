@@ -16,6 +16,7 @@ from app.services.common.browser import user_data
 def test_user_data_context_modes(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
     mode: str,
     fcntl_available: bool,
 ) -> None:
@@ -24,6 +25,7 @@ def test_user_data_context_modes(
 
     monkeypatch.setattr(user_data, "FCNTL_AVAILABLE", fcntl_available)
 
+    caplog.clear()
     if mode == "read":
         master_dir = base_dir / "master"
         master_dir.mkdir()
@@ -31,18 +33,21 @@ def test_user_data_context_modes(
         fake_uuid = uuid.UUID("12345678123456781234567812345678")
         monkeypatch.setattr(user_data.uuid, "uuid4", lambda: fake_uuid)
 
-    with user_data.user_data_context(str(base_dir), mode) as (path, cleanup):
-        assert callable(cleanup)
-        if mode == "write":
-            expected_master = base_dir / "master"
-            assert Path(path) == expected_master
-            lock_file = base_dir / "master.lock"
-            assert lock_file.exists()
-        else:
-            clone_dir = Path(path)
-            assert clone_dir.exists()
-            assert clone_dir.parent == base_dir / "clones"
-            assert (clone_dir / "state.txt").read_text() == "ready"
+    with caplog.at_level(logging.WARNING, logger=user_data.__name__):
+        with user_data.user_data_context(str(base_dir), mode) as (path, cleanup):
+            assert callable(cleanup)
+            if mode == "write":
+                expected_master = base_dir / "master"
+                assert Path(path) == expected_master
+                lock_file = base_dir / "master.lock"
+                assert lock_file.exists()
+                if not fcntl_available:
+                    assert any("fcntl not available" in message for message in caplog.messages)
+            else:
+                clone_dir = Path(path)
+                assert clone_dir.exists()
+                assert clone_dir.parent == base_dir / "clones"
+                assert (clone_dir / "state.txt").read_text() == "ready"
 
     cleanup()
 
@@ -110,12 +115,12 @@ def test_read_mode_cleanup_retries_and_succeeds(
         clone_dir = Path(path)
         assert clone_dir.exists()
 
-    caplog.set_level(logging.WARNING)
-
-    cleanup()
+    caplog.clear()
+    with caplog.at_level(logging.WARNING, logger=user_data.__name__):
+        cleanup()
 
     assert attempts["count"] == 3
     assert not clone_dir.exists()
 
-    warnings = [record for record in caplog.records if record.levelno == logging.WARNING]
-    assert len([record for record in warnings if "Attempt" in record.message]) == 2
+    warnings = [record for record in caplog.records if "Attempt" in record.message]
+    assert len(warnings) == 2
