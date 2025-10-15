@@ -1,6 +1,11 @@
 from unittest.mock import Mock
 
+import pytest
+
 from app.services.browser.actions.scroll import ScrollDownAction
+
+
+pytestmark = pytest.mark.unit
 
 
 def test_execute_wait_selector_fallback():
