@@ -12,6 +12,9 @@ from app.services.common.browser.profile_manager import (
 )
 
 
+pytestmark = pytest.mark.unit
+
+
 class DummyBrowserforge:
     __version__ = "9.9.9"
 

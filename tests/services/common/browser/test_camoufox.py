@@ -9,6 +9,9 @@ from app.services.common.browser import camoufox
 from app.services.common.browser.camoufox import CamoufoxArgsBuilder
 
 
+pytestmark = pytest.mark.unit
+
+
 class DummyPayload:
     def __init__(self, force_user_data: bool, headers: Dict[str, str] | None = None) -> None:
         self.force_user_data = force_user_data

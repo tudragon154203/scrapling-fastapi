@@ -5,6 +5,9 @@ import pytest
 from app.services.common.browser import user_data
 
 
+pytestmark = pytest.mark.unit
+
+
 def test_user_data_context_rejects_invalid_mode(tmp_path: Path) -> None:
     base_dir = tmp_path / "profiles"
     with pytest.raises(ValueError):
