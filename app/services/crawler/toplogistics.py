@@ -9,41 +9,6 @@ logger = logging.getLogger(__name__)
 TOPLOGISTICS_BASE = "https://imshk.toplogistics.com.au/customerService/imparcelTracking"
 
 
-def extract_tracking_code(raw: str) -> str:
-    """Extract tracking code from either a bare code or search URL.
-
-    Args:
-        raw: Raw input string, either a tracking code or search URL
-
-    Returns:
-        Normalized tracking code
-
-    Raises:
-        ValueError: If tracking code cannot be extracted
-    """
-    if not raw or not isinstance(raw, str):
-        raise ValueError('tracking_code must be a non-empty string')
-
-    raw_stripped = raw.strip()
-    if not raw_stripped:
-        raise ValueError('tracking_code must be a non-empty string')
-
-    # If a URL is provided, extract the 's' parameter
-    if raw_stripped.startswith("http://") or raw_stripped.startswith("https://"):
-        try:
-            from urllib.parse import urlparse, parse_qs
-            parsed = urlparse(raw_stripped)
-            query_params = parse_qs(parsed.query or "")
-            s_params = query_params.get('s', [])
-            if s_params and s_params[0].strip():
-                return s_params[0].strip()
-            raise ValueError("Invalid TopLogistics search URL: could not extract 's' parameter")
-        except Exception as e:
-            raise ValueError(str(e))
-
-    return raw_stripped
-
-
 def build_tracking_url(code: str) -> str:
     """Build the canonical TopLogistics tracking URL from a tracking code.
 

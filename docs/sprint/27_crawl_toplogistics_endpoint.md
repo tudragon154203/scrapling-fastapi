@@ -60,8 +60,7 @@ Notes
   - `TopLogisticsCrawlResponse`: matches DPD/AusPost shape.
 - Services (`app/services/crawler/toplogistics.py`):
   - `build_tracking_url(code: str) -> str` helper.
-  - `extract_tracking_code(raw: str) -> str` helper shared with schema validator (testable in isolation).
-  - `crawl_toplogistics(request: TopLogisticsCrawlRequest) -> TopLogisticsCrawlResponse` that prepares the `CrawlRequest`, invokes the generic executor, and wraps the response.
+  - `TopLogisticsCrawler.run(request: TopLogisticsCrawlRequest) -> TopLogisticsCrawlResponse` that prepares the `CrawlRequest`, invokes the generic executor, and wraps the response.
 - API (`app/api/...`):
   - New router entry `POST /crawl/toplogistics` delegating to the service.
   - Ensure routers follow existing grouping (likely `app/api/crawl_router.py` or similar file).

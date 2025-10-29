@@ -1,9 +1,73 @@
 from app.schemas.toplogistics import TopLogisticsCrawlRequest
-from app.services.crawler.toplogistics import TopLogisticsCrawler, extract_tracking_code, build_tracking_url
+from app.services.crawler.toplogistics import TopLogisticsCrawler, build_tracking_url
 import pytest
 from unittest.mock import MagicMock
 
 pytestmark = [pytest.mark.unit]
+
+
+class TestTopLogisticsCrawlRequestSchema:
+    """Test TopLogisticsCrawlRequest schema validation."""
+
+    def test_bare_tracking_code_validation(self):
+        """Test validation with bare tracking code."""
+        request = TopLogisticsCrawlRequest(tracking_code="33EVH0319358")
+        assert request.tracking_code == "33EVH0319358"
+
+    def test_tracking_code_with_whitespace_validation(self):
+        """Test validation with whitespace trimming."""
+        request = TopLogisticsCrawlRequest(tracking_code="  33EVH0319358  ")
+        assert request.tracking_code == "33EVH0319358"
+
+    def test_search_url_https_validation(self):
+        """Test validation with HTTPS search URL."""
+        request = TopLogisticsCrawlRequest(tracking_code="https://toplogistics.com.au/?s=33EVH0319358")
+        assert request.tracking_code == "33EVH0319358"
+
+    def test_search_url_http_validation(self):
+        """Test validation with HTTP search URL."""
+        request = TopLogisticsCrawlRequest(tracking_code="http://toplogistics.com.au/?s=33EVH0319358")
+        assert request.tracking_code == "33EVH0319358"
+
+    def test_search_url_with_multiple_params_validation(self):
+        """Test validation with URL with multiple parameters."""
+        request = TopLogisticsCrawlRequest(tracking_code="https://toplogistics.com.au/?s=33EVH0319358&other=value&more=data")
+        assert request.tracking_code == "33EVH0319358"
+
+    def test_search_url_with_whitespace_in_param_validation(self):
+        """Test validation with whitespace in s parameter."""
+        request = TopLogisticsCrawlRequest(tracking_code="https://toplogistics.com.au/?s=  33EVH0319358  ")
+        assert request.tracking_code == "33EVH0319358"
+
+    def test_empty_string_validation_error(self):
+        """Test that empty string raises ValueError."""
+        with pytest.raises(ValueError) as exc_info:
+            TopLogisticsCrawlRequest(tracking_code="")
+        assert "non-empty string" in str(exc_info.value)
+
+    def test_whitespace_only_validation_error(self):
+        """Test that whitespace-only string raises ValueError."""
+        with pytest.raises(ValueError) as exc_info:
+            TopLogisticsCrawlRequest(tracking_code="   ")
+        assert "non-empty string" in str(exc_info.value)
+
+    def test_non_string_validation_error(self):
+        """Test that non-string input raises ValueError."""
+        with pytest.raises(ValueError) as exc_info:
+            TopLogisticsCrawlRequest(tracking_code=123456)
+        assert "Input should be a valid string" in str(exc_info.value)
+
+    def test_url_without_s_parameter_validation_error(self):
+        """Test that URL without s parameter raises ValueError."""
+        with pytest.raises(ValueError) as exc_info:
+            TopLogisticsCrawlRequest(tracking_code="https://toplogistics.com.au/")
+        assert "could not extract 's' parameter" in str(exc_info.value)
+
+    def test_url_with_empty_s_parameter_validation_error(self):
+        """Test that URL with empty s parameter raises ValueError."""
+        with pytest.raises(ValueError) as exc_info:
+            TopLogisticsCrawlRequest(tracking_code="https://toplogistics.com.au/?s=")
+        assert "could not extract 's' parameter" in str(exc_info.value)
 
 
 @pytest.fixture
@@ -18,70 +82,6 @@ def mock_engine():
 def toplogistics_crawler(mock_engine):
     """Fixture for TopLogisticsCrawler with mocked engine."""
     return TopLogisticsCrawler(engine=mock_engine)
-
-
-class TestExtractTrackingCode:
-    """Test extract_tracking_code helper function."""
-
-    def test_bare_tracking_code(self):
-        """Test extraction of bare tracking code."""
-        result = extract_tracking_code("33EVH0319358")
-        assert result == "33EVH0319358"
-
-    def test_tracking_code_with_whitespace(self):
-        """Test extraction with whitespace trimming."""
-        result = extract_tracking_code("  33EVH0319358  ")
-        assert result == "33EVH0319358"
-
-    def test_search_url_https(self):
-        """Test extraction from HTTPS search URL."""
-        result = extract_tracking_code("https://toplogistics.com.au/?s=33EVH0319358")
-        assert result == "33EVH0319358"
-
-    def test_search_url_http(self):
-        """Test extraction from HTTP search URL."""
-        result = extract_tracking_code("http://toplogistics.com.au/?s=33EVH0319358")
-        assert result == "33EVH0319358"
-
-    def test_search_url_with_multiple_params(self):
-        """Test extraction from URL with multiple parameters."""
-        result = extract_tracking_code("https://toplogistics.com.au/?s=33EVH0319358&other=value&more=data")
-        assert result == "33EVH0319358"
-
-    def test_search_url_with_whitespace_in_s_param(self):
-        """Test extraction with whitespace in s parameter."""
-        result = extract_tracking_code("https://toplogistics.com.au/?s=  33EVH0319358  ")
-        assert result == "33EVH0319358"
-
-    def test_empty_string(self):
-        """Test that empty string raises ValueError."""
-        with pytest.raises(ValueError) as exc_info:
-            extract_tracking_code("")
-        assert "non-empty string" in str(exc_info.value)
-
-    def test_whitespace_only_string(self):
-        """Test that whitespace-only string raises ValueError."""
-        with pytest.raises(ValueError) as exc_info:
-            extract_tracking_code("   ")
-        assert "non-empty string" in str(exc_info.value)
-
-    def test_non_string_input(self):
-        """Test that non-string input raises ValueError."""
-        with pytest.raises(ValueError) as exc_info:
-            extract_tracking_code(123456)
-        assert "non-empty string" in str(exc_info.value)
-
-    def test_url_without_s_parameter(self):
-        """Test that URL without s parameter raises ValueError."""
-        with pytest.raises(ValueError) as exc_info:
-            extract_tracking_code("https://toplogistics.com.au/")
-        assert "could not extract 's' parameter" in str(exc_info.value)
-
-    def test_url_with_empty_s_parameter(self):
-        """Test that URL with empty s parameter raises ValueError."""
-        with pytest.raises(ValueError) as exc_info:
-            extract_tracking_code("https://toplogistics.com.au/?s=")
-        assert "could not extract 's' parameter" in str(exc_info.value)
 
 
 class TestBuildTrackingUrl:
