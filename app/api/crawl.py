@@ -10,9 +10,11 @@ from fastapi.responses import JSONResponse
 from app.schemas.auspost import AuspostCrawlRequest, AuspostCrawlResponse
 from app.schemas.crawl import CrawlRequest, CrawlResponse
 from app.schemas.dpd import DPDCrawlRequest, DPDCrawlResponse
+from app.schemas.toplogistics import TopLogisticsCrawlRequest, TopLogisticsCrawlResponse
 from app.services.crawler.auspost import AuspostCrawler
 from app.services.crawler.dpd import DPDCrawler
 from app.services.crawler.generic import GenericCrawler
+from app.services.crawler.toplogistics import TopLogisticsCrawler
 
 
 class CrawlerServiceProtocol(Protocol):
@@ -136,14 +138,19 @@ def crawl_auspost(request: AuspostCrawlRequest) -> AuspostCrawlResponse:
     return crawler.run(request)
 
 
-@router.post("/crawl/auspost", response_model=AuspostCrawlResponse, tags=["crawl"])
+@router.post(
+    "/crawl/auspost",
+    response_model=AuspostCrawlResponse,
+    tags=["crawl"],
+    description=(
+        "AusPost tracking endpoint using Scrapling. Accepts either a tracking code or "
+        "a full details URL "
+        "(`https://auspost.com.au/mypost/track/details/<CODE>`) and returns the "
+        "rendered tracking page HTML."
+    ),
+)
 def crawl_auspost_endpoint(payload: AuspostCrawlRequest):
-    """AusPost tracking endpoint using Scrapling.
-
-    Accepts a tracking code or a full details URL
-    (https://auspost.com.au/mypost/track/details/<CODE>) and returns the
-    AusPost tracking page HTML. Delegates to `crawl_auspost`.
-    """
+    """AusPost tracking endpoint."""
     if not isinstance(crawl_auspost, FunctionType):
         req_obj = SimpleNamespace(
             tracking_code=payload.tracking_code,
@@ -156,6 +163,45 @@ def crawl_auspost_endpoint(payload: AuspostCrawlRequest):
 
     result = crawl_auspost(request=req_obj)
     if isinstance(result, AuspostCrawlResponse):
+        return result
+    status_code = getattr(result, "status_code", 200)
+    body = getattr(result, "json", None)
+    if isinstance(body, dict):
+        return JSONResponse(content=body, status_code=int(status_code))
+    return JSONResponse(content={}, status_code=int(status_code))
+
+
+def crawl_toplogistics(request: TopLogisticsCrawlRequest) -> TopLogisticsCrawlResponse:
+    """TopLogistics tracking handler used by the API route."""
+    crawler = TopLogisticsCrawler()
+    return crawler.run(request)
+
+
+@router.post(
+    "/crawl/toplogistics",
+    response_model=TopLogisticsCrawlResponse,
+    tags=["crawl"],
+    description=(
+        "TopLogistics tracking endpoint using Scrapling. Accepts either a tracking "
+        "code (e.g. `33EVH0319358`) or a full search URL "
+        "(`https://toplogistics.com.au/?s=<CODE>`) and returns the rendered tracking "
+        "page HTML."
+    ),
+)
+def crawl_toplogistics_endpoint(payload: TopLogisticsCrawlRequest):
+    """TopLogistics tracking endpoint."""
+    if not isinstance(crawl_toplogistics, FunctionType):
+        req_obj = SimpleNamespace(
+            tracking_code=payload.tracking_code,
+            force_user_data=payload.force_user_data,
+            force_headful=payload.force_headful,
+            force_mute_audio=True,
+        )
+    else:
+        req_obj = payload
+
+    result = crawl_toplogistics(request=req_obj)
+    if isinstance(result, TopLogisticsCrawlResponse):
         return result
     status_code = getattr(result, "status_code", 200)
     body = getattr(result, "json", None)
