@@ -103,6 +103,10 @@ class TopLogisticsCrawler:
             force_user_data=toplogistics_request.force_user_data,
             timeout_seconds=25,  # As specified in PRD
             headers={
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                "User-Agent": (
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) "
+                    "Chrome/120.0.0.0 Safari/537.36"
+                )
             }
         )
